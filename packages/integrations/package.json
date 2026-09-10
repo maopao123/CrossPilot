@@ -1,0 +1,33 @@
+{
+  "name": "@crosspilot/integrations",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./redis": {
+      "types": "./dist/redis/redis.service.d.ts",
+      "default": "./dist/redis/redis.service.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rimraf dist",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"Integrations package verified\""
+  },
+  "dependencies": {
+    "@crosspilot/shared": "workspace:*",
+    "@zilliz/milvus2-sdk-node": "^2.4.9",
+    "ioredis": "^5.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}

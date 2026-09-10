@@ -1,0 +1,22 @@
+{
+  "name": "crosspilot-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CrossPilot — AI Cross-border Operations Platform Monorepo",
+  "scripts": {
+    "build": "pnpm -r --filter=\"./packages/*\" run build && pnpm -r --filter=\"./apps/*\" run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "dev:api": "pnpm --filter @crosspilot/api run start:dev",
+    "dev:web": "pnpm --filter @crosspilot/web run dev",
+    "dev:worker": "pnpm --filter @crosspilot/worker run start:dev",
+    "db:generate": "pnpm --filter @crosspilot/db run generate",
+    "db:migrate": "pnpm --filter @crosspilot/db run migrate",
+    "db:seed": "pnpm --filter @crosspilot/db run seed"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}
