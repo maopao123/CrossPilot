@@ -13,10 +13,17 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Global prefix /api/v1, excluding /api/health to satisfy Section 260
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['health', 'health/ai', 'api/health', 'api/health/ai'],
-  });
+  // Global prefix /api/v1
+  app.setGlobalPrefix('api/v1');
+
+  // Support /api/health and /health redirects to /api/v1/health (Section 260)
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/api/health', (_req: any, res: any) =>
+    res.redirect(307, '/api/v1/health'),
+  );
+  httpAdapter.get('/health', (_req: any, res: any) =>
+    res.redirect(307, '/api/v1/health'),
+  );
 
   const port = Number(process.env.PORT || process.env.API_PORT) || 3001;
   await app.listen(port);

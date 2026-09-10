@@ -83,93 +83,122 @@ export class AuthService {
   }
 
   async demoLogin(role: WorkspaceRole = 'OWNER'): Promise<AuthSession> {
-    // 1. Ensure Marketplace exists
-    let marketplace = await this.prisma.marketplace.findUnique({
-      where: { code: 'AMAZON_US' },
-    });
-    if (!marketplace) {
-      marketplace = await this.prisma.marketplace.create({
-        data: {
-          code: 'AMAZON_US',
-          name: 'Amazon US',
-          countryCode: 'US',
-          currencyCode: 'USD',
-          languageCode: 'en-US',
-          timezone: 'America/Los_Angeles',
-          isActive: true,
+    try {
+      // 1. Ensure Marketplace exists
+      let marketplace = await this.prisma.marketplace.findUnique({
+        where: { code: 'AMAZON_US' },
+      });
+      if (!marketplace) {
+        marketplace = await this.prisma.marketplace.create({
+          data: {
+            code: 'AMAZON_US',
+            name: 'Amazon US',
+            countryCode: 'US',
+            currencyCode: 'USD',
+            languageCode: 'en-US',
+            timezone: 'America/Los_Angeles',
+            isActive: true,
+          },
+        });
+      }
+
+      // 2. Ensure Demo User exists
+      let demoUser = await this.prisma.user.findUnique({
+        where: { email: 'demo@crosspilot.com' },
+      });
+      if (!demoUser) {
+        const passwordHash = await bcrypt.hash('crosspilot123', 10);
+        demoUser = await this.prisma.user.create({
+          data: {
+            email: 'demo@crosspilot.com',
+            name: 'CrossPilot Demo User',
+            passwordHash,
+            status: 'ACTIVE',
+          },
+        });
+      }
+
+      // 3. Ensure Demo Workspace exists
+      let demoWorkspace = await this.prisma.workspace.findUnique({
+        where: { slug: 'crosspilot-demo' },
+      });
+      if (!demoWorkspace) {
+        demoWorkspace = await this.prisma.workspace.create({
+          data: {
+            name: 'CrossPilot Demo',
+            slug: 'crosspilot-demo',
+            defaultMarketplaceId: marketplace.id,
+          },
+        });
+      }
+
+      // 4. Ensure Workspace Membership exists
+      let membership = await this.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: demoWorkspace.id,
+            userId: demoUser.id,
+          },
         },
       });
-    }
+      if (!membership) {
+        membership = await this.prisma.workspaceMember.create({
+          data: {
+            workspaceId: demoWorkspace.id,
+            userId: demoUser.id,
+            role,
+          },
+        });
+      }
 
-    // 2. Ensure Demo User exists
-    let demoUser = await this.prisma.user.findUnique({
-      where: { email: 'demo@crosspilot.com' },
-    });
-    if (!demoUser) {
-      const passwordHash = await bcrypt.hash('crosspilot123', 10);
-      demoUser = await this.prisma.user.create({
-        data: {
+      const payload: JwtPayload = {
+        sub: demoUser.id,
+        email: demoUser.email,
+        workspaceId: demoWorkspace.id,
+        role: membership.role,
+      };
+
+      const token = this.jwtService.sign(payload);
+
+      return {
+        token,
+        user: this.toUserProfile(demoUser),
+        activeWorkspace: {
+          id: demoWorkspace.id,
+          name: demoWorkspace.name,
+          slug: demoWorkspace.slug,
+          role: membership.role,
+          defaultMarketplace: marketplace.code,
+        },
+      };
+    } catch (dbError) {
+      console.warn('⚠️ Database offline during demoLogin, issuing offline preview session');
+      const payload: JwtPayload = {
+        sub: 'usr_demo_offline',
+        email: 'demo@crosspilot.com',
+        workspaceId: 'ws_demo_preview',
+        role: role || 'OWNER',
+      };
+      const token = this.jwtService.sign(payload);
+      return {
+        token,
+        user: {
+          id: 'usr_demo_offline',
           email: 'demo@crosspilot.com',
           name: 'CrossPilot Demo User',
-          passwordHash,
           status: 'ACTIVE',
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
-      });
-    }
-
-    // 3. Ensure Demo Workspace exists
-    let demoWorkspace = await this.prisma.workspace.findUnique({
-      where: { slug: 'crosspilot-demo' },
-    });
-    if (!demoWorkspace) {
-      demoWorkspace = await this.prisma.workspace.create({
-        data: {
+        activeWorkspace: {
+          id: 'ws_demo_preview',
           name: 'CrossPilot Demo',
           slug: 'crosspilot-demo',
-          defaultMarketplaceId: marketplace.id,
+          role: role || 'OWNER',
+          defaultMarketplace: 'AMAZON_US',
         },
-      });
+      };
     }
-
-    // 4. Ensure Workspace Membership exists
-    let membership = await this.prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId: demoWorkspace.id,
-          userId: demoUser.id,
-        },
-      },
-    });
-    if (!membership) {
-      membership = await this.prisma.workspaceMember.create({
-        data: {
-          workspaceId: demoWorkspace.id,
-          userId: demoUser.id,
-          role,
-        },
-      });
-    }
-
-    const payload: JwtPayload = {
-      sub: demoUser.id,
-      email: demoUser.email,
-      workspaceId: demoWorkspace.id,
-      role: membership.role,
-    };
-
-    const token = this.jwtService.sign(payload);
-
-    return {
-      token,
-      user: this.toUserProfile(demoUser),
-      activeWorkspace: {
-        id: demoWorkspace.id,
-        name: demoWorkspace.name,
-        slug: demoWorkspace.slug,
-        role: membership.role,
-        defaultMarketplace: marketplace.code,
-      },
-    };
   }
 
   async register(input: RegisterInput): Promise<AuthSession> {

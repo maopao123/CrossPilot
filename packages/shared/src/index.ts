@@ -4,4 +4,6 @@ export * from './types/auth.js';
 export * from './types/workspace.js';
 export * from './types/marketplace.js';
 export * from './types/health.js';
+export * from './types/commerce.js';
 export * from './dto/auth.dto.js';
+export * from './dto/commerce.dto.js';
