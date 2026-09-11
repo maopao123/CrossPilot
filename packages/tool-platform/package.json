@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@crosspilot/domain": "workspace:*",
+    "@crosspilot/integrations": "workspace:*",
     "@crosspilot/shared": "workspace:*"
   },
   "devDependencies": {

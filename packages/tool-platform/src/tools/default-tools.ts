@@ -21,6 +21,13 @@ import {
   KeywordFileExtractTool,
   KeywordNormalizeTool,
 } from './keyword-intake.tools.js';
+import {
+  MarketProductSearchTool,
+  MarketProductDetailTool,
+  MarketOverviewTool,
+  MarketKeywordSearchTool,
+  MarketProductTrendTool,
+} from './market/market.tools.js';
 
 export const ALL_DEFAULT_TOOLS = [
   // Existing Domain Wrappers
@@ -46,6 +53,13 @@ export const ALL_DEFAULT_TOOLS = [
   ProductVisualExtractTool,
   KeywordFileExtractTool,
   KeywordNormalizeTool,
+
+  // Market Research Tools (Integration Provider Framework & XYDC)
+  MarketProductSearchTool,
+  MarketProductDetailTool,
+  MarketOverviewTool,
+  MarketKeywordSearchTool,
+  MarketProductTrendTool,
 ];
 
 export function createDefaultToolRegistry(): ToolRegistry {

@@ -310,6 +310,9 @@ importers:
       '@crosspilot/domain':
         specifier: workspace:*
         version: link:../domain
+      '@crosspilot/integrations':
+        specifier: workspace:*
+        version: link:../integrations
       '@crosspilot/shared':
         specifier: workspace:*
         version: link:../shared

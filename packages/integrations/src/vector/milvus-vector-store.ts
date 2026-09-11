@@ -1,4 +1,4 @@
-import { MilvusClient } from '@zilliz/milvus2-sdk-node';
+import type { MilvusClient } from '@zilliz/milvus2-sdk-node';
 import { ServiceHealthItem } from '@crosspilot/shared';
 import { VectorRecord, VectorSearchResult, VectorStore } from './vector-store.interface.js';
 
@@ -24,7 +24,9 @@ export class MilvusVectorStore implements VectorStore {
 
   public async connect(): Promise<void> {
     if (!this.client) {
-      this.client = new MilvusClient({
+      const sdk = await import('@zilliz/milvus2-sdk-node');
+      const ClientClass = sdk.MilvusClient || (sdk as any).default?.MilvusClient;
+      this.client = new ClientClass({
         address: this.config.address || 'localhost:19530',
         username: this.config.username,
         password: this.config.password,

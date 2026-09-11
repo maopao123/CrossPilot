@@ -13,7 +13,26 @@ import {
   Users,
   CheckCircle2,
   ChevronRight,
+  Database,
+  ShieldCheck,
+  Clock,
+  Activity,
+  RefreshCw,
+  Info,
+  Server,
+  FileText,
 } from 'lucide-react';
+
+interface ResearchEvidenceItem {
+  evidenceId: string;
+  source: string;
+  providerId: string;
+  type: string;
+  title?: string;
+  content: string;
+  capturedAt: string;
+  mode: string;
+}
 
 interface MarketSnapshot {
   seedKeyword: string;
@@ -26,6 +45,11 @@ interface MarketSnapshot {
   opportunityScore: number;
   competitionScore: number;
   trendingKeywords: Array<{ keyword: string; volume: number; growth: string }>;
+  provider?: string;
+  transport?: string;
+  mode?: 'LIVE' | 'CACHED' | 'MOCK' | 'DEGRADED';
+  capturedAt?: string;
+  evidence?: ResearchEvidenceItem[];
 }
 
 interface ProductOpportunity {
@@ -44,35 +68,62 @@ export default function MarketResearchPage() {
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
   const [opportunities, setOpportunities] = useState<ProductOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [keywordInput, setKeywordInput] = useState('marble toothbrush holder');
+  const [marketplaceInput, setMarketplaceInput] = useState('AMAZON_US');
+  const [showEvidence, setShowEvidence] = useState(false);
+
+  async function loadData(keyword?: string, marketplace?: string) {
+    try {
+      const kw = keyword !== undefined ? keyword : keywordInput;
+      const mp = marketplace !== undefined ? marketplace : marketplaceInput;
+      const queryParams = new URLSearchParams();
+      if (kw) queryParams.set('keyword', kw);
+      if (mp) queryParams.set('marketplace', mp);
+
+      const snapUrl = `/api/v1/market-research/snapshot?${queryParams.toString()}`;
+      const [snapRes, oppRes] = await Promise.allSettled([
+        ApiClient.get<MarketSnapshot>(snapUrl),
+        ApiClient.get<ProductOpportunity[]>('/api/v1/product-opportunities'),
+      ]);
+
+      if (snapRes.status === 'fulfilled') {
+        setSnapshot(snapRes.value);
+      }
+      if (oppRes.status === 'fulfilled' && Array.isArray(oppRes.value)) {
+        setOpportunities(oppRes.value);
+      }
+    } catch (err) {
+      console.error('无法载入市场调研数据:', err);
+    } finally {
+      setLoading(false);
+      setSearching(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [snapRes, oppRes] = await Promise.allSettled([
-          ApiClient.get<MarketSnapshot>('/api/v1/market-research/snapshot'),
-          ApiClient.get<ProductOpportunity[]>('/api/v1/product-opportunities'),
-        ]);
-
-        if (snapRes.status === 'fulfilled') setSnapshot(snapRes.value);
-        if (oppRes.status === 'fulfilled' && Array.isArray(oppRes.value)) {
-          setOpportunities(oppRes.value);
-        }
-      } catch (err) {
-        console.error('无法载入市场调研数据:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadData();
   }, []);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!keywordInput.trim()) return;
+    setSearching(true);
+    loadData(keywordInput.trim(), marketplaceInput);
+  };
+
   if (loading && !snapshot) {
     return (
-      <div className="py-20 text-center text-gray-400 text-sm">
-        正在加载市场与选品数据...
+      <div className="py-20 text-center text-gray-400 text-sm flex flex-col items-center justify-center space-y-3">
+        <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+        <span>正在通过 Provider Framework 检索市场与选品数据...</span>
       </div>
     );
   }
+
+  const currentMode = snapshot?.mode || 'MOCK';
+  const currentProvider = snapshot?.provider || 'mock';
+  const currentTransport = snapshot?.transport || 'NATIVE';
 
   return (
     <div className="space-y-6">
@@ -86,7 +137,7 @@ export default function MarketResearchPage() {
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            Amazon 美国站市场宏观大盘 • 核心词大盘态势与 VOC 选品机会卡
+            Amazon 宏观大盘 • 核心词大盘态势与 VOC 选品机会卡 • 集成 Provider Framework 数据接入
           </p>
         </div>
 
@@ -101,6 +152,131 @@ export default function MarketResearchPage() {
           </Link>
         </div>
       </div>
+
+      {/* Integration Provider & Governance Status Banner */}
+      <div className="bg-surface border border-border rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center space-x-3">
+          <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+            <Server className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-400">数据源通道:</span>
+              <span className="text-sm font-semibold text-white">
+                {currentProvider === 'xydc' ? '西柚洞察 (XYDC)' : '模拟数据源 (MockMarketProvider)'}
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-border bg-surface-elevated text-gray-300">
+                Transport: {currentTransport}
+              </span>
+              {currentMode === 'LIVE' ? (
+                <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>LIVE 实时连通</span>
+                </span>
+              ) : (
+                <span className="text-[11px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  <span>{currentMode === 'DEGRADED' ? 'DEGRADED 降级保护' : 'MOCK 确定性仿真'}</span>
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-4 text-xs text-gray-400 mt-1">
+              <span className="flex items-center space-x-1">
+                <Clock className="w-3 h-3 text-gray-500" />
+                <span>捕获时间: {snapshot?.capturedAt ? new Date(snapshot.capturedAt).toLocaleString() : '最新'}</span>
+              </span>
+              <span className="flex items-center space-x-1 text-emerald-400/90">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>凭据脱敏已生效 (Secret Redaction Active)</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Evidence Toggle Button */}
+        {snapshot?.evidence && snapshot.evidence.length > 0 && (
+          <button
+            onClick={() => setShowEvidence(!showEvidence)}
+            className="flex items-center space-x-1.5 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-lg transition"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>{showEvidence ? '隐藏事实凭证' : `查看事实凭证 (${snapshot.evidence.length})`}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Expandable Evidence Drawer */}
+      {showEvidence && snapshot?.evidence && (
+        <div className="bg-surface-elevated border border-border rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+              <ShieldCheck className="w-4 h-4 text-blue-400" />
+              <span>结构化事实凭证链 (Research Evidence Lineage)</span>
+            </h4>
+            <span className="text-[10px] text-gray-400 font-mono">不可篡改真实依据记录</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {snapshot.evidence.map((evi) => (
+              <div key={evi.evidenceId} className="bg-surface border border-border/80 rounded-lg p-3 text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white">{evi.title || '凭证记录'}</span>
+                  <span className="text-[10px] font-mono text-gray-400 bg-surface-elevated px-1.5 py-0.5 rounded border border-border">
+                    {evi.type} • {evi.mode}
+                  </span>
+                </div>
+                <p className="text-gray-300 text-[11px] leading-relaxed">{evi.content}</p>
+                <div className="text-[10px] text-gray-500 pt-1 flex items-center justify-between border-t border-border/40">
+                  <span>ID: {evi.evidenceId}</span>
+                  <span>Provider: {evi.providerId}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Query Bar */}
+      <form onSubmit={handleSearch} className="bg-surface border border-border rounded-xl p-4 flex flex-col md:flex-row items-center gap-3">
+        <div className="relative flex-1 w-full">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+          <input
+            type="text"
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            placeholder="输入调研核心词 (如: ergonomic office chair, wireless earbuds, marble toothbrush holder)..."
+            className="w-full bg-surface-elevated border border-border rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition"
+          />
+        </div>
+
+        <select
+          value={marketplaceInput}
+          onChange={(e) => setMarketplaceInput(e.target.value)}
+          className="w-full md:w-44 bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition"
+        >
+          <option value="AMAZON_US">Amazon 美国站 (US)</option>
+          <option value="AMAZON_UK">Amazon 英国站 (UK)</option>
+          <option value="AMAZON_DE">Amazon 德国站 (DE)</option>
+          <option value="AMAZON_JP">Amazon 日本站 (JP)</option>
+        </select>
+
+        <button
+          type="submit"
+          disabled={searching}
+          className="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-5 py-2 rounded-lg transition flex items-center justify-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+        >
+          {searching ? (
+            <>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>查询中...</span>
+            </>
+          ) : (
+            <>
+              <Search className="w-3.5 h-3.5" />
+              <span>执行大盘调研</span>
+            </>
+          )}
+        </button>
+      </form>
 
       {/* Market Overview Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -159,7 +335,7 @@ export default function MarketResearchPage() {
       <div className="bg-surface border border-border rounded-xl p-5">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3 flex items-center space-x-2">
           <TrendingUp className="w-4 h-4 text-blue-400" />
-          <span>高增长买家搜索词</span>
+          <span>高增长买家搜索词 (基于 {snapshot?.seedKeyword || '主题词'})</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

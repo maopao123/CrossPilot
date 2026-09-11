@@ -23,7 +23,7 @@
     "clean": "rimraf dist",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"Integrations package verified\""
+    "test": "node test/provider-framework.test.cjs"
   },
   "dependencies": {
     "@crosspilot/shared": "workspace:*",

@@ -7,3 +7,4 @@ export * from './types/health.js';
 export * from './types/commerce.js';
 export * from './dto/auth.dto.js';
 export * from './dto/commerce.dto.js';
+export * from './contracts/research-contracts.js';

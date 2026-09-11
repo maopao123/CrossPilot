@@ -7,8 +7,64 @@ export class MarketController {
   constructor(private readonly marketService: MarketService) {}
 
   @Get('market-research/snapshot')
-  getMarketSnapshot(@CurrentWorkspace() workspaceId: string) {
-    return this.marketService.getMarketSnapshot(workspaceId);
+  getMarketSnapshot(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('keyword') keyword?: string,
+    @Query('marketplace') marketplace?: string,
+  ) {
+    return this.marketService.getMarketSnapshot(workspaceId, keyword, marketplace);
+  }
+
+  @Get('market-research/products')
+  searchProducts(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('keyword') keyword: string,
+    @Query('category') category?: string,
+    @Query('marketplace') marketplace?: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.marketService.searchProducts(
+      workspaceId,
+      keyword,
+      category,
+      marketplace,
+      limit ? Number(limit) : 20,
+    );
+  }
+
+  @Get('market-research/products/:asin')
+  getProductDetail(
+    @CurrentWorkspace() workspaceId: string,
+    @Param('asin') asin: string,
+    @Query('marketplace') marketplace?: string,
+  ) {
+    return this.marketService.getProductDetail(workspaceId, asin, marketplace);
+  }
+
+  @Get('market-research/keywords')
+  searchKeywords(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('keyword') keyword: string,
+    @Query('marketplace') marketplace?: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.marketService.searchKeywords(
+      workspaceId,
+      keyword,
+      marketplace,
+      limit ? Number(limit) : 20,
+    );
+  }
+
+  @Get('market-research/trend')
+  getProductTrend(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('asin') asin: string,
+    @Query('metric') metric?: string,
+    @Query('range') range?: string,
+    @Query('marketplace') marketplace?: string,
+  ) {
+    return this.marketService.getProductTrend(workspaceId, asin, metric, range, marketplace);
   }
 
   @Get('competitors')
