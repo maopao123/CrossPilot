@@ -26,22 +26,22 @@ import {
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/app/overview', label: '01 经营驾驶舱', subLabel: 'Business Overview', icon: LayoutDashboard },
-  { href: '/app/market-research', label: '02 市场与选品', subLabel: 'Market & Research', icon: Search },
+  { href: '/app/overview', label: '01 经营概览', subLabel: 'Business Overview', icon: LayoutDashboard },
+  { href: '/app/market-research', label: '02 市场调研', subLabel: 'Market Research', icon: Search },
   { href: '/app/products', label: '03 产品中心', subLabel: 'Product Center', icon: Box },
   { href: '/app/competitors', label: '04 竞品与 VOC', subLabel: 'Competitor & VOC', icon: Users },
-  { href: '/app/tool-center', label: '05 统一工具中心', subLabel: 'Tool Platform (V9)', icon: Wrench },
+  { href: '/app/tool-center', label: '05 工具中心', subLabel: 'Tool Center', icon: Wrench },
   { href: '/app/suppliers', label: '06 供应链与采购', subLabel: 'Supply & Purchase', icon: Truck },
   { href: '/app/listings', label: '07 Listing 工作台', subLabel: 'Listing Studio', icon: FileEdit },
-  { href: '/app/creative', label: '08 素材工坊', subLabel: 'Creative Studio (P0)', icon: Sparkles },
+  { href: '/app/creative', label: '08 素材中心', subLabel: 'Creative Studio', icon: Sparkles },
   { href: '/app/advertising', label: '09 广告运营', subLabel: 'Advertising PPC', icon: Megaphone },
-  { href: '/app/orders', label: '10 订单与履约', subLabel: 'Orders', icon: ShoppingCart },
-  { href: '/app/inventory', label: '11 库存 / FBA', subLabel: 'Inventory & FBA', icon: Warehouse },
+  { href: '/app/orders', label: '10 订单管理', subLabel: 'Orders', icon: ShoppingCart },
+  { href: '/app/inventory', label: '11 库存 / FBA', subLabel: 'Inventory / FBA', icon: Warehouse },
   { href: '/app/reviews', label: '12 评论与退货', subLabel: 'Reviews & Returns', icon: MessageSquare },
   { href: '/app/profit', label: '13 利润中心', subLabel: 'Profit Center', icon: TrendingUp },
-  { href: '/app/business-analyst', label: '14 AI 经营分析', subLabel: 'Business Analyst', icon: BrainCircuit },
-  { href: '/app/operations/automation', label: '15 运营自动化', subLabel: 'RPA Automation (P0)', icon: PlayCircle },
-  { href: '/app/architecture', label: '16 架构与答辩', subLabel: 'Architecture & Defense', icon: BookOpen },
+  { href: '/app/business-analyst', label: '14 AI 经营分析', subLabel: 'AI Business Analyst', icon: BrainCircuit },
+  { href: '/app/operations/automation', label: '15 运营自动化', subLabel: 'Operation Automation', icon: PlayCircle },
+  { href: '/app/architecture', label: '16 架构与知识库', subLabel: 'Architecture & Defense', icon: BookOpen },
 ];
 
 export function Sidebar() {
@@ -56,7 +56,7 @@ export function Sidebar() {
         </div>
         <div>
           <h1 className="font-bold text-white text-base tracking-wide leading-tight">CrossPilot</h1>
-          <p className="text-[10px] text-gray-400">AI Cross-border Platform</p>
+          <p className="text-[10px] text-gray-400">跨境电商 AI 运营平台</p>
         </div>
       </div>
 

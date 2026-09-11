@@ -24,7 +24,7 @@ export default function LoginPage() {
       ApiClient.setSession(session.token, session.activeWorkspace?.id);
       router.push('/app/overview');
     } catch (err: any) {
-      setError(err.message || 'Demo login failed');
+      setError(err.message || '演示登录失败，请检查服务状态');
     } finally {
       setIsLoading(false);
     }
@@ -42,7 +42,7 @@ export default function LoginPage() {
       ApiClient.setSession(session.token, session.activeWorkspace?.id);
       router.push('/app/overview');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      setError(err.message || '登录失败，请检查账号密码');
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +61,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">CrossPilot</h1>
           <p className="text-sm text-gray-400 mt-1">
-            AI Cross-border Operations Platform
+            面向 Amazon 跨境卖家的 AI 运营平台
           </p>
         </div>
 
@@ -71,19 +71,19 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* 1-Click Demo Login (V9 Section 253) */}
+        {/* 1-Click Demo Login */}
         <div className="mb-6">
           <button
             onClick={handleDemoLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/25 disabled:opacity-50"
+            className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/25 disabled:opacity-50 cursor-pointer"
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>{isLoading ? 'Entering Platform...' : '进入演示工作区 (1-Click Demo Login)'}</span>
+            <span>{isLoading ? '正在进入平台...' : '一键进入演示工作区'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
           <p className="text-[11px] text-gray-500 text-center mt-2">
-            Default workspace: CrossPilot Demo (Amazon US)
+            默认工作区：CrossPilot 演示工作区（Amazon 美国站）
           </p>
         </div>
 
@@ -93,7 +93,7 @@ export default function LoginPage() {
           </div>
           <div className="relative flex justify-center text-xs">
             <span className="bg-surface px-3 text-gray-500 uppercase tracking-wider">
-              或者使用账号登录
+              或者使用账号密码登录
             </span>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function LoginPage() {
         <form onSubmit={handleStandardLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-300 mb-1.5">
-              Email
+              登录邮箱
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
@@ -119,7 +119,7 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-xs font-medium text-gray-300 mb-1.5">
-              Password
+              登录密码
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
@@ -137,15 +137,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 px-4 rounded-lg bg-surface-elevated hover:bg-gray-800 border border-border text-white text-sm font-medium transition disabled:opacity-50"
+            className="w-full py-2.5 px-4 rounded-lg bg-surface-elevated hover:bg-gray-800 border border-border text-white text-sm font-medium transition disabled:opacity-50 cursor-pointer"
           >
-            {isLoading ? 'Authenticating...' : 'Sign In'}
+            {isLoading ? '正在验证登录...' : '登录'}
           </button>
         </form>
 
         <div className="mt-8 text-center text-[11px] text-gray-500 flex items-center justify-center space-x-1">
           <Shield className="w-3.5 h-3.5 text-gray-500" />
-          <span>CrossPilot Monorepo V9 • Multi-tenant Protected</span>
+          <span>CrossPilot V9 • 多租户企业级安全隔离</span>
         </div>
       </div>
     </div>

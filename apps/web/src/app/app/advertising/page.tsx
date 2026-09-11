@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
+import { getStatusLabel } from '../../../constants/ui-labels';
 import {
   Megaphone,
   TrendingDown,
@@ -88,7 +89,7 @@ export default function AdvertisingPage() {
         setRecommendations(recsRes.value);
       }
     } catch (err) {
-      console.error('Failed to load advertising data:', err);
+      console.error('无法载入广告数据:', err);
     } finally {
       setLoading(false);
     }
@@ -109,11 +110,27 @@ export default function AdvertisingPage() {
       setApplySuccess(res.message);
       await loadData();
     } catch (err: any) {
-      console.error('Failed to apply negative keyword:', err);
+      console.error('应用否定关键词失败:', err);
     } finally {
       setApplying(null);
     }
   };
+
+  const getActionLabel = (action: string) => {
+    if (action === 'ADD_NEGATIVE_EXACT') return '精准否定';
+    if (action === 'INCREASE_BID') return '提升出价';
+    if (action === 'DECREASE_BID') return '降低出价';
+    if (action === 'MAINTAIN') return '保持观察';
+    return action;
+  };
+
+  if (loading && campaigns.length === 0) {
+    return (
+      <div className="py-20 text-center text-gray-400 text-sm">
+        正在加载广告运营数据...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -121,13 +138,13 @@ export default function AdvertisingPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">09 广告运营 (Advertising PPC)</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">09 广告运营</h1>
             <span className="text-xs bg-amber-500/20 text-amber-400 font-semibold px-2 py-0.5 rounded border border-amber-500/30">
-              Milestone 5: Search Term Optimization & Negative Action
+              搜索词优化与否定投放
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            Amazon Sponsored Products 投放与搜索词漏斗 • 高 ACOS 预算漏斗拦截
+            Amazon Sponsored Products 广告与搜索词漏斗 • 高 ACOS 预算漏斗拦截
           </p>
         </div>
 
@@ -145,7 +162,7 @@ export default function AdvertisingPage() {
               <div>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-bold uppercase text-amber-400 tracking-wider">
-                    PPC Waste Spend Warning (E02 / Section 282)
+                    PPC 预算浪费预警 (E02)
                   </span>
                   <span className="text-[10px] bg-rose-500/20 text-rose-300 font-semibold px-1.5 py-0.2 rounded">
                     ACOS 93.3% 预警
@@ -155,7 +172,7 @@ export default function AdvertisingPage() {
                   泛搜索词 &ldquo;bathroom organizer&rdquo; 正在严重吞噬广告预算
                 </h3>
                 <p className="text-xs text-gray-300 mt-0.5">
-                  已消耗广告费 $420.00，仅产生 2 笔转化（销售额 $450.00），ACOS 高达 93.3%。建议立即加入 Negative Exact。
+                  已消耗广告费 $420.00，仅产生 2 笔转化（销售额 $450.00），ACOS 高达 93.3%。建议立即加入精准否定 (Negative Exact)。
                 </p>
               </div>
             </div>
@@ -167,11 +184,11 @@ export default function AdvertisingPage() {
               <button
                 onClick={() => handleApplyNegative(recommendations[0])}
                 disabled={applying === recommendations[0].searchTerm}
-                className="flex items-center space-x-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-md"
+                className="flex items-center space-x-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-md cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>
-                  {applying === recommendations[0].searchTerm ? '正在写入广告活动...' : '一键添加精准否定 (Negative Exact)'}
+                  {applying === recommendations[0].searchTerm ? '正在写入广告活动...' : '一键添加精准否定词'}
                 </span>
               </button>
             </div>
@@ -186,7 +203,7 @@ export default function AdvertisingPage() {
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-white">{camp.name}</span>
               <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-semibold px-2 py-0.5 rounded uppercase">
-                {camp.status}
+                {getStatusLabel(camp.status)}
               </span>
             </div>
 
@@ -196,7 +213,7 @@ export default function AdvertisingPage() {
                 <div className="text-sm font-bold text-white mt-0.5">${camp.metrics30d.spend}</div>
               </div>
               <div className="bg-surface-elevated p-2 rounded">
-                <span className="text-[10px] text-gray-400">广告产出</span>
+                <span className="text-[10px] text-gray-400">广告销售额</span>
                 <div className="text-sm font-bold text-emerald-400 mt-0.5">${camp.metrics30d.sales}</div>
               </div>
               <div className="bg-surface-elevated p-2 rounded">
@@ -208,7 +225,7 @@ export default function AdvertisingPage() {
             </div>
 
             <div className="text-[11px] text-gray-400 flex items-center justify-between pt-1">
-              <span>日预算: ${camp.budget}/day</span>
+              <span>日预算: ${camp.budget} / 天</span>
               <span>ROAS: {camp.metrics30d.roas}x</span>
             </div>
           </div>
@@ -221,27 +238,27 @@ export default function AdvertisingPage() {
           <div>
             <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
               <Search className="w-4 h-4 text-blue-400" />
-              <span>买家搜索词报告 (Search Term Performance & Optimizer)</span>
+              <span>买家搜索词表现报告</span>
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              基于确定性业务逻辑分析 CTR, CVR, ACOS 并输出优化动作
+              基于确定性业务逻辑分析 CTR、CVR、ACOS 并输出优化建议
             </p>
           </div>
-          <span className="text-xs text-gray-400">Target ACOS: 30%</span>
+          <span className="text-xs text-gray-400">目标 ACOS: 30%</span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="text-[11px] text-gray-400 uppercase bg-surface-elevated/60 border-b border-border">
               <tr>
-                <th className="py-3 px-4">搜索词 (Search Term)</th>
-                <th className="py-3 px-4">曝光量 (Impr)</th>
-                <th className="py-3 px-4">点击量 (Clicks)</th>
+                <th className="py-3 px-4">搜索词</th>
+                <th className="py-3 px-4">曝光量</th>
+                <th className="py-3 px-4">点击量</th>
                 <th className="py-3 px-4">广告花费</th>
                 <th className="py-3 px-4">订单数</th>
                 <th className="py-3 px-4">销售额</th>
                 <th className="py-3 px-4">ACOS</th>
-                <th className="py-3 px-4">AI 优化建议 (Action)</th>
+                <th className="py-3 px-4">优化建议</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -251,7 +268,7 @@ export default function AdvertisingPage() {
 
                 return (
                   <tr key={term.id} className="hover:bg-surface-elevated/40 transition">
-                    <td className="py-3 px-4 font-bold text-white">{term.searchTerm}</td>
+                    <td className="py-3 px-4 font-bold text-white font-mono">{term.searchTerm}</td>
                     <td className="py-3 px-4 text-gray-300">{term.impressions.toLocaleString()}</td>
                     <td className="py-3 px-4 text-gray-300">{term.clicks.toLocaleString()}</td>
                     <td className="py-3 px-4 font-semibold text-white">${term.spend.toFixed(2)}</td>
@@ -271,7 +288,7 @@ export default function AdvertisingPage() {
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                             : 'bg-blue-500/20 text-blue-300'
                         }`}>
-                          {term.analysis.action}
+                          {getActionLabel(term.analysis.action)}
                         </span>
                         <span className="text-[11px] text-gray-400 max-w-xs truncate">{term.analysis.reason}</span>
                       </div>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
+import { getStatusLabel, getSeverityLabel } from '../../../constants/ui-labels';
 import {
   FileEdit,
   ShieldCheck,
@@ -139,14 +140,14 @@ export default function ListingStudioPage() {
   const [rufusItems, setRufusItems] = useState([
     {
       id: 'rufus-01',
-      question: 'Does this toothbrush holder fit Oral-B and Sonicare electric handles?',
-      answer: 'Yes, the large 1.5-inch diameter compartment comfortably accommodates slim and standard electric toothbrush handles.',
+      question: '这款牙刷架能容纳 Oral-B 和 Sonicare 电动牙刷柄吗？',
+      answer: '可以，加宽至 1.5 英寸的大口径插槽能轻松兼容标准尺寸与加粗电动牙刷手柄。',
       source: 'TXT',
     },
     {
       id: 'rufus-02',
-      question: 'Is it heavy enough so it will not slide or tip over when taking a brush out?',
-      answer: 'Yes, weighing approximately 3.57 lbs with EVA bottom pads, it stays firmly in place.',
+      question: '底座重量足够重吗？拿取牙刷时会不会轻易倾倒或移位？',
+      answer: '整件重约 3.57 磅，采用天然原石雕刻并配备底部 EVA 防滑脚垫，平放稳固绝不倾倒。',
       source: 'MANUAL',
     },
   ]);
@@ -188,7 +189,7 @@ export default function ListingStudioPage() {
         }
       }
     } catch (err) {
-      console.error('Failed to load listing:', err);
+      console.error('无法载入 Listing 数据:', err);
     }
   };
 
@@ -196,7 +197,7 @@ export default function ListingStudioPage() {
     loadListing();
   }, [skuCode]);
 
-  // Visual Extract Action (§338.30.2)
+  // Multimodal Visual Facts Extraction Action
   const handleExtractVisualFacts = async (force = false) => {
     if (!listing?.productId) return;
     try {
@@ -210,7 +211,7 @@ export default function ListingStudioPage() {
         setVisualFacts(res.visualFacts);
       }
     } catch (err) {
-      console.error('Visual facts extraction failed:', err);
+      console.error('提取视觉事实失败:', err);
     } finally {
       setExtractingVisual(false);
     }
@@ -224,11 +225,11 @@ export default function ListingStudioPage() {
         prev.map((f) => (f.id === factId ? { ...f, status } : f))
       );
     } catch (err) {
-      console.error('Failed to update visual fact status:', err);
+      console.error('更新视觉事实状态失败:', err);
     }
   };
 
-  // Keyword Extract & Normalize Action (§338.30.3)
+  // Keyword Extract & Normalize Action
   const handleExtractKeywords = async () => {
     try {
       setParsingKeywords(true);
@@ -240,7 +241,7 @@ export default function ListingStudioPage() {
         setParsedKeywords(res.keywords);
       }
     } catch (err) {
-      console.error('Keyword parsing failed:', err);
+      console.error('关键词解析失败:', err);
     } finally {
       setParsingKeywords(false);
     }
@@ -273,7 +274,7 @@ export default function ListingStudioPage() {
       // Reload listing versions
       loadListing();
     } catch (err) {
-      console.error('14-Step DAG Generation failed:', err);
+      console.error('14 步 DAG 编排生成失败:', err);
     } finally {
       setGenerating(false);
     }
@@ -290,13 +291,13 @@ export default function ListingStudioPage() {
       });
       setComplianceResult(res);
     } catch (err) {
-      console.error('Compliance check failed:', err);
+      console.error('合规检查失败:', err);
     } finally {
       setChecking(false);
     }
   };
 
-  // Send to Creative Studio (§338.30.7)
+  // Send to Creative Studio
   const handleSendToCreative = async () => {
     try {
       setSendingCreative(true);
@@ -320,7 +321,7 @@ export default function ListingStudioPage() {
       setCreativeSentSuccess(true);
       setTimeout(() => setCreativeSentSuccess(false), 4000);
     } catch (err) {
-      console.error('Failed to send to creative studio:', err);
+      console.error('发送到素材中心失败:', err);
     } finally {
       setSendingCreative(false);
     }
@@ -332,13 +333,13 @@ export default function ListingStudioPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">07 Listing 智能工作台 (Listing Studio V2)</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">07 Listing 工作台</h1>
             <span className="text-xs bg-indigo-500/20 text-indigo-400 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/30">
-              Listing Intelligence • 14-Step DAG
+              Listing Intelligence • 14 步 DAG
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            多模态图片视觉提取缓存 • 多源关键词库 • Rufus 意图上下文 • 三层知识库 RAG • 事实锚定与素材工坊无缝衔接
+            多模态图片视觉提取缓存 • 多源关键词库 • Rufus 意图上下文 • 三层知识库 RAG • 事实锚定与素材中心无缝衔接
           </p>
         </div>
 
@@ -353,9 +354,9 @@ export default function ListingStudioPage() {
               onChange={(e) => setMarketplace(e.target.value)}
               className="bg-transparent font-semibold text-foreground focus:outline-none cursor-pointer"
             >
-              <option value="AMAZON_US" className="bg-surface text-foreground">Amazon US (en-US)</option>
-              <option value="AMAZON_UK" className="bg-surface text-foreground">Amazon UK (en-GB)</option>
-              <option value="AMAZON_DE" className="bg-surface text-foreground">Amazon DE (de-DE)</option>
+              <option value="AMAZON_US" className="bg-surface text-foreground">Amazon 美国站 (en-US)</option>
+              <option value="AMAZON_UK" className="bg-surface text-foreground">Amazon 英国站 (en-GB)</option>
+              <option value="AMAZON_DE" className="bg-surface text-foreground">Amazon 德国站 (de-DE)</option>
             </select>
           </div>
 
@@ -381,7 +382,7 @@ export default function ListingStudioPage() {
               <button
                 key={code}
                 onClick={() => setSkuCode(code)}
-                className={`text-xs px-2.5 py-1 rounded font-semibold transition ${
+                className={`text-xs px-2.5 py-1 rounded font-semibold transition cursor-pointer ${
                   skuCode === code
                     ? 'bg-blue-600 text-white'
                     : 'text-muted-foreground hover:text-foreground'
@@ -397,45 +398,45 @@ export default function ListingStudioPage() {
       {/* Action Toolbar */}
       <div className="bg-surface border border-border rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
         <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">当前产品事实:</span>
-          <span className="text-foreground">Natural Marble Toothbrush Holder</span>
+          <span className="font-semibold text-foreground">当前产品事实依据:</span>
+          <span className="text-foreground">天然大理石牙刷架</span>
           <span className="text-gray-400">•</span>
-          <span>100% Real Marble / 3.57 lbs / 1.5&quot; Slots</span>
+          <span>100% 天然石材 / 3.57 磅 / 1.5 英寸插槽</span>
           <span className="text-gray-400">•</span>
-          <span className="text-emerald-500 font-medium">Claim 映射率: 100.0%</span>
+          <span className="text-emerald-500 font-medium">Claim 事实映射率: 100.0%</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             onClick={handleGenerateDag}
             disabled={generating}
-            className="flex items-center justify-center space-x-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm"
+            className="flex items-center justify-center space-x-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm cursor-pointer"
           >
             <Sparkles className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
-            <span>{generating ? '14 步 DAG 编排中...' : '运行 WF-02 14-Step DAG'}</span>
+            <span>{generating ? '14 步 DAG 编排中...' : '生成 Listing (14 步 DAG)'}</span>
           </button>
 
           <button
             onClick={handleComplianceCheck}
             disabled={checking}
-            className="flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm"
+            className="flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm cursor-pointer"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{checking ? '审定中...' : '运行合规判决器 (Judge)'}</span>
+            <span>{checking ? '合规审定中...' : '运行合规检查 (Judge)'}</span>
           </button>
 
           <button
             onClick={handleSendToCreative}
             disabled={sendingCreative}
-            className={`flex items-center justify-center space-x-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm ${
+            className={`flex items-center justify-center space-x-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm cursor-pointer ${
               creativeSentSuccess
                 ? 'bg-emerald-600 text-white'
                 : 'bg-purple-600 hover:bg-purple-500 text-white'
             }`}
-            title="将当前 Image Briefs 结构化推送给素材工坊进行并发渲染"
+            title="将当前 Image Briefs 结构化推送给素材中心进行并发渲染"
           >
             {creativeSentSuccess ? <Check className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
-            <span>{creativeSentSuccess ? '已推送到素材工坊!' : '一键推送素材工坊'}</span>
+            <span>{creativeSentSuccess ? '已推送到素材中心!' : '发送到素材中心'}</span>
           </button>
         </div>
       </div>
@@ -444,7 +445,7 @@ export default function ListingStudioPage() {
       <div className="flex border-b border-border space-x-6 text-xs font-semibold">
         <button
           onClick={() => setActiveTab('editor')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
             activeTab === 'editor'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -456,19 +457,19 @@ export default function ListingStudioPage() {
 
         <button
           onClick={() => setActiveTab('visual')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
             activeTab === 'visual'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           <ImageIcon className="w-4 h-4" />
-          <span>02 多模态图片与视觉事实 ({visualFacts.length})</span>
+          <span>02 产品图片与 Visual Facts ({visualFacts.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('keywords')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
             activeTab === 'keywords'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -480,19 +481,19 @@ export default function ListingStudioPage() {
 
         <button
           onClick={() => setActiveTab('rufus')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
             activeTab === 'rufus'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>04 Rufus Q&A 意图上下文 ({rufusItems.length})</span>
+          <span>04 Rufus 问答意图上下文 ({rufusItems.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('briefs')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
             activeTab === 'briefs'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -504,14 +505,14 @@ export default function ListingStudioPage() {
 
         <button
           onClick={() => setActiveTab('dag')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
             activeTab === 'dag'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           <Clock className="w-4 h-4" />
-          <span>06 14-Step DAG 轨迹 ({stepTraces.length || 14})</span>
+          <span>06 14 步 DAG 轨迹 ({stepTraces.length || 14})</span>
         </button>
       </div>
 
@@ -542,7 +543,7 @@ export default function ListingStudioPage() {
                         setEditableDescription(v.description || '');
                         setEditableSearchTerms(v.searchTerms || '');
                       }}
-                      className={`px-2 py-0.5 rounded border ${
+                      className={`px-2 py-0.5 rounded border cursor-pointer ${
                         activeVersion?.id === v.id
                           ? 'bg-blue-600/20 border-blue-500 text-blue-500 font-bold'
                           : 'border-border bg-surface-elevated text-muted-foreground'
@@ -558,7 +559,7 @@ export default function ListingStudioPage() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-foreground">
-                    商品标题 (Title - Max 200 chars / Amazon US Policy)
+                    Title (商品标题 - 最多 200 字符)
                   </label>
                   <span className={`text-[11px] font-mono ${editableTitle.length > 200 ? 'text-rose-500 font-bold' : 'text-muted-foreground'}`}>
                     {editableTitle.length} / 200 字符
@@ -575,7 +576,7 @@ export default function ListingStudioPage() {
               {/* 5 Bullet Points */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-foreground">
-                  五点描述 (5 Bullet Points - 100% Feature Grounded)
+                  五点描述 (Bullet Points - 事实依据完全覆盖)
                 </label>
                 {editableBullets.map((bullet, idx) => (
                   <div key={idx} className="flex items-start space-x-2">
@@ -596,7 +597,7 @@ export default function ListingStudioPage() {
 
               {/* Description */}
               <div className="space-y-1.5 pt-2">
-                <label className="text-xs font-bold text-foreground">商品详情描述 (Product Description)</label>
+                <label className="text-xs font-bold text-foreground">商品描述 (Description)</label>
                 <textarea
                   rows={3}
                   value={editableDescription}
@@ -608,7 +609,7 @@ export default function ListingStudioPage() {
               {/* Search Terms */}
               <div className="space-y-1.5 pt-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-foreground">搜索词 (Search Terms - Max 250 Bytes)</label>
+                  <label className="text-xs font-bold text-foreground">Search Terms (搜索词 - 最多 250 字节)</label>
                   <span className="text-[11px] font-mono text-muted-foreground">
                     {new Blob([editableSearchTerms]).size} / 250 字节
                   </span>
@@ -641,16 +642,16 @@ export default function ListingStudioPage() {
             <div className="bg-surface border border-border rounded-xl p-5 space-y-5">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">产品多模态图片输入 (最多 10 张) 与 Visual Facts</h3>
+                  <h3 className="text-sm font-bold text-foreground">产品图片输入 (最多 10 张) 与 Visual Facts</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    首次解析落盘为结构化事实；后续 Listing、A+、素材工坊直接读取缓存，严禁重复调用多模态视觉模型。
+                    首次解析落盘为结构化事实；后续 Listing、A+、素材中心直接读取缓存，严禁重复调用多模态视觉模型。
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleExtractVisualFacts(false)}
                     disabled={extractingVisual}
-                    className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                    className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${extractingVisual ? 'animate-spin' : ''}`} />
                     <span>读取或提取事实</span>
@@ -658,7 +659,7 @@ export default function ListingStudioPage() {
                   <button
                     onClick={() => handleExtractVisualFacts(true)}
                     disabled={extractingVisual}
-                    className="flex items-center space-x-1.5 border border-border bg-surface-elevated hover:bg-surface text-muted-foreground text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                    className="flex items-center space-x-1.5 border border-border bg-surface-elevated hover:bg-surface text-muted-foreground text-xs font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer"
                   >
                     <span>强制重新解析</span>
                   </button>
@@ -705,7 +706,7 @@ export default function ListingStudioPage() {
                         <div className="text-[11px] text-muted-foreground flex items-center space-x-3">
                           <span>置信度: {(fact.confidence * 100).toFixed(0)}%</span>
                           <span>•</span>
-                          <span>状态: <strong className={fact.status === 'CONFIRMED' ? 'text-emerald-500' : fact.status === 'REJECTED' ? 'text-rose-500' : 'text-amber-500'}>{fact.status}</strong></span>
+                          <span>状态: <strong className={fact.status === 'CONFIRMED' ? 'text-emerald-500' : fact.status === 'REJECTED' ? 'text-rose-500' : 'text-amber-500'}>{getStatusLabel(fact.status)}</strong></span>
                         </div>
                       </div>
 
@@ -713,18 +714,18 @@ export default function ListingStudioPage() {
                       <div className="flex items-center space-x-1.5 self-end sm:self-center">
                         <button
                           onClick={() => handleFactStatusChange(fact.id, 'CONFIRMED')}
-                          className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center space-x-1 ${
+                          className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center space-x-1 cursor-pointer ${
                             fact.status === 'CONFIRMED'
                               ? 'bg-emerald-600 text-white'
                               : 'bg-surface border border-border text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           <Check className="w-3 h-3" />
-                          <span>核准确认</span>
+                          <span>通过确认</span>
                         </button>
                         <button
                           onClick={() => handleFactStatusChange(fact.id, 'REJECTED')}
-                          className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center space-x-1 ${
+                          className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center space-x-1 cursor-pointer ${
                             fact.status === 'REJECTED'
                               ? 'bg-rose-600 text-white'
                               : 'bg-surface border border-border text-muted-foreground hover:text-foreground'
@@ -746,7 +747,7 @@ export default function ListingStudioPage() {
             <div className="bg-surface border border-border rounded-xl p-5 space-y-5">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">多源关键词库 (Manual / TXT / Excel)</h3>
+                  <h3 className="text-sm font-bold text-foreground">多源关键词库 (手动 / TXT / Excel)</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     支持多列 Excel 自动识别关键词列，自动过滤无关列，统一清洗大小写与特殊符号，按搜索量智能排序。
                   </p>
@@ -755,7 +756,7 @@ export default function ListingStudioPage() {
                   <select
                     value={kwSourceType}
                     onChange={(e: any) => setKwSourceType(e.target.value)}
-                    className="bg-surface-elevated border border-border text-xs rounded px-2.5 py-1.5 text-foreground"
+                    className="bg-surface-elevated border border-border text-xs rounded px-2.5 py-1.5 text-foreground cursor-pointer"
                   >
                     <option value="EXCEL">Excel / CSV 格式</option>
                     <option value="TXT">纯文本 (TXT)</option>
@@ -764,7 +765,7 @@ export default function ListingStudioPage() {
                   <button
                     onClick={handleExtractKeywords}
                     disabled={parsingKeywords}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer"
                   >
                     {parsingKeywords ? '解析中...' : '清洗并去重'}
                   </button>
@@ -785,7 +786,7 @@ export default function ListingStudioPage() {
               <div className="space-y-3 pt-3 border-t border-border">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-foreground">已清洗与去重关键词 ({parsedKeywords.length} 个)</label>
-                  <span className="text-[11px] text-muted-foreground">优先级：1 (核心) &gt; 2 (扩展) &gt; 3 (泛词)</span>
+                  <span className="text-[11px] text-muted-foreground">优先级：P1 (核心词) &gt; P2 (拓展词) &gt; P3 (长尾词)</span>
                 </div>
 
                 <div className="border border-border rounded-lg overflow-hidden">
@@ -835,7 +836,7 @@ export default function ListingStudioPage() {
             <div className="bg-surface border border-border rounded-xl p-5 space-y-5">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">Rufus Q&A 意图上下文 (Intent Context)</h3>
+                  <h3 className="text-sm font-bold text-foreground">Rufus 问题与答案 (意图上下文)</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     从买家真实提问提炼意图，引导生成更自然的回应。严禁捏造未经证实的产品事实。
                   </p>
@@ -869,24 +870,24 @@ export default function ListingStudioPage() {
             <div className="bg-surface border border-border rounded-xl p-5 space-y-5">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">结构化素材指示 (ListingCreativeBrief)</h3>
+                  <h3 className="text-sm font-bold text-foreground">素材策划 (Creative Brief)</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    直接由 Listing 事实输出，无缝衔接素材工坊（Creative Studio），防止卖点散乱或素材团队随意自创。
+                    直接由 Listing 事实输出，无缝衔接素材中心，防止卖点散乱或素材团队随意自创。
                   </p>
                 </div>
                 <button
                   onClick={handleSendToCreative}
                   disabled={sendingCreative}
-                  className="flex items-center space-x-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg transition"
+                  className="flex items-center space-x-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg transition cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>立即送审素材工坊</span>
+                  <span>发送到素材中心</span>
                 </button>
               </div>
 
               {/* Slot 1~5 Brief Cards */}
               <div className="space-y-3">
-                <label className="text-xs font-bold text-foreground">辅图与主图槽位规划 (Image Briefs Slots 1~5)</label>
+                <label className="text-xs font-bold text-foreground">附图策划 (Image Briefs 槽位 1~5)</label>
                 {(activeVersion?.imageBriefs || [
                   {
                     slot: 1,
@@ -928,7 +929,7 @@ export default function ListingStudioPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <span className="bg-purple-500/20 text-purple-400 font-bold px-2 py-0.5 rounded font-mono">
-                          Slot #{brief.slot}
+                          槽位 #{brief.slot}
                         </span>
                         <span className="font-bold text-foreground">{brief.objective}</span>
                       </div>
@@ -939,7 +940,7 @@ export default function ListingStudioPage() {
                     </p>
                     {brief.copy && brief.copy.length > 0 && (
                       <div className="flex items-center space-x-2 pt-1">
-                        <span className="text-[10px] text-muted-foreground">图中文案建议:</span>
+                        <span className="text-[10px] text-muted-foreground">文案建议:</span>
                         {brief.copy.map((c: string, ci: number) => (
                           <span key={ci} className="bg-surface border border-border px-1.5 py-0.5 rounded text-[10px] text-foreground">
                             &ldquo;{c}&rdquo;
@@ -958,13 +959,13 @@ export default function ListingStudioPage() {
             <div className="bg-surface border border-border rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">WF-02 14-Step DAG 节点执行轨迹</h3>
+                  <h3 className="text-sm font-bold text-foreground">Workflow 14 步 DAG 执行记录</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     严格按序执行：校验 &gt; 事实加载 &gt; 视觉缓存 &gt; VOC &gt; 关键词 &gt; Rufus &gt; Profile &gt; 知识检索 &gt; 生成 &gt; Zod校验 &gt; 事实锚定 &gt; 关键词覆盖 &gt; 合规 &gt; 人工审核
                   </p>
                 </div>
                 <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-bold">
-                  DAG 状态: 100% 成功
+                  DAG 状态: 成功
                 </span>
               </div>
 
@@ -972,20 +973,20 @@ export default function ListingStudioPage() {
                 {(stepTraces.length > 0
                   ? stepTraces
                   : [
-                      { stepNumber: 1, stepName: 'validate_input', status: 'COMPLETED', latencyMs: 2, summary: 'Input validated for SKU MTH-WHITE-001, images count: 3' },
-                      { stepNumber: 2, stepName: 'load_product_facts', status: 'COMPLETED', latencyMs: 4, summary: 'Loaded 4 features: Material=Natural Stone, Slot=1.5", Weight=3.57 lbs' },
-                      { stepNumber: 3, stepName: 'load_or_extract_visual_facts', status: 'COMPLETED', latencyMs: 3, summary: 'Visual facts ready: 5 items (snapshot cache hit, vision skipped)' },
-                      { stepNumber: 4, stepName: 'load_voc', status: 'COMPLETED', latencyMs: 3, summary: 'Loaded 3 VOC pain-point & praise vectors' },
-                      { stepNumber: 5, stepName: 'load_keywords', status: 'COMPLETED', latencyMs: 2, summary: 'Loaded 4 normalized target keywords' },
-                      { stepNumber: 6, stepName: 'load_rufus_qa', status: 'COMPLETED', latencyMs: 2, summary: 'Loaded 2 Rufus Q&A intent context items' },
-                      { stepNumber: 7, stepName: 'load_marketplace_profile', status: 'COMPLETED', latencyMs: 1, summary: 'Profile loaded for AMAZON_US, Title max: 200 chars' },
-                      { stepNumber: 8, stepName: 'retrieve_listing_knowledge', status: 'COMPLETED', latencyMs: 5, summary: 'Retrieved 4 tiered knowledge chunks (Policy > SEO/COSMO > Rufus)' },
-                      { stepNumber: 9, stepName: 'generate_listing', status: 'COMPLETED', latencyMs: 18, summary: 'Listing copy generated with Title, 5 Bullets, 5 Image Briefs, 2 A+ Modules' },
-                      { stepNumber: 10, stepName: 'structured_output_validation', status: 'COMPLETED', latencyMs: 1, summary: 'Zod/Contract validation passed: Title (128 chars <= 200)' },
-                      { stepNumber: 11, stepName: 'product_fact_grounding', status: 'COMPLETED', latencyMs: 2, summary: 'Grounding Rate: 100.0% (4/4 claims mapped to verified factIds)' },
-                      { stepNumber: 12, stepName: 'keyword_coverage_check', status: 'COMPLETED', latencyMs: 2, summary: 'Keyword Coverage: 100.0% (4/4), Unused High-Priority: 0' },
-                      { stepNumber: 13, stepName: 'compliance', status: 'COMPLETED', latencyMs: 4, summary: 'Amazon Policy Judge: PASS (0 violations, 4/4 rules passed)' },
-                      { stepNumber: 14, stepName: 'human_review', status: 'COMPLETED', latencyMs: 1, summary: 'Human Review Gate activated. Status: WAITING_APPROVAL for publish' },
+                      { stepNumber: 1, stepName: 'validate_input', status: 'COMPLETED', latencyMs: 2, summary: '输入参数校验完成: SKU MTH-WHITE-001, 图片数: 3' },
+                      { stepNumber: 2, stepName: 'load_product_facts', status: 'COMPLETED', latencyMs: 4, summary: '载入 4 项产品核心事实: 天然石材, 1.5" 孔径, 3.57 磅' },
+                      { stepNumber: 3, stepName: 'load_or_extract_visual_facts', status: 'COMPLETED', latencyMs: 3, summary: '视觉事实就绪: 5 项 (缓存命中，跳过视觉模型调用)' },
+                      { stepNumber: 4, stepName: 'load_voc', status: 'COMPLETED', latencyMs: 3, summary: '载入 3 项买家痛点与好评向量' },
+                      { stepNumber: 5, stepName: 'load_keywords', status: 'COMPLETED', latencyMs: 2, summary: '载入 4 项归一化目标关键词' },
+                      { stepNumber: 6, stepName: 'load_rufus_qa', status: 'COMPLETED', latencyMs: 2, summary: '载入 2 项 Rufus 问答意图上下文' },
+                      { stepNumber: 7, stepName: 'load_marketplace_profile', status: 'COMPLETED', latencyMs: 1, summary: '站点规范已加载: AMAZON_US (标题上限 200 字符)' },
+                      { stepNumber: 8, stepName: 'retrieve_listing_knowledge', status: 'COMPLETED', latencyMs: 5, summary: '检索 4 项分层知识库切片 (官方政策 > SEO/COSMO > Rufus)' },
+                      { stepNumber: 9, stepName: 'generate_listing', status: 'COMPLETED', latencyMs: 18, summary: 'Listing 文案生成: 标题, 5点描述, 5个附图策划, 2个 A+ 模块' },
+                      { stepNumber: 10, stepName: 'structured_output_validation', status: 'COMPLETED', latencyMs: 1, summary: 'Zod 结构校验通过: 标题 (128 字符 <= 200)' },
+                      { stepNumber: 11, stepName: 'product_fact_grounding', status: 'COMPLETED', latencyMs: 2, summary: '事实锚定率: 100.0% (4/4 宣称严格映射至已核验 factIds)' },
+                      { stepNumber: 12, stepName: 'keyword_coverage_check', status: 'COMPLETED', latencyMs: 2, summary: '关键词覆盖率: 100.0% (4/4), 未使用高优词: 0' },
+                      { stepNumber: 13, stepName: 'compliance', status: 'COMPLETED', latencyMs: 4, summary: 'Amazon 政策合规判决: PASS (0 项违规, 4/4 规则通过)' },
+                      { stepNumber: 14, stepName: 'human_review', status: 'COMPLETED', latencyMs: 1, summary: '人工把关门禁激活: 状态置为 WAITING_APPROVAL 等待发布审批' },
                     ]
                 ).map((step) => (
                   <div key={step.stepNumber} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-surface-elevated text-xs">
@@ -999,7 +1000,7 @@ export default function ListingStudioPage() {
                     <div className="flex items-center space-x-2 text-[11px]">
                       <span className="text-muted-foreground font-mono">{step.latencyMs}ms</span>
                       <span className="bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.5 rounded text-[10px]">
-                        {step.status}
+                        {getStatusLabel(step.status)}
                       </span>
                     </div>
                   </div>
@@ -1012,7 +1013,7 @@ export default function ListingStudioPage() {
         {/* Right Column: 3-Layer Knowledge Base & Compliance Judge */}
         <div className="lg:col-span-4 space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
-            {/* 3-Layer Knowledge Base Architecture Card (§338.30.4) */}
+            {/* 3-Layer Knowledge Base Architecture Card */}
             <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
               <div className="flex items-center space-x-2 border-b border-border pb-2.5">
                 <BookOpen className="w-4 h-4 text-indigo-400" />
@@ -1057,7 +1058,7 @@ export default function ListingStudioPage() {
                 <div className="flex items-center space-x-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                    合规审查与政策证据闸口
+                    合规检查结果
                   </h3>
                 </div>
               </div>
@@ -1072,12 +1073,12 @@ export default function ListingStudioPage() {
                       : 'bg-rose-950/30 border-rose-800 text-rose-300'
                   }`}>
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wider">Compliance Status</div>
-                      <div className="text-base font-bold mt-0.5">{complianceResult.status}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider">合规状态</div>
+                      <div className="text-base font-bold mt-0.5">{getStatusLabel(complianceResult.status)}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] opacity-75 uppercase">Risk Level</div>
-                      <div className="text-sm font-bold">{complianceResult.riskLevel}</div>
+                      <div className="text-[10px] opacity-75 uppercase">风险等级</div>
+                      <div className="text-sm font-bold">{getSeverityLabel(complianceResult.riskLevel)}</div>
                     </div>
                   </div>
 
@@ -1094,7 +1095,7 @@ export default function ListingStudioPage() {
                         <div key={i} className="bg-rose-950/20 border border-rose-800/40 p-2.5 rounded text-xs space-y-1">
                           <div className="flex items-center justify-between font-bold text-rose-300">
                             <span>{v.ruleCode} - {v.ruleName}</span>
-                            <span className="text-[10px] bg-rose-500/20 px-1.5 py-0.2 rounded">{v.severity}</span>
+                            <span className="text-[10px] bg-rose-500/20 px-1.5 py-0.2 rounded">{getSeverityLabel(v.severity)}</span>
                           </div>
                           <div className="text-foreground">命中词汇: <code className="text-rose-400 font-mono">&ldquo;{v.matchedText}&rdquo;</code></div>
                           <div className="text-[11px] text-muted-foreground">📜 依据政策: {v.citation}</div>
@@ -1107,7 +1108,7 @@ export default function ListingStudioPage() {
               ) : (
                 <div className="text-center py-6 text-xs text-muted-foreground space-y-2">
                   <BookOpen className="w-6 h-6 text-gray-400 mx-auto" />
-                  <p>点击顶部 &ldquo;运行合规判决器&rdquo; 校验文本</p>
+                  <p>点击顶部 &ldquo;运行合规检查&rdquo; 校验文本</p>
                 </div>
               )}
             </div>
@@ -1116,9 +1117,9 @@ export default function ListingStudioPage() {
           {/* Human Review Gate Status Footer */}
           <div className="bg-surface border border-border rounded-xl p-3.5 text-[11px] space-y-2">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span>人工发布把关状态 (Human Gate):</span>
+              <span>人工发布审批状态 (Human Gate):</span>
               <span className="bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded font-bold">
-                WAITING_APPROVAL
+                等待审批
               </span>
             </div>
             <p className="text-muted-foreground">

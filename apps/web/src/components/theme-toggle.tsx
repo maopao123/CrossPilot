@@ -42,7 +42,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
     <button
       onClick={toggleTheme}
       type="button"
-      title={theme === 'light' ? '切换为深色模式 (Switch to Dark)' : '切换为亮色模式 (Switch to Light)'}
+      title={theme === 'light' ? '切换为暗色模式' : '切换为亮色模式'}
       className={`p-1.5 px-2.5 rounded-md border border-border bg-surface-elevated hover:bg-surface transition flex items-center space-x-1.5 text-xs font-medium cursor-pointer shadow-sm ${
         theme === 'light'
           ? 'text-amber-600 hover:text-amber-700 bg-amber-50/50'

@@ -69,7 +69,7 @@ interface ToolExecutionTrace {
 
 export default function BusinessAnalystPage() {
   const [waterfall, setWaterfall] = useState<WaterfallData | null>(null);
-  const [question, setQuestion] = useState('Why did profit drop this week? (为什么第11周利润骤降？)');
+  const [question, setQuestion] = useState('为什么第11周利润骤降？');
   const [answering, setAnswering] = useState(false);
   const [agentAnswer, setAgentAnswer] = useState<string | null>(null);
   const [toolTraces, setToolTraces] = useState<ToolExecutionTrace[]>([]);
@@ -111,7 +111,7 @@ export default function BusinessAnalystPage() {
   // Live SSE Stream Test
   const handleStartSSE = () => {
     setSseActive(true);
-    setSseLogs(['[SSE] Connecting to /api/v1/agent-tasks/stream...']);
+    setSseLogs(['[SSE] 正在连接 /api/v1/agent-tasks/stream...']);
 
     const eventSource = new EventSource('/api/v1/agent-tasks/stream?taskType=VARIANCE_ATTRIBUTION');
 
@@ -121,7 +121,7 @@ export default function BusinessAnalystPage() {
         const line = `[${data.type}] ${data.toolName ? `Tool: ${data.toolName}` : ''} ${data.message || data.name || JSON.stringify(data)}`;
         setSseLogs((prev) => [...prev, line]);
         if (data.type === 'TASK_COMPLETE') {
-          setSseLogs((prev) => [...prev, '🏁 [SSE] Execution complete. Connection closed.']);
+          setSseLogs((prev) => [...prev, '🏁 [SSE] 执行完毕，连接已关闭。']);
           eventSource.close();
           setSseActive(false);
         }
@@ -131,7 +131,7 @@ export default function BusinessAnalystPage() {
     };
 
     eventSource.onerror = () => {
-      setSseLogs((prev) => [...prev, '⚠️ [SSE] Simulation finished or connection terminated.']);
+      setSseLogs((prev) => [...prev, '⚠️ [SSE] 演示流结束或连接已终止。']);
       eventSource.close();
       setSseActive(false);
     };
@@ -151,9 +151,9 @@ export default function BusinessAnalystPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">14 AI 经营分析 (Business Analyst)</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">AI 经营分析</h1>
             <span className="text-xs bg-purple-500/20 text-purple-400 font-semibold px-2 py-0.5 rounded border border-purple-500/30">
-              Milestone 6: Exact Variance Waterfall & Trace
+              确定性利润归因瀑布图与 Trace
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -181,7 +181,7 @@ export default function BusinessAnalystPage() {
               type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="输入经营分析问题，例如：Why did profit drop this week?"
+              placeholder="输入经营分析问题，例如：为什么第11周利润骤降？"
               className="w-full bg-surface-elevated border border-border rounded-lg px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
             />
           </div>
@@ -200,7 +200,7 @@ export default function BusinessAnalystPage() {
           <div className="mt-4 p-4 rounded-xl bg-purple-950/20 border border-purple-800/40 text-xs text-gray-200 space-y-2">
             <div className="flex items-center space-x-2 text-purple-300 font-bold">
               <Sparkles className="w-4 h-4" />
-              <span>AI 经营分析师综合答复 (Agent Findings)</span>
+              <span>AI 经营分析师综合答复</span>
             </div>
             <div className="whitespace-pre-wrap leading-relaxed text-gray-300 font-normal">
               {agentAnswer}
@@ -230,14 +230,14 @@ export default function BusinessAnalystPage() {
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
-                Deterministic Attribution Waterfall
+                确定性利润归因瀑布图
               </span>
               <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono font-bold">
-                100% Exact Math Closure
+                100% 封闭数学对账
               </span>
             </div>
             <h2 className="text-lg font-bold text-white mt-0.5">
-              Week 10 ➔ Week 11 利润骤降归因瀑布图 (Attribution Waterfall)
+              第 10 周 ➔ 第 11 周 利润骤降归因瀑布图
             </h2>
             <p className="text-xs text-gray-400 mt-1">
               上周利润: <span className="text-white font-bold">$4,120.00</span> • 本周利润: <span className="text-white font-bold">$1,840.00</span> • 总差异额: <span className="text-rose-400 font-bold">-$2,280.00</span>
@@ -256,7 +256,7 @@ export default function BusinessAnalystPage() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2">
           {/* Advertising */}
           <div className="bg-surface-elevated border border-rose-500/30 p-4 rounded-xl relative overflow-hidden">
-            <div className="text-xs font-semibold text-rose-400">1. 广告溢出 (Ads Bleed)</div>
+            <div className="text-xs font-semibold text-rose-400">1. 广告溢出 (Ads)</div>
             <div className="text-xl font-bold text-rose-400 mt-1">-${Math.abs(b.advertising)}</div>
             <p className="text-[11px] text-gray-400 mt-1">
               泛词 &ldquo;bathroom organizer&rdquo; ACOS 93.3% 预算泄漏
@@ -268,7 +268,7 @@ export default function BusinessAnalystPage() {
 
           {/* Returns */}
           <div className="bg-surface-elevated border border-amber-500/30 p-4 rounded-xl relative overflow-hidden">
-            <div className="text-xs font-semibold text-amber-400">2. 退货激增 (Returns Spike)</div>
+            <div className="text-xs font-semibold text-amber-400">2. 退货激增 (Returns)</div>
             <div className="text-xl font-bold text-amber-400 mt-1">-${Math.abs(b.returns)}</div>
             <p className="text-[11px] text-gray-400 mt-1">
               Grey 变体退货率升至 6.7%（电动牙刷孔径不匹配与破损）
@@ -292,7 +292,7 @@ export default function BusinessAnalystPage() {
 
           {/* Price Discount */}
           <div className="bg-surface-elevated border border-blue-500/30 p-4 rounded-xl relative overflow-hidden">
-            <div className="text-xs font-semibold text-blue-400">4. 促销折扣 (Price Promo)</div>
+            <div className="text-xs font-semibold text-blue-400">4. 促销让利 (Price)</div>
             <div className="text-xl font-bold text-blue-400 mt-1">-${Math.abs(b.price)}</div>
             <p className="text-[11px] text-gray-400 mt-1">
               White 主力款临时 10% 优惠券降价让利
@@ -325,7 +325,7 @@ export default function BusinessAnalystPage() {
           <div className="flex items-center space-x-2">
             <Terminal className="w-4 h-4 text-cyan-400" />
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              Agent 决策轨迹与工具调用抽屉 (Trace Drawer & Latency)
+              Agent 决策轨迹与 Tool 调用抽屉 (Trace 与延迟)
             </h3>
           </div>
           <button className="text-gray-400 hover:text-white text-xs flex items-center space-x-1">
@@ -363,11 +363,11 @@ export default function BusinessAnalystPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] mt-2">
                     <div className="bg-surface p-2 rounded border border-border/70 text-gray-400">
-                      <span className="text-gray-500 font-bold block mb-0.5">Input Payload:</span>
+                      <span className="text-gray-500 font-bold block mb-0.5">输入参数 (Input):</span>
                       <code>{JSON.stringify(trace.input)}</code>
                     </div>
                     <div className="bg-surface p-2 rounded border border-border/70 text-emerald-400">
-                      <span className="text-gray-500 font-bold block mb-0.5">Output Result:</span>
+                      <span className="text-gray-500 font-bold block mb-0.5">输出结果 (Output):</span>
                       <code>{JSON.stringify(trace.output)}</code>
                     </div>
                   </div>

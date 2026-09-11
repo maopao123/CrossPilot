@@ -17,7 +17,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-gray-400 text-sm">
-      Loading CrossPilot...
+      正在进入 CrossPilot...
     </div>
   );
 }

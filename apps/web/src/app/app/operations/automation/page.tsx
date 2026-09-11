@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ApiClient } from '@/lib/api-client';
+import { getStatusLabel } from '@/constants/ui-labels';
 import {
   PlayCircle,
   CheckCircle2,
@@ -198,7 +199,7 @@ export default function OperationAutomationPage() {
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold text-white tracking-tight">
-                运营自动化工作流 (Operation Automation)
+                运营自动化工作流
               </h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 P0 RPA Pipeline
@@ -250,10 +251,10 @@ export default function OperationAutomationPage() {
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <h3 className="text-sm font-bold text-white">
-                    人工审批门禁等待中 (Human Gate: WAITING_APPROVAL)
+                    人工审批门禁等待中 (WAITING_APPROVAL)
                   </h3>
                   <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-amber-500/20 text-amber-300">
-                    High-Risk Action
+                    高风险门禁
                   </span>
                 </div>
                 <p className="text-xs text-gray-300">
@@ -279,7 +280,7 @@ export default function OperationAutomationPage() {
                 className="px-4 py-2 rounded-lg text-xs font-semibold bg-surface border border-border hover:bg-surface-elevated text-gray-300 transition flex items-center space-x-1.5"
               >
                 <X className="w-3.5 h-3.5 text-red-400" />
-                <span>驳回发布 (Reject)</span>
+                <span>驳回发布</span>
               </button>
 
               <button
@@ -287,7 +288,7 @@ export default function OperationAutomationPage() {
                 className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center space-x-1.5 shadow-md shadow-emerald-600/20"
               >
                 <Check className="w-3.5 h-3.5" />
-                <span>核准并触发 RPA (Approve & Publish)</span>
+                <span>核准并触发 RPA</span>
               </button>
             </div>
           </div>
@@ -300,7 +301,7 @@ export default function OperationAutomationPage() {
           <div className="flex items-center space-x-3">
             <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-white">Listing 发布流水线全部完成 (Workflow Succeeded)</h3>
+              <h3 className="text-sm font-bold text-white">Listing 发布流水线全部完成</h3>
               <p className="text-xs text-gray-300 mt-0.5">
                 RPA 已成功将商品资料与图片提交至亚马逊 Seller Central，Feed ID: 8192049102，等待亚马逊全球商品目录编目。
               </p>
@@ -324,7 +325,7 @@ export default function OperationAutomationPage() {
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <div className="flex items-center space-x-2">
             <Layers className="w-4 h-4 text-blue-400" />
-            <h3 className="text-sm font-bold text-white">流水线节点执行编排 (Workflow Pipeline Nodes)</h3>
+            <h3 className="text-sm font-bold text-white">流水线节点执行编排</h3>
           </div>
           <span className="text-xs text-gray-400">
             状态:{' '}
@@ -337,7 +338,7 @@ export default function OperationAutomationPage() {
                   : 'text-blue-400'
               }`}
             >
-              {activeWorkflow.status}
+              {getStatusLabel(activeWorkflow.status)}
             </strong>
           </span>
         </div>
@@ -401,7 +402,7 @@ export default function OperationAutomationPage() {
                         : 'text-gray-500'
                     }`}
                   >
-                    {step.status}
+                    {getStatusLabel(step.status)}
                   </span>
                 </div>
               </div>
@@ -415,7 +416,7 @@ export default function OperationAutomationPage() {
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <div className="flex items-center space-x-2">
             <Terminal className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-bold text-white">RPA 自动化执行实时审计日志 (Execution Trace Logs)</h3>
+            <h3 className="text-sm font-bold text-white">RPA 自动化执行实时审计日志</h3>
           </div>
           <span className="text-[11px] text-gray-400 font-mono">Adapter: Yingdao/Mock RPA Engine</span>
         </div>

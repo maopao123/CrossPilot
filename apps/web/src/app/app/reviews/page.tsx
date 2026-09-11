@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -13,6 +13,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { ApiClient } from '@/lib/api-client';
+import { getStatusLabel, getVocLabel, getSeverityLabel } from '@/constants/ui-labels';
 
 export default function ReviewsPage() {
   const [activeTab, setActiveTab] = useState<'reviews' | 'returns'>('reviews');
@@ -40,7 +41,7 @@ export default function ReviewsPage() {
         if (rets && rets.length > 0) setReturnsData(rets);
         if (summary) setReturnSummary(summary);
       } catch (err) {
-        console.error('Error loading reviews/returns data:', err);
+        console.error('无法载入评论与退货数据:', err);
       } finally {
         setIsLoading(false);
       }
@@ -50,34 +51,34 @@ export default function ReviewsPage() {
 
   const VOC_TOPICS = [
     {
-      name: 'Toothbrush Slot Dimension Narrow',
+      name: '牙刷插槽孔径偏窄 (1.1" 偏小)',
       type: 'PAIN_POINT',
       sentiment: 'NEGATIVE',
       percentage: '31.4%',
       reviewCount: 48,
       severity: 'HIGH',
       summary:
-        'Buyers report older 1.1" slots do not fit Sonicare DiamondClean or Oral-B iO electric handles. Resolved in v2 1.5" design.',
+        '买家反馈旧版 1.1 英寸插槽无法容纳 Sonicare DiamondClean 或 Oral-B iO 系列电动牙刷柄，在 V2 版本中已重新设计为 1.5 英寸超宽孔径。',
     },
     {
-      name: 'Solid Stone Weight & No Tip-Over',
+      name: '天然石材厚重防倾倒 (3.57 磅)',
       type: 'PRAISE',
       sentiment: 'POSITIVE',
       percentage: '42.1%',
       reviewCount: 64,
       severity: 'LOW',
       summary:
-        '3.57 lbs solid natural marble prevents accidental tipping even with multiple heavy electric toothbrushes.',
+        '3.57 磅天然大理石底座即使同时插入多支重型电动牙刷与牙膏，也能保持稳固不倾倒。',
     },
     {
-      name: 'Non-Porous Surface Water Spot Resistance',
+      name: '非多孔光滑表面防水易清洁',
       type: 'PRAISE',
       sentiment: 'POSITIVE',
       percentage: '24.5%',
       reviewCount: 37,
       severity: 'LOW',
       summary:
-        'Polished natural marble finish wipes clean easily with no resin flaking or mold absorption.',
+        '抛光天然大理石封釉表面极易清洁，水冲即净，杜绝树脂发霉或脱落问题。',
     },
   ];
 
@@ -91,13 +92,13 @@ export default function ReviewsPage() {
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-bold text-white">12 评论与退货分析</h1>
+              <h1 className="text-xl font-bold text-white">12 评论与退货</h1>
               <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded font-mono">
-                VOC & Returns Ingestion
+                VOC 与退货归集
               </span>
             </div>
             <p className="text-sm text-gray-400 mt-1">
-              买家原声（VOC）聚类分析、真实退货率监控与产品迭代证据闭环
+              买家原声 (VOC) 聚类分析、真实退货率监控与产品迭代证据闭环
             </p>
           </div>
         </div>
@@ -106,7 +107,7 @@ export default function ReviewsPage() {
           <select
             value={selectedSku}
             onChange={(e) => setSelectedSku(e.target.value)}
-            className="bg-surface-elevated border border-border text-white text-xs px-3 py-2 rounded-lg font-mono focus:outline-none focus:border-blue-500"
+            className="bg-surface-elevated border border-border text-white text-xs px-3 py-2 rounded-lg font-mono focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="sku_white_001">Carrara White (MTH-WHITE-001)</option>
             <option value="sku_black_002">Nero Marquina (MTH-BLACK-002)</option>
@@ -119,7 +120,7 @@ export default function ReviewsPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-surface border border-border rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">综合评分 (Rating)</span>
+            <span className="text-xs text-gray-400 font-medium">综合评分</span>
             <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">4.7 / 5.0</div>
@@ -128,7 +129,7 @@ export default function ReviewsPage() {
 
         <div className="bg-surface border border-border rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">退货率 (Return Rate)</span>
+            <span className="text-xs text-gray-400 font-medium">退货率</span>
             <TrendingDown className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">
@@ -139,7 +140,7 @@ export default function ReviewsPage() {
 
         <div className="bg-surface border border-border rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">退货总数 (Returns Count)</span>
+            <span className="text-xs text-gray-400 font-medium">退货总数</span>
             <RotateCcw className="w-4 h-4 text-purple-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">{returnSummary.count} 单</div>
@@ -148,7 +149,7 @@ export default function ReviewsPage() {
 
         <div className="bg-surface border border-border rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">退款损失 (Refund Total)</span>
+            <span className="text-xs text-gray-400 font-medium">退款损失</span>
             <DollarSign className="w-4 h-4 text-rose-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">
@@ -162,23 +163,23 @@ export default function ReviewsPage() {
       <div className="flex border-b border-border space-x-6">
         <button
           onClick={() => setActiveTab('reviews')}
-          className={`pb-3 text-sm font-semibold transition border-b-2 ${
+          className={`pb-3 text-sm font-semibold transition border-b-2 cursor-pointer ${
             activeTab === 'reviews'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          买家原声聚类 (VOC Topics)
+          买家原声聚类 (VOC)
         </button>
         <button
           onClick={() => setActiveTab('returns')}
-          className={`pb-3 text-sm font-semibold transition border-b-2 ${
+          className={`pb-3 text-sm font-semibold transition border-b-2 cursor-pointer ${
             activeTab === 'returns'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          退货明细记录 (Return Records)
+          退货明细记录
         </button>
       </div>
 
@@ -200,7 +201,7 @@ export default function ReviewsPage() {
                         : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     }`}
                   >
-                    {topic.type}
+                    {getVocLabel(topic.type)}
                   </span>
                   <span className="text-xs bg-surface-elevated text-gray-300 px-2 py-0.5 rounded border border-border">
                     占比: {topic.percentage} ({topic.reviewCount} 条)
@@ -242,17 +243,17 @@ export default function ReviewsPage() {
                   <tr key={ret.id} className="hover:bg-surface-elevated/50 transition">
                     <td className="py-3 px-4 font-mono text-blue-400">{ret.id}</td>
                     <td className="py-3 px-4 font-mono">{ret.orderItemId}</td>
-                    <td className="py-3 px-4">{ret.reason || 'Customer Return'}</td>
+                    <td className="py-3 px-4">{ret.reason || '买家自主退货'}</td>
                     <td className="py-3 px-4">
                       <span className="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-mono text-2xs border border-emerald-500/30">
-                        {ret.status}
+                        {getStatusLabel(ret.status)}
                       </span>
                     </td>
                     <td className="py-3 px-4 font-semibold text-rose-400">
                       ${Number(ret.refundAmount).toFixed(2)}
                     </td>
                     <td className="py-3 px-4 text-gray-400">
-                      {new Date(ret.returnDate).toLocaleDateString()}
+                      {new Date(ret.returnDate).toLocaleDateString('zh-CN')}
                     </td>
                   </tr>
                 ))

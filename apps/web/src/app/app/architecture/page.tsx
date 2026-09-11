@@ -25,7 +25,7 @@ export default function ArchitecturePage() {
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-bold text-white tracking-tight">架构设计与面试深度对线指南</h1>
             <span className="text-xs bg-cyan-500/20 text-cyan-400 font-semibold px-2 py-0.5 rounded border border-cyan-500/30">
-              Milestone 10: System Blueprint & Defense Guide
+              系统架构全景与面试深度对线
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -45,7 +45,7 @@ export default function ArchitecturePage() {
       <div className="bg-surface border border-border rounded-xl p-5 shadow-lg space-y-4">
         <h3 className="text-base font-bold text-white flex items-center space-x-2 border-b border-border pb-3">
           <Layers className="w-5 h-5 text-blue-400" />
-          <span>1. 整体工程分层架构 (Monorepo Architecture)</span>
+          <span>1. 整体工程分层架构 (Monorepo)</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
@@ -88,7 +88,7 @@ export default function ArchitecturePage() {
       <div className="bg-surface border border-border rounded-xl p-5 shadow-lg space-y-4">
         <h3 className="text-base font-bold text-white flex items-center space-x-2 border-b border-border pb-3">
           <ShieldCheck className="w-5 h-5 text-emerald-400" />
-          <span>2. 核心确定性领域服务与不变量 (Pure Domain Services)</span>
+          <span>2. 核心确定性领域服务与不变量</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
@@ -124,7 +124,7 @@ export default function ArchitecturePage() {
       <div className="bg-surface border border-border rounded-xl p-5 shadow-lg space-y-4">
         <h3 className="text-base font-bold text-white flex items-center space-x-2 border-b border-border pb-3">
           <HelpCircle className="w-5 h-5 text-amber-400" />
-          <span>3. 架构师答辩对线矩阵 (Interview Defense Points)</span>
+          <span>3. 架构师答辩对线矩阵</span>
         </h3>
 
         <div className="space-y-3 text-xs">

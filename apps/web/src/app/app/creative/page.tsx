@@ -49,9 +49,9 @@ export default function CreativeStudioPage() {
     infographic: {
       infographicImageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&auto=format&fit=crop&q=80',
       callouts: [
-        { label: 'Slot Diameter', value: '1.5" Universal Wide', badge: 'Oral-B & Sonicare Fit' },
-        { label: 'Net Weight', value: '3.57 lbs Solid Heavy Stone', badge: 'Zero Tip-Over' },
-        { label: 'Base Protection', value: '4x Anti-Slip EVA Cushions', badge: 'Countertop Safe' },
+        { label: '插槽口径', value: '1.5" 超宽通用', badge: '适配 Oral-B & Sonicare' },
+        { label: '产品净重', value: '3.57 磅 实心天然石', badge: '稳固不倾倒' },
+        { label: '底座保护', value: '4 枚加厚 EVA 防滑垫', badge: '保护台面不刮伤' },
       ],
     },
     resizedVariants: [
@@ -63,9 +63,9 @@ export default function CreativeStudioPage() {
       videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-modern-bathroom-interior-41584-large.mp4',
       durationSec: 15,
       storyboard: [
-        { timestamp: '00:00-00:04', scene: 'Slow zoom on Carrara marble texture with ambient morning light' },
-        { timestamp: '00:04-00:09', scene: 'Close up on 1.5" slot sliding Oral-B electric toothbrush smoothly' },
-        { timestamp: '00:09-00:15', scene: 'Full modern vanity display with non-slip base stability test' },
+        { timestamp: '00:00-00:04', scene: '晨光柔和自然侧逆光下，缓慢推近天然大理石流线纹理' },
+        { timestamp: '00:04-00:09', scene: '特写展示 1.5 英寸插槽轻松滑入 Oral-B 加粗电动牙刷柄' },
+        { timestamp: '00:09-00:15', scene: '全景展示现代卫浴台面摆放，特写测试底座防滑平稳不晃动' },
       ],
     },
     totalCostUsd: 0.14,
@@ -83,7 +83,7 @@ export default function CreativeStudioPage() {
         setCreativePack(data);
       }
     } catch (err) {
-      console.error('Failed to generate creative pack:', err);
+      console.error('生成素材包失败:', err);
     } finally {
       setIsGenerating(false);
     }
@@ -100,10 +100,10 @@ export default function CreativeStudioPage() {
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold text-white tracking-tight">
-                素材工坊 (Creative Studio)
+                08 素材中心 (Creative Studio)
               </h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                P0 核心工作台
+                素材生产工作台
               </span>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -116,7 +116,7 @@ export default function CreativeStudioPage() {
           <select
             value={selectedSku}
             onChange={(e) => setSelectedSku(e.target.value)}
-            className="bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+            className="bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
           >
             <option value="MTH-GREEN-001">MTH-GREEN-001 (Carrara Green)</option>
             <option value="MTH-BLACK-002">MTH-BLACK-002 (Nero Marquina Black)</option>
@@ -126,7 +126,7 @@ export default function CreativeStudioPage() {
           <button
             onClick={handleGeneratePack}
             disabled={isGenerating}
-            className="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white transition shadow-md shadow-purple-600/20"
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white transition shadow-md shadow-purple-600/20 cursor-pointer"
           >
             {isGenerating ? (
               <>
@@ -136,7 +136,7 @@ export default function CreativeStudioPage() {
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>一键生成 Amazon Creative Pack</span>
+                <span>一键生成素材包 (Creative Pack)</span>
               </>
             )}
           </button>
@@ -157,7 +157,7 @@ export default function CreativeStudioPage() {
 
         <div className="bg-surface border border-border rounded-xl p-4 flex items-center justify-between">
           <div>
-            <span className="text-[11px] text-gray-400 block">AI Token & 算力成本</span>
+            <span className="text-[11px] text-gray-400 block">Token & 算力成本</span>
             <span className="text-lg font-bold text-emerald-400 font-mono">${creativePack.totalCostUsd.toFixed(2)} USD</span>
           </div>
           <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-lg">
@@ -167,7 +167,7 @@ export default function CreativeStudioPage() {
 
         <div className="bg-surface border border-border rounded-xl p-4 flex items-center justify-between">
           <div>
-            <span className="text-[11px] text-gray-400 block">Amazon 纯白底合规</span>
+            <span className="text-[11px] text-gray-400 block">Amazon 白底合规</span>
             <span className="text-lg font-bold text-emerald-400 flex items-center space-x-1">
               <ShieldCheck className="w-4 h-4" />
               <span>100% 达标</span>
@@ -181,7 +181,7 @@ export default function CreativeStudioPage() {
         <div className="bg-surface border border-border rounded-xl p-4 flex items-center justify-between">
           <div>
             <span className="text-[11px] text-gray-400 block">孔径与重量真实性</span>
-            <span className="text-lg font-bold text-white">1.5&quot; / 3.57 lbs</span>
+            <span className="text-lg font-bold text-white">1.5&quot; / 3.57 磅</span>
           </div>
           <div className="p-2.5 bg-purple-500/10 text-purple-400 rounded-lg">
             <Layers className="w-4 h-4" />
@@ -198,7 +198,7 @@ export default function CreativeStudioPage() {
               <span className="w-5 h-5 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold flex items-center justify-center">
                 1
               </span>
-              <h3 className="text-sm font-bold text-white">亚马逊主图 (Main Image)</h3>
+              <h3 className="text-sm font-bold text-white">Amazon 主图 (Main Image)</h3>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-blue-500/20 text-blue-300">
               2000x2000 1:1
@@ -212,9 +212,9 @@ export default function CreativeStudioPage() {
               className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-2">
-              <button className="p-2 rounded bg-white text-gray-900 text-xs font-medium flex items-center space-x-1 shadow">
+              <button className="p-2 rounded bg-white text-gray-900 text-xs font-medium flex items-center space-x-1 shadow cursor-pointer">
                 <Download className="w-3.5 h-3.5" />
-                <span>原图下载</span>
+                <span>下载主图</span>
               </button>
             </div>
           </div>
@@ -238,10 +238,10 @@ export default function CreativeStudioPage() {
               <span className="w-5 h-5 rounded-full bg-purple-600/20 text-purple-400 text-xs font-bold flex items-center justify-center">
                 2
               </span>
-              <h3 className="text-sm font-bold text-white">卫浴生活场景图 (Lifestyle)</h3>
+              <h3 className="text-sm font-bold text-white">场景图 (Lifestyle Image)</h3>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-purple-500/20 text-purple-300">
-              In-situ Home
+              真实家居场景
             </span>
           </div>
 
@@ -252,9 +252,9 @@ export default function CreativeStudioPage() {
               className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-2">
-              <button className="p-2 rounded bg-white text-gray-900 text-xs font-medium flex items-center space-x-1 shadow">
+              <button className="p-2 rounded bg-white text-gray-900 text-xs font-medium flex items-center space-x-1 shadow cursor-pointer">
                 <Download className="w-3.5 h-3.5" />
-                <span>场景图下载</span>
+                <span>下载场景图</span>
               </button>
             </div>
           </div>
@@ -278,7 +278,7 @@ export default function CreativeStudioPage() {
               <span className="w-5 h-5 rounded-full bg-emerald-600/20 text-emerald-400 text-xs font-bold flex items-center justify-center">
                 3
               </span>
-              <h3 className="text-sm font-bold text-white">卖点与尺寸信息图 (Infographic)</h3>
+              <h3 className="text-sm font-bold text-white">信息图 (Infographic)</h3>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-emerald-500/20 text-emerald-300">
               VOC 驱动
@@ -313,7 +313,7 @@ export default function CreativeStudioPage() {
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <div className="flex items-center space-x-2">
               <Video className="w-4 h-4 text-purple-400" />
-              <h3 className="text-sm font-bold text-white">15秒商品展示短视频 (Video Short)</h3>
+              <h3 className="text-sm font-bold text-white">15秒展示短视频 (Video Short)</h3>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-purple-500/20 text-purple-300">
               1080P · 15s MP4
@@ -331,7 +331,7 @@ export default function CreativeStudioPage() {
 
             <div className="space-y-2">
               <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider block">
-                三段式分镜设计 (Storyboard)
+                分镜脚本 (Storyboard)
               </span>
               <div className="space-y-1.5 text-xs text-gray-400">
                 {creativePack.videoShowcase.storyboard.map((item: any, i: number) => (
@@ -350,7 +350,7 @@ export default function CreativeStudioPage() {
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <div className="flex items-center space-x-2">
               <Scissors className="w-4 h-4 text-blue-400" />
-              <h3 className="text-sm font-bold text-white">多画幅规格裁剪矩阵 (Resize Matrix)</h3>
+              <h3 className="text-sm font-bold text-white">多画幅尺寸裁剪矩阵 (Resize Matrix)</h3>
             </div>
           </div>
 
@@ -366,7 +366,7 @@ export default function CreativeStudioPage() {
                     {item.width} x {item.height} · {item.format}
                   </span>
                 </div>
-                <button className="px-2.5 py-1 bg-surface rounded border border-border hover:border-gray-600 text-gray-300 flex items-center space-x-1 transition">
+                <button className="px-2.5 py-1 bg-surface rounded border border-border hover:border-gray-600 text-gray-300 flex items-center space-x-1 transition cursor-pointer">
                   <Download className="w-3 h-3" />
                   <span>导出</span>
                 </button>
@@ -379,7 +379,7 @@ export default function CreativeStudioPage() {
               href="/app/tool-center"
               className="inline-flex items-center space-x-1 text-xs text-blue-400 hover:underline"
             >
-              <span>在统一工具中心单点自定义裁剪与生图</span>
+              <span>在工具中心单点自定义裁剪与生图</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ApiClient } from '@/lib/api-client';
+import { getStatusLabel } from '@/constants/ui-labels';
 import {
   Wrench,
   Sparkles,
@@ -22,11 +23,11 @@ import {
 } from 'lucide-react';
 
 const CATEGORIES = [
-  { id: 'ALL', label: '全部工具 (All Tools)' },
+  { id: 'ALL', label: '全部工具' },
   { id: 'CREATIVE', label: '素材生产 (Creative)' },
   { id: 'OPERATION', label: '运营管理 (Operation)' },
   { id: 'DATA', label: '数据与财务 (Data & Finance)' },
-  { id: 'PRODUCT_RESEARCH', label: '选品研究 (Research)' },
+  { id: 'PRODUCT_RESEARCH', label: '选品调研 (Research)' },
 ];
 
 interface ToolMeta {
@@ -347,7 +348,7 @@ export default function ToolCenterPage() {
       ]);
     } catch (err: any) {
       setExecutionResult({
-        error: err.message || 'Tool execution failed',
+        error: err.message || '工具调用执行失败',
         status: 'FAILED',
       });
       setExecutionHistory((prev) => [
@@ -383,7 +384,7 @@ export default function ToolCenterPage() {
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="text-xl font-bold text-white tracking-tight">
-                  统一工具中心 (Tool Center)
+                  统一工具中心
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   V9 Tool Platform
@@ -478,7 +479,7 @@ export default function ToolCenterPage() {
             <div className="flex items-center justify-between text-xs text-gray-300 font-semibold">
               <span className="flex items-center space-x-1.5">
                 <History className="w-3.5 h-3.5 text-gray-400" />
-                <span>最近执行历史 (Recent Runs)</span>
+                <span>最近执行历史</span>
               </span>
               <span className="text-[10px] text-gray-500">{executionHistory.length} 次</span>
             </div>
@@ -492,8 +493,12 @@ export default function ToolCenterPage() {
                     <span className="text-gray-200 block truncate">{item.toolName}</span>
                     <span className="text-[10px] text-gray-500">{item.time} · {item.durationMs}ms</span>
                   </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    {item.status}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                    item.status === 'SUCCESS'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                  }`}>
+                    {getStatusLabel(item.status)}
                   </span>
                 </div>
               ))}
@@ -521,7 +526,7 @@ export default function ToolCenterPage() {
                   v{selectedTool.version}
                 </span>
                 <span className="px-2 py-1 bg-surface-elevated rounded border border-border text-gray-400 font-mono">
-                  Timeout: {selectedTool.timeoutMs / 1000}s
+                  超时: {selectedTool.timeoutMs / 1000}秒
                 </span>
               </div>
             </div>
@@ -530,7 +535,7 @@ export default function ToolCenterPage() {
             <div className="mt-5 space-y-4">
               <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center space-x-2">
                 <Sliders className="w-3.5 h-3.5 text-blue-400" />
-                <span>输入参数配置 (Input Form Schema)</span>
+                <span>输入参数配置</span>
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -619,7 +624,7 @@ export default function ToolCenterPage() {
                   ) : (
                     <>
                       <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>立即执行 (Run Tool)</span>
+                      <span>立即执行 Tool</span>
                     </>
                   )}
                 </button>
@@ -633,7 +638,7 @@ export default function ToolCenterPage() {
               <div className="flex items-center justify-between pb-3 border-b border-border">
                 <div className="flex items-center space-x-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-bold text-white">执行成功 (Execution Success)</span>
+                  <span className="text-sm font-bold text-white">执行成功</span>
                   <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     200 OK
                   </span>
@@ -648,7 +653,7 @@ export default function ToolCenterPage() {
               {/* Visual preview if creative image */}
               {executionResult.data?.imageUrl && (
                 <div className="p-4 bg-surface-elevated rounded-lg border border-border space-y-3">
-                  <span className="text-xs font-semibold text-gray-300">生成素材预览 (Asset Preview)</span>
+                  <span className="text-xs font-semibold text-gray-300">生成素材预览</span>
                   <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
                     <img
                       src={executionResult.data.imageUrl}
@@ -695,7 +700,7 @@ export default function ToolCenterPage() {
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span className="flex items-center space-x-1.5">
                     <Code className="w-3.5 h-3.5 text-gray-400" />
-                    <span>标准化返回 JSON (Normalized Result)</span>
+                    <span>标准化返回 JSON</span>
                   </span>
                 </div>
                 <pre className="p-4 rounded-lg bg-surface-elevated/90 border border-border text-emerald-400 font-mono text-xs overflow-x-auto max-h-64">

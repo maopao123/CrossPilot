@@ -4,13 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../lib/api-client';
 import { WorkspaceSummary } from '@crosspilot/shared';
 import { useRouter } from 'next/navigation';
-import { LogOut, Globe, Box, ShieldCheck, ChevronDown } from 'lucide-react';
+import { LogOut, Globe, Box, ShieldCheck } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 
 export function TopBar() {
   const router = useRouter();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
-  const [userName, setUserName] = useState<string>('Demo User');
+  const [userName, setUserName] = useState<string>('演示用户');
 
   useEffect(() => {
     async function loadContext() {
@@ -20,7 +20,7 @@ export function TopBar() {
         const me = await ApiClient.get<any>('/api/v1/auth/me');
         if (me?.name) setUserName(me.name);
       } catch (err) {
-        console.warn('Could not load current workspace context:', err);
+        console.warn('无法载入工作区上下文:', err);
       }
     }
     loadContext();
@@ -31,6 +31,20 @@ export function TopBar() {
     router.push('/login');
   };
 
+  const getMarketplaceDisplay = (mkt?: string) => {
+    if (mkt === 'AMAZON_US' || !mkt) return 'Amazon 美国站';
+    if (mkt === 'AMAZON_UK') return 'Amazon 英国站';
+    if (mkt === 'AMAZON_DE') return 'Amazon 德国站';
+    return mkt;
+  };
+
+  const getRoleDisplay = (role?: string) => {
+    if (role === 'OWNER') return '所有者';
+    if (role === 'ADMIN') return '管理员';
+    if (role === 'OPERATOR') return '运营';
+    return role || '所有者';
+  };
+
   return (
     <header className="h-14 border-b border-border bg-surface px-6 flex items-center justify-between text-sm sticky top-0 z-40">
       <div className="flex items-center space-x-6">
@@ -38,10 +52,10 @@ export function TopBar() {
         <div className="flex items-center space-x-2 bg-surface-elevated px-3 py-1.5 rounded-md border border-border">
           <ShieldCheck className="w-4 h-4 text-primary" />
           <span className="font-semibold text-white">
-            {workspace?.name || 'CrossPilot Demo'}
+            {workspace?.name || 'CrossPilot 演示工作区'}
           </span>
           <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
-            {workspace?.role || 'OWNER'}
+            {getRoleDisplay(workspace?.role)}
           </span>
         </div>
 
@@ -49,7 +63,7 @@ export function TopBar() {
         <div className="flex items-center space-x-1.5 text-gray-300">
           <Globe className="w-4 h-4 text-emerald-400" />
           <span className="font-medium">
-            {workspace?.defaultMarketplace || 'AMAZON_US'}
+            {getMarketplaceDisplay(workspace?.defaultMarketplace)}
           </span>
           <span className="text-xs text-gray-400">(USD $)</span>
         </div>
@@ -57,9 +71,9 @@ export function TopBar() {
         {/* Active Product & SKU (Marble Toothbrush Holder demo) */}
         <div className="hidden lg:flex items-center space-x-2 border-l border-border pl-6 text-gray-300">
           <Box className="w-4 h-4 text-amber-400" />
-          <span className="text-gray-400">Active SKU:</span>
+          <span className="text-gray-400">当前 SKU:</span>
           <span className="font-medium text-white">
-            Natural Marble Toothbrush Holder
+            天然大理石牙刷架
           </span>
           <span className="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded font-mono">
             MTH-WHITE-001
@@ -70,7 +84,7 @@ export function TopBar() {
       <div className="flex items-center space-x-4">
         {/* Date Context */}
         <div className="hidden sm:block text-xs text-gray-400 bg-surface-elevated px-2.5 py-1 rounded border border-border">
-          Date: <span className="text-gray-200">{new Date().toISOString().slice(0, 10)}</span>
+          日期: <span className="text-gray-200">{new Date().toISOString().slice(0, 10)}</span>
         </div>
 
         {/* Theme Toggle (Light / Dark) */}
@@ -87,8 +101,8 @@ export function TopBar() {
 
           <button
             onClick={handleLogout}
-            title="Sign Out"
-            className="p-1.5 hover:bg-surface-elevated rounded text-gray-400 hover:text-rose-400 transition"
+            title="退出登录"
+            className="p-1.5 hover:bg-surface-elevated rounded text-gray-400 hover:text-rose-400 transition cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
           </button>

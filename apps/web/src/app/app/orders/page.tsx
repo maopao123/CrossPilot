@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
 import { OrderInfo, InventoryBalanceInfo } from '@crosspilot/shared';
+import { getStatusLabel } from '../../../constants/ui-labels';
 import {
   ShoppingCart,
   Clock,
@@ -22,6 +23,7 @@ export default function OrdersPage() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const [ordRes, invRes] = await Promise.allSettled([
         ApiClient.get<OrderInfo[]>('/api/v1/orders'),
         ApiClient.get<InventoryBalanceInfo[]>('/api/v1/inventory'),
@@ -30,7 +32,7 @@ export default function OrdersPage() {
       if (ordRes.status === 'fulfilled') setOrders(ordRes.value);
       if (invRes.status === 'fulfilled') setInventory(invRes.value);
     } catch (err) {
-      console.error('Failed to load orders data:', err);
+      console.error('无法载入订单数据:', err);
     } finally {
       setLoading(false);
     }
@@ -59,17 +61,25 @@ export default function OrdersPage() {
 
       setOrderNotice({
         type: 'success',
-        text: `✅ AC 2 验收成功: 订单 ${newOrder.orderNumber} 创建成功，FBA 库存扣减 ${orderQty} 件，每日利润已更新！`,
+        text: `✅ 订单 ${newOrder.orderNumber} 创建成功，FBA 库存扣减 ${orderQty} 件，每日利润已同步更新！`,
       });
 
       await loadData();
     } catch (err: any) {
       setOrderNotice({
         type: 'error',
-        text: `❌ ${err.message}`,
+        text: `❌ 下单失败: ${err.message}`,
       });
     }
   };
+
+  if (loading && orders.length === 0) {
+    return (
+      <div className="py-20 text-center text-gray-400 text-sm">
+        正在加载订单数据...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -77,10 +87,10 @@ export default function OrdersPage() {
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              10 订单与履约中心
+              10 订单管理
             </h1>
             <span className="text-xs bg-blue-500/20 text-blue-400 font-semibold px-2 py-0.5 rounded border border-blue-500/30">
-              AC 2: Order → Inventory -
+              订单下单 → 库存扣减
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -92,10 +102,10 @@ export default function OrdersPage() {
       <div className="bg-surface border border-blue-500/30 rounded-xl p-5 shadow-lg">
         <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-2 flex items-center space-x-2">
           <ShoppingCart className="w-4 h-4 text-blue-400" />
-          <span>AC 2 履约验证控制台 (Simulate Customer Order)</span>
+          <span>履约验证控制台 (模拟买家下单)</span>
         </h2>
         <p className="text-xs text-gray-400 mb-4">
-          通过创建订单验证真实业务闭环：正常数量将安全扣减可售库存；超量下单将被拦截并抛出 <code className="text-rose-400 font-mono">INVENTORY_NOT_ENOUGH</code> 异常。
+          通过创建订单验证真实业务闭环：正常数量将安全扣减可售库存；超量下单将被系统拦截并抛出 <code className="text-rose-400 font-mono">INVENTORY_NOT_ENOUGH</code> 异常。
         </p>
 
         <div className="flex flex-wrap items-center gap-4 bg-surface-elevated p-3 rounded-lg border border-border">
@@ -104,7 +114,7 @@ export default function OrdersPage() {
             <select
               value={selectedSku}
               onChange={(e) => setSelectedSku(e.target.value)}
-              className="bg-surface border border-border text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-blue-500"
+              className="bg-surface border border-border text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="sku_white_001">MTH-WHITE-001 (天然大理石 White)</option>
               <option value="sku_green_002">MTH-GREEN-002 (天然大理石 Green)</option>
@@ -112,7 +122,7 @@ export default function OrdersPage() {
           </div>
 
           <div>
-            <label className="block text-[11px] text-gray-400 mb-1">下单件数 (Quantity)</label>
+            <label className="block text-[11px] text-gray-400 mb-1">下单件数</label>
             <input
               type="number"
               min="1"
@@ -125,7 +135,7 @@ export default function OrdersPage() {
           <div className="self-end flex items-center space-x-2">
             <button
               onClick={handleCreateOrder}
-              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded transition flex items-center space-x-1"
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded transition flex items-center space-x-1 cursor-pointer"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span>提交订单扣减库存</span>
@@ -134,7 +144,7 @@ export default function OrdersPage() {
               onClick={() => {
                 setOrderQty(999999);
               }}
-              className="bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 text-xs font-medium px-3 py-2 rounded transition"
+              className="bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 text-xs font-medium px-3 py-2 rounded transition cursor-pointer"
             >
               一键填充超量 (测试缺货拦截)
             </button>
@@ -152,7 +162,7 @@ export default function OrdersPage() {
             <span>{orderNotice.text}</span>
             <button
               onClick={() => setOrderNotice(null)}
-              className="text-gray-400 hover:text-white"
+              className="text-gray-400 hover:text-white cursor-pointer"
             >
               ✕
             </button>
@@ -163,14 +173,14 @@ export default function OrdersPage() {
       <div className="bg-surface border border-border rounded-xl p-6">
         <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center space-x-2">
           <Clock className="w-4 h-4 text-gray-400" />
-          <span>最新订单流 (Recent Orders)</span>
+          <span>最新订单明细</span>
         </h2>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-gray-300">
             <thead className="bg-surface-elevated text-gray-400 uppercase font-semibold border-b border-border">
               <tr>
-                <th className="py-2.5 px-3">Amazon Order ID</th>
+                <th className="py-2.5 px-3">Amazon 订单号</th>
                 <th className="py-2.5 px-3">购买 SKU</th>
                 <th className="py-2.5 px-3">购买件数</th>
                 <th className="py-2.5 px-3">订单金额</th>
@@ -192,14 +202,14 @@ export default function OrdersPage() {
                     )) || 'MTH-WHITE-001'}
                   </td>
                   <td className="py-3 px-3 font-bold text-white">
-                    {o.items?.reduce((sum, i) => sum + i.quantity, 0) || 1} pcs
+                    {o.items?.reduce((sum, i) => sum + i.quantity, 0) || 1} 件
                   </td>
                   <td className="py-3 px-3 font-bold text-emerald-400">
                     ${o.totalAmount}
                   </td>
                   <td className="py-3 px-3">
                     <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded">
-                      {o.status}
+                      {getStatusLabel(o.status)}
                     </span>
                   </td>
                   <td className="py-3 px-3 text-gray-400">

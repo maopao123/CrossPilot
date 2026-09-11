@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
 import { SupplierInfo, PurchaseOrderInfo } from '@crosspilot/shared';
+import { getStatusLabel } from '../../../constants/ui-labels';
 import {
   Truck,
   Plus,
@@ -19,6 +20,7 @@ export default function SuppliersPage() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const [supData, poData] = await Promise.allSettled([
         ApiClient.get<SupplierInfo[]>('/api/v1/suppliers'),
         ApiClient.get<PurchaseOrderInfo[]>('/api/v1/purchase-orders'),
@@ -27,7 +29,7 @@ export default function SuppliersPage() {
       if (supData.status === 'fulfilled') setSuppliers(supData.value);
       if (poData.status === 'fulfilled') setPurchaseOrders(poData.value);
     } catch (err) {
-      console.error('Failed to load supply data:', err);
+      console.error('无法载入供应链数据:', err);
     } finally {
       setLoading(false);
     }
@@ -39,7 +41,7 @@ export default function SuppliersPage() {
 
   const handleReceivePo = async (po: PurchaseOrderInfo) => {
     try {
-      setActionMsg('正在执行采购入库 (PO Receive)...');
+      setActionMsg('正在执行采购订单入库核收...');
       const itemsToReceive = po.items?.map((item) => ({
         skuId: item.skuId,
         receivedQuantity: item.quantity,
@@ -54,12 +56,20 @@ export default function SuppliersPage() {
         items: itemsToReceive,
       });
 
-      setActionMsg(`✅ AC 1 验收成功: PO ${po.poNumber} 入库完成，FBA 可售库存已自动增加！`);
+      setActionMsg(`✅ 验收成功: PO ${po.poNumber} 入库完成，FBA 可售库存已自动增加！`);
       await loadData();
     } catch (err: any) {
       setActionMsg(`❌ 入库失败: ${err.message}`);
     }
   };
+
+  if (loading && suppliers.length === 0) {
+    return (
+      <div className="py-20 text-center text-gray-400 text-sm">
+        正在加载供应链与采购数据...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -67,10 +77,10 @@ export default function SuppliersPage() {
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              06 供应链与采购协同
+              06 供应链与采购
             </h1>
             <span className="text-xs bg-blue-500/20 text-blue-400 font-semibold px-2 py-0.5 rounded border border-blue-500/30">
-              AC 1: PO Receive → Inventory +
+              采购入库 → 库存协同
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -84,7 +94,7 @@ export default function SuppliersPage() {
           <span>{actionMsg}</span>
           <button
             onClick={() => setActionMsg(null)}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white cursor-pointer"
           >
             ✕
           </button>
@@ -94,7 +104,7 @@ export default function SuppliersPage() {
       <div className="bg-surface border border-border rounded-xl p-6">
         <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center space-x-2">
           <Truck className="w-4 h-4 text-blue-400" />
-          <span>核心供应商名录 (Suppliers)</span>
+          <span>核心供应商名录</span>
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -107,7 +117,7 @@ export default function SuppliersPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white">{sup.name}</h3>
                   <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded">
-                    {sup.status}
+                    {getStatusLabel(sup.status)}
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
@@ -137,10 +147,10 @@ export default function SuppliersPage() {
           <div>
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
               <PackageCheck className="w-4 h-4 text-emerald-400" />
-              <span>采购订单列表 (Purchase Orders)</span>
+              <span>采购订单列表</span>
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              状态流转: DRAFT → CONFIRMED → SHIPPED → RECEIVED (AC 1 触发点)
+              状态流转: 草稿 → 已确认 → 已发货 → 已收货
             </p>
           </div>
         </div>
@@ -154,7 +164,7 @@ export default function SuppliersPage() {
                 <th className="py-2.5 px-3">采购明细</th>
                 <th className="py-2.5 px-3">采购总额</th>
                 <th className="py-2.5 px-3">状态</th>
-                <th className="py-2.5 px-3 text-right">AC 1 动作</th>
+                <th className="py-2.5 px-3 text-right">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -171,28 +181,28 @@ export default function SuppliersPage() {
                       <span key={item.id} className="block text-gray-300">
                         {item.skuCode || 'MTH-WHITE-001'} × {item.quantity} 件 (@${item.unitCost})
                       </span>
-                    )) || '500 pcs'}
+                    )) || '500 件'}
                   </td>
                   <td className="py-3 px-3 font-bold text-white">
                     ${po.totalAmount}
                   </td>
                   <td className="py-3 px-3">
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {po.status}
+                      {getStatusLabel(po.status)}
                     </span>
                   </td>
                   <td className="py-3 px-3 text-right">
                     {po.status === 'RECEIVED' ? (
                       <span className="inline-flex items-center space-x-1 text-emerald-400 font-semibold">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>已入库 (Inventory +)</span>
+                        <span>已入库 (库存已增加)</span>
                       </span>
                     ) : (
                       <button
                         onClick={() => handleReceivePo(po)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded transition text-xs"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded transition text-xs cursor-pointer"
                       >
-                        入库核收 (+ 库存)
+                        入库核收 (增加库存)
                       </button>
                     )}
                   </td>

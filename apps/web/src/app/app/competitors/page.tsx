@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
+import { getVocLabel } from '../../../constants/ui-labels';
 import {
   Users,
   MessageSquare,
@@ -89,7 +90,7 @@ export default function CompetitorAndVocPage() {
           }
         }
       } catch (err) {
-        console.error('Failed to load competitors & VOC:', err);
+        console.error('无法载入竞品与 VOC 数据:', err);
       } finally {
         setLoading(false);
       }
@@ -102,7 +103,7 @@ export default function CompetitorAndVocPage() {
       const res = await ApiClient.get<TopicEvidenceDetails>(`/api/v1/voc/topics/${topicId}/evidence`);
       setTopicEvidence(res);
     } catch (err) {
-      console.error('Failed to load topic evidence:', err);
+      console.error('无法载入 VOC 证据详情:', err);
     }
   };
 
@@ -111,15 +112,23 @@ export default function CompetitorAndVocPage() {
     loadTopicEvidence(topic.id);
   };
 
+  if (loading && competitors.length === 0) {
+    return (
+      <div className="py-20 text-center text-gray-400 text-sm">
+        正在加载竞品与买家声音 (VOC) 数据...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">04 竞品监控与买家声音 (VOC)</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">04 竞品与 VOC</h1>
             <span className="text-xs bg-purple-500/20 text-purple-400 font-semibold px-2 py-0.5 rounded border border-purple-500/30">
-              Milestone 3: Review Evidence Drill-down
+              买家原声证据链穿透
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -128,7 +137,7 @@ export default function CompetitorAndVocPage() {
         </div>
 
         <div className="text-xs text-gray-400 bg-surface border border-border px-3 py-1.5 rounded-lg">
-          监测竞品数: <span className="font-bold text-white">{competitors.length}</span> • 聚类原声样本: <span className="font-bold text-white">180+</span>
+          监测竞品数: <span className="font-bold text-white">{competitors.length}</span> • 聚类原声样本: <span className="font-bold text-white">180+ 条</span>
         </div>
       </div>
 
@@ -136,16 +145,16 @@ export default function CompetitorAndVocPage() {
       <div className="bg-surface border border-border rounded-xl p-5 shadow-lg">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3 flex items-center space-x-2">
           <Users className="w-4 h-4 text-blue-400" />
-          <span>核心标杆竞品实时监控大盘 (Benchmark Competitors)</span>
+          <span>核心标杆竞品实时监控大盘</span>
         </h3>
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="text-[11px] text-gray-400 uppercase bg-surface-elevated/60 border-b border-border">
               <tr>
-                <th className="py-3 px-4">ASIN & 竞品名称</th>
+                <th className="py-3 px-4">ASIN 与竞品标题</th>
                 <th className="py-3 px-4">品牌</th>
-                <th className="py-3 px-4">售价 (Price)</th>
+                <th className="py-3 px-4">售价</th>
                 <th className="py-3 px-4">星级评分</th>
                 <th className="py-3 px-4">评论总数</th>
                 <th className="py-3 px-4">预估月销量</th>
@@ -164,7 +173,7 @@ export default function CompetitorAndVocPage() {
                   <td className="py-3 px-4 font-bold text-white">${c.price.toFixed(2)}</td>
                   <td className="py-3 px-4 text-amber-400 font-semibold">⭐ {c.rating.toFixed(1)}</td>
                   <td className="py-3 px-4 text-gray-300">{c.reviewCount.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-emerald-400 font-medium">{c.estimatedSales.toLocaleString()} pcs</td>
+                  <td className="py-3 px-4 text-emerald-400 font-medium">{c.estimatedSales.toLocaleString()} 件</td>
                   <td className="py-3 px-4 font-bold text-white">${c.estimatedRevenue.toLocaleString()}</td>
                   <td className="py-3 px-4 text-gray-400">#{c.bsr}</td>
                 </tr>
@@ -181,9 +190,9 @@ export default function CompetitorAndVocPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-purple-400" />
-              <span>VOC 主题聚类榜 (Topics)</span>
+              <span>VOC 主题聚类榜</span>
             </h3>
-            <span className="text-[11px] text-gray-400">按占比排序</span>
+            <span className="text-[11px] text-gray-400">按买家提及占比排序</span>
           </div>
 
           <div className="space-y-2">
@@ -195,7 +204,7 @@ export default function CompetitorAndVocPage() {
                 <button
                   key={t.id}
                   onClick={() => handleSelectTopic(t)}
-                  className={`w-full text-left p-4 rounded-xl border transition ${
+                  className={`w-full text-left p-4 rounded-xl border transition cursor-pointer ${
                     isSelected
                       ? 'bg-surface-elevated border-purple-500 shadow-md ring-1 ring-purple-500'
                       : 'bg-surface border-border hover:bg-surface-elevated'
@@ -205,7 +214,7 @@ export default function CompetitorAndVocPage() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
                       isPain ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {t.topicType}
+                      {getVocLabel(t.topicType)}
                     </span>
                     <span className="text-xs font-bold text-white">{t.percentage.toFixed(1)}% 买家提及</span>
                   </div>
@@ -214,9 +223,9 @@ export default function CompetitorAndVocPage() {
                   <p className="text-xs text-gray-400 mt-1 line-clamp-2">{t.summary}</p>
 
                   <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-[11px] text-gray-500">
-                    <span>样本数量: {t.reviewCount} 条</span>
+                    <span>原声样本: {t.reviewCount} 条</span>
                     <span className="text-purple-400 font-semibold flex items-center">
-                      点击下钻原声证据 <ChevronRight className="w-3 h-3 ml-0.5" />
+                      点击穿透原声证据 <ChevronRight className="w-3 h-3 ml-0.5" />
                     </span>
                   </div>
                 </button>
@@ -230,13 +239,13 @@ export default function CompetitorAndVocPage() {
           <div>
             <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
               <div>
-                <span className="text-xs font-semibold text-purple-400 uppercase">Review Evidence Drill-Down</span>
+                <span className="text-xs font-semibold text-purple-400 uppercase">买家原声核验证据穿透</span>
                 <h3 className="text-base font-bold text-white mt-0.5">
                   {selectedTopic?.topicName || '买家原声核验证据'}
                 </h3>
               </div>
               <span className="text-xs bg-surface-elevated border border-border text-gray-300 px-2.5 py-1 rounded">
-                共关联 {topicEvidence?.evidenceCount || 0} 篇高权重证据
+                共关联 {topicEvidence?.evidenceCount || 0} 条高权重买家原声证据
               </span>
             </div>
 
@@ -252,7 +261,7 @@ export default function CompetitorAndVocPage() {
                       <span className="text-xs font-bold text-white">{rev.title}</span>
                     </div>
                     <span className="text-[10px] text-gray-500 font-mono">
-                      {rev.reviewerName} • Verified Purchase
+                      {rev.reviewerName} • 真实购买 (VP)
                     </span>
                   </div>
 
@@ -270,7 +279,7 @@ export default function CompetitorAndVocPage() {
           </div>
 
           <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-gray-400">
-            <span>确凿买家证据将作为 Listing Studio 与产品改进的依据约束</span>
+            <span>确凿买家证据将作为 Listing 工作台与产品改进的真实约束</span>
             <span className="text-emerald-400 font-semibold flex items-center">
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 证据链完整可审计
             </span>

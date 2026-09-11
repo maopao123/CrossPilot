@@ -1,8 +1,10 @@
 'use client';
+
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ApiClient } from '../../../lib/api-client';
 import { ProductInfo } from '@crosspilot/shared';
+import { getStatusLabel } from '../../../constants/ui-labels';
 import { Box, Plus, ArrowRight } from 'lucide-react';
 
 export default function ProductsPage() {
@@ -15,7 +17,7 @@ export default function ProductsPage() {
         const data = await ApiClient.get<ProductInfo[]>('/api/v1/products');
         setProducts(data);
       } catch (err) {
-        console.error('Failed to load products:', err);
+        console.error('无法载入产品列表:', err);
       } finally {
         setLoading(false);
       }
@@ -23,16 +25,24 @@ export default function ProductsPage() {
     fetchProducts();
   }, []);
 
+  if (loading && products.length === 0) {
+    return (
+      <div className="py-20 text-center text-gray-400 text-sm">
+        正在加载产品中心数据...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md-flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              03 产品与 SKU 中心
+              03 产品中心
             </h1>
             <span className="text-xs bg-blue-500/20 text-blue-400 font-semibold px-2 py-0.5 rounded border border-blue-500/30">
-              Milestone 1: Core Commerce
+              核心商品目录
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -41,7 +51,7 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">
+          <button className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition cursor-pointer">
             <Plus className="w-4 h-4" />
             <span>新建产品</span>
           </button>
@@ -56,7 +66,7 @@ export default function ProductsPage() {
           >
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-600/15 border border-border-blue-500/30 flex items-center justify-center text-blue-400">
+                <div className="w-10 h-10 rounded-lg bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
                   <Box className="w-5 h-5" />
                 </div>
                 <div>
@@ -64,8 +74,8 @@ export default function ProductsPage() {
                     <span className="text-xs font-medium text-gray-400">
                       {prod.brand} • {prod.category}
                     </span>
-                    <span className="text-[10p] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">
-                      {prod.status}
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">
+                      {getStatusLabel(prod.status)}
                     </span>
                   </div>
                   <h2 className="text-lg font-bold text-white mt-0.5">
@@ -75,20 +85,20 @@ export default function ProductsPage() {
               </div>
 
               <div className="flex items-center space-x-4 text-xs text-gray-400">
-                <span>Target Price: <strong className="text-white">${prod.targetPrice || 29.99}</strong></span>
-                <span>Marketplace: <strong className="text-blue-400">Amazon US</strong></span>
+                <span>目标售价: <strong className="text-white">${prod.targetPrice || 29.99}</strong></span>
+                <span>站点: <strong className="text-blue-400">Amazon 美国站</strong></span>
               </div>
             </div>
 
             <div className="mt-4">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                下属 SKU 列表 ({prod.skus?.length || 0} 个变体)
+                变体 SKU 列表 ({prod.skus?.length || 0} 个变体)
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-gray-300">
                   <thead className="bg-surface-elevated/60 text-gray-400 uppercase font-semibold border-b border-border">
                     <tr>
-                      <th className="py-2.5 px-3">SKU Code</th>
+                      <th className="py-2.5 px-3">SKU 编码</th>
                       <th className="py-2.5 px-3">变体名称</th>
                       <th className="py-2.5 px-3">ASIN</th>
                       <th className="py-2.5 px-3">售价</th>
@@ -113,11 +123,11 @@ export default function ProductsPage() {
                           ${sku.sellingPrice}
                         </td>
                         <td className="py-3 px-3 text-gray-400">
-                          {sku.weightKg ? `${sku.weightKg} kg` : '1.62 kg'} • {sku.material || 'Natural Marble'}
+                          {sku.weightKg ? `${sku.weightKg} kg` : '1.62 kg'} • {sku.material === 'Natural Marble' ? '天然大理石' : (sku.material || '天然大理石')}
                         </td>
                         <td className="py-3 px-3">
                           <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-semibold">
-                            {sku.status}
+                            {getStatusLabel(sku.status)}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-right">

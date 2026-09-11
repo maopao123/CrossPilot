@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
@@ -17,6 +17,7 @@ export default function ProfitPage() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const [sumRes, dailyRes] = await Promise.allSettled([
         ApiClient.get<any>('/api/v1/profit/summary'),
         ApiClient.get<any[]>('/api/v1/profit/daily'),
@@ -25,7 +26,7 @@ export default function ProfitPage() {
       if (sumRes.status === 'fulfilled') setSummary(sumRes.value);
       if (dailyRes.status === 'fulfilled') setDailyRecords(dailyRes.value);
     } catch (err) {
-      console.error('Failed to load profit data:', err);
+      console.error('无法载入利润数据:', err);
     } finally {
       setLoading(false);
     }
@@ -37,19 +38,19 @@ export default function ProfitPage() {
 
   const handleSimulateReturn = async () => {
     try {
-      setReturnMsg('正在创建退货记录并重新计算全天净利润与利润率 (AC 3)...');
+      setReturnMsg('正在创建退货记录并重新计算全天净利润与利润率...');
       const refundAmount = 29.99;
       
       const res = await ApiClient.post<any>('/api/v1/returns', {
         orderItemId: 'ord_item_demo_01',
         skuId: 'sku_white_001',
         refundAmount,
-        reason: 'Customer Return: Defective / Surface Scratched',
+        reason: '买家自主退货：表面有细微划痕',
         returnDate: new Date().toISOString(),
       });
 
       setReturnMsg(
-        `✅ AC 3 验收成功: 退款 $${refundAmount} 已计入退货损失，当日净利润重算为 $${res.updatedProfit.netProfit.toFixed(2)}，利润率变动为 ${(res.updatedProfit.margin * 100).toFixed(2)}% (高精度十进制计算无浮点漂移)`
+        `✅ 退货核销成功: 退款 $${refundAmount} 已计入退货损失，当日净利润重算为 $${res.updatedProfit.netProfit.toFixed(2)}，利润率变动为 ${(res.updatedProfit.margin * 100).toFixed(2)}% (高精度十进制计算)`
       );
 
       await loadData();
@@ -58,30 +59,38 @@ export default function ProfitPage() {
     }
   };
 
+  if (loading && !summary) {
+    return (
+      <div className="py-20 text-center text-gray-400 text-sm">
+        正在加载利润中心数据...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              13 利润中心 (Profit Center)
+              13 利润中心
             </h1>
             <span className="text-xs bg-blue-500/20 text-blue-400 font-semibold px-2 py-0.5 rounded border border-blue-500/30">
-              AC 3: Return → Profit Recalculate
+              退货核销 → 利润高精度重算
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            SKU 真实财务核算: Revenue, COGS, Amazon Fees, FBA, Ads, Returns, Net Profit
+            SKU 真实财务核算：销售额、成本、佣金、FBA、广告、退货、净利润
           </p>
         </div>
 
         <div className="flex items-center space-x-3">
           <button
             onClick={handleSimulateReturn}
-            className="flex items-center space-x-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 text-xs font-semibold px-3 py-2 rounded-lg transition"
+            className="flex items-center space-x-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 text-xs font-semibold px-3 py-2 rounded-lg transition cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>模拟退货重算利润 (AC 3)</span>
+            <span>模拟退货重算利润</span>
           </button>
         </div>
       </div>
@@ -91,7 +100,7 @@ export default function ProfitPage() {
           <span>{returnMsg}</span>
           <button
             onClick={() => setReturnMsg(null)}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white cursor-pointer"
           >
             ✕
           </button>
@@ -100,12 +109,12 @@ export default function ProfitPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-surface border border-border p-4 rounded-xl">
-          <span className="text-xs text-gray-400 font-medium">销售额 (Revenue)</span>
+          <span className="text-xs text-gray-400 font-medium">销售额</span>
           <div className="text-xl font-bold text-white mt-1">
             ${summary?.revenue?.toFixed(2) || '28,490.50'}
           </div>
           <span className="text-[10px] text-emerald-400 flex items-center mt-1">
-            <ArrowUpRight className="w-3 h-3" /> Amazon US
+            <ArrowUpRight className="w-3 h-3" /> Amazon 美国站
           </span>
         </div>
 
@@ -115,7 +124,7 @@ export default function ProfitPage() {
             -${summary?.cogs?.toFixed(2) || '8,075.00'}
           </div>
           <span className="text-[10px] text-gray-400 mt-1 block">
-            供应商报价: $8.50/件
+            供应商报价: $8.50 / 件
           </span>
         </div>
 
@@ -130,7 +139,7 @@ export default function ProfitPage() {
         </div>
 
         <div className="bg-surface border border-border p-4 rounded-xl">
-          <span className="text-xs text-gray-400 font-medium">广告花费 (PPC)</span>
+          <span className="text-xs text-gray-400 font-medium">PPC 广告花费</span>
           <div className="text-xl font-bold text-rose-400 mt-1">
             -${summary?.adsCost?.toFixed(2) || '3,500.00'}
           </div>
@@ -140,17 +149,17 @@ export default function ProfitPage() {
         </div>
 
         <div className="bg-surface border border-border p-4 rounded-xl">
-          <span className="text-xs text-gray-400 font-medium">退货损失 (Return Loss)</span>
+          <span className="text-xs text-gray-400 font-medium">退货损失</span>
           <div className="text-xl font-bold text-rose-400 mt-1">
             -${summary?.returnLoss?.toFixed(2) || '89.97'}
           </div>
           <span className="text-[10px] text-amber-400 mt-1 block">
-            退款总额 (AC 3 联动)
+            退款总额 (退货损失)
           </span>
         </div>
 
         <div className="bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-xl">
-          <span className="text-xs text-emerald-300 font-semibold">净利润 (Net Profit)</span>
+          <span className="text-xs text-emerald-300 font-semibold">净利润</span>
           <div className="text-xl font-bold text-emerald-400 mt-1">
             ${summary?.netProfit?.toFixed(2) || '8,276.95'}
           </div>
@@ -163,7 +172,7 @@ export default function ProfitPage() {
       <div className="bg-surface border border-border rounded-xl p-6">
         <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center space-x-2">
           <Layers className="w-4 h-4 text-gray-400" />
-          <span>每日利润聚合账目 (ProfitDaily Table)</span>
+          <span>每日利润明细账目</span>
         </h2>
 
         <div className="overflow-x-auto">
@@ -174,7 +183,7 @@ export default function ProfitPage() {
                 <th className="py-2.5 px-3">SKU</th>
                 <th className="py-2.5 px-3">销售额</th>
                 <th className="py-2.5 px-3">成本 (COGS)</th>
-                <th className="py-2.5 px-3">佣金+FBA</th>
+                <th className="py-2.5 px-3">佣金 + FBA</th>
                 <th className="py-2.5 px-3">广告费</th>
                 <th className="py-2.5 px-3">退货损失</th>
                 <th className="py-2.5 px-3">净利润</th>

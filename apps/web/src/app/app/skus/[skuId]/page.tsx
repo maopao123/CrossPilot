@@ -1,10 +1,11 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ApiClient } from '../../../../lib/api-client';
 import { Sku360Overview } from '@crosspilot/shared';
+import { getStatusLabel } from '../../../../constants/ui-labels';
 import {
   ArrowLeft,
   Warehouse,
@@ -28,7 +29,7 @@ export default function Sku360Page() {
         );
         setData(res);
       } catch (err) {
-        console.error('Failed to load SKU 360 overview:', err);
+        console.error('无法载入 SKU 360 数据:', err);
       } finally {
         setLoading(false);
       }
@@ -73,7 +74,7 @@ export default function Sku360Page() {
                   {sku?.skuCode}
                 </span>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded">
-                  {sku?.status}
+                  {getStatusLabel(sku?.status)}
                 </span>
               </div>
               <h1 className="text-xl font-bold text-white mt-0.5">
@@ -97,22 +98,22 @@ export default function Sku360Page() {
         <div className="bg-surface border border-border rounded-xl p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 uppercase">
-              库存状态 (FBA)
+              FBA 库存状态
             </span>
             <Warehouse className="w-4 h-4 text-amber-400" />
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white">
-              {inv?.fulfillableQuantity || 450} <span className="text-xs font-normal text-gray-400">pcs</span>
+              {inv?.fulfillableQuantity || 450} <span className="text-xs font-normal text-gray-400">件</span>
             </div>
             <div className="flex items-center justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-border">
-              <span>在途 (Inbound): {inv?.inboundQuantity || 200}</span>
+              <span>在途库存: {inv?.inboundQuantity || 200} 件</span>
               <span className={`px-1.5 py-0.5 rounded font-semibold text-[10px] ${
                 inv?.riskLevel === 'HEALTHY'
                   ? 'bg-emerald-500/20 text-emerald-300'
                   : 'bg-amber-500/20 text-amber-300'
               }`}>
-                {inv?.riskLevel || 'HEALTHY'}
+                {getStatusLabel(inv?.riskLevel)}
               </span>
             </div>
             <div className="text-xs text-gray-400 mt-1">
@@ -124,7 +125,7 @@ export default function Sku360Page() {
         <div className="bg-surface border border-border rounded-xl p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 uppercase">
-              采购与成本 (Supply)
+              采购与成本
             </span>
             <Truck className="w-4 h-4 text-blue-400" />
           </div>
@@ -136,7 +137,7 @@ export default function Sku360Page() {
               <span>供应商: {quote?.supplierName || '福建天然石材厂'}</span>
             </div>
             <div className="text-xs text-gray-400 mt-1">
-              交期 (Lead Time): <strong>{quote?.leadTimeDays || 15} 天</strong>
+              生产交期: <strong>{quote?.leadTimeDays || 15} 天</strong>
             </div>
           </div>
         </div>
@@ -144,7 +145,7 @@ export default function Sku360Page() {
         <div className="bg-surface border border-border rounded-xl p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 uppercase">
-              销售与订单 (Sales)
+              销售与订单
             </span>
             <TrendingUp className="w-4 h-4 text-emerald-400" />
           </div>
@@ -165,7 +166,7 @@ export default function Sku360Page() {
         <div className="bg-surface border border-border rounded-xl p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 uppercase">
-              退货与品质 (Returns)
+              退货与品质
             </span>
             <RotateCcw className="w-4 h-4 text-rose-400" />
           </div>
@@ -187,20 +188,20 @@ export default function Sku360Page() {
       <div className="bg-surface border border-border rounded-xl p-6">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center space-x-2">
           <DollarSign className="w-4 h-4 text-emerald-400" />
-          <span>SKU 真实经营利润账目 (Financial Breakdown)</span>
+          <span>SKU 真实经营利润明细</span>
         </h3>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">总销售额 (Revenue)</span>
+            <span className="text-[11px] text-gray-400">总销售额</span>
             <div className="text-base font-bold text-white mt-1">${profit?.revenue?.toFixed(2) || '28,490.50'}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">商品成本 (COGS)</span>
+            <span className="text-[11px] text-gray-400">商品采购成本 (COGS)</span>
             <div className="text-base font-bold text-rose-400 mt-1">-${profit?.cogs?.toFixed(2) || '8,075.00'}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">佣金 (15% Amazon)</span>
+            <span className="text-[11px] text-gray-400">Amazon 销售佣金 (15%)</span>
             <div className="text-base font-bold text-rose-400 mt-1">-${profit?.amazonFees?.toFixed(2) || '4,273.58'}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
@@ -208,15 +209,15 @@ export default function Sku360Page() {
             <div className="text-base font-bold text-rose-400 mt-1">-${profit?.fbaFee?.toFixed(2) || '4,275.00'}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">广告花费 (PPC)</span>
+            <span className="text-[11px] text-gray-400">PPC 广告花费</span>
             <div className="text-base font-bold text-rose-400 mt-1">-${profit?.adsCost?.toFixed(2) || '3,500.00'}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">退货损失 (Returns)</span>
+            <span className="text-[11px] text-gray-400">退货损失</span>
             <div className="text-base font-bold text-rose-400 mt-1">-${profit?.returnLoss?.toFixed(2) || '89.97'}</div>
           </div>
           <div className="bg-emerald-950/40 p-3 rounded-lg border border-emerald-500/30">
-            <span className="text-[11px] text-emerald-300 font-semibold">净利润 (Net Profit)</span>
+            <span className="text-[11px] text-emerald-300 font-semibold">净利润</span>
             <div className="text-base font-bold text-emerald-400 mt-1">${profit?.netProfit?.toFixed(2) || '8,276.95'}</div>
             <span className="text-[10px] text-emerald-400">
               利润率: {((profit?.margin || 0.2905) * 100).toFixed(1)}%

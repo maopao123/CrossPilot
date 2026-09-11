@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
 import { InventoryBalanceInfo } from '@crosspilot/shared';
+import { getStatusLabel } from '../../../constants/ui-labels';
 import {
   Warehouse,
   RefreshCw,
@@ -15,6 +16,7 @@ export default function InventoryPage() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const inv = await ApiClient.get<InventoryBalanceInfo[]>('/api/v1/inventory');
       setBalances(inv);
 
@@ -24,7 +26,7 @@ export default function InventoryPage() {
       );
       setRecommendation(rec);
     } catch (err) {
-      console.error('Failed to load inventory data:', err);
+      console.error('无法载入库存数据:', err);
     } finally {
       setLoading(false);
     }
@@ -34,16 +36,24 @@ export default function InventoryPage() {
     loadData();
   }, []);
 
+  if (loading && balances.length === 0) {
+    return (
+      <div className="py-20 text-center text-gray-400 text-sm">
+        正在加载库存数据...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              11 库存与 FBA 计划
+              11 库存 / FBA
             </h1>
             <span className="text-xs bg-blue-500/20 text-blue-400 font-semibold px-2 py-0.5 rounded border border-blue-500/30">
-              Deterministic Reorder Engine
+              确定性补货计算引擎
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -54,9 +64,9 @@ export default function InventoryPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-surface border border-border rounded-xl p-5">
-          <span className="text-xs text-gray-400 font-semibold uppercase">FBA 可售库存 (Fulfillable)</span>
+          <span className="text-xs text-gray-400 font-semibold uppercase">FBA 可售库存</span>
           <div className="text-3xl font-bold text-white mt-2">
-            {balances[0]?.fulfillableQuantity ?? 450} <span className="text-sm font-normal text-gray-400">pcs</span>
+            {balances[0]?.fulfillableQuantity ?? 450} <span className="text-sm font-normal text-gray-400">件</span>
           </div>
           <p className="text-[11px] text-emerald-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -65,9 +75,9 @@ export default function InventoryPage() {
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-5">
-          <span className="text-xs text-gray-400 font-semibold uppercase">在途采购 (Inbound)</span>
+          <span className="text-xs text-gray-400 font-semibold uppercase">在途采购库存</span>
           <div className="text-3xl font-bold text-white mt-2">
-            {balances[0]?.inboundQuantity ?? 200} <span className="text-sm font-normal text-gray-400">pcs</span>
+            {balances[0]?.inboundQuantity ?? 200} <span className="text-sm font-normal text-gray-400">件</span>
           </div>
           <p className="text-[11px] text-blue-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -76,9 +86,9 @@ export default function InventoryPage() {
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-5">
-          <span className="text-xs text-gray-400 font-semibold uppercase">预留库存 (Reserved)</span>
+          <span className="text-xs text-gray-400 font-semibold uppercase">预留库存</span>
           <div className="text-3xl font-bold text-white mt-2">
-            {balances[0]?.reservedQuantity ?? 15} <span className="text-sm font-normal text-gray-400">pcs</span>
+            {balances[0]?.reservedQuantity ?? 15} <span className="text-sm font-normal text-gray-400">件</span>
           </div>
           <p className="text-[11px] text-amber-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -87,9 +97,9 @@ export default function InventoryPage() {
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-5">
-          <span className="text-xs text-gray-400 font-semibold uppercase">不可售损耗 (Unfulfillable)</span>
+          <span className="text-xs text-gray-400 font-semibold uppercase">不可售库存</span>
           <div className="text-3xl font-bold text-white mt-2">
-            {balances[0]?.unfulfillableQuantity ?? 2} <span className="text-sm font-normal text-gray-400">pcs</span>
+            {balances[0]?.unfulfillableQuantity ?? 2} <span className="text-sm font-normal text-gray-400">件</span>
           </div>
           <p className="text-[11px] text-rose-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -103,34 +113,34 @@ export default function InventoryPage() {
           <div>
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
               <RefreshCw className="w-4 h-4 text-emerald-400" />
-              <span>智能补货建议引擎 (Reorder Recommendation)</span>
+              <span>智能补货建议引擎</span>
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
               纯代码确定性公式计算，严禁浮点漂移 (依据 V9 Section 93 设计)
             </p>
           </div>
           <span className="text-xs font-semibold px-2.5 py-1 rounded border bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-            当前状态: {recommendation?.riskLevel || 'HEALTHY'}
+            当前状态: {getStatusLabel(recommendation?.riskLevel || 'HEALTHY')}
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">日均销量 (30d Sales)</span>
+            <span className="text-[11px] text-gray-400">日均销量 (30天)</span>
             <div className="text-base font-bold text-white mt-1">
               {recommendation?.avgDailySales || 8.5} 件/天
             </div>
           </div>
 
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">可售天数 (Days Cover)</span>
+            <span className="text-[11px] text-gray-400">可售天数</span>
             <div className="text-base font-bold text-white mt-1">
               {recommendation?.daysCover || 52.9} 天
             </div>
           </div>
 
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">供应商交期 (Lead Time)</span>
+            <span className="text-[11px] text-gray-400">供应商生产交期</span>
             <div className="text-base font-bold text-white mt-1">
               {recommendation?.leadTimeDays || 15} 天
             </div>
@@ -144,16 +154,16 @@ export default function InventoryPage() {
           </div>
 
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-gray-400">补货触发点 (Reorder Point)</span>
+            <span className="text-[11px] text-gray-400">补货触发点</span>
             <div className="text-base font-bold text-amber-400 mt-1">
-              {recommendation?.reorderPoint || 247} pcs
+              {recommendation?.reorderPoint || 247} 件
             </div>
           </div>
 
           <div className="bg-blue-950/40 p-3 rounded-lg border border-blue-500/30">
-            <span className="text-[11px] text-blue-300 font-semibold">推荐补货量 (Quantity)</span>
+            <span className="text-[11px] text-blue-300 font-semibold">推荐补货量</span>
             <div className="text-base font-bold text-blue-400 mt-1">
-              {recommendation?.recommendedQuantity || 0} pcs
+              {recommendation?.recommendedQuantity || 0} 件
             </div>
           </div>
         </div>
