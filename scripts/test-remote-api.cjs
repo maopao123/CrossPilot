@@ -27,7 +27,7 @@ async function main() {
     headers: { 'Content-Type': 'application/json' }
   });
   
-  const token = login.data?.accessToken;
+  const token = login.data?.token || login.data?.accessToken;
   if (!token) {
     console.error('Failed to get token:', login);
     return;
