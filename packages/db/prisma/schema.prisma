@@ -159,6 +159,7 @@ model Product {
   marketplace          Marketplace          @relation(fields: [marketplaceId], references: [id])
   skus                 Sku[]
   features             ProductFeature[]
+  visualFacts          ProductVisualFact[]
   productCompetitors   ProductCompetitor[]
   vocAnalysisRuns      VocAnalysisRun[]
   productOpportunities ProductOpportunity[]
@@ -227,6 +228,27 @@ model ProductFeature {
   @@index([workspaceId])
   @@index([productId])
   @@map("product_features")
+}
+
+model ProductVisualFact {
+  id                 String   @id @default(uuid())
+  workspaceId        String   @map("workspace_id")
+  productId          String   @map("product_id")
+  imageId            String   @map("image_id")
+  imageUrl           String?  @map("image_url")
+  type               String   @map("type") // COLOR, SHAPE, COMPONENT, VISIBLE_FEATURE, PACKAGING, USAGE_CONTEXT, OTHER
+  value              String   @map("value")
+  confidence         Decimal  @default(1.0) @db.Decimal(3, 2)
+  status             String   @default("EXTRACTED") // EXTRACTED, CONFIRMED, REJECTED
+  evidenceRegionJson String?  @map("evidence_region_json") @db.Text
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([productId])
+  @@map("product_visual_facts")
 }
 
 // ==========================================
@@ -586,6 +608,14 @@ model ListingVersion {
   searchTerms      String?                  @map("search_terms")
   aPlusCopy        String?                  @map("a_plus_copy") @db.Text
   imageBrief       String?                  @map("image_brief") @db.Text
+  imageBriefsJson  String?                  @map("image_briefs_json") @db.Text
+  aPlusPlanJson    String?                  @map("a_plus_plan_json") @db.Text
+  rufusCoverageJson String?                 @map("rufus_coverage_json") @db.Text
+  keywordCoverageJson String?               @map("keyword_coverage_json") @db.Text
+  claimsJson       String?                  @map("claims_json") @db.Text
+  knowledgeEvidenceJson String?             @map("knowledge_evidence_json") @db.Text
+  marketplace      String?                  @default("AMAZON_US") @map("marketplace")
+  locale           String?                  @default("en-US") @map("locale")
   generationSource String                   @default("AI_ASSISTED") @map("generation_source")
   createdBy        String?                  @map("created_by")
   createdAt        DateTime                 @default(now()) @map("created_at")

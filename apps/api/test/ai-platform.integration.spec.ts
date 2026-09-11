@@ -352,11 +352,11 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
     expect(trace.steps[0].toolExecutions[0].latencyMs).toBe(145);
   });
 
-  // Milestone 8 Verification
-  it('Milestone 8: Eval Service runs golden benchmark suites with 100% pass rate', () => {
-    const result = evalService.runBenchmarks();
-    expect(result.summary.total).toBe(7);
-    expect(result.summary.passed).toBe(7);
+  // Milestone 8 Verification (9 Benchmark Cases)
+  it('Milestone 8: Eval Service runs golden benchmark suites with 100% pass rate', async () => {
+    const result = await evalService.runBenchmarks();
+    expect(result.summary.total).toBe(9);
+    expect(result.summary.passed).toBe(9);
     expect(result.summary.failed).toBe(0);
     expect(result.summary.passRate).toBe('100.0%');
   });

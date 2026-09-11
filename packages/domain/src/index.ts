@@ -14,6 +14,9 @@ export * from './scenario/scenario-generator.js';
 export * from './variance/variance-attribution.service.js';
 export * from './compliance/compliance-judge.service.js';
 export * from './advertising/ad-optimizer.service.js';
+export * from './listing/listing.types.js';
+export * from './listing/marketplace-policy.profile.js';
+export * from './listing/listing-workflow-dag.service.js';
 
 export const DOMAIN_CONSTANTS = {
   DEFAULT_CURRENCY: 'USD',

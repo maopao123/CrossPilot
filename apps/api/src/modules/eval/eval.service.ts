@@ -5,6 +5,8 @@ import {
   AdOptimizerService,
   InventoryPlanningService,
   PurchaseOrderStateMachine,
+  ListingWorkflowDagService,
+  getMarketplacePolicyProfile,
 } from '@crosspilot/domain';
 
 export interface EvalCaseResult {
@@ -47,13 +49,18 @@ export class EvalService {
         casesCount: 1,
         description: 'Enforces strictly verified transition rules across PO lifecycle.',
       },
+      {
+        name: 'Listing Studio V2 & Listing Intelligence Suite',
+        casesCount: 2,
+        description: 'Verifies 14-Step DAG claim grounding, Image Briefs generation, and Marketplace Policy Profiles.',
+      },
     ];
   }
 
-  runBenchmarks(): {
+  async runBenchmarks(): Promise<{
     summary: { total: number; passed: number; failed: number; passRate: string };
     results: EvalCaseResult[];
-  } {
+  }> {
     const results: EvalCaseResult[] = [];
 
     // Case 1: Compliance - Prohibited FDA Claim
@@ -187,6 +194,53 @@ export class EvalService {
       passed: passed7,
       score: passed7 ? 1.0 : 0.0,
       durationMs: Date.now() - start7,
+    });
+
+    // Case 8: Listing Studio V2 - 14-Step DAG
+    const start8 = Date.now();
+    const dagResult = await ListingWorkflowDagService.executeWorkflowDag({
+      skuCode: 'MTH-WHITE-001',
+      productName: 'Natural Marble Toothbrush Holder',
+      brand: 'POLEGAS',
+      variantName: 'Carrara White',
+      features: [
+        { id: 'f_mat', name: 'Material', value: '100% Genuine Natural Marble', isCore: true },
+        { id: 'f_slot', name: 'Slot Diameter', value: '1.5 inches', isCore: true },
+        { id: 'f_wt', name: 'Weight', value: '3.57 lbs', isCore: true },
+      ],
+      skuWeightKg: 1.62,
+    });
+    const passed8 =
+      dagResult.success &&
+      dagResult.stepTraces.length === 14 &&
+      dagResult.groundingMetrics.groundingRate === 1.0 &&
+      dagResult.creativeBrief?.imageBriefs?.length >= 5 &&
+      dagResult.complianceResult.status === 'PASS';
+    results.push({
+      suite: 'Listing Studio V2 & Listing Intelligence Suite',
+      name: 'WF-02 14-Step DAG claim grounding and creative brief generation',
+      expected: '14 step traces, 100% grounding rate, >=5 image briefs, PASS',
+      actual: `${dagResult.stepTraces.length} steps, ${(dagResult.groundingMetrics.groundingRate * 100).toFixed(0)}% grounding, ${dagResult.creativeBrief?.imageBriefs?.length || 0} image briefs, ${dagResult.complianceResult.status}`,
+      passed: passed8,
+      score: passed8 ? 1.0 : 0.0,
+      durationMs: Date.now() - start8,
+    });
+
+    // Case 9: Listing Studio V2 - Marketplace Policy Profile Limits
+    const start9 = Date.now();
+    const profile = getMarketplacePolicyProfile('AMAZON_US');
+    const passed9 =
+      profile.title.maxLength === 200 &&
+      profile.bullets.maxCount === 5 &&
+      profile.forbiddenPatterns.includes('fda approved');
+    results.push({
+      suite: 'Listing Studio V2 & Listing Intelligence Suite',
+      name: 'MarketplacePolicyProfile dynamic title/bullets/forbidden rules',
+      expected: 'Title max 200, Bullets max 5, contains "fda approved"',
+      actual: `Title max ${profile.title.maxLength}, Bullets max ${profile.bullets.maxCount}, Forbidden: ${profile.forbiddenPatterns.length} rules`,
+      passed: passed9,
+      score: passed9 ? 1.0 : 0.0,
+      durationMs: Date.now() - start9,
     });
 
     const passedCount = results.filter((r) => r.passed).length;

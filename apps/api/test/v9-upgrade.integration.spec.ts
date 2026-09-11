@@ -56,7 +56,7 @@ describe('V9 Incremental Upgrade Integration Tests', () => {
       expect(ids).toContain('finance.profit.calculate');
       expect(ids).toContain('compliance.listing.check');
       expect(ids).toContain('creative.image.generate');
-      expect(ids).toContain('operation.listing.publish');
+      expect(ids).toContain('operation.keyword.combine');
     });
 
     it('should execute finance calculation tool with zero float error', async () => {

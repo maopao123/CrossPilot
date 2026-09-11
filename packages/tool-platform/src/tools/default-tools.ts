@@ -16,6 +16,11 @@ import {
 import {
   OperationKeywordCombineTool,
 } from './operation-automation.tools.js';
+import { ProductVisualExtractTool } from './product-visual-extract.tool.js';
+import {
+  KeywordFileExtractTool,
+  KeywordNormalizeTool,
+} from './keyword-intake.tools.js';
 
 export const ALL_DEFAULT_TOOLS = [
   // Existing Domain Wrappers
@@ -36,6 +41,11 @@ export const ALL_DEFAULT_TOOLS = [
 
   // Operation Automation Tools (P0)
   OperationKeywordCombineTool,
+
+  // Listing Studio V2 & Listing Intelligence Tools
+  ProductVisualExtractTool,
+  KeywordFileExtractTool,
+  KeywordNormalizeTool,
 ];
 
 export function createDefaultToolRegistry(): ToolRegistry {

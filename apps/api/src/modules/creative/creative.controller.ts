@@ -9,11 +9,12 @@ export class CreativeController {
   @Post('pack')
   generateCreativePack(
     @CurrentWorkspace() workspaceId: string,
-    @Body() payload: { skuCode: string },
+    @Body() payload: { skuCode: string; brief?: any },
   ) {
     return this.creativeService.generateCreativePack(
       payload.skuCode || 'MTH-GREEN-001',
       workspaceId,
+      payload.brief,
     );
   }
 

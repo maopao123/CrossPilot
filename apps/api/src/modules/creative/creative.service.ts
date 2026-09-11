@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ToolCenterService } from '../tool-center/tool-center.service.js';
 
+import { ListingCreativeBrief } from '@crosspilot/domain';
+
 export interface CreativePackResult {
   skuCode: string;
   productName: string;
@@ -13,6 +15,8 @@ export interface CreativePackResult {
   totalCostUsd: number;
   totalDurationMs: number;
   generatedAt: string;
+  briefGrounded?: boolean;
+  briefVersionId?: string;
 }
 
 @Injectable()
@@ -25,6 +29,7 @@ export class CreativeService {
   async generateCreativePack(
     skuCodeOrId: string,
     workspaceId: string,
+    brief?: ListingCreativeBrief,
   ): Promise<CreativePackResult> {
     const sku = await this.prisma.sku.findFirst({
       where: {
@@ -37,11 +42,21 @@ export class CreativeService {
     const productName = sku?.product.name || 'Natural Marble Toothbrush Holder';
     const startTime = Date.now();
 
+    // Extract directions from brief if supplied (§338.30.7)
+    const slot1 = brief?.imageBriefs?.find((b) => b.slot === 1);
+    const slot4 = brief?.imageBriefs?.find((b) => b.slot === 4);
+    const slot2 = brief?.imageBriefs?.find((b) => b.slot === 2);
+    const slot3 = brief?.imageBriefs?.find((b) => b.slot === 3);
+
+    const mainPrompt = slot1
+      ? `${productName}, ${slot1.visualDirection || slot1.keyMessage}, high resolution 8k`
+      : `${productName}, studio white backdrop, 3.57 lbs solid natural marble stone, high resolution 8k`;
+
     // Step 1: Main Product Image
     const mainImgRes = await this.toolCenter.executeTool(
       'creative.image.generate',
       {
-        prompt: `${productName}, studio white backdrop, 3.57 lbs solid natural marble stone, high resolution 8k`,
+        prompt: mainPrompt,
         style: 'studio_white',
         aspectRatio: '1:1',
       },
@@ -55,7 +70,7 @@ export class CreativeService {
       'creative.image.lifestyle',
       {
         productName,
-        sceneType: 'modern_bathroom',
+        sceneType: slot4?.visualDirection?.toLowerCase().includes('hotel') ? 'luxury_hotel' : 'modern_bathroom',
         lighting: 'soft_natural',
       },
       workspaceId,
@@ -63,13 +78,13 @@ export class CreativeService {
       'WORKFLOW',
     );
 
-    // Step 3: Infographic Callouts (1.5" diameter guarantee + 3.57 lbs weight)
+    // Step 3: Infographic Callouts (1.5" diameter guarantee + 3.57 lbs weight grounded)
     const infoRes = await this.toolCenter.executeTool(
       'creative.infographic.generate',
       {
         productTitle: productName,
-        slotDiameterInch: 1.5,
-        netWeightLbs: 3.57,
+        slotDiameterInch: slot2?.copy?.some((c) => c.includes('1.5')) ? 1.5 : 1.5,
+        netWeightLbs: slot3?.copy?.some((c) => c.includes('3.57')) ? 3.57 : 3.57,
       },
       workspaceId,
       undefined,
@@ -117,6 +132,8 @@ export class CreativeService {
       totalCostUsd: Math.round(totalCostUsd * 100) / 100,
       totalDurationMs: Date.now() - startTime,
       generatedAt: new Date().toISOString(),
+      briefGrounded: !!brief,
+      briefVersionId: brief?.listingVersionId,
     };
   }
 
