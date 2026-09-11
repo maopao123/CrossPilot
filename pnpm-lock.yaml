@@ -228,6 +228,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@crosspilot/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@prisma/client':
         specifier: ^6.3.1
         version: 6.19.3(prisma@6.19.3(typescript@5.7.3))(typescript@5.7.3)

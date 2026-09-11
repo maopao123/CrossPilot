@@ -16,6 +16,7 @@
     "test": "echo \"Database package types verified\""
   },
   "dependencies": {
+    "@crosspilot/domain": "workspace:*",
     "@prisma/client": "^6.3.1",
     "bcrypt": "^5.1.1"
   },
