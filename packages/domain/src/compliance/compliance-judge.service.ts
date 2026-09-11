@@ -47,8 +47,10 @@ export const AMAZON_COMPLIANCE_RULES: ComplianceRule[] = [
   },
 ];
 
+export type ComplianceStatus = 'PASS' | 'WARNING' | 'BLOCK' | 'INSUFFICIENT' | 'REJECTED';
+
 export interface ComplianceCheckResult {
-  status: 'PASS' | 'WARNING' | 'REJECTED';
+  status: ComplianceStatus;
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
   violations: Array<{
     ruleCode: string;
@@ -67,12 +69,25 @@ export interface ComplianceCheckResult {
 export class ComplianceJudgeService {
   /**
    * Pure deterministic compliance evaluation for listing content against verified policy rules.
+   * Baseline §9: Evidence Gate - insufficient evidence yields INSUFFICIENT, violations yield BLOCK.
    */
   static evaluateListing(listing: {
     title: string;
     bulletPoints: string[];
     description?: string;
   }): ComplianceCheckResult {
+    // Insufficient evidence check (Baseline §9 / §191-192)
+    if (!listing || !listing.title?.trim() || !Array.isArray(listing.bulletPoints) || listing.bulletPoints.length === 0) {
+      return {
+        status: 'INSUFFICIENT',
+        riskLevel: 'MEDIUM',
+        violations: [],
+        evidenceSummary: 'Insufficient evidence to evaluate listing compliance. Required fields (title, bulletPoints) are missing or empty.',
+        passedRulesCount: 0,
+        totalRulesEvaluated: AMAZON_COMPLIANCE_RULES.length,
+      };
+    }
+
     const violations: ComplianceCheckResult['violations'] = [];
     const fields = [
       { name: 'title', content: listing.title },
@@ -112,12 +127,12 @@ export class ComplianceJudgeService {
       }
     }
 
-    const status: ComplianceCheckResult['status'] = hasViolation ? 'REJECTED' : hasWarning ? 'WARNING' : 'PASS';
+    const status: ComplianceStatus = hasViolation ? 'BLOCK' : hasWarning ? 'WARNING' : 'PASS';
     const riskLevel: ComplianceCheckResult['riskLevel'] = hasViolation ? 'HIGH' : hasWarning ? 'MEDIUM' : 'LOW';
 
     const evidenceSummary = violations.length === 0
       ? 'All listing claims conform strictly to Amazon Detail Page Rules and FTC material disclosure requirements.'
-      : `Identified ${violations.length} policy / fact warning(s). Highest severity: ${hasViolation ? 'VIOLATION' : 'WARNING'}.`;
+      : `Identified ${violations.length} policy / fact warning(s). Highest severity: ${hasViolation ? 'VIOLATION (BLOCK)' : 'WARNING'}.`;
 
     return {
       status,

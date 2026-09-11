@@ -12,6 +12,8 @@ import {
   RegisterSchema,
 } from '@crosspilot/shared';
 
+import { SkipWorkspace } from '../../common/decorators/skip-workspace.decorator.js';
+
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
@@ -37,6 +39,7 @@ export class AuthController {
     return this.authService.register(validated);
   }
 
+  @SkipWorkspace()
   @Get('me')
   async getProfile(@CurrentUser() user: JwtPayload) {
     return this.authService.getProfile(user.sub);

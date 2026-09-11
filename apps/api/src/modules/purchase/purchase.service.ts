@@ -21,48 +21,18 @@ export class PurchaseService {
   constructor(private prisma: PrismaService) {}
 
   async listPurchaseOrders(workspaceId: string): Promise<PurchaseOrderInfo[]> {
-    try {
-      const pos = await this.prisma.purchaseOrder.findMany({
-        where: { workspaceId },
-        include: {
-          supplier: true,
-          items: {
-            include: { sku: true },
-          },
+    const pos = await this.prisma.purchaseOrder.findMany({
+      where: { workspaceId },
+      include: {
+        supplier: true,
+        items: {
+          include: { sku: true },
         },
-        orderBy: { orderDate: 'desc' },
-      });
+      },
+      orderBy: { orderDate: 'desc' },
+    });
 
-      return pos.map((po) => this.mapPo(po));
-    } catch {
-      return [
-        {
-          id: 'po_demo_001',
-          workspaceId,
-          supplierId: 'sup_marble_001',
-          supplierName: 'Fujian Natural Stone Factory',
-          poNumber: 'PO-20260901-01',
-          status: 'RECEIVED',
-          totalAmount: 4250,
-          currencyCode: 'USD',
-          orderDate: new Date(Date.now() - 86400000 * 10),
-          actualDeliveryDate: new Date(),
-          items: [
-            {
-              id: 'poi_001',
-              purchaseOrderId: 'po_demo_001',
-              skuId: 'sku_white_001',
-              skuCode: 'MTH-WHITE-001',
-              quantity: 500,
-              unitCost: 8.5,
-              receivedQuantity: 500,
-            },
-          ],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-    }
+    return pos.map((po) => this.mapPo(po));
   }
 
   async getPurchaseOrderById(
@@ -159,47 +129,65 @@ export class PurchaseService {
     workspaceId: string,
     poId: string,
   ): Promise<PurchaseOrderInfo> {
-    const po = await this.getPurchaseOrderById(workspaceId, poId);
-    PurchaseOrderStateMachine.assertTransition(
-      po.status as PurchaseOrderStatus,
-      'SHIPPED',
-    );
-
-    // Update PO status to SHIPPED and increase inbound on inventory balance
-    const updated = await this.prisma.purchaseOrder.update({
-      where: { id: poId },
-      data: { status: 'SHIPPED' },
-      include: {
-        supplier: true,
-        items: {
-          include: { sku: true },
+    return await this.prisma.$transaction(async (tx) => {
+      const po = await tx.purchaseOrder.findFirst({
+        where: { id: poId, workspaceId },
+        include: {
+          supplier: true,
+          items: {
+            include: { sku: true },
+          },
         },
-      },
-    });
+      });
 
-    for (const item of updated.items) {
-      await this.prisma.inventoryBalance.upsert({
-        where: {
-          workspaceId_skuId_warehouseType: {
+      if (!po) {
+        throw new NotFoundException({
+          code: ErrorCodes.RESOURCE_NOT_FOUND,
+          message: 'Purchase order not found',
+        });
+      }
+
+      PurchaseOrderStateMachine.assertTransition(
+        po.status as PurchaseOrderStatus,
+        'SHIPPED',
+      );
+
+      // Update PO status to SHIPPED and increase inbound on inventory balance
+      const updated = await tx.purchaseOrder.update({
+        where: { id: poId },
+        data: { status: 'SHIPPED' },
+        include: {
+          supplier: true,
+          items: {
+            include: { sku: true },
+          },
+        },
+      });
+
+      for (const item of updated.items) {
+        await tx.inventoryBalance.upsert({
+          where: {
+            workspaceId_skuId_warehouseType: {
+              workspaceId,
+              skuId: item.skuId,
+              warehouseType: 'FBA',
+            },
+          },
+          update: {
+            inboundQuantity: { increment: item.quantity },
+          },
+          create: {
             workspaceId,
             skuId: item.skuId,
             warehouseType: 'FBA',
+            fulfillableQuantity: 0,
+            inboundQuantity: item.quantity,
           },
-        },
-        update: {
-          inboundQuantity: { increment: item.quantity },
-        },
-        create: {
-          workspaceId,
-          skuId: item.skuId,
-          warehouseType: 'FBA',
-          fulfillableQuantity: 0,
-          inboundQuantity: item.quantity,
-        },
-      });
-    }
+        });
+      }
 
-    return this.mapPo(updated);
+      return this.mapPo(updated);
+    });
   }
 
   /**
@@ -211,82 +199,133 @@ export class PurchaseService {
     poId: string,
     input: ReceivePurchaseOrderInput,
   ): Promise<PurchaseOrderInfo> {
-    const po = await this.getPurchaseOrderById(workspaceId, poId);
-    PurchaseOrderStateMachine.assertTransition(
-      po.status as PurchaseOrderStatus,
-      'RECEIVED',
-    );
-
-    // Update inventory balance for each received item (Inventory +)
-    for (const recItem of input.items) {
-      const balance = await this.prisma.inventoryBalance.findUnique({
-        where: {
-          workspaceId_skuId_warehouseType: {
-            workspaceId,
-            skuId: recItem.skuId,
-            warehouseType: 'FBA',
+    return await this.prisma.$transaction(async (tx) => {
+      const po = await tx.purchaseOrder.findFirst({
+        where: { id: poId, workspaceId },
+        include: {
+          supplier: true,
+          items: {
+            include: { sku: true },
           },
         },
       });
 
-      const currentBalance = balance || {
-        fulfillableQuantity: 0,
-        reservedQuantity: 0,
-        inboundQuantity: 0,
-        unfulfillableQuantity: 0,
-      };
-
-      const newBalance = InventoryMovementService.calculateReceiptInbound(
-        currentBalance,
-        recItem.receivedQuantity,
-      );
-
-      await this.prisma.inventoryBalance.upsert({
-        where: {
-          workspaceId_skuId_warehouseType: {
-            workspaceId,
-            skuId: recItem.skuId,
-            warehouseType: 'FBA',
-          },
-        },
-        update: {
-          fulfillableQuantity: newBalance.fulfillableQuantity,
-          inboundQuantity: newBalance.inboundQuantity,
-        },
-        create: {
-          workspaceId,
-          skuId: recItem.skuId,
-          warehouseType: 'FBA',
-          fulfillableQuantity: newBalance.fulfillableQuantity,
-          inboundQuantity: newBalance.inboundQuantity,
-        },
-      });
-
-      // Update PO Item received quantity
-      const poItem = po.items?.find((i) => i.skuId === recItem.skuId);
-      if (poItem) {
-        await this.prisma.purchaseOrderItem.update({
-          where: { id: poItem.id },
-          data: { receivedQuantity: recItem.receivedQuantity },
+      if (!po) {
+        throw new NotFoundException({
+          code: ErrorCodes.RESOURCE_NOT_FOUND,
+          message: 'Purchase order not found',
         });
       }
-    }
 
-    const updatedPo = await this.prisma.purchaseOrder.update({
-      where: { id: poId },
-      data: {
-        status: 'RECEIVED',
-        actualDeliveryDate: new Date(),
-      },
-      include: {
-        supplier: true,
-        items: {
-          include: { sku: true },
+      PurchaseOrderStateMachine.assertTransition(
+        po.status as PurchaseOrderStatus,
+        'RECEIVED',
+      );
+
+      // Validate each received item belongs to this PO and check over-receipt
+      for (const recItem of input.items) {
+        const poItem = po.items?.find((i) => i.skuId === recItem.skuId);
+        if (!poItem) {
+          throw new BadRequestException({
+            code: ErrorCodes.VALIDATION_ERROR,
+            message: `SKU '${recItem.skuId}' does not belong to purchase order '${po.poNumber}'`,
+          });
+        }
+
+        if (recItem.receivedQuantity <= 0) {
+          throw new BadRequestException({
+            code: ErrorCodes.VALIDATION_ERROR,
+            message: `Received quantity must be greater than 0`,
+          });
+        }
+
+        const totalReceived = poItem.receivedQuantity + recItem.receivedQuantity;
+        if (totalReceived > poItem.quantity) {
+          throw new BadRequestException({
+            code: ErrorCodes.VALIDATION_ERROR,
+            message: `Over-receipt rejected: cannot receive ${recItem.receivedQuantity} units. Ordered: ${poItem.quantity}, previously received: ${poItem.receivedQuantity}, remaining allowed: ${poItem.quantity - poItem.receivedQuantity}`,
+          });
+        }
+
+        // Update inventory balance for each received item (Inventory +)
+        const balance = await tx.inventoryBalance.findUnique({
+          where: {
+            workspaceId_skuId_warehouseType: {
+              workspaceId,
+              skuId: recItem.skuId,
+              warehouseType: 'FBA',
+            },
+          },
+        });
+
+        const currentBalance = balance || {
+          fulfillableQuantity: 0,
+          reservedQuantity: 0,
+          inboundQuantity: 0,
+          unfulfillableQuantity: 0,
+        };
+
+        const newBalance = InventoryMovementService.calculateReceiptInbound(
+          currentBalance,
+          recItem.receivedQuantity,
+        );
+
+        await tx.inventoryBalance.upsert({
+          where: {
+            workspaceId_skuId_warehouseType: {
+              workspaceId,
+              skuId: recItem.skuId,
+              warehouseType: 'FBA',
+            },
+          },
+          update: {
+            fulfillableQuantity: newBalance.fulfillableQuantity,
+            inboundQuantity: newBalance.inboundQuantity,
+          },
+          create: {
+            workspaceId,
+            skuId: recItem.skuId,
+            warehouseType: 'FBA',
+            fulfillableQuantity: newBalance.fulfillableQuantity,
+            inboundQuantity: newBalance.inboundQuantity,
+          },
+        });
+
+        // Update PO Item received quantity
+        await tx.purchaseOrderItem.update({
+          where: { id: poItem.id },
+          data: { receivedQuantity: totalReceived },
+        });
+      }
+
+      // Check if all items in this PO are fully received
+      const updatedPoItems = await tx.purchaseOrderItem.findMany({
+        where: { purchaseOrderId: poId },
+      });
+      const allFullyReceived = updatedPoItems.every(
+        (item) => item.receivedQuantity >= item.quantity,
+      );
+
+      const targetStatus: PurchaseOrderStatus = allFullyReceived
+        ? 'RECEIVED'
+        : 'PARTIALLY_RECEIVED';
+
+      const updatedPo = await tx.purchaseOrder.update({
+        where: { id: poId },
+        data: {
+          status: targetStatus,
+          actualDeliveryDate: allFullyReceived ? new Date() : undefined,
         },
-      },
-    });
+        include: {
+          supplier: true,
+          items: {
+            include: { sku: true },
+          },
+        },
+      });
 
-    return this.mapPo(updatedPo);
+      return this.mapPo(updatedPo);
+    });
   }
 
   private mapPo(po: any): PurchaseOrderInfo {

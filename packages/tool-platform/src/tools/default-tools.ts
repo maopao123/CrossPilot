@@ -15,7 +15,6 @@ import {
 } from './creative-studio.tools.js';
 import {
   OperationKeywordCombineTool,
-  OperationListingPublishTool,
 } from './operation-automation.tools.js';
 
 export const ALL_DEFAULT_TOOLS = [
@@ -37,7 +36,6 @@ export const ALL_DEFAULT_TOOLS = [
 
   // Operation Automation Tools (P0)
   OperationKeywordCombineTool,
-  OperationListingPublishTool,
 ];
 
 export function createDefaultToolRegistry(): ToolRegistry {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { ApiClient } from '@/lib/api-client';
 import {
   Sparkles,
   Camera,
@@ -75,27 +76,17 @@ export default function CreativeStudioPage() {
     setIsGenerating(true);
 
     try {
-      const res = await fetch('/api/v1/creative/pack', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skuCode: selectedSku, workspaceId: 'ws_default_001' }),
+      const data = await ApiClient.post<any>('/api/v1/creative/pack', {
+        skuCode: selectedSku,
       });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setCreativePack(json.data);
-          setIsGenerating(false);
-          return;
-        }
+      if (data) {
+        setCreativePack(data);
       }
-    } catch {
-      // offline fallback
-    }
-
-    setTimeout(() => {
+    } catch (err) {
+      console.error('Failed to generate creative pack:', err);
+    } finally {
       setIsGenerating(false);
-    }, 1200);
+    }
   };
 
   return (

@@ -1,29 +1,38 @@
 import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { AdvertisingService } from './advertising.service.js';
+import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
 
-@Controller('api/v1/advertising')
+@Controller('advertising')
 export class AdvertisingController {
   constructor(private readonly advertisingService: AdvertisingService) {}
 
   @Get('campaigns')
-  getCampaigns(@Query('workspaceId') workspaceId?: string) {
+  getCampaigns(@CurrentWorkspace() workspaceId: string) {
     return this.advertisingService.getCampaigns(workspaceId);
   }
 
   @Get('search-terms')
-  getSearchTerms(@Query('campaignId') campaignId?: string) {
-    return this.advertisingService.getSearchTerms(campaignId);
+  getSearchTerms(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('campaignId') campaignId?: string,
+  ) {
+    return this.advertisingService.getSearchTerms(workspaceId, campaignId);
   }
 
   @Get('negative-recommendations')
-  getNegativeRecommendations() {
-    return this.advertisingService.getNegativeRecommendations();
+  getNegativeRecommendations(@CurrentWorkspace() workspaceId: string) {
+    return this.advertisingService.getNegativeRecommendations(workspaceId);
   }
 
   @Post('apply-negative')
   applyNegativeKeyword(
-    @Body() payload: { campaignId: string; searchTerm: string; workspaceId?: string },
+    @CurrentWorkspace() workspaceId: string,
+    @Body() payload: { campaignId: string; searchTerm: string },
   ) {
-    return this.advertisingService.applyNegativeKeyword(payload);
+    return this.advertisingService.applyNegativeKeyword({
+      campaignId: payload.campaignId,
+      searchTerm: payload.searchTerm,
+      workspaceId,
+    });
   }
 }

@@ -13,6 +13,8 @@ export interface AutomationWorkflowRun {
   id: string;
   workflowName: string;
   skuCode: string;
+  targetPrice: number;
+  workspaceId: string;
   status: 'RUNNING' | 'WAITING_APPROVAL' | 'SUCCEEDED' | 'FAILED';
   approvalId?: string;
   steps: Array<{
@@ -40,7 +42,8 @@ export class OperationAutomationService {
 
   async startListingPublishWorkflow(
     input: ListingPublishWorkflowInput,
-    workspaceId = 'ws_default_001',
+    workspaceId: string,
+    userId?: string,
   ): Promise<AutomationWorkflowRun> {
     const runId = `wf_run_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const skuCode = input.skuCode || 'MTH-GREEN-001';
@@ -50,6 +53,8 @@ export class OperationAutomationService {
       id: runId,
       workflowName: 'WF-Operation-01: Amazon Listing Publish Flow',
       skuCode,
+      targetPrice: price,
+      workspaceId,
       status: 'RUNNING',
       steps: [],
       createdAt: new Date().toISOString(),
@@ -83,16 +88,17 @@ export class OperationAutomationService {
       undefined,
       'WORKFLOW',
     );
+    const isBlocked = complianceRes.data?.status === 'BLOCK' || complianceRes.data?.status === 'REJECTED';
     run.steps.push({
       stepNumber: 2,
       name: 'Listing Compliance & Medical Claim Inspection',
       runtime: 'TOOL',
-      status: complianceRes.data?.status === 'REJECTED' ? 'FAILED' : 'COMPLETED',
+      status: isBlocked ? 'FAILED' : 'COMPLETED',
       summary: `Amazon policy check: ${complianceRes.data?.status || 'PASS'} (0 violations)`,
       details: complianceRes.data,
     });
 
-    if (complianceRes.data?.status === 'REJECTED') {
+    if (isBlocked) {
       run.status = 'FAILED';
       return run;
     }
@@ -114,48 +120,94 @@ export class OperationAutomationService {
       details: assetRes.data,
     });
 
-    // Step 4: Human Approval Gate
-    const approvalId = `appr_${runId}`;
-    run.approvalId = approvalId;
+    // Step 4: Human Approval Gate (Required by baseline §106, §210, §212)
+    // Persist Approval record in database
+    const dbApproval = await this.prisma.approval.create({
+      data: {
+        workspaceId,
+        actionType: 'LISTING_PUBLISH',
+        targetType: 'SKU',
+        targetId: skuCode,
+        requestedPayload: JSON.stringify({ skuCode, price, title, bulletPoints }),
+        requestedBy: userId || 'SYSTEM',
+        status: 'PENDING',
+      },
+    });
 
-    if (!input.autoApprove) {
-      run.status = 'WAITING_APPROVAL';
-      run.steps.push({
-        stepNumber: 4,
-        name: 'Human Approval Gate (Required for Publishing)',
-        runtime: 'HUMAN',
-        status: 'WAITING',
-        summary: `Action proposals held for operator signoff (Price: $${price})`,
-        details: { approvalId, requiredAction: 'APPROVE_LISTING_SUBMIT' },
-      });
-      return run;
-    }
-
-    // If autoApprove is true, execute step 5 immediately
-    return this.executePublishRpa(run, price, workspaceId);
+    run.approvalId = dbApproval.id;
+    run.status = 'WAITING_APPROVAL';
+    run.steps.push({
+      stepNumber: 4,
+      name: 'Human Approval Gate (Required for Publishing)',
+      runtime: 'HUMAN',
+      status: 'WAITING',
+      summary: `Action proposal held for operator signoff (Price: $${price})`,
+      details: { approvalId: dbApproval.id, requiredAction: 'APPROVE_LISTING_SUBMIT' },
+    });
+    return run;
   }
 
   async approveAndExecute(
     approvalId: string,
-    workspaceId = 'ws_default_001',
+    workspaceId: string,
+    userId?: string,
   ): Promise<AutomationWorkflowRun> {
-    const run = this.workflows.find((w) => w.approvalId === approvalId);
+    const approval = await this.prisma.approval.findFirst({
+      where: { id: approvalId, workspaceId },
+    });
+
+    if (!approval) {
+      throw new NotFoundException(`Approval ${approvalId} not found in workspace`);
+    }
+
+    if (approval.status !== 'PENDING') {
+      throw new BadRequestException(`Approval ${approvalId} is not in PENDING status (current: ${approval.status})`);
+    }
+
+    await this.prisma.approval.update({
+      where: { id: approval.id },
+      data: {
+        status: 'APPROVED',
+        approvedBy: userId || 'OPERATOR',
+        resolvedAt: new Date(),
+      },
+    });
+
+    let run = this.workflows.find((w) => w.approvalId === approvalId);
+    const parsedPayload = JSON.parse(approval.requestedPayload || '{}');
+    const effectivePrice = parsedPayload.price || 29.99;
+
     if (!run) {
-      throw new NotFoundException(`Workflow for approval ${approvalId} not found`);
+      run = {
+        id: `wf_run_${approval.id}`,
+        workflowName: 'WF-Operation-01: Amazon Listing Publish Flow',
+        skuCode: approval.targetId,
+        targetPrice: effectivePrice,
+        workspaceId,
+        status: 'WAITING_APPROVAL',
+        approvalId: approval.id,
+        steps: [
+          {
+            stepNumber: 4,
+            name: 'Human Approval Gate (Required for Publishing)',
+            runtime: 'HUMAN',
+            status: 'COMPLETED',
+            summary: `Approved by operator at ${new Date().toLocaleTimeString()}`,
+          },
+        ],
+        createdAt: approval.requestedAt.toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      this.workflows.unshift(run);
+    } else {
+      const humanStep = run.steps.find((s) => s.runtime === 'HUMAN');
+      if (humanStep) {
+        humanStep.status = 'COMPLETED';
+        humanStep.summary = `Approved by operator at ${new Date().toLocaleTimeString()}`;
+      }
     }
 
-    if (run.status !== 'WAITING_APPROVAL') {
-      throw new BadRequestException(`Workflow is not in WAITING_APPROVAL status (current: ${run.status})`);
-    }
-
-    // Update human step to completed
-    const humanStep = run.steps.find((s) => s.runtime === 'HUMAN');
-    if (humanStep) {
-      humanStep.status = 'COMPLETED';
-      humanStep.summary = `Approved by operator at ${new Date().toLocaleTimeString()}`;
-    }
-
-    return this.executePublishRpa(run, 29.99, workspaceId);
+    return this.executePublishRpa(run, effectivePrice, workspaceId);
   }
 
   private async executePublishRpa(
@@ -223,7 +275,8 @@ export class OperationAutomationService {
     return run;
   }
 
-  listWorkflows(): AutomationWorkflowRun[] {
-    return this.workflows;
+  listWorkflows(workspaceId?: string): AutomationWorkflowRun[] {
+    if (!workspaceId) return this.workflows;
+    return this.workflows.filter((w) => w.workspaceId === workspaceId);
   }
 }

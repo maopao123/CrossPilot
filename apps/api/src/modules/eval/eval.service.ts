@@ -3,6 +3,8 @@ import {
   ComplianceJudgeService,
   VarianceAttributionService,
   AdOptimizerService,
+  InventoryPlanningService,
+  PurchaseOrderStateMachine,
 } from '@crosspilot/domain';
 
 export interface EvalCaseResult {
@@ -22,18 +24,28 @@ export class EvalService {
     return [
       {
         name: 'Listing Groundedness & Compliance Suite',
-        casesCount: 4,
+        casesCount: 3,
         description: 'Verifies zero ungrounded medical claims, material truth, and slot diameter warnings.',
       },
       {
         name: 'Financial & Variance Waterfall Suite',
-        casesCount: 3,
+        casesCount: 1,
         description: 'Verifies exact mathematical closure on the -$2,280 profit decomposition.',
       },
       {
         name: 'PPC Search Term Optimization Suite',
-        casesCount: 3,
+        casesCount: 1,
         description: 'Verifies high ACOS threshold triggers negative exact actions.',
+      },
+      {
+        name: 'Inventory Planning & Stockout Warning Suite',
+        casesCount: 1,
+        description: 'Detects critical stockout risk when days cover drops below lead time.',
+      },
+      {
+        name: 'Purchase Order State Machine Invariants Suite',
+        casesCount: 1,
+        description: 'Enforces strictly verified transition rules across PO lifecycle.',
       },
     ];
   }
@@ -47,14 +59,14 @@ export class EvalService {
     // Case 1: Compliance - Prohibited FDA Claim
     const start1 = Date.now();
     const check1 = ComplianceJudgeService.evaluateListing({
-      title: 'FDA Approved Antibacterial Stone Caddy',
+      title: '#1 Best Seller FDA Approved Antibacterial Toothbrush Holder',
       bulletPoints: ['Cures all bathroom mold.'],
     });
-    const passed1 = check1.status === 'REJECTED' && check1.violations.some((v) => v.ruleCode === 'POL-FDA-001');
+    const passed1 = (check1.status === 'BLOCK' || check1.status === 'REJECTED') && check1.violations.some((v) => v.ruleCode === 'POL-FDA-001');
     results.push({
       suite: 'Listing Groundedness & Compliance Suite',
       name: 'Reject unverified FDA / medical claims',
-      expected: 'REJECTED with POL-FDA-001 violation',
+      expected: 'BLOCK with POL-FDA-001 violation',
       actual: `${check1.status} (${check1.violations.map((v) => v.ruleCode).join(', ')})`,
       passed: passed1,
       score: passed1 ? 1.0 : 0.0,
@@ -64,14 +76,18 @@ export class EvalService {
     // Case 2: Compliance - Compliant Product Listing
     const start2 = Date.now();
     const check2 = ComplianceJudgeService.evaluateListing({
-      title: 'POLEGAS Natural Marble Toothbrush Holder (Carrara White)',
-      bulletPoints: ['100% Genuine Marble, 3.57 lbs non-slip base, 1.5" slots.'],
+      title: 'POLEGAS Natural Marble Toothbrush Holder - 1.5" Wide Slots (3.57 lbs)',
+      bulletPoints: [
+        '100% Genuine Marble with solid heavy non-slip base.',
+        '1.5-inch slots fit standard manual and slim electric handles.',
+        'Non-porous sealed stone wipes clean easily.',
+      ],
     });
-    const passed2 = check2.status === 'PASS';
+    const passed2 = check2.status === 'PASS' && check2.violations.length === 0;
     results.push({
       suite: 'Listing Groundedness & Compliance Suite',
       name: 'Pass verified factual natural stone listing',
-      expected: 'PASS',
+      expected: 'PASS (0 violations)',
       actual: check2.status,
       passed: passed2,
       score: passed2 ? 1.0 : 0.0,
@@ -82,7 +98,7 @@ export class EvalService {
     const start3 = Date.now();
     const check3 = ComplianceJudgeService.evaluateListing({
       title: 'Universal Marble Holder',
-      bulletPoints: ['Fits all electric toothbrushes.'],
+      bulletPoints: ['Fits all electric toothbrushes with ease.'],
     });
     const passed3 = check3.violations.some((v) => v.ruleCode === 'FACT-DIM-004');
     results.push({
@@ -106,7 +122,7 @@ export class EvalService {
       priceImpact: -310.0,
       otherImpact: 140.0,
     });
-    const passed4 = wf.isExactMatch && wf.totalVariance === -2280.0;
+    const passed4 = wf.isExactMatch && wf.totalVariance === -2280.0 && wf.formulaString === '-2280 = -980 -620 -510 -310 +140';
     results.push({
       suite: 'Financial & Variance Waterfall Suite',
       name: 'Verify Week 11 -$2,280 waterfall exact closure',
@@ -127,7 +143,7 @@ export class EvalService {
       orders: 2,
       sales: 450.0,
     });
-    const passed5 = adOpt.action === 'ADD_NEGATIVE_EXACT';
+    const passed5 = adOpt.action === 'ADD_NEGATIVE_EXACT' && adOpt.acos > 0.9;
     results.push({
       suite: 'PPC Search Term Optimization Suite',
       name: 'Recommend Negative Exact for 93.3% ACOS keyword',
@@ -136,6 +152,41 @@ export class EvalService {
       passed: passed5,
       score: passed5 ? 1.0 : 0.0,
       durationMs: Date.now() - start5,
+    });
+
+    // Case 6: Inventory Planning - Green SKU 12 Days Cover Alert
+    const start6 = Date.now();
+    const plan = InventoryPlanningService.calculatePlanning({
+      fulfillableQuantity: 120,
+      inboundQuantity: 0,
+      avgDailySales: 10.2,
+      leadTimeDays: 15,
+      safetyStockDays: 7,
+    });
+    const passed6 = plan.daysCover < 15 && (plan.riskLevel === 'LOW_STOCK' || plan.riskLevel === 'OUT_OF_STOCK') && plan.recommendedQuantity > 0;
+    results.push({
+      suite: 'Inventory Planning & Stockout Warning Suite',
+      name: 'Detect Green SKU critical stockout risk when cover drops below 15 days',
+      expected: 'daysCover < 15 and LOW_STOCK risk level',
+      actual: `daysCover=${plan.daysCover}, riskLevel=${plan.riskLevel}, recommendedQuantity=${plan.recommendedQuantity}`,
+      passed: passed6,
+      score: passed6 ? 1.0 : 0.0,
+      durationMs: Date.now() - start6,
+    });
+
+    // Case 7: Purchase Order State Machine Invariants
+    const start7 = Date.now();
+    const allowed = PurchaseOrderStateMachine.canTransition('SHIPPED', 'RECEIVED');
+    const forbidden = PurchaseOrderStateMachine.canTransition('DRAFT', 'RECEIVED');
+    const passed7 = allowed && !forbidden;
+    results.push({
+      suite: 'Purchase Order State Machine Invariants Suite',
+      name: 'Enforce strict transition DRAFT -> SUBMITTED -> CONFIRMED -> SHIPPED -> RECEIVED',
+      expected: 'SHIPPED->RECEIVED allowed, DRAFT->RECEIVED forbidden',
+      actual: `SHIPPED->RECEIVED: ${allowed}, DRAFT->RECEIVED: ${forbidden}`,
+      passed: passed7,
+      score: passed7 ? 1.0 : 0.0,
+      durationMs: Date.now() - start7,
     });
 
     const passedCount = results.filter((r) => r.passed).length;

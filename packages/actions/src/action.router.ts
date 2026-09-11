@@ -6,9 +6,12 @@ export interface ActionDispatcherContext {
   userId?: string;
   traceId?: string;
   isApproved?: boolean;
+  operationId?: string;
 }
 
 export class ActionRouter {
+  private readonly completedOperations = new Map<string, ActionExecutionResult>();
+
   constructor(private readonly rpaRegistry = defaultRpaRegistry) {}
 
   /**
@@ -20,6 +23,15 @@ export class ActionRouter {
   ): Promise<ActionExecutionResult> {
     const startTime = Date.now();
     const traceId = context.traceId || `act_trace_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    // 0. Check Idempotency via operationId
+    if (context.operationId && this.completedOperations.has(context.operationId)) {
+      const cached = this.completedOperations.get(context.operationId)!;
+      return {
+        ...cached,
+        traceId,
+      };
+    }
 
     // 1. Check Human Gate
     if (proposal.requiresHumanApproval && !context.isApproved) {
@@ -65,13 +77,23 @@ export class ActionRouter {
         }
       }
 
-      return {
+      const result: ActionExecutionResult = {
         actionId: proposal.id,
         status: 'SUCCEEDED',
         data,
         traceId,
         durationMs: Date.now() - startTime,
       };
+
+      if (context.operationId) {
+        if (this.completedOperations.size > 2000) {
+          const oldestKey = this.completedOperations.keys().next().value;
+          if (oldestKey) this.completedOperations.delete(oldestKey);
+        }
+        this.completedOperations.set(context.operationId, result);
+      }
+
+      return result;
     } catch (err: any) {
       return {
         actionId: proposal.id,

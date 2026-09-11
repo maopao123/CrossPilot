@@ -43,7 +43,7 @@ export default function ProductsPage() {
         <div className="flex items-center space-x-3">
           <button className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">
             <Plus className="w-4 h-4" />
-            <span>新建旡牝</span>
+            <span>新建产品</span>
           </button>
         </div>
       </div>

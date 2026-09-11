@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AdOptimizerService } from '@crosspilot/domain';
 
@@ -6,10 +6,9 @@ import { AdOptimizerService } from '@crosspilot/domain';
 export class AdvertisingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCampaigns(workspaceId?: string) {
-    const where = workspaceId ? { workspaceId } : {};
+  async getCampaigns(workspaceId: string) {
     const campaigns = await this.prisma.campaign.findMany({
-      where,
+      where: { workspaceId },
       include: {
         adTargets: true,
         adMetricsDaily: {
@@ -51,10 +50,12 @@ export class AdvertisingService {
     });
   }
 
-  async getSearchTerms(campaignId?: string) {
-    const where = campaignId ? { campaignId } : {};
+  async getSearchTerms(workspaceId: string, campaignId?: string) {
     const terms = await this.prisma.searchTermMetricDaily.findMany({
-      where,
+      where: {
+        campaign: { workspaceId },
+        ...(campaignId ? { campaignId } : {}),
+      },
       orderBy: { spend: 'desc' },
     });
 
@@ -80,8 +81,12 @@ export class AdvertisingService {
     }));
   }
 
-  async getNegativeRecommendations() {
-    const terms = await this.prisma.searchTermMetricDaily.findMany();
+  async getNegativeRecommendations(workspaceId: string) {
+    const terms = await this.prisma.searchTermMetricDaily.findMany({
+      where: {
+        campaign: { workspaceId },
+      },
+    });
     const recommendations = [];
 
     for (const term of terms) {
@@ -115,9 +120,34 @@ export class AdvertisingService {
   async applyNegativeKeyword(payload: {
     campaignId: string;
     searchTerm: string;
-    workspaceId?: string;
+    workspaceId: string;
   }) {
-    // Add negative target to campaign
+    const campaign = await this.prisma.campaign.findFirst({
+      where: { id: payload.campaignId, workspaceId: payload.workspaceId },
+    });
+
+    if (!campaign) {
+      throw new NotFoundException(`Campaign ${payload.campaignId} not found in workspace`);
+    }
+
+    const existing = await this.prisma.adTarget.findFirst({
+      where: {
+        campaignId: payload.campaignId,
+        targetValue: payload.searchTerm,
+        matchType: 'NEGATIVE_EXACT',
+      },
+    });
+
+    if (existing) {
+      return {
+        success: true,
+        appliedTargetId: existing.id,
+        targetValue: existing.targetValue,
+        matchType: existing.matchType,
+        message: `Negative exact keyword "${payload.searchTerm}" is already applied.`,
+      };
+    }
+
     const target = await this.prisma.adTarget.create({
       data: {
         campaignId: payload.campaignId,

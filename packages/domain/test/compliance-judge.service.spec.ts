@@ -17,7 +17,7 @@ describe('ComplianceJudgeService', () => {
     expect(result.violations).toHaveLength(0);
   });
 
-  it('should reject unverified medical claims and ranking claims', () => {
+  it('should block unverified medical claims and ranking claims', () => {
     const result = ComplianceJudgeService.evaluateListing({
       title: '#1 Best Seller FDA Approved Antibacterial Marble Toothbrush Holder',
       bulletPoints: [
@@ -25,9 +25,19 @@ describe('ComplianceJudgeService', () => {
       ],
     });
 
-    expect(result.status).toBe('REJECTED');
+    expect(result.status).toBe('BLOCK');
     expect(result.riskLevel).toBe('HIGH');
     expect(result.violations.some((v) => v.ruleCode === 'POL-FDA-001')).toBe(true);
     expect(result.violations.some((v) => v.ruleCode === 'POL-RANK-002')).toBe(true);
+  });
+
+  it('should return INSUFFICIENT when title or bullet points are missing', () => {
+    const result = ComplianceJudgeService.evaluateListing({
+      title: '',
+      bulletPoints: [],
+    });
+
+    expect(result.status).toBe('INSUFFICIENT');
+    expect(result.riskLevel).toBe('MEDIUM');
   });
 });

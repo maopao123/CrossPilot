@@ -69,7 +69,7 @@ export function TopBar() {
       <div className="flex items-center space-x-4">
         {/* Date Context */}
         <div className="hidden sm:block text-xs text-gray-400 bg-surface-elevated px-2.5 py-1 rounded border border-border">
-          Date: <span className="text-gray-200">2026-09-10</span>
+          Date: <span className="text-gray-200">{new Date().toISOString().slice(0, 10)}</span>
         </div>
 
         {/* User profile & Logout */}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { ApiClient } from '@/lib/api-client';
 import {
   Wrench,
   Sparkles,
@@ -326,134 +327,43 @@ export default function ToolCenterPage() {
     setIsRunning(true);
     setExecutionResult(null);
 
-    // Call API endpoint or fallback to client simulation
     try {
-      const res = await fetch(`/api/v1/tools/${selectedTool.id}/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          input: formData,
-          workspaceId: 'ws_default_001',
-          source: 'TOOL_CENTER',
-        }),
+      const data = await ApiClient.post<any>(`/api/v1/tools/${selectedTool.id}/execute`, {
+        input: formData,
+        source: 'TOOL_CENTER',
       });
 
-      if (res.ok) {
-        const json = await res.json();
-        setExecutionResult(json.data || json);
-        setExecutionHistory((prev) => [
-          {
-            id: `hist_${Date.now()}`,
-            toolName: selectedTool.name,
-            status: json.success ? 'SUCCESS' : 'FAILED',
-            durationMs: json.durationMs || 120,
-            cost: `$${(selectedTool.costEstimate?.amount || 0).toFixed(2)}`,
-            time: new Date().toLocaleTimeString(),
-          },
-          ...prev.slice(0, 9),
-        ]);
-        setIsRunning(false);
-        return;
-      }
-    } catch {
-      // Offline fallback simulation
-    }
-
-    // Deterministic simulation
-    setTimeout(() => {
-      let mockData: any = {};
-      if (selectedTool.id === 'finance.profit.calculate') {
-        const rev = Number(formData.revenue || 29.99);
-        const cogs = Number(formData.cogs || 5.8);
-        const refFee = Math.round(rev * 0.15 * 100) / 100;
-        const fba = Number(formData.fbaFee || 4.5);
-        const ads = Number(formData.adSpend || 3.2);
-        const net = Math.round((rev - (cogs + refFee + fba + ads)) * 100) / 100;
-        mockData = {
-          revenue: rev,
-          cogs,
-          amazonFees: refFee,
-          fbaFee: fba,
-          adsCost: ads,
-          netProfit: net,
-          margin: Math.round((net / rev) * 10000) / 100,
-        };
-      } else if (selectedTool.id === 'creative.image.generate') {
-        mockData = {
-          imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&auto=format&fit=crop&q=80',
-          aspectRatio: formData.aspectRatio || '1:1',
-          style: formData.style || 'luxury_minimalist',
-          dimensions: { width: 2000, height: 2000 },
-          seed: 489102,
-          model: 'Flux-Dev-eCommerce-v2',
-        };
-      } else if (selectedTool.id === 'creative.infographic.generate') {
-        mockData = {
-          infographicUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&auto=format&fit=crop&q=80',
-          callouts: [
-            { label: 'Slot Diameter', value: `${formData.slotDiameterInch || 1.5}" Universal Wide`, badge: 'Sonicare Fit' },
-            { label: 'Net Weight', value: `${formData.netWeightLbs || 3.57} lbs Natural Stone`, badge: 'Zero Tip-Over' },
-            { label: 'Base Protection', value: '4x Anti-Slip EVA Cushions', badge: 'Countertop Safe' },
-          ],
-        };
-      } else if (selectedTool.id === 'compliance.listing.check') {
-        mockData = {
-          status: 'PASS',
-          riskLevel: 'LOW',
-          score: 1.0,
-          violations: [],
-          inspectedRulesCount: 4,
-          citationPolicy: 'Amazon Authenticity & Medical Devices Guidelines',
-        };
-      } else if (selectedTool.id === 'operation.keyword.combine') {
-        mockData = {
-          totalGenerated: 24,
-          sampleKeywords: [
-            'natural marble toothbrush holder',
-            'solid stone toothbrush stand',
-            'wide slot electric caddy',
-            'non slip marble toothbrush stand',
-          ],
-          searchTermsField: 'natural marble stone toothbrush holder stand caddy wide slot non slip bathroom vanity countertop',
-          searchTermsByteLength: 98,
-          compliantWith250Bytes: true,
-        };
-      } else if (selectedTool.id === 'operation.listing.publish') {
-        mockData = {
-          rpaJobId: 'rpa_pub_89410',
-          skuCode: formData.skuCode || 'MTH-GREEN-001',
-          status: 'PUBLISHED_SUCCESS',
-          sellerCentralDraftUrl: `https://sellercentral.amazon.com/inventory/view/${formData.skuCode || 'MTH-GREEN-001'}`,
-          stepsExecuted: [
-            { node: 'RPA_INIT', status: 'SUCCESS', message: 'Launched browser session to Seller Central.' },
-            { node: 'AUTH_VERIFY', status: 'SUCCESS', message: 'Session active with 2FA verified.' },
-            { node: 'FILL_FIELDS', status: 'SUCCESS', message: 'Title, brand, item_type and bullet points populated.' },
-            { node: 'SUBMIT_AND_CONFIRM', status: 'SUCCESS', message: 'Batch feed ID: 8941048201 submitted.' },
-          ],
-        };
-      }
-
-      setExecutionResult({
-        success: true,
-        data: mockData,
-        traceId: `trace_${Date.now()}`,
-        durationMs: 145,
-        cost: selectedTool.costEstimate,
-      });
-
+      setExecutionResult(data);
       setExecutionHistory((prev) => [
         {
           id: `hist_${Date.now()}`,
           toolName: selectedTool.name,
           status: 'SUCCESS',
-          durationMs: 145,
+          durationMs: data.durationMs || 120,
           cost: `$${(selectedTool.costEstimate?.amount || 0).toFixed(2)}`,
           time: new Date().toLocaleTimeString(),
         },
         ...prev.slice(0, 9),
       ]);
+    } catch (err: any) {
+      setExecutionResult({
+        error: err.message || 'Tool execution failed',
+        status: 'FAILED',
+      });
+      setExecutionHistory((prev) => [
+        {
+          id: `hist_${Date.now()}`,
+          toolName: selectedTool.name,
+          status: 'FAILED',
+          durationMs: 0,
+          cost: '$0.00',
+          time: new Date().toLocaleTimeString(),
+        },
+        ...prev.slice(0, 9),
+      ]);
+    } finally {
       setIsRunning(false);
-    }, 450);
+    }
   };
 
   const filteredTools =

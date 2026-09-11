@@ -47,7 +47,27 @@ export class ToolExecutor {
       };
     }
 
-    // 1. Schema Validation
+    // 1. Permission Verification
+    if (tool.permissions && tool.permissions.length > 0) {
+      const userPermissions = (fullContext.metadata?.permissions as string[]) || [];
+      const userRole = fullContext.metadata?.role as string;
+      const isPrivileged = userRole === 'OWNER' || userRole === 'ADMIN';
+      const hasPermission = isPrivileged || tool.permissions.some((p) => userPermissions.includes(p));
+      if (!hasPermission && fullContext.source !== 'WORKFLOW') {
+        return {
+          success: false,
+          error: {
+            code: 'PERMISSION_DENIED',
+            message: `Execution of tool '${toolId}' requires permissions: ${tool.permissions.join(', ')}`,
+            retryable: false,
+          },
+          traceId,
+          durationMs: Date.now() - startTime,
+        };
+      }
+    }
+
+    // 2. Schema Validation
     if (!options.skipValidation && tool.inputSchema) {
       const validationError = this.validateInput(input, tool.inputSchema);
       if (validationError) {
@@ -64,7 +84,7 @@ export class ToolExecutor {
       }
     }
 
-    // 2. Execution with optional Timeout
+    // 3. Execution with optional Timeout
     const timeoutLimit = options.timeoutMs || tool.timeoutMs || 30000;
     let timerId: any = null;
 
@@ -99,7 +119,7 @@ export class ToolExecutor {
           code: isTimeout ? 'TIMEOUT' : 'EXECUTION_ERROR',
           message: err.message || 'Unknown error occurred during tool execution',
           retryable: isTimeout || false,
-          details: err.stack,
+          details: { errorType: err.name || 'Error' },
         },
         traceId,
         durationMs,

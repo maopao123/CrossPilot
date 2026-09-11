@@ -100,34 +100,81 @@ export class ToolCenterService {
       this.recentExecutions.pop();
     }
 
-    // Attempt DB persistence if task exists or in background
+    // Attempt DB persistence with accurate task linkage
     try {
-      const task = await this.prisma.agentTask.findFirst({
-        where: { workspaceId },
-        orderBy: { createdAt: 'desc' },
-      });
+      let taskId = (input as any)?.taskId;
+      if (!taskId) {
+        let taskUserId = userId;
+        if (!taskUserId) {
+          const member = await this.prisma.workspaceMember.findFirst({
+            where: { workspaceId },
+          });
+          taskUserId = member?.userId || 'usr_default_001';
+        }
 
-      if (task) {
-        await this.prisma.toolExecution.create({
+        const standaloneTask = await this.prisma.agentTask.create({
           data: {
-            taskId: task.id,
-            toolName: tool.id,
+            workspace: { connect: { id: workspaceId } },
+            user: { connect: { id: taskUserId } },
+            taskType: 'TOOL_EXECUTION',
+            status: result.success ? 'COMPLETED' : 'FAILED',
             inputJson: JSON.stringify(input),
-            outputJson: JSON.stringify(result.data || result.error || {}),
-            status: result.success ? 'SUCCESS' : 'FAILED',
-            latencyMs: result.durationMs,
-            errorMessage: result.error?.message,
+            resultJson: JSON.stringify(result.data || result.error || {}),
+            completedAt: new Date(),
           },
         });
+        taskId = standaloneTask.id;
       }
+
+      await this.prisma.toolExecution.create({
+        data: {
+          taskId,
+          toolName: tool.id,
+          inputJson: JSON.stringify(input),
+          outputJson: JSON.stringify(result.data || result.error || {}),
+          status: result.success ? 'SUCCESS' : 'FAILED',
+          latencyMs: result.durationMs,
+          errorMessage: result.error?.message,
+        },
+      });
     } catch {
-      // Non-fatal if DB not running or task absent
+      // Gracefully continue in memory if DB table unavailable
     }
 
     return result;
   }
 
-  listExecutions(limit = 20): RecordedToolRun[] {
+  async listExecutions(limit = 20, workspaceId?: string): Promise<RecordedToolRun[]> {
+    if (workspaceId) {
+      try {
+        const dbExecutions = await this.prisma.toolExecution.findMany({
+          where: { task: { workspaceId } },
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+        });
+        if (dbExecutions.length > 0) {
+          return dbExecutions.map((e) => {
+            const toolDef = this.registry.get(e.toolName);
+            return {
+              id: e.id,
+              toolId: e.toolName,
+              toolName: toolDef?.name || e.toolName,
+              category: toolDef?.category || 'DATA',
+              input: JSON.parse(e.inputJson || '{}'),
+              output: JSON.parse(e.outputJson || '{}'),
+              status: e.status as 'SUCCESS' | 'FAILED',
+              durationMs: e.latencyMs,
+              traceId: `trace_${e.id}`,
+              source: 'TOOL_CENTER',
+              createdAt: e.createdAt.toISOString(),
+            };
+          });
+        }
+      } catch {
+        // Fallback to in-memory records
+      }
+    }
+
     return this.recentExecutions.slice(0, limit);
   }
 }

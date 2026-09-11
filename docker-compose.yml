@@ -107,8 +107,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       MILVUS_ADDRESS: milvus:19530
-      JWT_SECRET: crosspilot_jwt_secret_key_prod
-      SESSION_SECRET: crosspilot_session_secret_prod
+      JWT_SECRET: ${JWT_SECRET:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
       DEMO_MODE: "true"
     depends_on:
       postgres:

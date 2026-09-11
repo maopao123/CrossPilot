@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -22,46 +22,18 @@ export class OrderService {
     workspaceId: string,
     limit = 50,
   ): Promise<OrderInfo[]> {
-    try {
-      const orders = await this.prisma.order.findMany({
-        where: { workspaceId },
-        include: {
-          items: {
-            include: { sku: true },
-          },
+    const orders = await this.prisma.order.findMany({
+      where: { workspaceId },
+      include: {
+        items: {
+          include: { sku: true },
         },
-        orderBy: { orderedAt: 'desc' },
-        take: limit,
-      });
+      },
+      orderBy: { orderedAt: 'desc' },
+      take: limit,
+    });
 
-      return orders.map((o) => this.mapOrder(o));
-    } catch {
-      return [
-        {
-          id: 'ord_demo_001',
-          workspaceId,
-          marketplaceId: 'mkt_us_001',
-          orderNumber: '114-8765432-1098765',
-          status: 'SHIPPED',
-          totalAmount: 29.99,
-          currencyCode: 'USD',
-          orderedAt: new Date(Date.now() - 3600000 * 5),
-          items: [
-            {
-              id: 'ord_item_001',
-              orderId: 'ord_demo_001',
-              skuId: 'sku_white_001',
-              skuCode: 'MTH-WHITE-001',
-              quantity: 1,
-              unitPrice: 29.99,
-              itemTax: 2.1,
-              shippingFee: 0,
-            },
-          ],
-          createdAt: new Date(),
-        },
-      ];
-    }
+    return orders.map((o) => this.mapOrder(o));
   }
 
   async getOrderById(workspaceId: string, orderId: string): Promise<OrderInfo> {
@@ -94,185 +66,210 @@ export class OrderService {
     workspaceId: string,
     input: CreateOrderInput,
   ): Promise<OrderInfo> {
-    // 1. Verify and deduct inventory for each item
-    for (const item of input.items) {
-      const balance = await this.prisma.inventoryBalance.findUnique({
+    return await this.prisma.$transaction(async (tx) => {
+      // 0. Idempotency check: orderNumber must be unique within workspace
+      const existing = await tx.order.findUnique({
         where: {
-          workspaceId_skuId_warehouseType: {
+          workspaceId_orderNumber: {
             workspaceId,
-            skuId: item.skuId,
-            warehouseType: 'FBA',
+            orderNumber: input.orderNumber,
           },
         },
       });
-
-      const currentBalance = balance
-        ? {
-            fulfillableQuantity: balance.fulfillableQuantity,
-            reservedQuantity: balance.reservedQuantity,
-            inboundQuantity: balance.inboundQuantity,
-            unfulfillableQuantity: balance.unfulfillableQuantity,
-          }
-        : {
-            fulfillableQuantity: 0,
-            reservedQuantity: 0,
-            inboundQuantity: 0,
-            unfulfillableQuantity: 0,
-          };
-
-      let newBalance;
-      try {
-        newBalance = InventoryMovementService.calculateOrderFulfillment(
-          currentBalance,
-          item.quantity,
-        );
-      } catch (err: any) {
+      if (existing) {
         throw new BadRequestException({
-          code: ErrorCodes.INVENTORY_NOT_ENOUGH,
-          message: err.message,
+          code: ErrorCodes.CONFLICT_ERROR,
+          message: `Order with number '${input.orderNumber}' already exists in this workspace`,
         });
       }
 
-      await this.prisma.inventoryBalance.update({
-        where: {
-          workspaceId_skuId_warehouseType: {
-            workspaceId,
-            skuId: item.skuId,
-            warehouseType: 'FBA',
+      // 1. Verify and deduct inventory for each item
+      for (const item of input.items) {
+        const balance = await tx.inventoryBalance.findUnique({
+          where: {
+            workspaceId_skuId_warehouseType: {
+              workspaceId,
+              skuId: item.skuId,
+              warehouseType: 'FBA',
+            },
           },
-        },
+        });
+
+        const currentBalance = balance
+          ? {
+              fulfillableQuantity: balance.fulfillableQuantity,
+              reservedQuantity: balance.reservedQuantity,
+              inboundQuantity: balance.inboundQuantity,
+              unfulfillableQuantity: balance.unfulfillableQuantity,
+            }
+          : {
+              fulfillableQuantity: 0,
+              reservedQuantity: 0,
+              inboundQuantity: 0,
+              unfulfillableQuantity: 0,
+            };
+
+        let newBalance;
+        try {
+          newBalance = InventoryMovementService.calculateOrderFulfillment(
+            currentBalance,
+            item.quantity,
+          );
+        } catch (err: any) {
+          throw new BadRequestException({
+            code: ErrorCodes.INVENTORY_NOT_ENOUGH,
+            message: err.message,
+          });
+        }
+
+        await tx.inventoryBalance.update({
+          where: {
+            workspaceId_skuId_warehouseType: {
+              workspaceId,
+              skuId: item.skuId,
+              warehouseType: 'FBA',
+            },
+          },
+          data: {
+            fulfillableQuantity: newBalance.fulfillableQuantity,
+          },
+        });
+      }
+
+      // 2. Create Order & OrderItems
+      const totalAmount = input.items.reduce(
+        (sum, item) =>
+          sum +
+          item.quantity * item.unitPrice +
+          (item.itemTax ?? 0) +
+          (item.shippingFee ?? 0),
+        0,
+      );
+
+      const orderedAtDate = input.orderedAt
+        ? new Date(input.orderedAt)
+        : new Date();
+
+      const order = await tx.order.create({
         data: {
-          fulfillableQuantity: newBalance.fulfillableQuantity,
-        },
-      });
-    }
-
-    // 2. Create Order & OrderItems
-    const totalAmount = input.items.reduce(
-      (sum, item) =>
-        sum +
-        item.quantity * item.unitPrice +
-        (item.itemTax ?? 0) +
-        (item.shippingFee ?? 0),
-      0,
-    );
-
-    const orderedAtDate = input.orderedAt
-      ? new Date(input.orderedAt)
-      : new Date();
-
-    const order = await this.prisma.order.create({
-      data: {
-        workspaceId,
-        marketplaceId: input.marketplaceId,
-        orderNumber: input.orderNumber,
-        status: 'SHIPPED',
-        totalAmount,
-        currencyCode: input.currencyCode || 'USD',
-        orderedAt: orderedAtDate,
-        items: {
-          create: input.items.map((item) => ({
-            workspaceId,
-            skuId: item.skuId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            itemTax: item.itemTax ?? 0,
-            shippingFee: item.shippingFee ?? 0,
-          })),
-        },
-      },
-      include: {
-        items: {
-          include: {
-            sku: true,
+          workspaceId,
+          marketplaceId: input.marketplaceId,
+          orderNumber: input.orderNumber,
+          status: 'SHIPPED',
+          totalAmount,
+          currencyCode: input.currencyCode || 'USD',
+          orderedAt: orderedAtDate,
+          items: {
+            create: input.items.map((item) => ({
+              workspaceId,
+              skuId: item.skuId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              itemTax: item.itemTax ?? 0,
+              shippingFee: item.shippingFee ?? 0,
+            })),
           },
         },
-      },
-    });
-
-    // 3. Update ProfitDaily for each SKU
-    const orderDateKey = new Date(orderedAtDate.toISOString().slice(0, 10));
-
-    for (const item of input.items) {
-      const quote = await this.prisma.supplierSkuQuote.findFirst({
-        where: { workspaceId, skuId: item.skuId },
-        orderBy: { effectiveDate: 'desc' },
-      });
-      const unitCost = quote ? Number(quote.unitCost) : 8.5;
-
-      const itemProfit = ProfitCalculationService.calculateProfit({
-        orderItems: [
-          {
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            unitCost,
-            referralFeeRate: 0.15,
-            fbaFeePerUnit: 4.5,
-          },
-        ],
-      });
-
-      const existingProfit = await this.prisma.profitDaily.findUnique({
-        where: {
-          workspaceId_skuId_date: {
-            workspaceId,
-            skuId: item.skuId,
-            date: orderDateKey,
+        include: {
+          items: {
+            include: {
+              sku: true,
+            },
           },
         },
       });
 
-      if (existingProfit) {
-        const newRevenue = Number(existingProfit.revenue) + itemProfit.revenue;
-        const newCogs = Number(existingProfit.cogs) + itemProfit.cogs;
-        const newAmazonFees =
-          Number(existingProfit.amazonFees) + itemProfit.amazonFees;
-        const newFbaFee = Number(existingProfit.fbaFee) + itemProfit.fbaFee;
-        const newAdsCost = Number(existingProfit.adsCost);
-        const newReturnLoss = Number(existingProfit.returnLoss);
-        const newOtherCosts = Number(existingProfit.otherCosts);
-        const newNetProfit =
-          newRevenue -
-          (newCogs +
-            newAmazonFees +
-            newFbaFee +
-            newAdsCost +
-            newReturnLoss +
-            newOtherCosts);
-        const newMargin = newRevenue > 0 ? newNetProfit / newRevenue : 0;
+      // 3. Update ProfitDaily for each SKU
+      const orderDateKey = new Date(orderedAtDate.toISOString().slice(0, 10));
 
-        await this.prisma.profitDaily.update({
-          where: { id: existingProfit.id },
-          data: {
-            revenue: newRevenue,
-            cogs: newCogs,
-            amazonFees: newAmazonFees,
-            fbaFee: newFbaFee,
-            netProfit: newNetProfit,
-            margin: newMargin,
+      for (const item of input.items) {
+        const quote = await tx.supplierSkuQuote.findFirst({
+          where: { workspaceId, skuId: item.skuId },
+          orderBy: { effectiveDate: 'desc' },
+        });
+        const skuRecord = await tx.sku.findUnique({
+          where: { id: item.skuId },
+        });
+        const unitCost = quote
+          ? Number(quote.unitCost)
+          : skuRecord?.sellingPrice
+            ? Number(skuRecord.sellingPrice) * 0.3
+            : 8.5;
+
+        const itemProfit = ProfitCalculationService.calculateProfit({
+          orderItems: [
+            {
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              unitCost,
+              referralFeeRate: 0.15,
+              fbaFeePerUnit: 4.5,
+            },
+          ],
+        });
+
+        const existingProfit = await tx.profitDaily.findUnique({
+          where: {
+            workspaceId_skuId_date: {
+              workspaceId,
+              skuId: item.skuId,
+              date: orderDateKey,
+            },
           },
         });
-      } else {
-        await this.prisma.profitDaily.create({
-          data: {
-            workspaceId,
-            skuId: item.skuId,
-            date: orderDateKey,
-            revenue: itemProfit.revenue,
-            cogs: itemProfit.cogs,
-            amazonFees: itemProfit.amazonFees,
-            fbaFee: itemProfit.fbaFee,
-            adsCost: 0,
-            returnLoss: 0,
-            otherCosts: 0,
-            netProfit: itemProfit.netProfit,
-            margin: itemProfit.margin,
-          },
-        });
+
+        if (existingProfit) {
+          const newRevenue = Number(existingProfit.revenue) + itemProfit.revenue;
+          const newCogs = Number(existingProfit.cogs) + itemProfit.cogs;
+          const newAmazonFees =
+            Number(existingProfit.amazonFees) + itemProfit.amazonFees;
+          const newFbaFee = Number(existingProfit.fbaFee) + itemProfit.fbaFee;
+          const newAdsCost = Number(existingProfit.adsCost);
+          const newReturnLoss = Number(existingProfit.returnLoss);
+          const newOtherCosts = Number(existingProfit.otherCosts);
+          const newNetProfit =
+            newRevenue -
+            (newCogs +
+              newAmazonFees +
+              newFbaFee +
+              newAdsCost +
+              newReturnLoss +
+              newOtherCosts);
+          const newMargin = newRevenue > 0 ? newNetProfit / newRevenue : 0;
+
+          await tx.profitDaily.update({
+            where: { id: existingProfit.id },
+            data: {
+              revenue: newRevenue,
+              cogs: newCogs,
+              amazonFees: newAmazonFees,
+              fbaFee: newFbaFee,
+              netProfit: newNetProfit,
+              margin: newMargin,
+            },
+          });
+        } else {
+          await tx.profitDaily.create({
+            data: {
+              workspaceId,
+              skuId: item.skuId,
+              date: orderDateKey,
+              revenue: itemProfit.revenue,
+              cogs: itemProfit.cogs,
+              amazonFees: itemProfit.amazonFees,
+              fbaFee: itemProfit.fbaFee,
+              adsCost: 0,
+              returnLoss: 0,
+              otherCosts: 0,
+              netProfit: itemProfit.netProfit,
+              margin: itemProfit.margin,
+            },
+          });
+        }
       }
-    }
 
-    return this.mapOrder(order);
+      return this.mapOrder(order);
+    });
   }
 
   private mapOrder(order: any): OrderInfo {

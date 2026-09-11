@@ -1,17 +1,24 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { AnalystService } from './analyst.service.js';
+import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
 
-@Controller('api/v1/analyst')
+@Controller('analyst')
 export class AnalystController {
   constructor(private readonly analystService: AnalystService) {}
 
   @Get('waterfall')
-  getWaterfall() {
-    return this.analystService.getWaterfall();
+  getWaterfall(@CurrentWorkspace() workspaceId: string) {
+    return this.analystService.getWaterfall(workspaceId);
   }
 
   @Post('ask')
-  askAnalyst(@Body('question') question: string) {
-    return this.analystService.askAnalyst(question || 'Why did profit drop this week?');
+  askAnalyst(
+    @CurrentWorkspace() workspaceId: string,
+    @Body('question') question: string,
+  ) {
+    return this.analystService.askAnalyst(
+      question || 'Why did profit drop this week?',
+      workspaceId,
+    );
   }
 }

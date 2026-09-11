@@ -14,10 +14,9 @@ export interface TraceEvent {
 export class AgentTaskService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listTasks(workspaceId?: string) {
-    const where = workspaceId ? { workspaceId } : {};
+  async listTasks(workspaceId: string) {
     const tasks = await this.prisma.agentTask.findMany({
-      where,
+      where: { workspaceId },
       orderBy: { createdAt: 'desc' },
       take: 20,
       include: {
@@ -39,9 +38,9 @@ export class AgentTaskService {
     }));
   }
 
-  async getTaskTrace(taskId: string) {
-    const task = await this.prisma.agentTask.findUnique({
-      where: { id: taskId },
+  async getTaskTrace(taskId: string, workspaceId: string) {
+    const task = await this.prisma.agentTask.findFirst({
+      where: { id: taskId, workspaceId },
       include: {
         steps: {
           orderBy: { stepNumber: 'asc' },
@@ -52,7 +51,7 @@ export class AgentTaskService {
       },
     });
 
-    if (!task) throw new NotFoundException(`Task ${taskId} not found`);
+    if (!task) throw new NotFoundException(`Task ${taskId} not found in workspace`);
 
     return {
       taskId: task.id,
@@ -84,7 +83,7 @@ export class AgentTaskService {
   /**
    * SSE Stream simulating real-time agent trajectory execution
    */
-  streamTaskExecution(taskType = 'VARIANCE_ATTRIBUTION'): Observable<MessageEvent> {
+  streamTaskExecution(workspaceId?: string, taskType = 'VARIANCE_ATTRIBUTION'): Observable<MessageEvent> {
     return new Observable((observer) => {
       const steps = [
         {

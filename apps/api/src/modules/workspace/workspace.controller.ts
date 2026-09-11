@@ -4,12 +4,11 @@ import {
   Get,
   Param,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import { WorkspaceService } from './workspace.service.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import { WorkspaceGuard } from '../../common/guards/workspace.guard.js';
+import { SkipWorkspace } from '../../common/decorators/skip-workspace.decorator.js';
 import {
   CreateWorkspaceInput,
   CreateWorkspaceSchema,
@@ -17,7 +16,6 @@ import {
 } from '@crosspilot/shared';
 
 @Controller('workspaces')
-@UseGuards(WorkspaceGuard)
 export class WorkspaceController {
   constructor(private workspaceService: WorkspaceService) {}
 
@@ -25,6 +23,7 @@ export class WorkspaceController {
    * Section 79: GET /api/v1/workspaces/current
    * Returns current active workspace summary
    */
+  @SkipWorkspace()
   @Get('current')
   async getCurrentWorkspace(
     @CurrentUser() user: JwtPayload,
@@ -36,6 +35,7 @@ export class WorkspaceController {
     );
   }
 
+  @SkipWorkspace()
   @Get()
   async listWorkspaces(@CurrentUser() user: JwtPayload) {
     return this.workspaceService.listUserWorkspaces(user.sub);
@@ -49,6 +49,7 @@ export class WorkspaceController {
     return this.workspaceService.getWorkspaceById(workspaceId, user.sub);
   }
 
+  @SkipWorkspace()
   @Post()
   async createWorkspace(
     @CurrentUser() user: JwtPayload,

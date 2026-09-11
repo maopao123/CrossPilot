@@ -15,8 +15,8 @@ describe('InventoryPlanningService', () => {
     expect(result.daysCover).toBe(10); // 100 / 10 = 10 days
     // reorder point = (15 * 10) + (14 * 10) = 150 + 140 = 290 units
     expect(result.reorderPoint).toBe(290);
-    // targetStock = 45 * 10 = 450 units; current pipeline = 120; recommended = 450 - 120 = 330 units
-    expect(result.recommendedQuantity).toBe(330);
+    // targetStock = 45 * 10 = 450 units; safetyStock = 14 * 10 = 140 units; current pipeline = 120; recommended = 450 + 140 - 120 = 470 units
+    expect(result.recommendedQuantity).toBe(470);
     expect(result.riskLevel).toBe('LOW_STOCK'); // daysCover 10 <= leadTime 15
   });
 });

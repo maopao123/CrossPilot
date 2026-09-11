@@ -26,7 +26,7 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
       sku: { create: jest.fn(), findUnique: jest.fn() },
       supplier: { create: jest.fn() },
       inventoryBalance: { createMany: jest.fn() },
-      profitDaily: { createMany: jest.fn() },
+      profitDaily: { createMany: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
       inventorySnapshot: { createMany: jest.fn() },
       campaign: { create: jest.fn(), findMany: jest.fn() },
       adMetricDaily: { createMany: jest.fn() },
@@ -97,6 +97,27 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
             ],
           },
         ]),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'voc_1',
+          topicName: 'Hole Size Narrow for Electric Handles',
+          sentiment: 'NEGATIVE',
+          percentage: 31.10,
+          topicReviews: [
+            {
+              reviewId: 'r1',
+              evidenceText: 'Oral-B iO handle will not fit into the smaller holes',
+              relevanceScore: 0.95,
+              review: {
+                id: 'r1',
+                reviewerName: 'Sarah M.',
+                rating: 2,
+                reviewDate: new Date('2026-08-01'),
+                title: 'Too narrow for Oral-B',
+                content: 'My Oral-B iO handle will not fit into the smaller holes. Had to return.',
+              },
+            },
+          ],
+        }),
         findUnique: jest.fn().mockResolvedValue({
           id: 'voc_1',
           topicName: 'Hole Size Narrow for Electric Handles',
@@ -174,6 +195,35 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
       analysisFinding: { createMany: jest.fn() },
       agentTask: {
         create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'task_001',
+          taskType: 'VARIANCE_ATTRIBUTION',
+          status: 'COMPLETED',
+          inputJson: '{"question":"Why did profit drop?"}',
+          resultJson: '{"variance":-2280}',
+          steps: [
+            {
+              id: 's1',
+              stepNumber: 1,
+              stepType: 'TOOL_CALL',
+              name: 'Query Financial Ledger',
+              status: 'COMPLETED',
+              inputSummary: 'Query ProfitDaily',
+              outputSummary: 'Variance: -2280',
+              toolExecutions: [
+                {
+                  id: 'te1',
+                  toolName: 'query_profit_summary',
+                  status: 'SUCCESS',
+                  latencyMs: 145,
+                  inputJson: '{}',
+                  outputJson: '{"variance":-2280}',
+                  errorMessage: null,
+                },
+              ],
+            },
+          ],
+        }),
         findUnique: jest.fn().mockResolvedValue({
           id: 'task_001',
           taskType: 'VARIANCE_ATTRIBUTION',
@@ -246,15 +296,15 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
 
   // Milestone 3 Verification
   it('Milestone 3: Market & VOC Service returns competitors, VOC topics, and drill-down review evidence', async () => {
-    const competitors = await marketService.getCompetitors();
+    const competitors = await marketService.getCompetitors('ws_default_001');
     expect(competitors).toHaveLength(1);
     expect(competitors[0].brand).toBe('LuxStone Home');
 
-    const topics = await marketService.getVocTopics();
+    const topics = await marketService.getVocTopics('ws_default_001');
     expect(topics).toHaveLength(1);
     expect(topics[0].percentage).toBe(31.10);
 
-    const evidence = await marketService.getTopicEvidence('voc_1');
+    const evidence = await marketService.getTopicEvidence('voc_1', 'ws_default_001');
     expect(evidence.evidenceReviews).toHaveLength(1);
     expect(evidence.evidenceReviews[0].highlightedEvidence).toContain('Oral-B iO handle will not fit');
   });
@@ -265,7 +315,7 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
       title: '#1 Best Seller FDA Approved Toothbrush Holder',
       bulletPoints: ['Cures all bathroom bacteria.'],
     });
-    expect(rejectResult.status).toBe('REJECTED');
+    expect(rejectResult.status).toBe('BLOCK');
     expect(rejectResult.violations.some((v) => v.ruleCode === 'POL-FDA-001')).toBe(true);
 
     const passResult = await listingService.checkCompliance({
@@ -277,7 +327,7 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
 
   // Milestone 5 Verification
   it('Milestone 5: Advertising Service flags 93.3% ACOS "bathroom organizer" for negative exact', async () => {
-    const recommendations = await advertisingService.getNegativeRecommendations();
+    const recommendations = await advertisingService.getNegativeRecommendations('ws_default_001');
     expect(recommendations.length).toBeGreaterThan(0);
     const badKeyword = recommendations.find((r) => r.searchTerm === 'bathroom organizer');
     expect(badKeyword).toBeDefined();
@@ -286,7 +336,7 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
 
   // Milestone 6 Verification
   it('Milestone 6: Business Analyst Service decomposes -$2,280 profit drop with exact mathematical closure', async () => {
-    const waterfall = await analystService.getWaterfall();
+    const waterfall = await analystService.getWaterfall('ws_default_001');
     expect(waterfall.totalVariance).toBe(-2280.0);
     expect(waterfall.attribution.isExactMatch).toBe(true);
     expect(waterfall.attribution.formulaString).toBe('-2280 = -980 -620 -510 -310 +140');
@@ -294,7 +344,7 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
 
   // Milestone 7 Verification
   it('Milestone 7: Agent Task Service returns structured execution traces and tool call latencies', async () => {
-    const trace = await agentTaskService.getTaskTrace('task_001');
+    const trace = await agentTaskService.getTaskTrace('task_001', 'ws_default_001');
     expect(trace.taskId).toBe('task_001');
     expect(trace.steps).toHaveLength(1);
     expect(trace.steps[0].toolExecutions).toHaveLength(1);
@@ -305,8 +355,8 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
   // Milestone 8 Verification
   it('Milestone 8: Eval Service runs golden benchmark suites with 100% pass rate', () => {
     const result = evalService.runBenchmarks();
-    expect(result.summary.total).toBe(5);
-    expect(result.summary.passed).toBe(5);
+    expect(result.summary.total).toBe(7);
+    expect(result.summary.passed).toBe(7);
     expect(result.summary.failed).toBe(0);
     expect(result.summary.passRate).toBe('100.0%');
   });

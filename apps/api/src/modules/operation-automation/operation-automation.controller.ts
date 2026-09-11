@@ -1,6 +1,8 @@
 import { Controller, Post, Get, Body, Param } from '@nestjs/common';
 import { OperationAutomationService } from './operation-automation.service.js';
-import { Public } from '../../common/decorators/public.decorator.js';
+import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { JwtPayload } from '@crosspilot/shared';
 
 @Controller('operations')
 export class OperationAutomationController {
@@ -8,36 +10,37 @@ export class OperationAutomationController {
     private readonly automationService: OperationAutomationService,
   ) {}
 
-  @Public()
   @Post('listing-publish')
   startPublishWorkflow(
-    @Body() payload: { skuCode?: string; targetPrice?: number; autoApprove?: boolean; workspaceId?: string },
+    @CurrentWorkspace() workspaceId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() payload: { skuCode?: string; targetPrice?: number },
   ) {
     return this.automationService.startListingPublishWorkflow(
       {
         skuCode: payload.skuCode || 'MTH-GREEN-001',
         targetPrice: payload.targetPrice,
-        autoApprove: payload.autoApprove,
       },
-      payload.workspaceId || 'ws_default_001',
+      workspaceId,
+      user.sub,
     );
   }
 
-  @Public()
   @Post('approve/:approvalId')
   approveAndExecute(
     @Param('approvalId') approvalId: string,
-    @Body() payload: { workspaceId?: string },
+    @CurrentWorkspace() workspaceId: string,
+    @CurrentUser() user: JwtPayload,
   ) {
     return this.automationService.approveAndExecute(
       approvalId,
-      payload.workspaceId || 'ws_default_001',
+      workspaceId,
+      user.sub,
     );
   }
 
-  @Public()
   @Get('workflows')
-  listWorkflows() {
-    return this.automationService.listWorkflows();
+  listWorkflows(@CurrentWorkspace() workspaceId: string) {
+    return this.automationService.listWorkflows(workspaceId);
   }
 }

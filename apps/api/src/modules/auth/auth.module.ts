@@ -5,12 +5,22 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './jwt.strategy.js';
 
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL: JWT_SECRET environment variable is missing in production.');
+    }
+    return 'dev_jwt_secret_for_local_development_only';
+  }
+  return secret;
+}
+
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
-      secret:
-        process.env.JWT_SECRET || 'crosspilot_jwt_secret_key_change_me_in_production',
+      secret: getJwtSecret(),
       signOptions: {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
       },

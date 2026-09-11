@@ -29,6 +29,7 @@ describe('V9 Incremental Upgrade Integration Tests', () => {
       },
       approval: {
         create: jest.fn().mockResolvedValue({ id: 'appr_01' }),
+        findFirst: jest.fn().mockResolvedValue({ id: 'appr_01', status: 'PENDING' }),
         update: jest.fn().mockResolvedValue({ id: 'appr_01', status: 'APPROVED' }),
       },
     };
@@ -82,7 +83,7 @@ describe('V9 Incremental Upgrade Integration Tests', () => {
         { revenue: 29.99, cogs: 5.8 },
         'ws_test_001',
       );
-      const history = toolCenterService.listExecutions();
+      const history = await toolCenterService.listExecutions();
       expect(history.length).toBeGreaterThan(0);
       expect(history[0].toolId).toBe('finance.profit.calculate');
       expect(history[0].status).toBe('SUCCESS');

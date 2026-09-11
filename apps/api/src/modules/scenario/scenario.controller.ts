@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, ForbiddenException } from '@nestjs/common';
 import { ScenarioService } from './scenario.service.js';
 
-@Controller('api/v1/scenario')
+@Controller('scenario')
 export class ScenarioController {
   constructor(private readonly scenarioService: ScenarioService) {}
 
@@ -21,17 +21,27 @@ export class ScenarioController {
   }
 
   @Post('reset')
-  resetDemo(@Body('workspaceSlug') workspaceSlug?: string) {
-    return this.scenarioService.resetDemo(workspaceSlug || 'crosspilot-demo');
+  resetDemo(@Req() req: any) {
+    const member = req.workspaceMember;
+    if (!member || (member.role !== 'OWNER' && member.role !== 'ADMIN')) {
+      throw new ForbiddenException('Only workspace OWNER or ADMIN can reset workspace data.');
+    }
+    const slug = member.workspace?.slug || 'crosspilot-demo';
+    return this.scenarioService.resetDemo(slug);
   }
 }
 
-@Controller('api/v1/demo')
+@Controller('demo')
 export class DemoController {
   constructor(private readonly scenarioService: ScenarioService) {}
 
   @Post('reset')
-  resetDemo(@Body('workspaceSlug') workspaceSlug?: string) {
-    return this.scenarioService.resetDemo(workspaceSlug || 'crosspilot-demo');
+  resetDemo(@Req() req: any) {
+    const member = req.workspaceMember;
+    if (!member || (member.role !== 'OWNER' && member.role !== 'ADMIN')) {
+      throw new ForbiddenException('Only workspace OWNER or ADMIN can reset workspace data.');
+    }
+    const slug = member.workspace?.slug || 'crosspilot-demo';
+    return this.scenarioService.resetDemo(slug);
   }
 }

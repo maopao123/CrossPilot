@@ -17,11 +17,11 @@ describe('ToolPlatform Core Unit Tests', () => {
   describe('ToolRegistry', () => {
     it('should register and index all default tools', () => {
       const allTools = registry.getAll();
-      expect(allTools.length).toBeGreaterThanOrEqual(14);
+      expect(allTools.length).toBeGreaterThanOrEqual(13);
       expect(registry.has('finance.profit.calculate')).toBe(true);
       expect(registry.has('compliance.listing.check')).toBe(true);
       expect(registry.has('creative.image.generate')).toBe(true);
-      expect(registry.has('operation.listing.publish')).toBe(true);
+      expect(registry.has('operation.keyword.combine')).toBe(true);
     });
 
     it('should filter tools by category', () => {
@@ -35,7 +35,7 @@ describe('ToolPlatform Core Unit Tests', () => {
 
     it('should list metadata without leaking execute function', () => {
       const meta = registry.listMetadata();
-      expect(meta.length).toBeGreaterThanOrEqual(14);
+      expect(meta.length).toBeGreaterThanOrEqual(13);
       expect((meta[0] as any).execute).toBeUndefined();
       expect(meta[0].id).toBeDefined();
       expect(meta[0].inputSchema).toBeDefined();
@@ -92,7 +92,7 @@ describe('ToolPlatform Core Unit Tests', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data.status).toBe('REJECTED');
+      expect(result.data.status).toBe('BLOCK');
       expect(result.data.violations.some((v: any) => v.ruleCode === 'POL-FDA-001')).toBe(true);
     });
 
@@ -113,22 +113,20 @@ describe('ToolPlatform Core Unit Tests', () => {
       expect(result.cost?.amount).toBe(0.04);
     });
 
-    it('should execute OperationListingPublishTool and return RPA execution trace', async () => {
+    it('should execute OperationKeywordCombineTool and return matrix keywords', async () => {
       const result = await executor.execute(
-        'operation.listing.publish',
+        'operation.keyword.combine',
         {
-          skuCode: 'MTH-GREEN-001',
-          title: 'Natural Marble Toothbrush Holder',
-          bulletPoints: ['100% genuine marble', '1.5" slots'],
-          price: 29.99,
+          seedKeywords: 'toothbrush holder, toothbrush stand',
+          modifiers: 'marble, heavy stone, wide slot',
         },
         { workspaceId: 'ws_test' },
       );
 
       expect(result.success).toBe(true);
-      expect(result.data.rpaJobId).toBeDefined();
-      expect(result.data.status).toBe('PUBLISHED_SUCCESS');
-      expect(result.data.stepsExecuted.length).toBe(7);
+      expect(result.data.totalGenerated).toBe(6);
+      expect(result.data.searchTermsField).toBeDefined();
+      expect(result.data.compliantWith250Bytes).toBe(true);
     });
   });
 });

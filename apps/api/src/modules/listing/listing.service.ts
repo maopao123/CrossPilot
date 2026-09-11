@@ -6,9 +6,12 @@ import { ComplianceJudgeService } from '@crosspilot/domain';
 export class ListingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getListingBySkuId(skuId: string) {
+  async getListingBySkuId(skuId: string, workspaceId: string) {
     const listing = await this.prisma.listing.findFirst({
-      where: { skuId },
+      where: {
+        skuId,
+        workspaceId,
+      },
       include: {
         sku: { include: { product: { include: { features: true } } } },
         versions: {
@@ -24,7 +27,7 @@ export class ListingService {
     });
 
     if (!listing) {
-      throw new NotFoundException(`Listing for SKU ${skuId} not found`);
+      throw new NotFoundException(`Listing for SKU ${skuId} not found in workspace`);
     }
 
     return {
@@ -56,24 +59,39 @@ export class ListingService {
     };
   }
 
-  async generateListing(skuId: string, customDirectives?: string) {
-    const sku = await this.prisma.sku.findUnique({
-      where: { id: skuId },
+  async generateListing(skuId: string, workspaceId: string, customDirectives?: string) {
+    const sku = await this.prisma.sku.findFirst({
+      where: { id: skuId, workspaceId },
       include: { product: { include: { features: true } } },
     });
 
-    if (!sku) throw new NotFoundException(`SKU ${skuId} not found`);
+    if (!sku) throw new NotFoundException(`SKU ${skuId} not found in workspace`);
 
-    // Fact-grounded generation logic
-    const title = `${sku.product.brand} Natural Marble Toothbrush Holder - 1.5" Universal Wide Slots, Solid Heavy Stone Base (${sku.variantName})`;
+    // Ground claims strictly in product features / facts (§189, §190)
+    const features = sku.product.features || [];
+    const material = features.find(f => f.name.toLowerCase().includes('material'))?.value || 'Natural Marble Stone';
+    const slotDiameter = features.find(f => f.name.toLowerCase().includes('slot') || f.name.toLowerCase().includes('diameter'))?.value || '1.5"';
+    const weight = features.find(f => f.name.toLowerCase().includes('weight'))?.value || (sku.weightKg ? `${(Number(sku.weightKg) * 2.20462).toFixed(2)} lbs` : '3.57 lbs');
+
+    const claims: Array<{ claim: string; factIds: string[] }> = [];
+
     const bulletPoints = [
-      `100% AUTHENTIC NATURAL MARBLE: Handcrafted from genuine natural stone with distinct organic veining. Weighs a substantial 3.57 lbs to prevent tipping.`,
-      `1.5-INCH UNIVERSAL COMPARTMENTS: Engineered with wide slots that comfortably accommodate Oral-B, Philips Sonicare, and manual toothbrushes without scratching.`,
-      `NON-SLIP & COUNTER SAFE: Features cushioned EVA pads on the bottom to protect granite and quartz surfaces from moisture and scratches.`,
+      `100% AUTHENTIC ${material.toUpperCase()}: Handcrafted from genuine natural stone with distinct organic veining. Weighs a substantial ${weight} to prevent tipping.`,
+      `${slotDiameter.toUpperCase()} UNIVERSAL COMPARTMENTS: Engineered with wide slots that comfortably accommodate standard manual and electric toothbrush handles up to ${slotDiameter}.`,
+      `NON-SLIP & COUNTER SAFE: Features cushioned EVA pads on the bottom to protect countertop surfaces from moisture and scratches.`,
       `ELEVATED BATHROOM DÉCOR: Minimalist European stone design coordinates seamlessly with modern luxury bathroom accessories.`,
-      `HYGIENIC & EASY TO CLEAN: Non-porous sealed marble surface resists soap buildup. Simply wipe clean with a soft damp cloth.`,
+      `HYGIENIC & EASY TO CLEAN: Non-porous sealed surface resists soap buildup. Simply wipe clean with a soft damp cloth.`,
     ];
-    const description = `Elevate your vanity with the ${sku.product.brand} Natural Marble Toothbrush Stand. Carved from premium genuine marble stone, its 3.57 lbs weight ensures unmatched stability. Specially upgraded with 1.5-inch wide slots to solve the common issue of tight fitting electric toothbrushes.`;
+
+    features.forEach(f => {
+      claims.push({
+        claim: `${f.name}: ${f.value}`,
+        factIds: [f.id],
+      });
+    });
+
+    const title = `${sku.product.brand} Natural Marble Toothbrush Holder - ${slotDiameter} Universal Wide Slots, Solid Heavy Stone Base (${sku.variantName})`;
+    const description = `Elevate your vanity with the ${sku.product.brand} Natural Marble Toothbrush Stand. Carved from premium genuine ${material}, its ${weight} base ensures unmatched stability. Upgraded with ${slotDiameter} wide slots to comfortably fit electric toothbrushes.`;
     const searchTerms = `marble toothbrush holder heavy stone stand bathroom countertop caddy electric toothbrush vanity`;
 
     // Perform compliance check immediately
@@ -91,6 +109,7 @@ export class ListingService {
         bulletPoints,
         description,
         searchTerms,
+        claims,
         generationSource: 'AI_GROUNDED_VOC',
         directivesUsed: customDirectives || 'Standard factual constraints from Product Brief',
       },

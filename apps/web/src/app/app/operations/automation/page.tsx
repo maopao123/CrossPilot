@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { ApiClient } from '@/lib/api-client';
 import {
   PlayCircle,
   CheckCircle2,
@@ -114,36 +115,29 @@ export default function OperationAutomationPage() {
     setApprovalStatus('PENDING');
 
     try {
-      const res = await fetch('/api/v1/operations/listing-publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          skuCode,
-          targetPrice,
-          autoApprove: false,
-        }),
+      const data = await ApiClient.post<any>('/api/v1/operations/listing-publish', {
+        skuCode,
+        targetPrice,
+        autoApprove: false,
       });
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setActiveWorkflow(json.data);
-          setIsRunning(false);
-          return;
-        }
+      if (data) {
+        setActiveWorkflow(data);
+        setRpaLogs((prev) => [
+          `[${new Date().toLocaleTimeString()}] [Workflow Engine] Started publish workflow for ${skuCode}.`,
+          `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] Paused. Awaiting operator signoff.`,
+          ...prev,
+        ]);
+        return;
       }
-    } catch {
-      // offline simulation
-    }
-
-    setTimeout(() => {
-      setIsRunning(false);
+    } catch (err: any) {
       setRpaLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] [Workflow Engine] Started new publish workflow for ${skuCode}.`,
-        `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] Paused. Awaiting operator signoff.`,
+        `[${new Date().toLocaleTimeString()}] [Workflow Engine] Failed to start publish workflow: ${err.message}`,
         ...prev,
       ]);
-    }, 600);
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -151,71 +145,29 @@ export default function OperationAutomationPage() {
     setApprovalStatus('APPROVED');
 
     try {
-      const res = await fetch(
+      const data = await ApiClient.post<any>(
         `/api/v1/operations/approve/${activeWorkflow.approvalId}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ workspaceId: 'ws_default_001' }),
-        },
+        {},
       );
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setActiveWorkflow(json.data);
-          setIsRunning(false);
-          return;
-        }
-      }
-    } catch {
-      // offline simulation
-    }
-
-    // Local deterministic simulation of RPA execution
-    setTimeout(() => {
-      setActiveWorkflow((prev) => {
-        const updatedSteps: WorkflowNode[] = prev.steps.map((s) => {
-          if (s.runtime === 'HUMAN') {
-            return {
-              ...s,
-              status: 'COMPLETED',
-              summary: '运营负责人已核准发布 (Signoff: 29.99 USD)',
-            };
-          }
-          if (s.runtime === 'RPA') {
-            return {
-              ...s,
-              status: 'COMPLETED',
-              summary: '影刀/Mock RPA 执行完毕: Session active -> Fill fields -> Submit feed.',
-              details: { rpaJobId: 'rpa_job_91024', durationMs: 180 },
-            };
-          }
-          if (s.stepNumber === 6) {
-            return {
-              ...s,
-              status: 'COMPLETED',
-              summary: 'Feed ID: 8192049102 确认接收，商品已在 Seller Central 就绪。',
-            };
-          }
-          return s;
-        });
-
-        return {
+      if (data) {
+        setActiveWorkflow(data);
+        setRpaLogs((prev) => [
+          `[${new Date().toLocaleTimeString()}] [Node 6 - Verification] Amazon Batch Feed confirmed.`,
+          `[${new Date().toLocaleTimeString()}] [Node 5 - RPA] Completed Seller Central automated upload for ${skuCode}.`,
+          `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] Approved by operator. Dispatched to RPA Adapter.`,
           ...prev,
-          status: 'SUCCEEDED',
-          steps: updatedSteps,
-        };
-      });
-
+        ]);
+        return;
+      }
+    } catch (err: any) {
       setRpaLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] [Node 6 - Verification] Amazon Batch Feed 8192049102 accepted with 0 errors.`,
-        `[${new Date().toLocaleTimeString()}] [Node 5 - RPA] Completed Seller Central automated upload for ${skuCode}.`,
-        `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] Approved by operator. Dispatching to RPA Adapter...`,
+        `[${new Date().toLocaleTimeString()}] [Approval Gate] Approval failed: ${err.message}`,
         ...prev,
       ]);
+    } finally {
       setIsRunning(false);
-    }, 800);
+    }
   };
 
   const handleReject = () => {

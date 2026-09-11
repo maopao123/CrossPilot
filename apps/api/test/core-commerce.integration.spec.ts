@@ -1,4 +1,4 @@
-﻿import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../src/modules/prisma/prisma.service.js';
 import { PurchaseService } from '../src/modules/purchase/purchase.service.js';
@@ -28,12 +28,17 @@ describe('Milestone 1: Core Commerce Integration & AC Verification', () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      sku: {
+        findUnique: jest.fn().mockResolvedValue({ id: mockSkuId, sellingPrice: 29.99 }),
+      },
       purchaseOrderItem: {
         update: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([{ skuId: mockSkuId, quantity: 500, receivedQuantity: 500 }]),
       },
       order: {
         findFirst: jest.fn(),
         findMany: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
       },
       orderItem: {
@@ -51,6 +56,7 @@ describe('Milestone 1: Core Commerce Integration & AC Verification', () => {
       },
       returnRecord: {
         create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
         findMany: jest.fn(),
       },
       profitDaily: {
@@ -59,6 +65,7 @@ describe('Milestone 1: Core Commerce Integration & AC Verification', () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      $transaction: jest.fn().mockImplementation((cb: any) => (typeof cb === 'function' ? cb(prisma) : Promise.all(cb))),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -357,8 +364,9 @@ describe('Milestone 1: Core Commerce Integration & AC Verification', () => {
       // Since daysCover (10) <= leadTimeDays (15), risk level should be LOW_STOCK
       expect(rec.riskLevel).toBe('LOW_STOCK');
       // Target stock for 45 days = 45 * 5 = 225
-      // Recommended quantity = 225 - 50 = 175
-      expect(rec.recommendedQuantity).toBe(175);
+      // Safety stock = 14 * 5 = 70
+      // Recommended quantity = 225 + 70 - 50 = 245
+      expect(rec.recommendedQuantity).toBe(245);
     });
   });
 });

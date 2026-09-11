@@ -44,11 +44,11 @@ export class InventoryPlanningService {
     // Total Effective Inventory = Available + Inbound
     const totalPipeline = input.fulfillableQuantity + input.inboundQuantity;
 
-    // Recommended Reorder Quantity
+    // Recommended Reorder Quantity (Baseline §194.3: TargetCoverageDemand + SafetyStock - Available - Inbound)
     let recommendedQuantity = 0;
     if (totalPipeline <= reorderPoint && avgDailySales > 0) {
       const targetStockUnits = Math.ceil(targetDaysCover * avgDailySales);
-      recommendedQuantity = Math.max(0, targetStockUnits - totalPipeline);
+      recommendedQuantity = Math.max(0, targetStockUnits + safetyStockUnits - totalPipeline);
     }
 
     // Risk Level

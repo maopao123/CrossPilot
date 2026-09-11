@@ -44,7 +44,9 @@ assertTest('Compliance Judge', 'Reject listing with ungrounded FDA claims', () =
     title: '#1 Best Seller FDA Approved Antibacterial Toothbrush Holder',
     bulletPoints: ['Cures all bathroom mold.'],
   });
-  if (check.status !== 'REJECTED') throw new Error(`Expected REJECTED, got ${check.status}`);
+  if (check.status !== 'BLOCK' && check.status !== 'REJECTED') {
+    throw new Error(`Expected BLOCK, got ${check.status}`);
+  }
   if (!check.violations.some((v) => v.ruleCode === 'POL-FDA-001')) {
     throw new Error('Expected POL-FDA-001 violation');
   }

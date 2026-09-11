@@ -47,10 +47,9 @@ export class MarketService {
     };
   }
 
-  async getCompetitors(workspaceId?: string) {
-    const where = workspaceId ? { workspaceId } : {};
+  async getCompetitors(workspaceId: string) {
     const competitors = await this.prisma.competitor.findMany({
-      where,
+      where: { workspaceId },
       include: {
         snapshots: { orderBy: { snapshotDate: 'desc' }, take: 1 },
       },
@@ -72,10 +71,9 @@ export class MarketService {
     }));
   }
 
-  async getVocTopics(workspaceId?: string) {
-    const where = workspaceId ? { analysisRun: { workspaceId } } : {};
+  async getVocTopics(workspaceId: string) {
     const topics = await this.prisma.vocTopic.findMany({
-      where,
+      where: { analysisRun: { workspaceId } },
       include: {
         analysisRun: true,
         topicReviews: {
@@ -104,9 +102,12 @@ export class MarketService {
     }));
   }
 
-  async getTopicEvidence(topicId: string) {
-    const topic = await this.prisma.vocTopic.findUnique({
-      where: { id: topicId },
+  async getTopicEvidence(topicId: string, workspaceId: string) {
+    const topic = await this.prisma.vocTopic.findFirst({
+      where: {
+        id: topicId,
+        analysisRun: { workspaceId },
+      },
       include: {
         topicReviews: {
           include: { review: true },
@@ -114,7 +115,7 @@ export class MarketService {
       },
     });
 
-    if (!topic) throw new NotFoundException(`Topic ${topicId} not found`);
+    if (!topic) throw new NotFoundException(`Topic ${topicId} not found in workspace`);
 
     return {
       topicId: topic.id,
@@ -135,10 +136,9 @@ export class MarketService {
     };
   }
 
-  async getProductOpportunities(workspaceId?: string) {
-    const where = workspaceId ? { workspaceId } : {};
+  async getProductOpportunities(workspaceId: string) {
     const opportunities = await this.prisma.productOpportunity.findMany({
-      where,
+      where: { workspaceId },
       orderBy: { opportunityScore: 'desc' },
     });
 
