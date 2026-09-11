@@ -1,7 +1,8 @@
 /**
  * CrossPilot Domain Package
  *
- * Encapsulates pure business rules, formulas, and state machines.
+ * Encapsulates pure business rules, formulas, state machines,
+ * and deterministic scenario engines.
  * Decoupled from UI, NestJS controllers, and database drivers.
  */
 
@@ -9,6 +10,10 @@ export * from './purchase/purchase-order.state-machine.js';
 export * from './inventory/inventory-movement.service.js';
 export * from './inventory/inventory-planning.service.js';
 export * from './profit/profit-calculation.service.js';
+export * from './scenario/scenario-generator.js';
+export * from './variance/variance-attribution.service.js';
+export * from './compliance/compliance-judge.service.js';
+export * from './advertising/ad-optimizer.service.js';
 
 export const DOMAIN_CONSTANTS = {
   DEFAULT_CURRENCY: 'USD',

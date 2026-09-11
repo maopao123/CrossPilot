@@ -31,16 +31,24 @@ export interface ProfitBreakdown {
   margin: number;
 }
 
+export function roundMoney(amount: number): number {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+export function roundMargin(rate: number): number {
+  return Math.round((rate + Number.EPSILON) * 10000) / 10000;
+}
+
 export class ProfitCalculationService {
   /**
    * High-precision financial arithmetic avoiding IEEE 754 float drift
    */
-  private static roundMoney(amount: number): number {
-    return Math.round((amount + Number.EPSILON) * 100) / 100;
+  public static roundMoney(amount: number): number {
+    return roundMoney(amount);
   }
 
-  private static roundMargin(rate: number): number {
-    return Math.round((rate + Number.EPSILON) * 10000) / 10000;
+  public static roundMargin(rate: number): number {
+    return roundMargin(rate);
   }
 
   public static calculateProfit(input: ProfitCalculationInput): ProfitBreakdown {

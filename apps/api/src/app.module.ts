@@ -11,6 +11,13 @@ import { PurchaseModule } from './modules/purchase/purchase.module.js';
 import { OrderModule } from './modules/order/order.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { ProfitModule } from './modules/profit/profit.module.js';
+import { ScenarioModule } from './modules/scenario/scenario.module.js';
+import { MarketModule } from './modules/market/market.module.js';
+import { ListingModule } from './modules/listing/listing.module.js';
+import { AdvertisingModule } from './modules/advertising/advertising.module.js';
+import { AnalystModule } from './modules/analyst/analyst.module.js';
+import { AgentTaskModule } from './modules/agent-task/agent-task.module.js';
+import { EvalModule } from './modules/eval/eval.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
@@ -31,6 +38,13 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     OrderModule,
     InventoryModule,
     ProfitModule,
+    ScenarioModule,
+    MarketModule,
+    ListingModule,
+    AdvertisingModule,
+    AnalystModule,
+    AgentTaskModule,
+    EvalModule,
   ],
   providers: [
     {

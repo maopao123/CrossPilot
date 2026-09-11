@@ -25,39 +25,55 @@ enum WorkspaceRole {
 }
 
 model User {
-  id           String            @id @default(uuid())
-  email        String            @unique
-  name         String
-  passwordHash String            @map("password_hash")
-  status       UserStatus        @default(ACTIVE)
-  createdAt    DateTime          @default(now()) @map("created_at")
-  updatedAt    DateTime          @updatedAt @map("updated_at")
+  id               String            @id @default(uuid())
+  email            String            @unique
+  name             String
+  passwordHash     String            @map("password_hash")
+  status           UserStatus        @default(ACTIVE)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
-  memberships  WorkspaceMember[]
+  memberships      WorkspaceMember[]
+  agentTasks       AgentTask[]
+  analysisSessions AnalysisSession[]
 
   @@map("users")
 }
 
 model Workspace {
-  id                   String            @id @default(uuid())
-  name                 String
-  slug                 String            @unique
-  defaultMarketplaceId String?           @map("default_marketplace_id")
-  createdAt            DateTime          @default(now()) @map("created_at")
-  updatedAt            DateTime          @updatedAt @map("updated_at")
+  id                       String                     @id @default(uuid())
+  name                     String
+  slug                     String                     @unique
+  defaultMarketplaceId     String?                    @map("default_marketplace_id")
+  createdAt                DateTime                   @default(now()) @map("created_at")
+  updatedAt                DateTime                   @updatedAt @map("updated_at")
 
-  members              WorkspaceMember[]
-  products             Product[]
-  skus                 Sku[]
-  suppliers            Supplier[]
-  purchaseOrders       PurchaseOrder[]
-  orders               Order[]
-  inventoryBalances    InventoryBalance[]
-  campaigns            Campaign[]
-  reviews              Review[]
-  profitRecords        ProfitDaily[]
+  members                  WorkspaceMember[]
+  products                 Product[]
+  skus                     Sku[]
+  suppliers                Supplier[]
+  purchaseOrders           PurchaseOrder[]
+  orders                   Order[]
+  inventoryBalances        InventoryBalance[]
+  campaigns                Campaign[]
+  reviews                  Review[]
+  profitRecords            ProfitDaily[]
+  marketResearchProjects   MarketResearchProject[]
+  competitors              Competitor[]
+  productCompetitors       ProductCompetitor[]
+  productOpportunities     ProductOpportunity[]
+  vocAnalysisRuns          VocAnalysisRun[]
+  listings                 Listing[]
+  launchPlans              LaunchPlan[]
+  inventorySnapshots       InventorySnapshot[]
+  inventoryRecommendations InventoryRecommendation[]
+  analysisSessions         AnalysisSession[]
+  agentTasks               AgentTask[]
+  approvals                Approval[]
+  knowledgeDocuments       KnowledgeDocument[]
+  evalDatasets             EvalDataset[]
 
-  defaultMarketplace   Marketplace?      @relation(fields: [defaultMarketplaceId], references: [id])
+  defaultMarketplace       Marketplace?               @relation(fields: [defaultMarketplaceId], references: [id])
 
   @@map("workspaces")
 }
@@ -83,27 +99,30 @@ model WorkspaceMember {
 // ==========================================
 
 model Marketplace {
-  id           String      @id @default(uuid())
-  code         String      @unique // e.g. AMAZON_US
-  name         String      // e.g. Amazon US
-  countryCode  String      @map("country_code")
-  currencyCode String      @map("currency_code")
-  languageCode String      @map("language_code")
-  timezone     String
-  isActive     Boolean     @default(true) @map("is_active")
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  id                     String                  @id @default(uuid())
+  code                   String                  @unique // e.g. AMAZON_US
+  name                   String                  // e.g. Amazon US
+  countryCode            String                  @map("country_code")
+  currencyCode           String                  @map("currency_code")
+  languageCode           String                  @map("language_code")
+  timezone               String
+  isActive               Boolean                 @default(true) @map("is_active")
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
 
-  workspaces   Workspace[]
-  products     Product[]
-  orders       Order[]
-  campaigns    Campaign[]
+  workspaces             Workspace[]
+  products               Product[]
+  orders                 Order[]
+  campaigns              Campaign[]
+  marketResearchProjects MarketResearchProject[]
+  competitors            Competitor[]
+  listings               Listing[]
 
   @@map("marketplaces")
 }
 
 // ==========================================
-// 43. Product / SKU 核心模型 (Batch 1)
+// 43. Product / SKU 核心模型
 // ==========================================
 
 enum ProductStatus {
@@ -122,57 +141,69 @@ enum SkuStatus {
 }
 
 model Product {
-  id             String         @id @default(uuid())
-  workspaceId    String         @map("workspace_id")
-  marketplaceId  String         @map("marketplace_id")
-  name           String
-  brand          String
-  category       String
-  subCategory    String?        @map("sub_category")
-  status         ProductStatus  @default(RESEARCHING)
-  targetPrice    Decimal?       @map("target_price") @db.Decimal(10, 2)
-  description    String?
-  productBrief   String?        @map("product_brief") @db.Text
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  id                   String               @id @default(uuid())
+  workspaceId          String               @map("workspace_id")
+  marketplaceId        String               @map("marketplace_id")
+  name                 String
+  brand                String
+  category             String
+  subCategory          String?              @map("sub_category")
+  status               ProductStatus        @default(RESEARCHING)
+  targetPrice          Decimal?             @map("target_price") @db.Decimal(10, 2)
+  description          String?
+  productBrief         String?              @map("product_brief") @db.Text
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
 
-  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  marketplace    Marketplace    @relation(fields: [marketplaceId], references: [id])
-  skus           Sku[]
-  features       ProductFeature[]
+  workspace            Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  marketplace          Marketplace          @relation(fields: [marketplaceId], references: [id])
+  skus                 Sku[]
+  features             ProductFeature[]
+  productCompetitors   ProductCompetitor[]
+  vocAnalysisRuns      VocAnalysisRun[]
+  productOpportunities ProductOpportunity[]
 
   @@index([workspaceId])
   @@map("products")
 }
 
 model Sku {
-  id                 String             @id @default(uuid())
-  workspaceId        String             @map("workspace_id")
-  productId          String             @map("product_id")
-  skuCode            String             @map("sku_code")
-  asin               String?
-  variantName        String             @map("variant_name")
-  color              String?
-  size               String?
-  material           String?
-  weightKg           Decimal?           @map("weight_kg") @db.Decimal(8, 3)
-  lengthCm           Decimal?           @map("length_cm") @db.Decimal(8, 2)
-  widthCm            Decimal?           @map("width_cm") @db.Decimal(8, 2)
-  heightCm           Decimal?           @map("height_cm") @db.Decimal(8, 2)
-  sellingPrice       Decimal            @map("selling_price") @db.Decimal(10, 2)
-  currencyCode       String             @default("USD") @map("currency_code")
-  status             SkuStatus          @default(ACTIVE)
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
+  id                       String                    @id @default(uuid())
+  workspaceId              String                    @map("workspace_id")
+  productId                String                    @map("product_id")
+  skuCode                  String                    @map("sku_code")
+  asin                     String?
+  variantName              String                    @map("variant_name")
+  color                    String?
+  size                     String?
+  material                 String?
+  weightKg                 Decimal?                  @map("weight_kg") @db.Decimal(8, 3)
+  lengthCm                 Decimal?                  @map("length_cm") @db.Decimal(8, 2)
+  widthCm                  Decimal?                  @map("width_cm") @db.Decimal(8, 2)
+  heightCm                 Decimal?                  @map("height_cm") @db.Decimal(8, 2)
+  sellingPrice             Decimal                   @map("selling_price") @db.Decimal(10, 2)
+  currencyCode             String                    @default("USD") @map("currency_code")
+  status                   SkuStatus                 @default(ACTIVE)
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
 
-  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  product            Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quotes             SupplierSkuQuote[]
-  purchaseOrderItems PurchaseOrderItem[]
-  orderItems         OrderItem[]
-  inventoryBalances  InventoryBalance[]
-  reviews            Review[]
-  profitRecords      ProfitDaily[]
+  workspace                Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  product                  Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quotes                   SupplierSkuQuote[]
+  purchaseOrderItems       PurchaseOrderItem[]
+  orderItems               OrderItem[]
+  inventoryBalances        InventoryBalance[]
+  reviews                  Review[]
+  profitRecords            ProfitDaily[]
+  campaignSkus             CampaignSku[]
+  adMetricsDaily           AdMetricDaily[]
+  searchTermMetricsDaily   SearchTermMetricDaily[]
+  inventorySnapshots       InventorySnapshot[]
+  inventoryRecommendations InventoryRecommendation[]
+  listings                 Listing[]
+  launchPlans              LaunchPlan[]
+  analysisSessions         AnalysisSession[]
+  agentTasks               AgentTask[]
 
   @@unique([workspaceId, skuCode])
   @@index([workspaceId])
@@ -199,7 +230,227 @@ model ProductFeature {
 }
 
 // ==========================================
-// 47. 供应链与采购模型 (Batch 1)
+// 44. 市场与竞品模型
+// ==========================================
+
+model MarketResearchProject {
+  id            String                  @id @default(uuid())
+  workspaceId   String                  @map("workspace_id")
+  marketplaceId String                  @map("marketplace_id")
+  seedKeyword   String                  @map("seed_keyword")
+  category      String
+  status        String                  @default("COMPLETED")
+  startedAt     DateTime                @default(now()) @map("started_at")
+  completedAt   DateTime?               @map("completed_at")
+  createdBy     String?                 @map("created_by")
+  createdAt     DateTime                @default(now()) @map("created_at")
+
+  workspace     Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  marketplace   Marketplace             @relation(fields: [marketplaceId], references: [id])
+  snapshots     MarketMetricsSnapshot[]
+  opportunities ProductOpportunity[]
+
+  @@index([workspaceId])
+  @@map("market_research_projects")
+}
+
+model MarketMetricsSnapshot {
+  id                String                @id @default(uuid())
+  researchProjectId String                @map("research_project_id")
+  snapshotDate      DateTime              @map("snapshot_date") @db.Date
+  searchVolume      Int                   @map("search_volume")
+  avgPrice          Decimal               @map("avg_price") @db.Decimal(10, 2)
+  avgRating         Decimal               @map("avg_rating") @db.Decimal(3, 2)
+  avgReviewCount    Int                   @map("avg_review_count")
+  competitorCount   Int                   @map("competitor_count")
+  competitionScore  Decimal               @map("competition_score") @db.Decimal(4, 2)
+  opportunityScore  Decimal               @map("opportunity_score") @db.Decimal(4, 2)
+  rawSource         String?               @map("raw_source")
+  createdAt         DateTime              @default(now()) @map("created_at")
+
+  project           MarketResearchProject @relation(fields: [researchProjectId], references: [id], onDelete: Cascade)
+
+  @@index([researchProjectId])
+  @@map("market_metrics_snapshots")
+}
+
+model Competitor {
+  id                 String               @id @default(uuid())
+  workspaceId        String               @map("workspace_id")
+  marketplaceId      String               @map("marketplace_id")
+  asin               String
+  brand              String
+  title              String
+  category           String
+  productUrl         String?              @map("product_url")
+  imageUrl           String?              @map("image_url")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  marketplace        Marketplace          @relation(fields: [marketplaceId], references: [id])
+  snapshots          CompetitorSnapshot[]
+  productCompetitors ProductCompetitor[]
+  reviews            Review[]
+
+  @@unique([workspaceId, asin])
+  @@index([workspaceId])
+  @@map("competitors")
+}
+
+model ProductCompetitor {
+  id           String     @id @default(uuid())
+  workspaceId  String     @map("workspace_id")
+  productId    String     @map("product_id")
+  competitorId String     @map("competitor_id")
+  relationType String     @default("DIRECT_BENCHMARK") @map("relation_type")
+  isPrimary    Boolean    @default(true) @map("is_primary")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  competitor   Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, competitorId])
+  @@index([workspaceId])
+  @@map("product_competitors")
+}
+
+model CompetitorSnapshot {
+  id               String     @id @default(uuid())
+  competitorId     String     @map("competitor_id")
+  snapshotDate     DateTime   @map("snapshot_date") @db.Date
+  price            Decimal    @db.Decimal(10, 2)
+  rating           Decimal    @db.Decimal(3, 2)
+  reviewCount      Int        @map("review_count")
+  estimatedSales   Int        @map("estimated_sales")
+  estimatedRevenue Decimal    @map("estimated_revenue") @db.Decimal(12, 2)
+  bsr              Int
+  createdAt        DateTime   @default(now()) @map("created_at")
+
+  competitor       Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@unique([competitorId, snapshotDate])
+  @@index([competitorId])
+  @@map("competitor_snapshots")
+}
+
+// ==========================================
+// 45. Review / VOC 模型
+// ==========================================
+
+model Review {
+  id           String            @id @default(uuid())
+  workspaceId  String            @map("workspace_id")
+  skuId        String?           @map("sku_id")
+  competitorId String?           @map("competitor_id")
+  asin         String?
+  rating       Int
+  title        String?
+  content      String            @db.Text
+  reviewerName String?           @map("reviewer_name")
+  reviewDate   DateTime          @map("review_date")
+  isVerified   Boolean           @default(true) @map("is_verified")
+  sourceType   String            @default("AMAZON") @map("source_type")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sku          Sku?              @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  competitor   Competitor?       @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  topicReviews VocTopicReview[]
+
+  @@index([workspaceId])
+  @@index([skuId])
+  @@index([competitorId])
+  @@map("reviews")
+}
+
+model VocAnalysisRun {
+  id            String     @id @default(uuid())
+  workspaceId   String     @map("workspace_id")
+  productId     String     @map("product_id")
+  status        String     @default("COMPLETED")
+  reviewCount   Int        @map("review_count")
+  modelName     String     @default("gpt-4o") @map("model_name")
+  promptVersion String     @default("v1.0") @map("prompt_version")
+  startedAt     DateTime   @default(now()) @map("started_at")
+  completedAt   DateTime?  @map("completed_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  product       Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  topics        VocTopic[]
+
+  @@index([workspaceId])
+  @@index([productId])
+  @@map("voc_analysis_runs")
+}
+
+model VocTopic {
+  id            String           @id @default(uuid())
+  analysisRunId String           @map("analysis_run_id")
+  topicName     String           @map("topic_name")
+  topicType     String           @map("topic_type") // PAIN_POINT, PRAISE, FEATURE_REQUEST
+  sentiment     String           // POSITIVE, NEGATIVE, NEUTRAL
+  reviewCount   Int              @map("review_count")
+  percentage    Decimal          @db.Decimal(5, 2)
+  severityScore Decimal          @map("severity_score") @db.Decimal(3, 2)
+  summary       String           @db.Text
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  analysisRun   VocAnalysisRun   @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+  topicReviews  VocTopicReview[]
+
+  @@index([analysisRunId])
+  @@map("voc_topics")
+}
+
+model VocTopicReview {
+  id             String   @id @default(uuid())
+  topicId        String   @map("topic_id")
+  reviewId       String   @map("review_id")
+  relevanceScore Decimal  @map("relevance_score") @db.Decimal(4, 2)
+  evidenceText   String   @map("evidence_text") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  topic          VocTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  review         Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, reviewId])
+  @@index([topicId])
+  @@index([reviewId])
+  @@map("voc_topic_reviews")
+}
+
+// ==========================================
+// 46. Product Opportunity 模型
+// ==========================================
+
+model ProductOpportunity {
+  id                     String                 @id @default(uuid())
+  workspaceId            String                 @map("workspace_id")
+  researchProjectId      String?                @map("research_project_id")
+  productId              String?                @map("product_id")
+  title                  String
+  problemSummary         String                 @map("problem_summary") @db.Text
+  targetCustomer         String                 @map("target_customer")
+  recommendedPositioning String                 @map("recommended_positioning") @db.Text
+  opportunityScore       Decimal                @map("opportunity_score") @db.Decimal(4, 2)
+  confidenceLevel        Decimal                @map("confidence_level") @db.Decimal(3, 2)
+  evidenceSummary        String                 @map("evidence_summary") @db.Text
+  status                 String                 @default("APPROVED") // DRAFT, EVALUATING, APPROVED, REJECTED
+  createdAt              DateTime               @default(now()) @map("created_at")
+
+  workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  researchProject        MarketResearchProject? @relation(fields: [researchProjectId], references: [id])
+  product                Product?               @relation(fields: [productId], references: [id])
+
+  @@index([workspaceId])
+  @@map("product_opportunities")
+}
+
+// ==========================================
+// 47. 供应链与采购模型
 // ==========================================
 
 enum PurchaseOrderStatus {
@@ -234,18 +485,18 @@ model Supplier {
 }
 
 model SupplierSkuQuote {
-  id           String    @id @default(uuid())
-  workspaceId  String    @map("workspace_id")
-  supplierId   String    @map("supplier_id")
-  skuId        String    @map("sku_id")
-  unitCost     Decimal   @map("unit_cost") @db.Decimal(10, 2)
-  moq          Int       @default(1)
-  currencyCode String    @default("USD") @map("currency_code")
-  effectiveDate DateTime @default(now()) @map("effective_date")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id            String    @id @default(uuid())
+  workspaceId   String    @map("workspace_id")
+  supplierId    String    @map("supplier_id")
+  skuId         String    @map("sku_id")
+  unitCost      Decimal   @map("unit_cost") @db.Decimal(10, 2)
+  moq           Int       @default(1)
+  currencyCode  String    @default("USD") @map("currency_code")
+  effectiveDate DateTime  @default(now()) @map("effective_date")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
-  supplier     Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  sku          Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  supplier      Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  sku           Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([skuId])
@@ -294,7 +545,244 @@ model PurchaseOrderItem {
 }
 
 // ==========================================
-// 51. 订单与履约模型 (Batch 1)
+// 48. Listing 模型
+// ==========================================
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+model Listing {
+  id               String           @id @default(uuid())
+  workspaceId      String           @map("workspace_id")
+  skuId            String           @map("sku_id")
+  marketplaceId    String           @map("marketplace_id")
+  status           ListingStatus    @default(DRAFT)
+  currentVersionId String?          @map("current_version_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sku              Sku              @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  marketplace      Marketplace      @relation(fields: [marketplaceId], references: [id])
+  versions         ListingVersion[]
+
+  @@unique([workspaceId, skuId])
+  @@index([workspaceId])
+  @@map("listings")
+}
+
+model ListingVersion {
+  id               String                   @id @default(uuid())
+  listingId        String                   @map("listing_id")
+  versionNumber    Int                      @map("version_number")
+  title            String
+  bulletPointsJson String                   @map("bullet_points_json") @db.Text
+  description      String                   @db.Text
+  searchTerms      String?                  @map("search_terms")
+  aPlusCopy        String?                  @map("a_plus_copy") @db.Text
+  imageBrief       String?                  @map("image_brief") @db.Text
+  generationSource String                   @default("AI_ASSISTED") @map("generation_source")
+  createdBy        String?                  @map("created_by")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+
+  listing          Listing                  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  complianceChecks ListingComplianceCheck[]
+
+  @@unique([listingId, versionNumber])
+  @@index([listingId])
+  @@map("listing_versions")
+}
+
+model ListingComplianceCheck {
+  id                String                      @id @default(uuid())
+  listingVersionId  String                      @map("listing_version_id")
+  status            String                      @default("PASS") // PASS, WARNING, REJECTED
+  riskLevel         String                      @default("LOW") // LOW, MEDIUM, HIGH
+  ruleHitsJson      String                      @map("rule_hits_json") @db.Text
+  evidenceSummary   String                      @map("evidence_summary") @db.Text
+  suggestedRevision String?                     @map("suggested_revision") @db.Text
+  modelName         String                      @default("gpt-4o") @map("model_name")
+  promptVersion     String                      @default("v1.0") @map("prompt_version")
+  createdAt         DateTime                    @default(now()) @map("created_at")
+
+  listingVersion    ListingVersion              @relation(fields: [listingVersionId], references: [id], onDelete: Cascade)
+  evidences         ListingComplianceEvidence[]
+
+  @@index([listingVersionId])
+  @@map("listing_compliance_checks")
+}
+
+model ListingComplianceEvidence {
+  id                String                 @id @default(uuid())
+  complianceCheckId String                 @map("compliance_check_id")
+  knowledgeChunkId  String?                @map("knowledge_chunk_id")
+  ruleCode          String                 @map("rule_code")
+  relevanceScore    Decimal                @map("relevance_score") @db.Decimal(4, 2)
+  quotedEvidence    String                 @map("quoted_evidence") @db.Text
+  createdAt         DateTime               @default(now()) @map("created_at")
+
+  complianceCheck   ListingComplianceCheck @relation(fields: [complianceCheckId], references: [id], onDelete: Cascade)
+  knowledgeChunk    KnowledgeChunk?        @relation(fields: [knowledgeChunkId], references: [id])
+
+  @@index([complianceCheckId])
+  @@map("listing_compliance_evidence")
+}
+
+// ==========================================
+// 49. Launch 模型
+// ==========================================
+
+model LaunchPlan {
+  id          String         @id @default(uuid())
+  workspaceId String         @map("workspace_id")
+  skuId       String         @map("sku_id")
+  name        String
+  startDate   DateTime       @map("start_date")
+  endDate     DateTime?      @map("end_date")
+  status      String         @default("ACTIVE")
+  goal        String         @db.Text
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sku         Sku            @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  actions     LaunchAction[]
+
+  @@index([workspaceId])
+  @@map("launch_plans")
+}
+
+model LaunchAction {
+  id           String     @id @default(uuid())
+  launchPlanId String     @map("launch_plan_id")
+  actionType   String     @map("action_type") // PPC_BURST, PRICE_DISCOUNT, REVIEW_REQUEST, VINE_ENROLLMENT
+  scheduledAt  DateTime   @map("scheduled_at")
+  status       String     @default("COMPLETED")
+  detailJson   String?    @map("detail_json") @db.Text
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  launchPlan   LaunchPlan @relation(fields: [launchPlanId], references: [id], onDelete: Cascade)
+
+  @@index([launchPlanId])
+  @@map("launch_actions")
+}
+
+// ==========================================
+// 50. 广告模型
+// ==========================================
+
+enum CampaignStatus {
+  ENABLED
+  PAUSED
+  ARCHIVED
+}
+
+model Campaign {
+  id                     String                  @id @default(uuid())
+  workspaceId            String                  @map("workspace_id")
+  marketplaceId          String                  @map("marketplace_id")
+  campaignIdAmazon       String?                 @map("campaign_id_amazon")
+  name                   String
+  campaignType           String                  @default("SPONSORED_PRODUCTS") @map("campaign_type")
+  targetingType          String                  @default("AUTO") @map("targeting_type")
+  budget                 Decimal                 @db.Decimal(10, 2)
+  status                 CampaignStatus          @default(ENABLED)
+  startDate              DateTime                @map("start_date")
+  endDate                DateTime?               @map("end_date")
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+
+  workspace              Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  marketplace            Marketplace             @relation(fields: [marketplaceId], references: [id])
+  campaignSkus           CampaignSku[]
+  adTargets              AdTarget[]
+  adMetricsDaily         AdMetricDaily[]
+  searchTermMetricsDaily SearchTermMetricDaily[]
+
+  @@index([workspaceId])
+  @@map("campaigns")
+}
+
+model CampaignSku {
+  id         String   @id @default(uuid())
+  campaignId String   @map("campaign_id")
+  skuId      String   @map("sku_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sku        Sku      @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, skuId])
+  @@index([campaignId])
+  @@map("campaign_skus")
+}
+
+model AdTarget {
+  id          String   @id @default(uuid())
+  campaignId  String   @map("campaign_id")
+  targetType  String   @default("KEYWORD") @map("target_type") // KEYWORD, ASIN, CATEGORY
+  targetValue String   @map("target_value")
+  matchType   String   @default("EXACT") @map("match_type") // EXACT, PHRASE, BROAD, NEGATIVE_EXACT
+  bid         Decimal  @db.Decimal(10, 2)
+  status      String   @default("ENABLED")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("ad_targets")
+}
+
+model AdMetricDaily {
+  id          String   @id @default(uuid())
+  campaignId  String   @map("campaign_id")
+  skuId       String?  @map("sku_id")
+  metricDate  DateTime @map("metric_date") @db.Date
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  spend       Decimal  @default(0) @db.Decimal(10, 2)
+  orders      Int      @default(0)
+  sales       Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sku         Sku?     @relation(fields: [skuId], references: [id])
+
+  @@unique([campaignId, metricDate, skuId])
+  @@index([campaignId])
+  @@index([metricDate])
+  @@map("ad_metrics_daily")
+}
+
+model SearchTermMetricDaily {
+  id          String   @id @default(uuid())
+  campaignId  String   @map("campaign_id")
+  skuId       String   @map("sku_id")
+  searchTerm  String   @map("search_term")
+  metricDate  DateTime @map("metric_date") @db.Date
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  spend       Decimal  @default(0) @db.Decimal(10, 2)
+  orders      Int      @default(0)
+  sales       Decimal  @default(0) @db.Decimal(10, 2)
+  acos        Decimal  @default(0) @db.Decimal(6, 4)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sku         Sku      @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([searchTerm])
+  @@index([metricDate])
+  @@map("search_term_metrics_daily")
+}
+
+// ==========================================
+// 51. 订单与履约模型
 // ==========================================
 
 enum OrderStatus {
@@ -328,19 +816,19 @@ model Order {
 }
 
 model OrderItem {
-  id           String         @id @default(uuid())
-  workspaceId  String         @map("workspace_id")
-  orderId      String         @map("order_id")
-  skuId        String         @map("sku_id")
-  quantity     Int
-  unitPrice    Decimal        @map("unit_price") @db.Decimal(10, 2)
-  itemTax      Decimal        @default(0) @map("item_tax") @db.Decimal(10, 2)
-  shippingFee  Decimal        @default(0) @map("shipping_fee") @db.Decimal(10, 2)
-  createdAt    DateTime       @default(now()) @map("created_at")
+  id          String         @id @default(uuid())
+  workspaceId String         @map("workspace_id")
+  orderId     String         @map("order_id")
+  skuId       String         @map("sku_id")
+  quantity    Int
+  unitPrice   Decimal        @map("unit_price") @db.Decimal(10, 2)
+  itemTax     Decimal        @default(0) @map("item_tax") @db.Decimal(10, 2)
+  shippingFee Decimal        @default(0) @map("shipping_fee") @db.Decimal(10, 2)
+  createdAt   DateTime       @default(now()) @map("created_at")
 
-  order        Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  sku          Sku            @relation(fields: [skuId], references: [id])
-  returns      ReturnRecord[]
+  order       Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sku         Sku            @relation(fields: [skuId], references: [id])
+  returns     ReturnRecord[]
 
   @@index([workspaceId])
   @@index([orderId])
@@ -348,7 +836,7 @@ model OrderItem {
 }
 
 // ==========================================
-// 52. Inventory / FBA 模型 (Batch 1)
+// 52. Inventory / FBA 模型
 // ==========================================
 
 enum WarehouseType {
@@ -376,62 +864,54 @@ model InventoryBalance {
   @@map("inventory_balances")
 }
 
-// ==========================================
-// 50. 广告模型 (Batch 1)
-// ==========================================
+model InventorySnapshot {
+  id            String    @id @default(uuid())
+  workspaceId   String    @map("workspace_id")
+  skuId         String    @map("sku_id")
+  snapshotDate  DateTime  @map("snapshot_date") @db.Date
+  fulfillable   Int       @default(0)
+  reserved      Int       @default(0)
+  inbound       Int       @default(0)
+  unfulfillable Int       @default(0)
+  daysCover     Decimal?  @map("days_cover") @db.Decimal(6, 1)
+  createdAt     DateTime  @default(now()) @map("created_at")
 
-enum CampaignStatus {
-  ENABLED
-  PAUSED
-  ARCHIVED
-}
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sku           Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
 
-model Campaign {
-  id                 String         @id @default(uuid())
-  workspaceId        String         @map("workspace_id")
-  marketplaceId      String         @map("marketplace_id")
-  campaignIdAmazon   String?        @map("campaign_id_amazon")
-  name               String
-  campaignType       String         @default("SPONSORED_PRODUCTS") @map("campaign_type")
-  targetingType      String         @default("AUTO") @map("targeting_type")
-  budget             Decimal        @db.Decimal(10, 2)
-  status             CampaignStatus @default(ENABLED)
-  startDate          DateTime       @map("start_date")
-  endDate            DateTime?      @map("end_date")
-  createdAt          DateTime       @default(now()) @map("created_at")
-  updatedAt          DateTime       @updatedAt @map("updated_at")
-
-  workspace          Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  marketplace        Marketplace    @relation(fields: [marketplaceId], references: [id])
-
+  @@unique([skuId, snapshotDate])
   @@index([workspaceId])
-  @@map("campaigns")
+  @@index([snapshotDate])
+  @@map("inventory_snapshots")
 }
 
-// ==========================================
-// 45 & 53. Reviews & Returns (Batch 1)
-// ==========================================
+model InventoryRecommendation {
+  id                  String    @id @default(uuid())
+  workspaceId         String    @map("workspace_id")
+  skuId               String    @map("sku_id")
+  recommendationDate  DateTime  @map("recommendation_date") @db.Date
+  avgDailySales       Decimal   @map("avg_daily_sales") @db.Decimal(8, 2)
+  forecastDailySales  Decimal   @map("forecast_daily_sales") @db.Decimal(8, 2)
+  daysCover           Decimal   @map("days_cover") @db.Decimal(6, 1)
+  leadTimeDays        Int       @map("lead_time_days")
+  safetyStock         Int       @map("safety_stock")
+  reorderPoint        Int       @map("reorder_point")
+  recommendedQuantity Int       @map("recommended_quantity")
+  riskLevel           String    @default("NORMAL") @map("risk_level") // NORMAL, WARNING, CRITICAL
+  status              String    @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt           DateTime  @default(now()) @map("created_at")
 
-model Review {
-  id           String    @id @default(uuid())
-  workspaceId  String    @map("workspace_id")
-  skuId        String    @map("sku_id")
-  asin         String?
-  rating       Int
-  title        String?
-  content      String    @db.Text
-  reviewerName String?   @map("reviewer_name")
-  reviewDate   DateTime  @map("review_date")
-  isVerified   Boolean   @default(true) @map("is_verified")
-  createdAt    DateTime  @default(now()) @map("created_at")
-
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  sku          Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sku                 Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([skuId])
-  @@map("reviews")
+  @@map("inventory_recommendations")
 }
+
+// ==========================================
+// 53. Returns 模型
+// ==========================================
 
 model ReturnRecord {
   id           String    @id @default(uuid())
@@ -452,7 +932,7 @@ model ReturnRecord {
 }
 
 // ==========================================
-// 54. 利润中心每日聚合模型 (Batch 1)
+// 54. 利润中心每日聚合模型
 // ==========================================
 
 model ProfitDaily {
@@ -478,4 +958,270 @@ model ProfitDaily {
   @@index([workspaceId])
   @@index([date])
   @@map("profit_daily")
+}
+
+// ==========================================
+// 55. AI Business Analyst 实体模型
+// ==========================================
+
+model AnalysisSession {
+  id          String             @id @default(uuid())
+  workspaceId String             @map("workspace_id")
+  userId      String             @map("user_id")
+  activeSkuId String?            @map("active_sku_id")
+  question    String             @db.Text
+  status      String             @default("COMPLETED")
+  startedAt   DateTime           @default(now()) @map("started_at")
+  completedAt DateTime?          @map("completed_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User               @relation(fields: [userId], references: [id])
+  sku         Sku?               @relation(fields: [activeSkuId], references: [id])
+  findings    AnalysisFinding[]
+  waterfall   AnalysisWaterfall?
+
+  @@index([workspaceId])
+  @@map("analysis_sessions")
+}
+
+model AnalysisFinding {
+  id                String          @id @default(uuid())
+  analysisSessionId String          @map("analysis_session_id")
+  findingType       String          @map("finding_type") // ADVERTISING, RETURN, INVENTORY, PRICING, OTHER
+  title             String
+  metricName        String          @map("metric_name")
+  impactAmount      Decimal?        @map("impact_amount") @db.Decimal(12, 2)
+  direction         String          // NEGATIVE, POSITIVE
+  confidence        Decimal         @db.Decimal(3, 2)
+  evidenceJson      String          @map("evidence_json") @db.Text
+  priority          Int             @default(1)
+  recommendation    String          @db.Text
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  session           AnalysisSession @relation(fields: [analysisSessionId], references: [id], onDelete: Cascade)
+
+  @@index([analysisSessionId])
+  @@map("analysis_findings")
+}
+
+model AnalysisWaterfall {
+  id                String          @id @default(uuid())
+  analysisSessionId String          @unique @map("analysis_session_id")
+  periodStart       DateTime        @map("period_start") @db.Date
+  periodEnd         DateTime        @map("period_end") @db.Date
+  totalVariance     Decimal         @map("total_variance") @db.Decimal(12, 2)
+  advertisingImpact Decimal         @map("advertising_impact") @db.Decimal(12, 2)
+  returnsImpact     Decimal         @map("returns_impact") @db.Decimal(12, 2)
+  inventoryImpact   Decimal         @map("inventory_impact") @db.Decimal(12, 2)
+  priceImpact       Decimal         @map("price_impact") @db.Decimal(12, 2)
+  otherImpact       Decimal         @map("other_impact") @db.Decimal(12, 2)
+  formulaExplained  String          @map("formula_explained")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  session           AnalysisSession @relation(fields: [analysisSessionId], references: [id], onDelete: Cascade)
+
+  @@map("analysis_waterfalls")
+}
+
+// ==========================================
+// 56. Agent Task / Workflow 实体模型
+// ==========================================
+
+model AgentTask {
+  id             String          @id @default(uuid())
+  workspaceId    String          @map("workspace_id")
+  userId         String          @map("user_id")
+  taskType       String          @map("task_type") // LISTING_GENERATE, COMPLIANCE_CHECK, VOC_ANALYZE, VARIANCE_ATTRIBUTION, INVENTORY_PLAN
+  status         String          @default("COMPLETED") // PENDING, RUNNING, COMPLETED, FAILED
+  activeSkuId    String?         @map("active_sku_id")
+  inputJson      String          @map("input_json") @db.Text
+  resultJson     String?         @map("result_json") @db.Text
+  errorCode      String?         @map("error_code")
+  errorMessage   String?         @map("error_message")
+  startedAt      DateTime        @default(now()) @map("started_at")
+  completedAt    DateTime?       @map("completed_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id])
+  sku            Sku?            @relation(fields: [activeSkuId], references: [id])
+  steps          AgentStep[]
+  toolExecutions ToolExecution[]
+  approvals      Approval[]
+
+  @@index([workspaceId])
+  @@map("agent_tasks")
+}
+
+model AgentStep {
+  id             String          @id @default(uuid())
+  taskId         String          @map("task_id")
+  stepNumber     Int             @map("step_number")
+  stepType       String          @map("step_type")
+  name           String
+  status         String          @default("COMPLETED")
+  inputSummary   String?         @map("input_summary")
+  outputSummary  String?         @map("output_summary")
+  startedAt      DateTime        @default(now()) @map("started_at")
+  completedAt    DateTime?       @map("completed_at")
+
+  task           AgentTask       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  toolExecutions ToolExecution[]
+
+  @@index([taskId])
+  @@map("agent_steps")
+}
+
+model ToolExecution {
+  id           String     @id @default(uuid())
+  taskId       String     @map("task_id")
+  agentStepId  String?    @map("agent_step_id")
+  toolName     String     @map("tool_name")
+  inputJson    String     @map("input_json") @db.Text
+  outputJson   String     @map("output_json") @db.Text
+  status       String     @default("SUCCESS")
+  latencyMs    Int        @map("latency_ms")
+  errorMessage String?    @map("error_message")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  task         AgentTask  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  step         AgentStep? @relation(fields: [agentStepId], references: [id])
+
+  @@index([taskId])
+  @@map("tool_executions")
+}
+
+// ==========================================
+// 57. HITL / Approval 模型
+// ==========================================
+
+model Approval {
+  id               String     @id @default(uuid())
+  workspaceId      String     @map("workspace_id")
+  taskId           String?    @map("task_id")
+  actionType       String     @map("action_type") // LISTING_PUBLISH, PO_SUBMIT, NEGATIVE_KEYWORD_ADD, PRICE_CHANGE
+  targetType       String     @map("target_type")
+  targetId         String     @map("target_id")
+  requestedPayload String     @map("requested_payload") @db.Text
+  status           String     @default("PENDING") // PENDING, APPROVED, REJECTED
+  requestedBy      String     @map("requested_by")
+  approvedBy       String?    @map("approved_by")
+  requestedAt      DateTime   @default(now()) @map("requested_at")
+  resolvedAt       DateTime?  @map("resolved_at")
+  comment          String?
+
+  workspace        Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  task             AgentTask? @relation(fields: [taskId], references: [id])
+
+  @@index([workspaceId])
+  @@map("approvals")
+}
+
+// ==========================================
+// 58. Knowledge / RAG 实体模型
+// ==========================================
+
+model KnowledgeDocument {
+  id           String           @id @default(uuid())
+  workspaceId  String?          @map("workspace_id")
+  documentType String           @map("document_type") // AMAZON_POLICY, PRODUCT_KNOWLEDGE
+  title        String
+  source       String
+  version      String           @default("1.0")
+  status       String           @default("INDEXED")
+  filePath     String?          @map("file_path")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  workspace    Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chunks       KnowledgeChunk[]
+
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id                         String                      @id @default(uuid())
+  documentId                 String                      @map("document_id")
+  chunkIndex                 Int                         @map("chunk_index")
+  content                    String                      @db.Text
+  tokenCount                 Int                         @map("token_count")
+  metadataJson               String?                     @map("metadata_json") @db.Text
+  embeddingStatus            String                      @default("INDEXED") @map("embedding_status")
+  createdAt                  DateTime                    @default(now()) @map("created_at")
+
+  document                   KnowledgeDocument           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  listingComplianceEvidences ListingComplianceEvidence[]
+
+  @@index([documentId])
+  @@map("knowledge_chunks")
+}
+
+// ==========================================
+// 59. Eval / Quality 实体模型
+// ==========================================
+
+model EvalDataset {
+  id          String      @id @default(uuid())
+  workspaceId String      @map("workspace_id")
+  name        String
+  taskType    String      @map("task_type")
+  version     String      @default("1.0")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  cases       EvalCase[]
+  runs        EvalRun[]
+
+  @@index([workspaceId])
+  @@map("eval_datasets")
+}
+
+model EvalCase {
+  id           String       @id @default(uuid())
+  datasetId    String       @map("dataset_id")
+  inputJson    String       @map("input_json") @db.Text
+  expectedJson String       @map("expected_json") @db.Text
+  metadataJson String?      @map("metadata_json") @db.Text
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  dataset      EvalDataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  results      EvalResult[]
+
+  @@index([datasetId])
+  @@map("eval_cases")
+}
+
+model EvalRun {
+  id              String       @id @default(uuid())
+  datasetId       String       @map("dataset_id")
+  modelName       String       @map("model_name")
+  promptVersion   String       @map("prompt_version")
+  workflowVersion String       @map("workflow_version")
+  status          String       @default("COMPLETED")
+  startedAt       DateTime     @default(now()) @map("started_at")
+  completedAt     DateTime?    @map("completed_at")
+
+  dataset         EvalDataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  results         EvalResult[]
+
+  @@index([datasetId])
+  @@map("eval_runs")
+}
+
+model EvalResult {
+  id         String   @id @default(uuid())
+  evalRunId  String   @map("eval_run_id")
+  evalCaseId String   @map("eval_case_id")
+  metricName String   @map("metric_name")
+  score      Decimal  @db.Decimal(5, 4)
+  passed     Boolean  @default(true)
+  reason     String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  evalRun    EvalRun  @relation(fields: [evalRunId], references: [id], onDelete: Cascade)
+  evalCase   EvalCase @relation(fields: [evalCaseId], references: [id], onDelete: Cascade)
+
+  @@index([evalRunId])
+  @@index([evalCaseId])
+  @@map("eval_results")
 }

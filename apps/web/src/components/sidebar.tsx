@@ -19,6 +19,7 @@ import {
   TrendingUp,
   BrainCircuit,
   Bot,
+  BookOpen,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -26,16 +27,15 @@ const NAV_ITEMS = [
   { href: '/app/market-research', label: '02 市场与选品', subLabel: 'Market & Research', icon: Search },
   { href: '/app/products', label: '03 产品中心', subLabel: 'Product Center', icon: Box },
   { href: '/app/competitors', label: '04 竞品与 VOC', subLabel: 'Competitor & VOC', icon: Users },
-  { href: '/app/profit-calculator', label: '05 利润测算', subLabel: 'Profit Calculator', icon: Calculator },
   { href: '/app/suppliers', label: '06 供应链与采购', subLabel: 'Supply & Purchase', icon: Truck },
   { href: '/app/listings', label: '07 Listing 工作台', subLabel: 'Listing Studio', icon: FileEdit },
-  { href: '/app/launch', label: '08 新品 Launch', subLabel: 'Launch Center', icon: Rocket },
   { href: '/app/advertising', label: '09 广告运营', subLabel: 'Advertising PPC', icon: Megaphone },
   { href: '/app/orders', label: '10 订单与履约', subLabel: 'Orders', icon: ShoppingCart },
   { href: '/app/inventory', label: '11 库存 / FBA', subLabel: 'Inventory & FBA', icon: Warehouse },
   { href: '/app/reviews', label: '12 评论与退货', subLabel: 'Reviews & Returns', icon: MessageSquare },
   { href: '/app/profit', label: '13 利润中心', subLabel: 'Profit Center', icon: TrendingUp },
   { href: '/app/business-analyst', label: '14 AI 经营分析', subLabel: 'Business Analyst', icon: BrainCircuit },
+  { href: '/app/architecture', label: '15 架构与答辩', subLabel: 'Architecture & Defense', icon: BookOpen },
 ];
 
 export function Sidebar() {
