@@ -12,10 +12,12 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
+    "@crosspilot/actions": "workspace:*",
     "@crosspilot/db": "workspace:*",
     "@crosspilot/domain": "workspace:*",
     "@crosspilot/integrations": "workspace:*",
     "@crosspilot/shared": "workspace:*",
+    "@crosspilot/tool-platform": "workspace:*",
     "@nestjs/common": "^10.4.15",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.4.15",

@@ -17,6 +17,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@crosspilot/actions':
+        specifier: workspace:*
+        version: link:../../packages/actions
       '@crosspilot/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -29,6 +32,9 @@ importers:
       '@crosspilot/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@crosspilot/tool-platform':
+        specifier: workspace:*
+        version: link:../../packages/tool-platform
       '@nestjs/common':
         specifier: ^10.4.15
         version: 10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.1)
@@ -195,6 +201,31 @@ importers:
         specifier: ^5.7.3
         version: 5.7.3
 
+  packages/actions:
+    dependencies:
+      '@crosspilot/integrations':
+        specifier: workspace:*
+        version: link:../integrations
+      '@crosspilot/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/jest':
+        specifier: ^29.5.14
+        version: 29.5.14
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.1
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@22.20.1)
+      ts-jest:
+        specifier: ^29.2.5
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@22.20.1))(typescript@5.7.3)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.7.3
+
   packages/db:
     dependencies:
       '@prisma/client':
@@ -267,6 +298,31 @@ importers:
         specifier: ^3.24.1
         version: 3.24.1
     devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.7.3
+
+  packages/tool-platform:
+    dependencies:
+      '@crosspilot/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@crosspilot/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/jest':
+        specifier: ^29.5.14
+        version: 29.5.14
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.1
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@22.20.1)
+      ts-jest:
+        specifier: ^29.2.5
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@22.20.1))(typescript@5.7.3)
       typescript:
         specifier: ^5.7.3
         version: 5.7.3

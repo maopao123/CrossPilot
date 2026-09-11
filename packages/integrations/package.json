@@ -12,6 +12,10 @@
     "./redis": {
       "types": "./dist/redis/redis.service.d.ts",
       "default": "./dist/redis/redis.service.js"
+    },
+    "./rpa": {
+      "types": "./dist/rpa/index.d.ts",
+      "default": "./dist/rpa/index.js"
     }
   },
   "scripts": {

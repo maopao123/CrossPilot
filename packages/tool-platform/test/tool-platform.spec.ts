@@ -1,0 +1,134 @@
+import {
+  createDefaultToolRegistry,
+  ToolExecutor,
+  ToolRegistry,
+  FinanceProfitCalculateTool,
+} from '../src/index.js';
+
+describe('ToolPlatform Core Unit Tests', () => {
+  let registry: ToolRegistry;
+  let executor: ToolExecutor;
+
+  beforeEach(() => {
+    registry = createDefaultToolRegistry();
+    executor = new ToolExecutor(registry);
+  });
+
+  describe('ToolRegistry', () => {
+    it('should register and index all default tools', () => {
+      const allTools = registry.getAll();
+      expect(allTools.length).toBeGreaterThanOrEqual(14);
+      expect(registry.has('finance.profit.calculate')).toBe(true);
+      expect(registry.has('compliance.listing.check')).toBe(true);
+      expect(registry.has('creative.image.generate')).toBe(true);
+      expect(registry.has('operation.listing.publish')).toBe(true);
+    });
+
+    it('should filter tools by category', () => {
+      const creativeTools = registry.getByCategory('CREATIVE');
+      expect(creativeTools.length).toBe(6);
+      expect(creativeTools.map((t) => t.id)).toContain('creative.image.generate');
+
+      const dataTools = registry.getByCategory('DATA');
+      expect(dataTools.map((t) => t.id)).toContain('finance.profit.calculate');
+    });
+
+    it('should list metadata without leaking execute function', () => {
+      const meta = registry.listMetadata();
+      expect(meta.length).toBeGreaterThanOrEqual(14);
+      expect((meta[0] as any).execute).toBeUndefined();
+      expect(meta[0].id).toBeDefined();
+      expect(meta[0].inputSchema).toBeDefined();
+    });
+  });
+
+  describe('ToolExecutor Validation & Execution', () => {
+    it('should return error if tool not found', async () => {
+      const result = await executor.execute('non.existent.tool', {}, { workspaceId: 'ws_test' });
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('TOOL_NOT_FOUND');
+    });
+
+    it('should reject missing required fields with VALIDATION_ERROR', async () => {
+      const result = await executor.execute(
+        'finance.profit.calculate',
+        { revenue: 29.99 }, // missing required cogs
+        { workspaceId: 'ws_test' },
+      );
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(result.error?.message).toContain('cogs');
+    });
+
+    it('should execute FinanceProfitCalculateTool successfully with deterministic math', async () => {
+      const result = await executor.execute(
+        'finance.profit.calculate',
+        {
+          revenue: 29.99,
+          cogs: 5.8,
+          referralFeeRate: 0.15,
+          fbaFee: 4.5,
+          adSpend: 3.2,
+          returnLoss: 0,
+        },
+        { workspaceId: 'ws_test', source: 'TOOL_CENTER' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.traceId).toBeDefined();
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+      expect(result.data).toBeDefined();
+      expect(result.data.netProfit).toBeCloseTo(11.99, 1);
+    });
+
+    it('should execute ComplianceListingCheckTool and intercept FDA claims', async () => {
+      const result = await executor.execute(
+        'compliance.listing.check',
+        {
+          title: 'FDA Approved Antimicrobial Marble Toothbrush Holder',
+          bulletPoints: ['Guaranteed to cure bacteria.'],
+        },
+        { workspaceId: 'ws_test' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.status).toBe('REJECTED');
+      expect(result.data.violations.some((v: any) => v.ruleCode === 'POL-FDA-001')).toBe(true);
+    });
+
+    it('should execute CreativeImageGenerateTool and return rendered assets', async () => {
+      const result = await executor.execute(
+        'creative.image.generate',
+        {
+          prompt: 'Carrara marble toothbrush holder, luxury bathroom, morning sun',
+          style: 'luxury_minimalist',
+          aspectRatio: '1:1',
+        },
+        { workspaceId: 'ws_test' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.imageUrl).toBeDefined();
+      expect(result.data.dimensions).toEqual({ width: 2000, height: 2000 });
+      expect(result.cost?.amount).toBe(0.04);
+    });
+
+    it('should execute OperationListingPublishTool and return RPA execution trace', async () => {
+      const result = await executor.execute(
+        'operation.listing.publish',
+        {
+          skuCode: 'MTH-GREEN-001',
+          title: 'Natural Marble Toothbrush Holder',
+          bulletPoints: ['100% genuine marble', '1.5" slots'],
+          price: 29.99,
+        },
+        { workspaceId: 'ws_test' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.rpaJobId).toBeDefined();
+      expect(result.data.status).toBe('PUBLISHED_SUCCESS');
+      expect(result.data.stepsExecuted.length).toBe(7);
+    });
+  });
+});

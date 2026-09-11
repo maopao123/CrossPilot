@@ -18,6 +18,9 @@ import { AdvertisingModule } from './modules/advertising/advertising.module.js';
 import { AnalystModule } from './modules/analyst/analyst.module.js';
 import { AgentTaskModule } from './modules/agent-task/agent-task.module.js';
 import { EvalModule } from './modules/eval/eval.module.js';
+import { ToolCenterModule } from './modules/tool-center/tool-center.module.js';
+import { CreativeModule } from './modules/creative/creative.module.js';
+import { OperationAutomationModule } from './modules/operation-automation/operation-automation.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
@@ -45,6 +48,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     AnalystModule,
     AgentTaskModule,
     EvalModule,
+    ToolCenterModule,
+    CreativeModule,
+    OperationAutomationModule,
   ],
   providers: [
     {
