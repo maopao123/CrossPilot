@@ -1,78 +1,69 @@
-# XYDC (西柚洞察) MCP Capability Mapping & Discovery Report
+# XYDC (西柚洞察) MCP Capability Mapping & Reality Audit Report
 
-> **Generated At**: 2026-09-11T06:36:19.824Z  
-> **Environment Status**: `OFFLINE / NOT CONFIGURED`  
-> **Provider Framework Mode**: `MOCK`  
-
----
-
-## 1. 架构定位与隔离保证
-
-按照《CrossPilot V9 FINAL 完整唯一总方案》与《CrossPilot V9 增量方案：通用 Provider Framework & XYDC 首接》要求：
-1. **零污染保证**：XYDC 仅作为外部数据集成 Provider，其私有 DTO、RPC 协议和供应商语义严格隔离在 `@crosspilot/integrations` 内部。
-2. **标准契约映射**：所有数据经过 `XydcMapper` 统一映射为 CrossPilot 标准结构：
-   - `MarketProduct`
-   - `MarketMetric`
-   - `KeywordMetric`
-   - `MarketTrend`
-   - `ResearchEvidence`
-3. **确定性降级保证**：当 XYDC 未配置密钥、网络离线或限流时，`IntegrationGateway` 自动路由至 `MockMarketProvider`，返回标准 Mock 样本数据，模式标记为 `MOCK` / `DEGRADED`，保障业务链路永不中断。
+> **Generated At**: 2026-09-11T06:49:31.172Z  
+> **XYDC Credentials Configured**: `NO`  
+> **Real Connection Established**: `NO (NOT VERIFIED)`  
+> **Real tools/list Executed**: `NO (NOT VERIFIED)`  
+> **Real Data Received**: `NO (NOT VERIFIED)`  
+> **Provisional Bindings Status**: `PENDING_REAL_DISCOVERY`  
+> **Mock Fallback Verified**: `YES (MockMarketProvider is active and tested)`  
 
 ---
 
-## 2. 核心 5 大能力映射矩阵 (Capability Bindings)
+## 1. 真实性审计结论 (Reality Audit Verdict)
 
-| 序号 | CrossPilot 标准能力 ID | 对应 CrossPilot 工具 | 映射 XYDC 远程工具名 | 传输方式 | 目标标准化契约 | 降级机制 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | `market.product.search` | `market.product.search` | `xydc_search_products` | MCP | `MarketProduct[]` | `MockMarketProvider.products` |
-| 2 | `market.product.detail` | `market.product.detail` | `xydc_get_product_detail` | MCP | `MarketProduct` | `MockMarketProvider.product` |
-| 3 | `market.market.overview` | `market.market.overview` | `xydc_get_market_overview` | MCP | `MarketOverviewSnapshot` | `MockMarketProvider.overview` |
-| 4 | `market.keyword.search` | `market.keyword.search` | `xydc_get_keyword_metrics` | MCP | `KeywordMetric[]` | `MockMarketProvider.keywords` |
-| 5 | `market.product.trend` | `market.product.trend` | `xydc_get_product_trend` | MCP | `MarketTrend` | `MockMarketProvider.trend` |
+当前环境中：
+- **未配置真实 XYDC_MCP_TOKEN 与 XYDC_MCP_ENDPOINT**。
+- **未曾建立过与西柚洞察官方 MCP 服务器的真实网络连接**。
+- **未曾执行过真实 MCP `tools/list` 或 `tools/call`**。
+- **未曾接收过任何来自西柚洞察的真实业务数据**。
+- 当前系统运行的完整链路是：
+  ```text
+  CrossPilot Tool (market.*)
+  → Integration Gateway
+  → Provider Router
+  → MockMarketProvider (确定性降级仿真源)
+  ```
+- 验证通过的内容仅为：**通用 Provider Framework 架构、MCP 通用客户端与运行时代码、MockMarketProvider 降级机制、以及凭据脱敏保护**。
 
 ---
 
-## 3. 现场探测结果
+## 2. 5 大能力绑定真实状态 (Provisional vs Verified)
+
+所有三方远程工具名称均为开发 Framework 阶段定义的**临时占位符 (Provisional Placeholder)**，严格禁止作为已确认事实：
+
+| 序号 | CrossPilot 标准内部能力 ID | 临时占位工具名 (PROVISIONAL) | 真实 tools/list 验证状态 | 真实 Schema 状态 | 当前实际执行通道 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | `market.product.search` | `PROVISIONAL_xydc_search_products` | **NOT VERIFIED** | **NOT VERIFIED** | `MockMarketProvider.products` |
+| 2 | `market.product.detail` | `PROVISIONAL_xydc_get_product_detail` | **NOT VERIFIED** | **NOT VERIFIED** | `MockMarketProvider.product` |
+| 3 | `market.market.overview` | `PROVISIONAL_xydc_get_market_overview` | **NOT VERIFIED** | **NOT VERIFIED** | `MockMarketProvider.overview` |
+| 4 | `market.keyword.search` | `PROVISIONAL_xydc_search_keywords` | **NOT VERIFIED** | **NOT VERIFIED** | `MockMarketProvider.keywords` |
+| 5 | `market.product.trend` | `PROVISIONAL_xydc_get_product_trends` | **NOT VERIFIED** | **NOT VERIFIED** | `MockMarketProvider.trend` |
+
+---
+
+## 3. 现场审计原始记录
 
 ```json
 {
-  "status": "OFFLINE / NOT CONFIGURED",
-  "mode": "MOCK",
-  "tools": [
-    {
-      "name": "market.product.search",
-      "mapping": "xydc_search_products",
-      "status": "MOCK_READY"
-    },
-    {
-      "name": "market.product.detail",
-      "mapping": "xydc_get_product_detail",
-      "status": "MOCK_READY"
-    },
-    {
-      "name": "market.market.overview",
-      "mapping": "xydc_get_market_overview",
-      "status": "MOCK_READY"
-    },
-    {
-      "name": "market.keyword.search",
-      "mapping": "xydc_get_keyword_metrics",
-      "status": "MOCK_READY"
-    },
-    {
-      "name": "market.product.trend",
-      "mapping": "xydc_get_product_trend",
-      "status": "MOCK_READY"
-    }
-  ],
-  "note": "XYDC credentials are not configured in current environment. MockMarketProvider ensures 100% deterministic fallback with zero disruption to Workflows and Domain Services."
+  "realConnectionEstablished": "NO (NOT VERIFIED)",
+  "realToolsListExecuted": "NO (NOT VERIFIED)",
+  "realToolsDiscovered": [],
+  "realDataReceived": "NO (NOT VERIFIED)",
+  "provisionalBindingsStatus": "PENDING_REAL_DISCOVERY",
+  "runtimeFallbackVerified": "YES (MockMarketProvider is active and tested)",
+  "note": "Credentials are not configured in current development environment. All remote XYDC capabilities remain unverified pending actual MCP authentication and tools/list discovery."
 }
 ```
 
 ---
 
-## 4. 凭证脱敏与安全策略 (Secret Redaction)
+## 4. 后续拿到真实凭证后的接水步骤 (Next Steps)
 
-- 所有环境变量通过 `SecretProvider.getSecret('XYDC_MCP_TOKEN')` 安全读取。
-- 日志、Trace、错误信息中严禁明文出现 Token，统一经过 `SecretProvider.redact()` 或 `SecretProvider.maskToken()` 脱敏为 `xydc_****2345` 或 `[REDACTED_TOKEN]`。
-- 前端与工作流中只显示模式徽章（如 `西柚洞察 (LIVE)` / `模拟数据源 (MOCK)`），绝不向客户端下发敏感凭据。
+一旦获得真实 `XYDC_MCP_ENDPOINT` 与 `XYDC_MCP_TOKEN`：
+1. 注入环境变量：`XYDC_MCP_ENDPOINT` / `XYDC_MCP_TOKEN`。
+2. 运行探测脚本：`node scripts/discover-xydc.cjs`，执行真实 MCP `tools/list`。
+3. 获取真实 remote tool names 与 inputSchema。
+4. 将 `xydc.config.ts` 中的 `PROVISIONAL_*` 替换为真实远程工具名。
+5. 校准 `xydc.mapper.ts` 对齐真实返回结构。
+6. 发起真实 `tools/call` 验证，观察 `mode: LIVE` 与 `providerId: xydc`。
