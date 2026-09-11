@@ -114,7 +114,7 @@ export default function OperationAutomationPage() {
     setApprovalStatus('PENDING');
 
     try {
-      const res = await fetch('http://localhost:3001/api/v1/operations/listing-publish', {
+      const res = await fetch('/api/v1/operations/listing-publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -152,7 +152,7 @@ export default function OperationAutomationPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:3001/api/v1/operations/approve/${activeWorkflow.approvalId}`,
+        `/api/v1/operations/approve/${activeWorkflow.approvalId}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

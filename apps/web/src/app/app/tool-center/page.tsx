@@ -328,7 +328,7 @@ export default function ToolCenterPage() {
 
     // Call API endpoint or fallback to client simulation
     try {
-      const res = await fetch(`http://localhost:3001/api/v1/tools/${selectedTool.id}/execute`, {
+      const res = await fetch(`/api/v1/tools/${selectedTool.id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -113,7 +113,7 @@ export default function BusinessAnalystPage() {
     setSseActive(true);
     setSseLogs(['[SSE] Connecting to /api/v1/agent-tasks/stream...']);
 
-    const eventSource = new EventSource('http://localhost:3001/api/v1/agent-tasks/stream?taskType=VARIANCE_ATTRIBUTION');
+    const eventSource = new EventSource('/api/v1/agent-tasks/stream?taskType=VARIANCE_ATTRIBUTION');
 
     eventSource.onmessage = (event) => {
       try {

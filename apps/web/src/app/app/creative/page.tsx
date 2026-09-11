@@ -75,7 +75,7 @@ export default function CreativeStudioPage() {
     setIsGenerating(true);
 
     try {
-      const res = await fetch('http://localhost:3001/api/v1/creative/pack', {
+      const res = await fetch('/api/v1/creative/pack', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skuCode: selectedSku, workspaceId: 'ws_default_001' }),
