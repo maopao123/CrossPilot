@@ -5,6 +5,7 @@ import { ApiClient } from '../lib/api-client';
 import { WorkspaceSummary } from '@crosspilot/shared';
 import { useRouter } from 'next/navigation';
 import { LogOut, Globe, Box, ShieldCheck, ChevronDown } from 'lucide-react';
+import { ThemeToggle } from './theme-toggle';
 
 export function TopBar() {
   const router = useRouter();
@@ -71,6 +72,9 @@ export function TopBar() {
         <div className="hidden sm:block text-xs text-gray-400 bg-surface-elevated px-2.5 py-1 rounded border border-border">
           Date: <span className="text-gray-200">{new Date().toISOString().slice(0, 10)}</span>
         </div>
+
+        {/* Theme Toggle (Light / Dark) */}
+        <ThemeToggle />
 
         {/* User profile & Logout */}
         <div className="flex items-center space-x-3">
