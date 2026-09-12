@@ -5,6 +5,7 @@ export type ProviderTransport = 'MCP' | 'HTTP' | 'NATIVE' | 'RPA';
 export type ProviderCategory =
   | 'MARKET_DATA'
   | 'EXTERNAL_VOC'
+  | 'STORE_COMMERCE'
   | 'CREATIVE'
   | 'ERP'
   | 'CUSTOMER_SERVICE'
@@ -20,7 +21,15 @@ export type ProviderErrorCode =
   | 'PROVIDER_SCHEMA_MISMATCH'
   | 'PROVIDER_INVALID_RESPONSE'
   | 'PROVIDER_MAPPING_ERROR'
-  | 'PROVIDER_EXECUTION_ERROR';
+  | 'PROVIDER_EXECUTION_ERROR'
+  | 'AUTH_REQUIRED'
+  | 'TOKEN_EXPIRED'
+  | 'PERMISSION_DENIED'
+  | 'RATE_LIMITED'
+  | 'PARTIAL_DATA'
+  | 'SYNC_FAILED'
+  | 'WRITE_FORBIDDEN'
+  | 'NOT_FOUND';
 
 export interface ProviderError {
   code: ProviderErrorCode | string;

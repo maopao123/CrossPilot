@@ -25,6 +25,14 @@ import {
 } from './providers/firecrawl/firecrawl.config.js';
 import { FirecrawlClient } from './providers/firecrawl/firecrawl.client.js';
 import { FirecrawlVocProvider } from './providers/firecrawl/firecrawl-voc.provider.js';
+import {
+  AMAZON_PROVIDER_DEFINITION,
+  AMAZON_CAPABILITY_BINDINGS,
+  MOCK_AMAZON_PROVIDER_DEFINITION,
+  MOCK_AMAZON_CAPABILITY_BINDINGS,
+} from './providers/amazon/amazon.config.js';
+import { AmazonProvider } from './providers/amazon/amazon.provider.js';
+import { MockAmazonProvider } from './providers/amazon/mock-amazon.provider.js';
 
 export * from './core/provider.types.js';
 export * from './core/provider-registry.js';
@@ -46,6 +54,15 @@ export * from './providers/firecrawl/firecrawl.client.js';
 export * from './providers/firecrawl/firecrawl.mapper.js';
 export * from './providers/firecrawl/firecrawl-voc.provider.js';
 export * from './providers/mock/mock-market.provider.js';
+export * from './providers/amazon/amazon.config.js';
+export * from './providers/amazon/amazon.allowlist.js';
+export * from './providers/amazon/amazon.errors.js';
+export * from './providers/amazon/amazon.lwa.js';
+export * from './providers/amazon/amazon.http.js';
+export * from './providers/amazon/amazon.mapper.js';
+export * from './providers/amazon/amazon.fixtures.js';
+export * from './providers/amazon/amazon.provider.js';
+export * from './providers/amazon/mock-amazon.provider.js';
 export * from './secrets/secret-provider.js';
 export * from './cache/provider-cache.js';
 
@@ -107,6 +124,19 @@ export function createDefaultIntegrationGateway(): IntegrationFrameworkBundle {
   const firecrawlClient = new FirecrawlClient();
   const firecrawlAdapter = new FirecrawlVocProvider(firecrawlClient, cache);
   gateway.registerAdapter(firecrawlAdapter);
+
+  providerRegistry.register(MOCK_AMAZON_PROVIDER_DEFINITION);
+  for (const b of MOCK_AMAZON_CAPABILITY_BINDINGS) {
+    bindingRegistry.register(b);
+  }
+  gateway.registerAdapter(new MockAmazonProvider());
+
+  const amazonLiveEnabled = Boolean(SecretProvider.getSecret('AMAZON_LWA_CLIENT_ID'));
+  providerRegistry.register({ ...AMAZON_PROVIDER_DEFINITION, enabled: amazonLiveEnabled });
+  for (const b of AMAZON_CAPABILITY_BINDINGS) {
+    bindingRegistry.register({ ...b, enabled: amazonLiveEnabled });
+  }
+  gateway.registerAdapter(new AmazonProvider());
 
   return {
     providerRegistry,

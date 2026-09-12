@@ -23,7 +23,7 @@
     "clean": "rimraf dist",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node test/provider-framework.test.cjs"
+    "test": "node test/provider-framework.test.cjs && node test/amazon-store.test.cjs"
   },
   "dependencies": {
     "@crosspilot/shared": "workspace:*",

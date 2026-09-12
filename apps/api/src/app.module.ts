@@ -22,6 +22,7 @@ import { ToolCenterModule } from './modules/tool-center/tool-center.module.js';
 import { CreativeModule } from './modules/creative/creative.module.js';
 import { OperationAutomationModule } from './modules/operation-automation/operation-automation.module.js';
 import { DailyDiagnosisModule } from './modules/daily-diagnosis/daily-diagnosis.module.js';
+import { CommerceStoreModule } from './modules/commerce-store/commerce-store.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { WorkspaceGuard } from './common/guards/workspace.guard.js';
 import { ViewerWriteGuard } from './common/guards/viewer-write.guard.js';
@@ -55,6 +56,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     CreativeModule,
     OperationAutomationModule,
     DailyDiagnosisModule,
+    CommerceStoreModule,
   ],
   providers: [
     {

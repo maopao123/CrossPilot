@@ -20,11 +20,13 @@ import {
   PostgresWorkflowCheckpointStore,
   PrismaWorkflowDatabaseAdapter,
   SensitiveDataGuard,
+  Sku360ContextLoader,
   WorkflowNotFoundError,
   CheckpointVersionConflictError,
   InvalidActionStateError,
   PersistenceUnavailableError,
 } from '@crosspilot/domain';
+import { StoreSku360DataSource } from '../commerce-store/store-sku360-data-source.js';
 import { setDailyOperationWorkflowService } from '@crosspilot/tool-platform';
 import {
   DailyOperationStartRequestDto,
@@ -54,8 +56,12 @@ export class DailyDiagnosisService {
   constructor(private readonly prisma: PrismaService) {
     this.dbAdapter = new PrismaWorkflowDatabaseAdapter(this.prisma);
     this.checkpointStore = new PostgresWorkflowCheckpointStore(this.dbAdapter);
+    const storeMode = process.env.STORE_SKU360_SOURCE === 'prisma';
     this.workflowService = new DailyOperationWorkflowService({
       checkpointStore: this.checkpointStore,
+      contextLoader: storeMode
+        ? new Sku360ContextLoader(new StoreSku360DataSource(this.prisma))
+        : undefined,
     });
     setDailyOperationWorkflowService(this.workflowService);
   }

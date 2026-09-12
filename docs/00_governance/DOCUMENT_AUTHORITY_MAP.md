@@ -92,7 +92,8 @@ flowchart TD
 
 | 文档路径 | 核心权威内容 | 效力说明与覆盖边界 |
 | :--- | :--- | :--- |
-| **`E:\AiSecondBrain\HANDOFF.md`** | 部署交接、当前工作区基准、38/38 测试基线、Epic 冻结状态 | **全局最高交接权威**。记录已验证事实，覆盖所有旧状态。 |
+| **`E:\AiSecondBrain\HANDOFF.md`** | 外层仓库短指针 | 指向项目交接，不单独维护 SHA。 |
+| **`docs/HANDOFF.md`** | 当前会话交接：SHA、运行时、冻结边界、视觉改版 | **项目级当前交接入口**。下一会话先读。 |
 | **`docs/00_governance/CURRENT_SYSTEM_AUDIT_BASELINE.md`** | V9.1 现行架构、路由、API 矩阵、不变量、冻结状态 | **全局最高审计入口**。所有 AI 与开发者审查必须首读。 |
 | **`docs/00_governance/V9_1_RELEASE_FREEZE.md`** | V9.1 tag / SHA / 验收事实 / Known Gaps / 冻结声明 | **V9.1 发布冻结真相源**。`v9.1.0` → `b3d5607`；部署验收 SHA `7c81411`。 |
 | **`docs/00_governance/V9_1_FINAL_BROWSER_ACCEPTANCE_REPORT.md`** | 远程 API 26/26、浏览器路径、BA-001/002 | **V9.1 最终验收报告**。PASSED / READY TO FREEZE，已被 Freeze 收口。 |

@@ -73,6 +73,8 @@ model Workspace {
   approvals                Approval[]
   knowledgeDocuments       KnowledgeDocument[]
   evalDatasets             EvalDataset[]
+  commerceAccounts         CommerceAccount[]
+  syncRuns                 SyncRun[]
 
   defaultMarketplace       Marketplace?               @relation(fields: [defaultMarketplaceId], references: [id])
 
@@ -186,6 +188,7 @@ model Sku {
   sellingPrice             Decimal                   @map("selling_price") @db.Decimal(10, 2)
   currencyCode             String                    @default("USD") @map("currency_code")
   status                   SkuStatus                 @default(ACTIVE)
+  amazonSellerSku          String?                   @map("amazon_seller_sku")
   createdAt                DateTime                  @default(now()) @map("created_at")
   updatedAt                DateTime                  @updatedAt @map("updated_at")
 
@@ -825,24 +828,32 @@ enum OrderStatus {
 }
 
 model Order {
-  id            String      @id @default(uuid())
-  workspaceId   String      @map("workspace_id")
-  marketplaceId String      @map("marketplace_id")
-  orderNumber   String      @map("order_number")
-  status        OrderStatus @default(SHIPPED)
-  totalAmount   Decimal     @map("total_amount") @db.Decimal(10, 2)
-  currencyCode  String      @default("USD") @map("currency_code")
-  orderedAt     DateTime    @map("ordered_at")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  id               String      @id @default(uuid())
+  workspaceId      String      @map("workspace_id")
+  marketplaceId    String      @map("marketplace_id")
+  orderNumber      String      @map("order_number")
+  /// Partial unique with sourceAccountId+externalOrderId is in SQL:
+  /// 20260912180000_epic4_store_foundation (orders_ws_account_external_uid)
+  /// WHERE source_account_id IS NOT NULL AND external_order_id IS NOT NULL.
+  /// Prisma cannot express partial unique indexes — do not add @@unique here.
+  externalOrderId  String?     @map("external_order_id")
+  sourceProvider   String?     @map("source_provider")
+  sourceAccountId  String?     @map("source_account_id")
+  status           OrderStatus @default(SHIPPED)
+  totalAmount      Decimal     @map("total_amount") @db.Decimal(10, 2)
+  currencyCode     String      @default("USD") @map("currency_code")
+  orderedAt        DateTime    @map("ordered_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
 
-  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  marketplace   Marketplace @relation(fields: [marketplaceId], references: [id])
-  items         OrderItem[]
+  workspace        Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  marketplace      Marketplace @relation(fields: [marketplaceId], references: [id])
+  items            OrderItem[]
 
   @@unique([workspaceId, orderNumber])
   @@index([workspaceId])
   @@index([orderedAt])
+  @@index([workspaceId, externalOrderId])
   @@map("orders")
 }
 
@@ -885,6 +896,7 @@ model InventoryBalance {
   reservedQuantity      Int           @default(0) @map("reserved_quantity")
   inboundQuantity       Int           @default(0) @map("inbound_quantity")
   unfulfillableQuantity Int           @default(0) @map("unfulfillable_quantity")
+  sourceUpdatedAt       DateTime?     @map("source_updated_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 
   workspace             Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -980,6 +992,7 @@ model ProfitDaily {
   otherCosts  Decimal   @default(0) @map("other_costs") @db.Decimal(12, 2)
   netProfit   Decimal   @default(0) @map("net_profit") @db.Decimal(12, 2)
   margin      Decimal   @default(0) @db.Decimal(6, 4)
+  source      String    @default("ESTIMATED")
   createdAt   DateTime  @default(now()) @map("created_at")
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1277,4 +1290,67 @@ model EvalResult {
   @@index([evalRunId])
   @@index([evalCaseId])
   @@map("eval_results")
+}
+
+// ==========================================
+// Epic 4 — Real Store Data Foundation (additive)
+// ==========================================
+
+model CommerceAccount {
+  id                     String               @id @default(uuid())
+  workspaceId            String               @map("workspace_id")
+  provider               String               @default("amazon")
+  sellingPartnerId       String?              @map("selling_partner_id")
+  region                 String               @default("NA")
+  status                 String               @default("DISCONNECTED")
+  defaultMarketplaceCode String?              @map("default_marketplace_code")
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  workspace              Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  credentials            ProviderCredential[]
+  syncRuns               SyncRun[]
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId])
+  @@map("commerce_accounts")
+}
+
+model ProviderCredential {
+  id        String          @id @default(uuid())
+  accountId String          @map("account_id")
+  kind      String
+  payloadEnc String         @map("payload_enc") @db.Text
+  expiresAt DateTime?       @map("expires_at")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  account   CommerceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, kind])
+  @@index([accountId])
+  @@map("provider_credentials")
+}
+
+model SyncRun {
+  id                String           @id @default(uuid())
+  workspaceId       String           @map("workspace_id")
+  accountId         String           @map("account_id")
+  capability        String
+  status            String           @default("RUNNING")
+  cursor            String?
+  startedAt         DateTime         @default(now()) @map("started_at")
+  completedAt       DateTime?        @map("completed_at")
+  recordsProcessed  Int              @default(0) @map("records_processed")
+  recordsFailed     Int              @default(0) @map("records_failed")
+  errorCode         String?          @map("error_code")
+  durationMs        Int?             @map("duration_ms")
+
+  workspace         Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  account           CommerceAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([accountId])
+  @@index([startedAt])
+  @@map("sync_runs")
 }

@@ -123,7 +123,8 @@ export class IntegrationGateway {
     }
 
     // 2. Fallback execution if primary failed and fallback route is available
-    if (route.fallback && route.fallbackProvider) {
+    const skipFallback = Boolean(context.metadata && (context.metadata as any).skipProviderFallback);
+    if (!skipFallback && route.fallback && route.fallbackProvider) {
       const fallbackAdapter = this.adapters.get(route.fallback.providerId);
       if (fallbackAdapter) {
         try {

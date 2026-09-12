@@ -81,6 +81,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
         status = HttpStatus.FORBIDDEN;
         code = 'AUTH_FORBIDDEN';
         message = exception.message;
+      } else if (errCode === 'AUTH_REQUIRED' || errCode === 'TOKEN_EXPIRED') {
+        status = HttpStatus.UNAUTHORIZED;
+        code = errCode;
+        message = exception.message;
+      } else if (errCode === 'WRITE_FORBIDDEN' || errCode === 'PERMISSION_DENIED') {
+        status = HttpStatus.FORBIDDEN;
+        code = errCode;
+        message = exception.message;
+      } else if (errCode === 'RATE_LIMITED') {
+        status = HttpStatus.TOO_MANY_REQUESTS;
+        code = errCode;
+        message = exception.message;
+      } else if (errCode === 'SYNC_FAILED' || errCode === 'PROVIDER_UNAVAILABLE') {
+        status = HttpStatus.BAD_GATEWAY;
+        code = errCode;
+        message = exception.message;
       } else if (process.env.NODE_ENV === 'production') {
         message = 'An unexpected internal error occurred';
       } else {

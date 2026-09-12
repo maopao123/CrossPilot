@@ -10,24 +10,18 @@
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ Current Release: CrossPilot V9                                         │
-├─────────────────────────┬──────────────────────────────────────────────┤
-│ Current Work            │ CrossPilot V9.1 — Product Stabilization &    │
-│                         │ UX Polish (全站功能审查、状态一致性与体验打磨) │
+│ Current Release: CrossPilot V9.1                                       │
+│ Status:          RELEASE VERIFIED & FROZEN   tag v9.1.0 → b3d5607     │
+│ Live HEAD:       e457d5a (post-V9.1 visual; frontend only)             │
+│ Runtime:         http://116.198.230.217:2222                           │
 ├─────────────────────────┼──────────────────────────────────────────────┤
-│ Epic 3                  │ RELEASE VERIFIED & FROZEN                    │
-│ Release Decision        │ READY_WITH_KNOWN_LIMITATIONS                 │
-├─────────────────────────┼──────────────────────────────────────────────┤
-│ Epic 4                  │ Real Store Data Foundation & Morning Ops     │
-│ Epic 4 Status           │ SUSPENDED / NOT CANCELLED                    │
-│ 暂缓说明                │ 暂无真实 Amazon 店铺，坚决不继续用模拟数据     │
-│                         │ 扩充真实店铺功能；暂缓推进，绝不废弃。       │
-├─────────────────────────┼──────────────────────────────────────────────┤
-│ Monorepo Quality Gate   │ 38/38 Test Suites | 300/300 Tests (100%)     │
-│                         │ 10/10 Typecheck | 23/23 Web Build Routes     │
-│                         │ D1~D10 Golden 11/11 | 0 Regression           │
+│ Epic 1 / 2 / 3          │ FROZEN                                       │
+│ Epic 4                  │ SUSPENDED / NOT STARTED                      │
+│ V9.2                    │ NOT STARTED                                  │
 └─────────────────────────┴──────────────────────────────────────────────┘
 ```
+
+当前交接：[`HANDOFF.md`](./HANDOFF.md)。Freeze 真相源：[`00_governance/V9_1_RELEASE_FREEZE.md`](./00_governance/V9_1_RELEASE_FREEZE.md)。
 
 ---
 
