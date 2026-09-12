@@ -158,9 +158,9 @@ export default function BusinessAnalystPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">AI 经营分析</h1>
-            <span className="text-xs bg-purple-500/20 text-purple-400 font-semibold px-2 py-0.5 rounded border border-purple-500/30">
-              确定性利润归因瀑布图与 Trace
+            <h1 className="cp-title">经营分析</h1>
+            <span className="rounded-md border border-border bg-surface-elevated px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+              利润归因
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -172,7 +172,7 @@ export default function BusinessAnalystPage() {
           <button
             onClick={handleStartSSE}
             disabled={sseActive}
-            className="flex items-center space-x-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-md"
+            className="flex items-center space-x-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-xs font-medium text-fg hover:bg-surface-elevated disabled:opacity-50"
           >
             <Play className={`w-3.5 h-3.5 ${sseActive ? 'animate-pulse' : ''}`} />
             <span>{sseActive ? '实时 SSE 执行中...' : 'SSE 流式执行演练'}</span>
@@ -195,7 +195,7 @@ export default function BusinessAnalystPage() {
           <button
             onClick={handleAsk}
             disabled={answering}
-            className="flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold px-5 py-2.5 rounded-lg transition flex-shrink-0"
+            className="flex flex-shrink-0 items-center justify-center space-x-2 rounded-lg bg-accent px-5 py-2.5 text-xs font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-50"
           >
             <Send className="w-3.5 h-3.5" />
             <span>{answering ? 'AI 调度工具分析中...' : '提问经营 Agent'}</span>
@@ -246,15 +246,20 @@ export default function BusinessAnalystPage() {
             <h2 className="text-lg font-bold text-white mt-0.5">
               第 10 周 ➔ 第 11 周 利润骤降归因瀑布图
             </h2>
-            <p className="text-xs text-gray-400 mt-1">
-              上周利润: <span className="text-white font-bold">$4,120.00</span> • 本周利润: <span className="text-white font-bold">$1,840.00</span> • 总差异额: <span className="text-rose-400 font-bold">-$2,280.00</span>
+            <p className="mt-1 text-xs text-fg-muted">
+              总差异额:{' '}
+              <span className="font-mono font-medium text-fg">
+                {typeof waterfall?.totalVariance === 'number'
+                  ? `${waterfall.totalVariance < 0 ? '-' : ''}$${Math.abs(waterfall.totalVariance).toFixed(2)}`
+                  : 'N/A'}
+              </span>
             </p>
           </div>
 
           <div className="bg-surface-elevated border border-border p-3 rounded-lg text-right">
             <span className="text-[10px] text-gray-400 uppercase">确定性公式验证</span>
-            <div className="text-sm font-bold text-emerald-400 font-mono mt-0.5">
-              -2280 = -980 - 620 - 510 - 310 + 140
+            <div className="mt-0.5 font-mono text-sm font-medium text-fg">
+              {waterfall?.attribution?.formulaString || waterfall?.formulaExplained || 'N/A'}
             </div>
           </div>
         </div>

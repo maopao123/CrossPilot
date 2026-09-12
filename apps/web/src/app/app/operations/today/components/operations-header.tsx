@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   AlertTriangle,
   CheckCircle2,
-  Layers,
 } from 'lucide-react';
 import { WorkflowExecutionStatus, DiagnosisMode } from '@crosspilot/shared';
 
@@ -94,21 +93,15 @@ export function OperationsHeader({
   };
 
   return (
-    <header className="bg-surface border border-border rounded-xl p-5 mb-6 shadow-sm">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        {/* Left: Title & Metadata */}
+    <header className="mb-5 border-b border-border pb-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-white tracking-tight">
-              今日运营看板
-            </h1>
-            <span className="text-xs text-gray-400 font-mono">
-              Operations Today (WF-05)
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="cp-title">今日运营看板</h1>
             {getStatusBadge()}
           </div>
-          <p className="text-xs text-gray-400 mt-1">
-            多域自动化主动诊断 • 异常根因识别 • 行动建议优先级 • HITL 决策把关
+          <p className="cp-kicker">
+            跨域诊断、优先级建议与人工审批。审批不等于对外执行。
           </p>
 
           <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-gray-300">
@@ -155,7 +148,7 @@ export function OperationsHeader({
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              全店巡检 (Workspace)
+              全店巡检
             </button>
             <button
               type="button"
@@ -166,7 +159,7 @@ export function OperationsHeader({
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              单品聚焦 (SKU)
+              单品聚焦
             </button>
           </div>
 
@@ -197,7 +190,7 @@ export function OperationsHeader({
           ) : (
             <span className="text-xs text-gray-500 bg-surface-elevated px-3 py-2 rounded-md border border-border flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
-              只读模式 (Viewer)
+              只读模式
             </span>
           )}
         </div>

@@ -61,9 +61,7 @@ export default function InventoryPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">
-              11 库存 / FBA
-            </h1>
+            <h1 className="cp-title">库存 / FBA</h1>
             <span className="text-xs bg-blue-500/20 text-blue-400 font-semibold px-2 py-0.5 rounded border border-blue-500/30">
               确定性补货计算引擎
             </span>

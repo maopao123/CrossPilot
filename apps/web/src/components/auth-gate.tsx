@@ -18,7 +18,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-gray-400 text-sm">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-background text-sm text-fg-muted">
         正在验证登录状态...
       </div>
     );

@@ -25,8 +25,8 @@ import {
   SkuRiskRankingTable,
   EmptyAndHealthyState,
 } from './components/index';
-import { Sparkles, Bot, ShieldCheck } from 'lucide-react';
 import { useBusinessContext } from '@/components/business-context-provider';
+import { InlineError } from '@/components/ui/skeleton';
 
 export default function OperationsTodayPage() {
   const { marketplaceId: contextMarketplace, skuId: contextSkuId } = useBusinessContext();
@@ -60,6 +60,7 @@ export default function OperationsTodayPage() {
   });
 
   const [isViewer, setIsViewer] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const disconnectSseRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -186,7 +187,7 @@ export default function OperationsTodayPage() {
   const handleRunDiagnosis = async (chosenMode: DiagnosisMode) => {
     if (isRunning || isViewer) return;
     if (chosenMode === 'SKU' && !contextSkuId) {
-      alert('请先在顶栏选择 SKU');
+      setNotice('请先在顶栏选择 SKU');
       return;
     }
 
@@ -212,7 +213,7 @@ export default function OperationsTodayPage() {
     } catch (err: any) {
       setIsRunning(false);
       console.error('[OperationsToday] Error starting diagnosis:', err);
-      alert(err.message || '启动工作流诊断失败，请检查服务状态');
+      setNotice(err.message || '启动工作流诊断失败，请检查服务状态');
     }
   };
 
@@ -258,10 +259,10 @@ export default function OperationsTodayPage() {
         } else if (err.code === 'CHECKPOINT_VERSION_CONFLICT' || err.status === 409) {
           await openOccConflict(false);
         } else {
-          alert(err.message);
+          setNotice(err.message);
         }
       } else {
-        alert('审批操作失败');
+        setNotice('审批操作失败');
       }
     } finally {
       inflightRef.current = null;
@@ -301,7 +302,7 @@ export default function OperationsTodayPage() {
       if (err instanceof DailyDiagnosisApiError && err.status === 409) {
         await openOccConflict(err.code === 'INVALID_ACTION_STATE');
       } else {
-        alert(err?.message || '驳回操作失败');
+        setNotice(err?.message || '驳回操作失败');
       }
     } finally {
       inflightRef.current = null;
@@ -333,7 +334,7 @@ export default function OperationsTodayPage() {
       if (err instanceof DailyDiagnosisApiError && err.status === 409) {
         await openOccConflict(err.code === 'INVALID_ACTION_STATE');
       } else {
-        alert(err?.message || '忽略操作失败');
+        setNotice(err?.message || '忽略操作失败');
       }
     } finally {
       inflightRef.current = null;
@@ -342,8 +343,8 @@ export default function OperationsTodayPage() {
   };
 
   return (
-    <div className="space-y-2 max-w-7xl mx-auto pb-12">
-      {/* 1. Page Header */}
+    <div className="cp-page space-y-3">
+      {notice ? <InlineError message={notice} /> : null}
       <OperationsHeader
         marketplaceId={marketplaceId}
         onMarketplaceChange={setMarketplaceId}

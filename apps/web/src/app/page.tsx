@@ -9,14 +9,14 @@ export default function HomePage() {
   useEffect(() => {
     const token = localStorage.getItem('crosspilot_token');
     if (token) {
-      router.replace('/app/overview');
+      router.replace('/app/operations/today');
     } else {
       router.replace('/login');
     }
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-gray-400 text-sm">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background text-sm text-fg-muted">
       正在进入 CrossPilot...
     </div>
   );

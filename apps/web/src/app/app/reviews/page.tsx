@@ -74,6 +74,7 @@ export default function ReviewsPage() {
   }, [selectedSku]);
 
   const VOC_TOPICS = [
+    // 场景示例，非实时 VOC 聚类结果
     {
       name: '牙刷插槽孔径偏窄 (1.1" 偏小)',
       type: 'PAIN_POINT',
@@ -116,7 +117,7 @@ export default function ReviewsPage() {
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-bold text-white">12 评论与退货</h1>
+              <h1 className="cp-title">评论与退货</h1>
               <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded font-mono">
                 VOC 与退货归集
               </span>
@@ -149,8 +150,8 @@ export default function ReviewsPage() {
             <span className="text-xs text-gray-400 font-medium">综合评分</span>
             <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
           </div>
-          <div className="text-2xl font-bold text-white mt-2">4.7 / 5.0</div>
-          <span className="text-xs text-emerald-400 mt-1 block">基于 152 条真实买家评价</span>
+          <div className="mt-2 font-mono text-xl font-medium text-fg">N/A</div>
+          <span className="mt-1 block text-xs text-fg-muted">站内评分未接入 · 非实时</span>
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-5 shadow-sm">

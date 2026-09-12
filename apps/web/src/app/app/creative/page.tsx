@@ -100,9 +100,7 @@ export default function CreativeStudioPage() {
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-bold text-white tracking-tight">
-                08 素材中心 (Creative Studio)
-              </h1>
+              <h1 className="cp-title">素材中心</h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
                 素材生产工作台
               </span>

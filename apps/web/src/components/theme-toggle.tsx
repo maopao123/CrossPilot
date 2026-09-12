@@ -9,7 +9,6 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
 
   useEffect(() => {
     setMounted(true);
-    // Check saved theme or default to light ("平时用亮色风格")
     const saved = localStorage.getItem('crosspilot-theme');
     if (saved === 'dark') {
       setTheme('dark');
@@ -33,9 +32,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
   };
 
   if (!mounted) {
-    return (
-      <div className={`w-8 h-8 rounded-md bg-surface-elevated border border-border ${className}`} />
-    );
+    return <div className={`h-8 w-8 rounded-lg border border-border bg-surface-elevated ${className}`} />;
   }
 
   return (
@@ -43,22 +40,13 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       onClick={toggleTheme}
       type="button"
       title={theme === 'light' ? '切换为暗色模式' : '切换为亮色模式'}
-      className={`p-1.5 px-2.5 rounded-md border border-border bg-surface-elevated hover:bg-surface transition flex items-center space-x-1.5 text-xs font-medium cursor-pointer shadow-sm ${
-        theme === 'light'
-          ? 'text-amber-600 hover:text-amber-700 bg-amber-50/50'
-          : 'text-indigo-400 hover:text-indigo-300'
-      } ${className}`}
+      aria-label={theme === 'light' ? '切换为暗色模式' : '切换为亮色模式'}
+      className={`rounded-lg border border-border p-1.5 text-fg-muted hover:bg-surface-elevated hover:text-fg ${className}`}
     >
       {theme === 'light' ? (
-        <>
-          <Sun className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20" />
-          <span className="text-xs font-medium text-slate-700">亮色</span>
-        </>
+        <Sun className="h-3.5 w-3.5" strokeWidth={1.5} />
       ) : (
-        <>
-          <Moon className="w-3.5 h-3.5 text-indigo-400 fill-indigo-400/20" />
-          <span className="text-xs font-medium text-slate-300">暗色</span>
-        </>
+        <Moon className="h-3.5 w-3.5" strokeWidth={1.5} />
       )}
     </button>
   );

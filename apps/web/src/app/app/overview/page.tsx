@@ -5,21 +5,10 @@ import Link from 'next/link';
 import { ApiClient } from '../../../lib/api-client';
 import { getSeverityLabel } from '../../../constants/ui-labels';
 import { useBusinessContext } from '../../../components/business-context-provider';
-import {
-  Box,
-  TrendingUp,
-  AlertTriangle,
-  RotateCcw,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  Megaphone,
-  Truck,
-  Activity,
-  Calendar,
-  Layers,
-  ChevronRight,
-} from 'lucide-react';
+import { RotateCcw, ArrowRight, ChevronRight } from 'lucide-react';
+import { PageHeader, StatusPill } from '../../../components/ui/page-header';
+import { Button } from '../../../components/ui/button';
+import { PageLoading, InlineError } from '../../../components/ui/skeleton';
 
 interface BusinessEvent {
   code: string;
@@ -119,121 +108,86 @@ export default function BusinessOverviewPage() {
   const overallMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
   if (loading && dailyData.length === 0) {
-    return (
-      <div className="py-20 text-center text-gray-400 text-sm">
-        正在加载经营概览数据...
-      </div>
-    );
+    return <PageLoading label="正在加载经营概览数据..." />;
   }
 
+  const money = (n: number) =>
+    `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">01 经营概览</h1>
-            <span className="text-xs bg-emerald-500/20 text-emerald-400 font-semibold px-2 py-0.5 rounded border border-emerald-500/30">
-              Demo Scenario
-            </span>
-          </div>
-          <p className="text-sm text-gray-400 mt-1">
-            {workspaceName || '当前工作区'} • 90 天场景时间线（非实时店铺账）
-          </p>
-        </div>
+    <div className="cp-page">
+      <PageHeader
+        title="经营概览"
+        badge={<StatusPill tone="warning">场景数据 · 非实时店铺账</StatusPill>}
+        description={`${workspaceName || '当前工作区'} · 90 天演示时间线`}
+        actions={
+          <>
+            {resetMessage ? (
+              <span className="text-[12px] text-fg-muted">{resetMessage}</span>
+            ) : null}
+            <Link
+              href="/app/operations/today"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-accent-fg hover:bg-accent-hover"
+            >
+              处理今日待办 <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Button
+              variant="ghost"
+              onClick={handleResetDemo}
+              disabled={resetting || ApiClient.isViewer()}
+            >
+              <RotateCcw className={`h-3.5 w-3.5 ${resetting ? 'animate-spin' : ''}`} />
+              {resetting ? '正在重置…' : '重置演示数据'}
+            </Button>
+          </>
+        }
+      />
 
-        {/* 1-Click Demo Reset Action */}
-        <div className="flex items-center space-x-3">
-          {resetMessage && (
-            <span className="text-xs text-emerald-400 font-medium bg-emerald-950/60 border border-emerald-800 px-2.5 py-1 rounded">
-              {resetMessage}
-            </span>
-          )}
-          <button
-            onClick={handleResetDemo}
-            disabled={resetting || ApiClient.isViewer()}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-md cursor-pointer"
-          >
-            <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
-            <span>{resetting ? '正在重置演示数据...' : '一键重置演示数据'}</span>
-          </button>
-        </div>
-      </div>
+      {loadError ? <InlineError message={loadError} /> : null}
 
-      {/* 90-Day KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {loadError && (
-          <div className="col-span-full text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
-            {loadError}
+      <div className="cp-metric-strip">
+        <div className="cp-metric">
+          <div className="cp-metric-label">90 天销售额</div>
+          <div className="cp-metric-value">
+            {dailyData.length === 0 ? 'N/A' : money(totalRevenue)}
           </div>
-        )}
-        <div className="bg-surface border border-border rounded-xl p-4">
-          <span className="text-xs text-gray-400">90天总销售额</span>
-          <div className="text-xl font-bold text-white mt-1">
-            {dailyData.length === 0
-              ? 'N/A'
-              : `$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          </div>
-          <span className="text-[11px] text-emerald-400 flex items-center mt-0.5">
-            日均: ${(totalRevenue / 90).toFixed(0)} / 天
-          </span>
+          <div className="mt-1 text-[11px] text-fg-muted">日均 ${(totalRevenue / 90).toFixed(0)}</div>
         </div>
-
-        <div className="bg-surface border border-border rounded-xl p-4">
-          <span className="text-xs text-gray-400">90天净利润</span>
-          <div className="text-xl font-bold text-emerald-400 mt-1">
-            ${totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <div className="cp-metric">
+          <div className="cp-metric-label">90 天净利润</div>
+          <div className="cp-metric-value text-emerald-700 dark:text-emerald-400">
+            {money(totalProfit)}
           </div>
-          <span className="text-[11px] text-gray-400 mt-0.5">
-            综合利润率: {overallMargin.toFixed(1)}%
-          </span>
+          <div className="mt-1 text-[11px] text-fg-muted">利润率 {overallMargin.toFixed(1)}%</div>
         </div>
-
-        <div className="bg-surface border border-border rounded-xl p-4">
-          <span className="text-xs text-gray-400">总订单件数</span>
-          <div className="text-xl font-bold text-white mt-1">
-            {totalOrders.toLocaleString()} 件
+        <div className="cp-metric">
+          <div className="cp-metric-label">订单件数</div>
+          <div className="cp-metric-value">{totalOrders.toLocaleString()}</div>
+        </div>
+        <div className="cp-metric">
+          <div className="cp-metric-label">广告支出</div>
+          <div className="cp-metric-value">{money(totalAds)}</div>
+          <div className="mt-1 text-[11px] text-fg-muted">
+            ACOS {totalRevenue > 0 ? ((totalAds / totalRevenue) * 100).toFixed(1) : 0}%
           </div>
-          <span className="text-[11px] text-gray-400 mt-0.5">
-            3 个变体协同出货
-          </span>
         </div>
-
-        <div className="bg-surface border border-border rounded-xl p-4">
-          <span className="text-xs text-gray-400">广告总支出</span>
-          <div className="text-xl font-bold text-white mt-1">
-            ${totalAds.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <span className="text-[11px] text-amber-400 mt-0.5">
-            ACOS: {totalRevenue > 0 ? ((totalAds / totalRevenue) * 100).toFixed(1) : 0}%
-          </span>
-        </div>
-
-        <div className="bg-surface border border-border rounded-xl p-4">
-          <span className="text-xs text-gray-400">利润异动（Analyst Waterfall）</span>
-          <div className={`text-xl font-bold mt-1 ${typeof waterfall?.totalVariance === 'number' && waterfall.totalVariance < 0 ? 'text-rose-400' : 'text-white'}`}>
+        <div className="cp-metric">
+          <div className="cp-metric-label">利润异动</div>
+          <div className={`cp-metric-value ${typeof waterfall?.totalVariance === 'number' && waterfall.totalVariance < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
             {typeof waterfall?.totalVariance === 'number'
               ? `${waterfall.totalVariance < 0 ? '-' : ''}$${Math.abs(waterfall.totalVariance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : '暂无瀑布数据'}
           </div>
-          <Link href="/app/business-analyst" className="text-[11px] text-blue-400 hover:underline flex items-center mt-0.5">
-            {typeof waterfall?.totalVariance === 'number' ? '查看归因瀑布图' : 'Demo Scenario / 无实时 Attribution'} <ArrowRight className="w-3 h-3 ml-0.5" />
+          <Link href="/app/business-analyst" className="mt-1 inline-flex items-center text-[11px] text-accent hover:underline">
+            {typeof waterfall?.totalVariance === 'number' ? '查看归因' : 'Demo Scenario'} <ArrowRight className="ml-0.5 h-3 w-3" />
           </Link>
         </div>
       </div>
 
-      {/* 10 Core Business Events (E01 - E10) Interactive Timeline */}
-      <div className="bg-surface border border-border rounded-xl p-5 shadow-lg">
-        <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-blue-400" />
-            <h2 className="text-base font-bold text-white">
-              90天核心业务事件演进序列 (E01 — E10)
-            </h2>
-          </div>
-          <span className="text-xs text-gray-400 bg-surface-elevated px-2.5 py-1 rounded border border-border">
-            10 个关键业务事件 • 贯穿全流程
-          </span>
+      <section className="cp-panel p-4">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <h2 className="text-sm font-semibold text-fg">90 天业务事件</h2>
+          <span className="text-[12px] text-fg-muted">{timeline.length} 条场景事件</span>
         </div>
 
         {/* Event Chips Strip */}
@@ -251,8 +205,8 @@ export default function BusinessOverviewPage() {
               <button
                 key={event.code}
                 onClick={() => setSelectedEvent(event)}
-                className={`p-2 rounded-lg border text-left transition flex flex-col justify-between cursor-pointer ${
-                  isSelected ? `${severityColor} ring-2 ring-blue-500` : 'border-border bg-surface-elevated/50 hover:bg-surface-elevated text-gray-300'
+                className={`flex cursor-pointer flex-col justify-between rounded-lg border p-2 text-left ${
+                  isSelected ? `${severityColor} ring-1 ring-accent` : 'border-border bg-surface-elevated/50 text-fg hover:bg-surface-elevated'
                 }`}
               >
                 <div className="flex items-center justify-between text-[10px] font-bold">
@@ -282,101 +236,89 @@ export default function BusinessOverviewPage() {
               </div>
               <h3 className="text-base font-bold text-white">{selectedEvent.title}</h3>
               <p className="text-xs text-gray-300">{selectedEvent.description}</p>
-              <div className="text-xs text-emerald-400 font-medium">💡 业务影响: {selectedEvent.impactSummary}</div>
+              <div className="text-xs font-medium text-fg-muted">影响：{selectedEvent.impactSummary}</div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
               {selectedEvent.code === 'E02' && (
-                <Link href="/app/advertising" className="text-xs bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-lg flex items-center justify-center space-x-1">
-                  <span>处理广告高 ACOS</span> <ChevronRight className="w-3.5 h-3.5" />
+                <Link href="/app/advertising" className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-2 text-[12px] font-medium text-accent-fg">
+                  处理广告 ACOS <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               )}
               {(selectedEvent.code === 'E04' || selectedEvent.code === 'E05') && (
-                <Link href="/app/inventory" className="text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-2 rounded-lg flex items-center justify-center space-x-1">
-                  <span>执行补货决策 (12天可售)</span> <ChevronRight className="w-3.5 h-3.5" />
+                <Link href="/app/inventory" className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-2 text-[12px] font-medium text-accent-fg">
+                  查看补货建议 <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               )}
               {(selectedEvent.code === 'E06' || selectedEvent.code === 'E07') && (
-                <Link href="/app/competitors" className="text-xs bg-purple-600 hover:bg-purple-500 text-white font-semibold px-3 py-2 rounded-lg flex items-center justify-center space-x-1">
-                  <span>下钻 VOC 评论证据</span> <ChevronRight className="w-3.5 h-3.5" />
+                <Link href="/app/competitors" className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-2 text-[12px] font-medium text-accent-fg">
+                  查看 VOC 证据 <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               )}
               {selectedEvent.code === 'E08' && (
-                <Link href="/app/listings" className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-2 rounded-lg flex items-center justify-center space-x-1">
-                  <span>Listing 工作台合规锁版</span> <ChevronRight className="w-3.5 h-3.5" />
+                <Link href="/app/listings" className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-2 text-[12px] font-medium text-accent-fg">
+                  打开 Listing 工作台 <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               )}
               {selectedEvent.code === 'E10' && (
-                <Link href="/app/business-analyst" className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-2 rounded-lg flex items-center justify-center space-x-1">
-                  <span>进入 AI 经营分析瀑布图</span> <ChevronRight className="w-3.5 h-3.5" />
+                <Link href="/app/business-analyst" className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-2 text-[12px] font-medium text-accent-fg">
+                  打开利润归因 <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               )}
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* SKU 360 Variants Matrix & Shortcuts */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* White SKU */}
-        <div className="bg-surface border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-300">Carrara White (主力款)</span>
-            <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">Demo Scenario</span>
-          </div>
-          <div className="text-sm font-bold text-white mt-2">
-            {skus.find((s) => s.skuCode === 'MTH-WHITE-001')?.skuCode || 'WHITE SKU'}
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            日均销量 14~18 件 • 售价 $29.99 • 毛利率 23.4% • 退货率 2.1% 稳健
-          </p>
-          <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs">
-            <span className="text-gray-400">库存水位: 420 件</span>
-            <Link
-              href={skus.find((s) => s.skuCode === 'MTH-WHITE-001') ? `/app/skus/${skus.find((s) => s.skuCode === 'MTH-WHITE-001')!.id}` : '/app/skus'}
-              className="text-blue-400 hover:underline"
-            >
-              查看详情 &rarr;
-            </Link>
-          </div>
-        </div>
-
-        {/* Green SKU */}
-        <div className="bg-surface border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-300">Emerald Green (爆款突发)</span>
-            <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">Demo Scenario</span>
-          </div>
-          <div className="text-sm font-bold text-white mt-2">
-            {skus.find((s) => s.skuCode === 'MTH-GREEN-001')?.skuCode || 'GREEN SKU'}
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            社媒带货激增至 35 件/天 • 触发 12天断货预警 (E04) • 补货 500 件入库
-          </p>
-          <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs">
-            <span className="text-amber-400 font-semibold">曾触及 12天可售天数预警</span>
-            <Link href="/app/inventory" className="text-blue-400 hover:underline">库存补货 &rarr;</Link>
-          </div>
-        </div>
-
-        {/* Grey SKU */}
-        <div className="bg-surface border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-300">Beige Grey (退货改善)</span>
-            <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">Demo Scenario</span>
-          </div>
-          <div className="text-sm font-bold text-white mt-2">
-            {skus.find((s) => s.skuCode === 'MTH-GREY-001')?.skuCode || 'GREY SKU'}
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            孔径 1.1&quot; 偏小退货率曾达 6.7% • VOC 提取推动 Listing 尺寸明确为 1.5&quot;
-          </p>
-          <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs">
-            <span className="text-purple-400 font-semibold">退货损失 -$620 溯源</span>
-            <Link href="/app/reviews" className="text-blue-400 hover:underline">退货分析 &rarr;</Link>
-          </div>
-        </div>
-      </div>
+      <section className="cp-table-wrap">
+        <table className="w-full text-left text-[13px]">
+          <thead className="border-b border-border text-[12px] text-fg-muted">
+            <tr>
+              <th className="px-4 py-2 font-medium">SKU</th>
+              <th className="px-4 py-2 font-medium">场景角色</th>
+              <th className="px-4 py-2 font-medium">说明</th>
+              <th className="px-4 py-2 font-medium" />
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-border">
+              <td className="px-4 py-3 font-mono text-fg">
+                {skus.find((s) => s.skuCode === 'MTH-WHITE-001')?.skuCode || 'WHITE'}
+              </td>
+              <td className="px-4 py-3">主力款</td>
+              <td className="px-4 py-3 text-fg-muted">场景数据 · Demo Scenario</td>
+              <td className="px-4 py-3 text-right">
+                <Link
+                  href={skus.find((s) => s.skuCode === 'MTH-WHITE-001') ? `/app/skus/${skus.find((s) => s.skuCode === 'MTH-WHITE-001')!.id}` : '/app/skus'}
+                  className="text-accent hover:underline"
+                >
+                  详情
+                </Link>
+              </td>
+            </tr>
+            <tr className="border-b border-border">
+              <td className="px-4 py-3 font-mono text-fg">
+                {skus.find((s) => s.skuCode === 'MTH-GREEN-001')?.skuCode || 'GREEN'}
+              </td>
+              <td className="px-4 py-3">需求激增</td>
+              <td className="px-4 py-3 text-fg-muted">场景数据 · 关注可售天数</td>
+              <td className="px-4 py-3 text-right">
+                <Link href="/app/inventory" className="text-accent hover:underline">库存</Link>
+              </td>
+            </tr>
+            <tr>
+              <td className="px-4 py-3 font-mono text-fg">
+                {skus.find((s) => s.skuCode === 'MTH-GREY-001')?.skuCode || 'GREY'}
+              </td>
+              <td className="px-4 py-3">退货改善</td>
+              <td className="px-4 py-3 text-fg-muted">场景数据 · 尺寸相关退货</td>
+              <td className="px-4 py-3 text-right">
+                <Link href="/app/reviews" className="text-accent hover:underline">退货</Link>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }

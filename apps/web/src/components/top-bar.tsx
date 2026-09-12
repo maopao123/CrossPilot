@@ -4,11 +4,12 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ApiClient } from '../lib/api-client';
 import { useRouter } from 'next/navigation';
-import { LogOut, Globe, Box, ShieldCheck } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { useBusinessContext } from './business-context-provider';
+import { Select } from './ui/input';
 
-export function TopBar() {
+export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const {
@@ -44,9 +45,9 @@ export function TopBar() {
   };
 
   const getMarketplaceDisplay = (mkt?: string | null) => {
-    if (mkt === 'AMAZON_US' || !mkt) return 'Amazon 美国站';
-    if (mkt === 'AMAZON_UK') return 'Amazon 英国站';
-    if (mkt === 'AMAZON_DE') return 'Amazon 德国站';
+    if (mkt === 'AMAZON_US' || !mkt) return '美国站';
+    if (mkt === 'AMAZON_UK') return '英国站';
+    if (mkt === 'AMAZON_DE') return '德国站';
     return mkt;
   };
 
@@ -59,101 +60,89 @@ export function TopBar() {
   };
 
   return (
-    <header className="h-14 border-b border-border bg-surface px-6 flex items-center justify-between text-sm sticky top-0 z-40">
-      <div className="flex items-center space-x-6 min-w-0">
-        <div className="flex items-center space-x-2 bg-surface-elevated px-3 py-1.5 rounded-md border border-border">
-          <ShieldCheck className="w-4 h-4 text-primary" />
-          <label className="sr-only" htmlFor="workspace-switcher">
-            当前工作区
-          </label>
-          {workspaces.length > 0 ? (
-            <select
-              id="workspace-switcher"
-              aria-label="当前工作区"
-              value={workspaceId || ''}
-              onChange={(event) => {
-                const next = workspaces.find((ws) => ws.id === event.target.value);
-                if (next) switchWorkspace(next);
-              }}
-              className="bg-transparent font-semibold text-white text-sm focus:outline-none cursor-pointer max-w-[180px]"
-            >
-              {workspaces.map((ws) => (
-                <option key={ws.id} value={ws.id} className="bg-surface text-foreground">
-                  {ws.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="font-semibold text-white">
-              {workspaceName || (error ? '工作区未加载' : loading ? '正在载入工作区' : '工作区未加载')}
-            </span>
-          )}
-          <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
-            {getRoleDisplay(role)}
-          </span>
-        </div>
+    <header className="sticky top-0 z-30 flex h-12 items-center justify-between gap-3 border-b border-border bg-surface px-3 text-[13px] md:px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          className="rounded-lg p-1.5 text-fg-muted hover:bg-surface-elevated lg:hidden"
+          onClick={onMenu}
+          aria-label="打开导航"
+        >
+          <Menu className="h-4 w-4" strokeWidth={1.5} />
+        </button>
 
-        <div className="flex items-center space-x-1.5 text-gray-300">
-          <Globe className="w-4 h-4 text-emerald-400" />
-          <span className="font-medium">{getMarketplaceDisplay(marketplaceId)}</span>
-        </div>
-
-        <div className="hidden lg:flex items-center space-x-2 border-l border-border pl-6 text-gray-300 min-w-0">
-          <Box className="w-4 h-4 text-amber-400" />
-          <label className="text-gray-400" htmlFor="sku-switcher">
-            当前 SKU:
-          </label>
-          <select
-            id="sku-switcher"
-            aria-label="当前 SKU"
-            value={skuId || ''}
-            onChange={(event) => switchSku(event.target.value || null)}
-            className="bg-transparent font-medium text-white text-sm focus:outline-none cursor-pointer max-w-[220px]"
+        <label className="sr-only" htmlFor="workspace-switcher">
+          当前工作区
+        </label>
+        {workspaces.length > 0 ? (
+          <Select
+            id="workspace-switcher"
+            aria-label="当前工作区"
+            value={workspaceId || ''}
+            onChange={(event) => {
+              const next = workspaces.find((ws) => ws.id === event.target.value);
+              if (next) switchWorkspace(next);
+            }}
+            className="max-w-[160px] border-0 bg-transparent px-0 py-0 font-medium"
           >
-            <option value="" className="bg-surface text-foreground">
-              未选择 SKU
-            </option>
-            {skus.map((sku) => (
-              <option key={sku.id} value={sku.id} className="bg-surface text-foreground">
-                {sku.skuCode}
-                {sku.variantName ? ` · ${sku.variantName}` : ''}
+            {workspaces.map((ws) => (
+              <option key={ws.id} value={ws.id}>
+                {ws.name}
               </option>
             ))}
-          </select>
-          {selectedSku ? (
-            <Link
-              href={`/app/skus/${selectedSku.id}`}
-              className="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded font-mono hover:text-white"
-            >
-              {selectedSku.skuCode}
-            </Link>
-          ) : null}
-        </div>
+          </Select>
+        ) : (
+          <span className="font-medium">
+            {workspaceName || (error ? '工作区未加载' : loading ? '正在载入工作区' : '工作区未加载')}
+          </span>
+        )}
+        <span className="hidden rounded-md bg-surface-elevated px-1.5 py-0.5 text-[11px] text-fg-muted sm:inline">
+          {getRoleDisplay(role)}
+        </span>
+        <span className="hidden text-fg-muted sm:inline">{getMarketplaceDisplay(marketplaceId)}</span>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="hidden sm:block text-xs text-gray-400 bg-surface-elevated px-2.5 py-1 rounded border border-border">
-          日期: <span className="text-gray-200">{new Date().toISOString().slice(0, 10)}</span>
-        </div>
+      <div className="flex min-w-0 items-center gap-2">
+        <label className="hidden text-fg-muted md:inline" htmlFor="sku-switcher">
+          SKU
+        </label>
+        <Select
+          id="sku-switcher"
+          aria-label="当前 SKU"
+          value={skuId || ''}
+          onChange={(event) => switchSku(event.target.value || null)}
+          className="max-w-[200px] py-1"
+        >
+          <option value="">未选择 SKU</option>
+          {skus.map((sku) => (
+            <option key={sku.id} value={sku.id}>
+              {sku.skuCode}
+              {sku.variantName ? ` · ${sku.variantName}` : ''}
+            </option>
+          ))}
+        </Select>
+        {selectedSku ? (
+          <Link
+            href={`/app/skus/${selectedSku.id}`}
+            className="hidden font-mono text-[12px] text-accent hover:underline sm:inline"
+          >
+            {selectedSku.skuCode}
+          </Link>
+        ) : null}
 
         <ThemeToggle />
 
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 text-gray-300">
-            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
-              {(userName || '未').substring(0, 2).toUpperCase()}
-            </div>
-            <span className="hidden md:inline font-medium text-white">{userName || '未登录'}</span>
-          </div>
-          <button
-            onClick={handleLogout}
-            title="退出登录"
-            aria-label="退出登录"
-            className="p-1.5 hover:bg-surface-elevated rounded text-gray-400 hover:text-rose-400 transition cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
+        <span className="hidden max-w-[120px] truncate text-fg md:inline">
+          {userName || '未登录'}
+        </span>
+        <button
+          onClick={handleLogout}
+          title="退出登录"
+          aria-label="退出登录"
+          className="rounded-lg p-1.5 text-fg-muted hover:bg-surface-elevated hover:text-rose-600"
+        >
+          <LogOut className="h-4 w-4" strokeWidth={1.5} />
+        </button>
       </div>
     </header>
   );

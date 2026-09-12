@@ -23,7 +23,7 @@ export default function ArchitecturePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">架构设计与面试深度对线指南</h1>
+            <h1 className="cp-title">系统架构</h1>
             <span className="text-xs bg-cyan-500/20 text-cyan-400 font-semibold px-2 py-0.5 rounded border border-cyan-500/30">
               系统架构全景与面试深度对线
             </span>

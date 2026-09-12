@@ -352,16 +352,16 @@ export default function ListingStudioPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">07 Listing 工作台</h1>
-            <span className="text-xs bg-indigo-500/20 text-indigo-400 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/30">
-              Listing Intelligence • 14 步 DAG
+            <h1 className="cp-title">Listing 工作台</h1>
+            <span className="rounded-md border border-border bg-surface-elevated px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+              14 步生成
             </span>
           </div>
           {actionError && (
             <p className="text-xs text-rose-400 mt-2">{actionError}</p>
           )}
           <p className="text-sm text-muted-foreground mt-1">
-            多模态图片视觉提取缓存 • 多源关键词库 • Rufus 意图上下文 • 三层知识库 RAG • 事实锚定与素材中心无缝衔接
+            基于产品事实生成 Listing，并做合规检查。人工批准后才会进入发布流水线。
           </p>
         </div>
 
@@ -437,7 +437,7 @@ export default function ListingStudioPage() {
           <button
             onClick={handleGenerateDag}
             disabled={generating}
-            className="flex items-center justify-center space-x-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm cursor-pointer"
+            className="flex items-center justify-center space-x-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-50"
           >
             <Sparkles className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
             <span>{generating ? '14 步 DAG 编排中...' : '生成 Listing (14 步 DAG)'}</span>
@@ -446,7 +446,7 @@ export default function ListingStudioPage() {
           <button
             onClick={handleComplianceCheck}
             disabled={checking}
-            className="flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm cursor-pointer"
+            className="flex items-center justify-center space-x-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-xs font-medium text-fg hover:bg-surface-elevated disabled:opacity-50"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>{checking ? '合规审定中...' : '运行合规检查 (Judge)'}</span>
@@ -455,10 +455,10 @@ export default function ListingStudioPage() {
           <button
             onClick={handleSendToCreative}
             disabled={sendingCreative}
-            className={`flex items-center justify-center space-x-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm cursor-pointer ${
+            className={`flex items-center justify-center space-x-1.5 rounded-lg px-3.5 py-2 text-xs font-medium ${
               creativeSentSuccess
-                ? 'bg-emerald-600 text-white'
-                : 'bg-purple-600 hover:bg-purple-500 text-white'
+                ? 'bg-emerald-700 text-white'
+                : 'text-fg-muted hover:bg-surface-elevated hover:text-fg'
             }`}
             title="将当前 Image Briefs 结构化推送给素材中心进行并发渲染"
           >

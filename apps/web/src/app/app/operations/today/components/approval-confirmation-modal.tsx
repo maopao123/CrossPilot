@@ -39,7 +39,7 @@ export function ApprovalConfirmationModal({
         </div>
         <div>
           <h3 id="approval-title" className="text-base font-bold text-white tracking-tight">
-            高风险行动审批确认 (High Risk Approval)
+            高风险行动审批确认
           </h3>
           <p id="approval-desc" className="text-xs text-gray-400 mt-0.5">
             该建议涉及重大资金变动或核心库存变动，需负责人二次确认。

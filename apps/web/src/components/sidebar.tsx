@@ -3,15 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
   Search,
   Box,
   Users,
-  Calculator,
   Truck,
   FileEdit,
-  Rocket,
   Megaphone,
   ShoppingCart,
   Warehouse,
@@ -25,77 +24,121 @@ import {
   PlayCircle,
   ClipboardCheck,
 } from 'lucide-react';
+import { cn } from '../lib/cn';
 
-const NAV_ITEMS = [
-  { href: '/app/overview', label: '01 经营概览', subLabel: 'Business Overview', icon: LayoutDashboard },
-  { href: '/app/operations/today', label: '今日运营看板', subLabel: 'Operations Today', icon: ClipboardCheck },
-  { href: '/app/market-research', label: '02 市场调研', subLabel: 'Market Research', icon: Search },
-  { href: '/app/products', label: '03 产品中心', subLabel: 'Product Center', icon: Box },
-  { href: '/app/competitors', label: '04 竞品与 VOC', subLabel: 'Competitor & VOC', icon: Users },
-  { href: '/app/tool-center', label: '05 工具中心', subLabel: 'Tool Center', icon: Wrench },
-  { href: '/app/suppliers', label: '06 供应链与采购', subLabel: 'Supply & Purchase', icon: Truck },
-  { href: '/app/listings', label: '07 Listing 工作台', subLabel: 'Listing Studio', icon: FileEdit },
-  { href: '/app/creative', label: '08 素材中心', subLabel: 'Creative Studio', icon: Sparkles },
-  { href: '/app/advertising', label: '09 广告运营', subLabel: 'Advertising PPC', icon: Megaphone },
-  { href: '/app/orders', label: '10 订单管理', subLabel: 'Orders', icon: ShoppingCart },
-  { href: '/app/inventory', label: '11 库存 / FBA', subLabel: 'Inventory / FBA', icon: Warehouse },
-  { href: '/app/reviews', label: '12 评论与退货', subLabel: 'Reviews & Returns', icon: MessageSquare },
-  { href: '/app/profit', label: '13 利润中心', subLabel: 'Profit Center', icon: TrendingUp },
-  { href: '/app/business-analyst', label: '14 AI 经营分析', subLabel: 'AI Business Analyst', icon: BrainCircuit },
-  { href: '/app/operations/automation', label: '15 运营自动化', subLabel: 'Operation Automation', icon: PlayCircle },
-  { href: '/app/architecture', label: '16 系统架构', subLabel: 'Architecture', icon: BookOpen },
+const NAV_GROUPS: Array<{
+  title: string;
+  items: Array<{
+    href: string;
+    label: string;
+    icon: LucideIcon;
+  }>;
+}> = [
+  {
+    title: '今日',
+    items: [{ href: '/app/operations/today', label: '运营看板', icon: ClipboardCheck }],
+  },
+  {
+    title: '经营',
+    items: [
+      { href: '/app/overview', label: '经营概览', icon: LayoutDashboard },
+      { href: '/app/profit', label: '利润中心', icon: TrendingUp },
+      { href: '/app/business-analyst', label: '经营分析', icon: BrainCircuit },
+    ],
+  },
+  {
+    title: '商品与流量',
+    items: [
+      { href: '/app/market-research', label: '市场调研', icon: Search },
+      { href: '/app/products', label: '产品中心', icon: Box },
+      { href: '/app/listings', label: 'Listing', icon: FileEdit },
+      { href: '/app/advertising', label: '广告', icon: Megaphone },
+      { href: '/app/reviews', label: '评论与退货', icon: MessageSquare },
+      { href: '/app/competitors', label: '竞品与 VOC', icon: Users },
+    ],
+  },
+  {
+    title: '履约',
+    items: [
+      { href: '/app/orders', label: '订单', icon: ShoppingCart },
+      { href: '/app/inventory', label: '库存 / FBA', icon: Warehouse },
+      { href: '/app/suppliers', label: '采购', icon: Truck },
+    ],
+  },
+  {
+    title: '更多',
+    items: [
+      { href: '/app/creative', label: '素材中心', icon: Sparkles },
+      { href: '/app/tool-center', label: '工具中心', icon: Wrench },
+      { href: '/app/operations/automation', label: '运营自动化', icon: PlayCircle },
+      { href: '/app/architecture', label: '系统架构', icon: BookOpen },
+    ],
+  },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  open = false,
+  onNavigate,
+}: {
+  open?: boolean;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 border-r border-border bg-surface flex flex-col h-[calc(100vh-3.5rem)] sticky top-14 select-none">
-      {/* Brand logo header */}
-      <div className="p-4 border-b border-border flex items-center space-x-2">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
-          CP
-        </div>
-        <div>
-          <h1 className="font-bold text-white text-base tracking-wide leading-tight">CrossPilot</h1>
-          <p className="text-[10px] text-gray-400">跨境电商 AI 运营平台</p>
-        </div>
+    <aside
+      className={cn(
+        'z-50 flex h-[100dvh] w-56 shrink-0 flex-col border-r border-border bg-surface lg:sticky lg:top-0',
+        'fixed inset-y-0 left-0 transition-transform duration-200 ease-premium lg:relative lg:translate-x-0',
+        open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+      )}
+    >
+      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3.5">
+        <span className="font-semibold tracking-tight text-fg">CrossPilot</span>
+        <span className="text-[11px] text-fg-muted">运营台</span>
       </div>
 
-      {/* Navigation list */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 text-xs">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center space-x-2.5 px-3 py-2 rounded-md transition font-medium ${
-                isActive
-                  ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-surface-elevated'
-              }`}
-            >
-              <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-500'}`} />
-              <div className="flex flex-col truncate">
-                <span className="truncate">{item.label}</span>
-                <span className="text-[10px] text-gray-500 font-normal leading-none">{item.subLabel}</span>
-              </div>
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-3 text-[13px]">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.title}>
+            <div className="px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-fg-muted">
+              {group.title}
+            </div>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    className={cn(
+                      'flex items-center gap-2 rounded-lg px-2.5 py-1.5 font-medium',
+                      isActive
+                        ? 'bg-accent-subtle text-accent'
+                        : 'text-fg-muted hover:bg-surface-elevated hover:text-fg',
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      <div className="p-3 border-t border-border bg-surface-elevated/40">
+      <div className="border-t border-border p-3">
         <div
           aria-disabled="true"
-          className="flex items-center space-x-2 text-xs text-gray-400 opacity-70 cursor-not-allowed select-none"
+          className="flex cursor-not-allowed select-none items-center gap-2 text-[12px] text-fg-muted opacity-70"
         >
-          <Bot className="w-4 h-4 text-purple-400" />
-          <span className="font-semibold">AI Copilot</span>
-          <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded">
+          <Bot className="h-4 w-4" strokeWidth={1.5} />
+          <span className="font-medium">AI Copilot</span>
+          <span className="rounded bg-surface-elevated px-1.5 py-0.5 text-[10px] text-fg-muted">
             Coming Later
           </span>
         </div>

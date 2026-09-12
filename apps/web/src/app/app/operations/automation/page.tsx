@@ -191,9 +191,7 @@ export default function OperationAutomationPage() {
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-bold text-white tracking-tight">
-                运营自动化工作流
-              </h1>
+              <h1 className="cp-title">运营自动化</h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 P0 RPA Pipeline
               </span>
