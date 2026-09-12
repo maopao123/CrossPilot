@@ -82,4 +82,4 @@ PM2: api + worker reloaded on `6a9b636`; web dist unchanged (no UI).
 - Inventory unique is still workspace+sku+FBA (shared across simulator stores)
 - No new REST `/stores` or `/sync/jobs`
 
-Next authorized epic: Epic 3 Amazon read Adapter (reuse Epic 4 GET allowlist). Wait for human confirm.
+Next: Epic 3 Amazon read Adapter. 执行说明书：`docs/00_governance/V10_NEXT_AGENT_HANDOFF.md`。

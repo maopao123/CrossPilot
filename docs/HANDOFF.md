@@ -1,7 +1,8 @@
 # CrossPilot 交接
 
-**日期：** 2026-09-12（更新：V10 Epic 2 Ports + SimulatorAdapter）
-**本文件：** 当前会话结束后的唯一项目交接入口。下一会话先读这里，再读治理文档。
+**日期：** 2026-09-12（更新：V10 Epic 2 已交下一任）
+**本文件：** 当前会话结束后的唯一项目交接入口。下一会话先读这里。
+**下一任 AI 执行说明书：** `00_governance/V10_NEXT_AGENT_HANDOFF.md`（换工具后读这份就能做 Epic 3）。
 **不要把本文件当成 V9.1 Freeze 替代件。** Freeze 真相源仍是 `00_governance/V9_1_RELEASE_FREEZE.md`。
 **V10 Epic 2 证据：** `00_governance/V10_EPIC2_PORTS_RELEASE_REPORT.md`。
 
@@ -26,9 +27,8 @@ Amazon Write: NOT IMPLEMENTED
 EXECUTED.executionDispatched = false
 
 Commerce Simulator（Epic 4 mock data，docs/40_mockData）
-LIVE SIMULATING
-世界状态验证时 day 9（2026-09-10），worker 每 60 分钟自动推进 1 模拟日
-ACTIVE 事件：RETURN_SPIKE
+LIVE SIMULATING（tick 走 SimulatorAdapter）
+worker 每 60 分钟推进 1 模拟日。当前 day 以 GET /simulator/state 为准（V9.2 验证时曾是 day 9；Epic 2 冒烟到过 day 12）。
 
 V9.2 Production Verification
 READY_WITH_KNOWN_LIMITATIONS
@@ -61,10 +61,10 @@ health 200  postgres/redis/milvus up
 /health/ai degraded（无 LLM key）
 ```
 
-**不要自动开 V10 Epic 3 / Amazon Write / Shopify Adapter / 产品 Scheduler。**
-**不要为了刷绿把 XYDC `5147` 改成 `5151`。**
-**不要 retag / force-push `v9.1.0`。**
-**不要改 simulator 引擎的种子/起始日/初始库存（确定性会被测试 gold case 锁死）。**
+**下一任：** 用户说继续 / 做 Epic 3 / 全部做完 → 按 `V10_NEXT_AGENT_HANDOFF.md` §6 做 Amazon read Adapter。  
+**不要**顺手开 Shopify / Amazon Write / Action Write / 切 `STORE_SKU360_SOURCE=prisma`。  
+**不要为了刷绿把 XYDC `5147` 改成 `5151`。不要 retag / force-push `v9.1.0`。**  
+**不要改 simulator 引擎的种子/起始日/初始库存。**
 
 Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏览器验收。
 
@@ -73,16 +73,16 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 ## 1. 必须先读
 
 1. 本文件 `docs/HANDOFF.md`
-2. `docs/00_governance/V9_1_RELEASE_FREEZE.md`
-3. `docs/00_governance/V10_EPIC2_PORTS_RELEASE_REPORT.md`
-4. `docs/00_governance/V10_EPIC1_FOUNDATION_RELEASE_REPORT.md`
-4. `docs/00_governance/V10_EPIC0_IMPACT_ANALYSIS.md`
-5. `docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md`
-4. `docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md`
-4. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
-4. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
-4. `docs/00_governance/V92_DEPLOYMENT_PLAN.md`
-5. `docs/40_mockData/CrossPilot_Commerce_Simulator_V1.0.md`（§15 实现决策 = Simulator 权威说明）
+2. `docs/00_governance/V10_NEXT_AGENT_HANDOFF.md` ← **下一任执行入口**
+3. `docs/00_governance/V9_1_RELEASE_FREEZE.md`
+4. `docs/00_governance/V10_EPIC2_PORTS_RELEASE_REPORT.md`
+5. `docs/00_governance/V10_EPIC1_FOUNDATION_RELEASE_REPORT.md`
+6. `docs/00_governance/V10_EPIC0_IMPACT_ANALYSIS.md`
+7. `docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md`
+8. `docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md`
+9. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
+10. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
+11. `docs/40_mockData/CrossPilot_Commerce_Simulator_V1.0.md`（§15 = Simulator 权威实现说明）
 
 `docs/00_governance/临时命令.txt` **不要 commit**。其中旧的 Epic 4 / Freeze 正文是历史，不要再执行一遍。
 
@@ -106,13 +106,15 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | V9.3 Action Layer | **`a39a803`** | Mock planner / risk / executor / history |
 | V10 Epic 1 Store foundation | **`2a5b305`** | Store + ChannelIdentity + unique(storeId) |
 | V10 Epic 2 Ports + SimulatorAdapter | **`6a9b636`** | Catalog/Order/Inventory/Ads/Profit ports |
-| **origin + 云机 git** | **`6a9b636`** | API + worker rebuild；Web dist 仍为 V9.3 UI |
+| V10 下一任交接文档 | 本轮 docs commit | `V10_NEXT_AGENT_HANDOFF.md` |
+| **origin + 云机 git（push 后）** | 以 `git log -1` 为准 | API/worker **dist 仍为 `6a9b636`**（纯文档不 rebuild） |
+| **Live API/worker dist** | **`6a9b636`** | Web dist 仍为 V9.3 UI |
 
 ```text
-Tag v9.1.0  →  b3d5607     不要 retag
-Live git    →  6a9b636
-Live API/worker dist 来自 6a9b636
-Live Web dist 仍为 a39a803 驾驶舱（本 Epic 无 UI）
+Tag v9.1.0            →  b3d5607     不要 retag
+Live git (docs pin)   →  8d30554
+Live API/worker dist  →  6a9b636
+Live Web dist         →  a39a803 驾驶舱（V10 尚未改 UI）
 ```
 
 建议 RC tag（**未打**）：`v9.2.0-rc1` → `54074d9`。等人工下令。
@@ -284,17 +286,21 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 
 ---
 
-## 9. 下一会话（等人工选）
+## 9. 下一会话
 
-V10 Epic 2 已上线。不要自己开：
+**执行说明书：** `docs/00_governance/V10_NEXT_AGENT_HANDOFF.md`
 
-1. V10 Epic 3 Amazon read Adapter（复用 Epic 4 GET allowlist，等人工确认）
-2. 真 Amazon Write / Shopify API
-3. 新 Agent / 新 action_type
+用户说继续 / 做 Epic 3 / 全部做完：直接做 **Epic 3 Amazon read Adapter**（复用 Epic 4 GET allowlist，仍只读）。
+
+不要夹带：
+
+1. Shopify Adapter / webhook
+2. 真 Amazon Write / Action `execute()` 换真工具
+3. 新 Agent / 新 `action_type` / 改 Action 状态机
 4. 改 WF-05 公式或 Recommendation 状态机
 5. 打 release tag / 配 LLM key / `STORE_SKU360_SOURCE=prisma`
 
-默认：**停住，问人。**
+Epic 3 做完就停，等人。
 
 ---
 
@@ -305,14 +311,15 @@ CrossPilot V9.1  FROZEN  v9.1.0=b3d5607
 Epic 4           DEPLOYED  LIVE_NOT_RUN
 V9.2 Phase 1-5   DEPLOYED  API only
 V9.2 Production  READY_WITH_KNOWN_LIMITATIONS
-Simulator        LIVE  day12 @ 60min/tick  (via SimulatorAdapter)
-Live git         6a9b636 @ 116.198.230.217:2222
+Simulator        LIVE  via SimulatorAdapter（day 会随 60min tick 前进，勿 reset 对齐旧数字）
+Live git         8d30554  (API dist 6a9b636) @ 116.198.230.217:2222
 V9.2.1 UI        SHIPPED
 V9.3 Action      SHIPPED mock only
 V10 Epic 1       SHIPPED  Store + ChannelIdentity
 V10 Epic 2       SHIPPED  Ports + SimulatorAdapter
+Next             Epic 3 Amazon read Adapter — 见 V10_NEXT_AGENT_HANDOFF.md
 health           200   /health/ai degraded
-Do not start Epic 3 / Amazon Write / Shopify Adapter
+Do not start Shopify / Amazon Write / Action Write / WF-05 切源
 Do not retarget XYDC 5147→5151
 Do not add a second mock-data-service
 ```
