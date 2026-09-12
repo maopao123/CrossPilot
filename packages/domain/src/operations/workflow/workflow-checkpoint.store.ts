@@ -22,6 +22,15 @@ import {
 } from './workflow.types.js';
 import { SensitiveDataGuard } from './sensitive-data.guard.js';
 
+function isPersistedSkuUuid(value?: string | null): value is string {
+  return (
+    !!value &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  );
+}
+
 // ============================================================================
 // 1. In-Memory Checkpoint Store (Testing & Ephemeral Execution)
 // ============================================================================
@@ -203,7 +212,9 @@ export class PersistentWorkflowCheckpointStore implements IWorkflowCheckpointSto
           workspaceId: scrubbedState.workspaceId,
           taskType: 'DAILY_OPERATION_WF05',
           status: scrubbedState.status,
-          activeSkuId: scrubbedState.skuIds?.[0],
+          activeSkuId: isPersistedSkuUuid(scrubbedState.skuIds?.[0])
+            ? scrubbedState.skuIds[0]
+            : null,
           inputJson: JSON.stringify(
             SensitiveDataGuard.scrub({
               workspaceId: scrubbedState.workspaceId,
