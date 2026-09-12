@@ -159,7 +159,7 @@ describe('V9.2 Fact / Evidence / Recommendation / Research / VOC', () => {
     expect(voc.painPoints.length).toBeGreaterThan(0);
     expect(voc.outputs.listingImprovement).toBeTruthy();
     expect(voc.outputs.creativeBrief).toBeTruthy();
-    expect(voc.outputs.customerServiceKnowledge).toContain('Pain:');
+    expect(voc.outputs.customerServiceKnowledge).toContain('痛点：');
   });
 
   it('startRun still does not execute; executeRun runs amazon-product-research', async () => {

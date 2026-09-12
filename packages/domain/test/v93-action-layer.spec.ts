@@ -69,7 +69,7 @@ describe('V9.3 mock executor', () => {
       parameters: { percentage: 20 },
     });
     expect(result.status).toBe('SUCCESS');
-    expect(String(result.output.message)).toMatch(/Mock bid decreased 20%/);
+    expect(String(result.output.message)).toMatch(/Mock 已将竞价下调 20%/);
   });
 
   it('simulates failure without retry', async () => {

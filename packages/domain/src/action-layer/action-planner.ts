@@ -47,37 +47,37 @@ function buildPayload(
       return {
         target: { campaignId: hints.campaignId || '', keyword: hints.keyword || 'broad' },
         parameters: { percentage: 20 },
-        summary: 'Decrease keyword bid 20%',
+        summary: '关键词竞价下调 20%',
       };
     case 'UPDATE_INVENTORY':
       return {
         target: { skuCode: hints.skuCode || '' },
         parameters: { quantity: 50 },
-        summary: 'Update inventory quantity',
+        summary: '更新库存数量',
       };
     case 'GENERATE_REPORT':
       return {
         target: {},
         parameters: { reportType: 'daily-ops' },
-        summary: 'Generate daily operations report',
+        summary: '生成每日运营报告',
       };
     case 'STOP_CAMPAIGN':
       return {
         target: { campaignId: hints.campaignId || '' },
         parameters: {},
-        summary: 'Stop advertising campaign',
+        summary: '停止广告活动',
       };
     case 'CHANGE_PRICE':
       return {
         target: { skuCode: hints.skuCode || '' },
         parameters: { percentage: 10 },
-        summary: 'Change listing price 10%',
+        summary: '调整 Listing 价格 10%',
       };
     case 'DELETE_LISTING':
       return {
         target: { skuCode: hints.skuCode || '' },
         parameters: {},
-        summary: 'Delete listing (mock only)',
+        summary: '删除 Listing（仅 Mock）',
       };
   }
 }

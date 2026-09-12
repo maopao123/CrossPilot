@@ -61,13 +61,13 @@ function mockOutcome(parameters: Record<string, unknown>): string | undefined {
 async function defaultMock(ctx: MockToolContext, successMessage: string): Promise<MockToolResult> {
   const outcome = mockOutcome(ctx.parameters);
   if (outcome === 'fail') {
-    return { success: false, message: `Mock ${ctx.actionType} failed`, retryable: false };
+    return { success: false, message: `Mock ${ctx.actionType} 执行失败`, retryable: false };
   }
   if (outcome === 'timeout') {
     if (ctx.attempt < 2) {
-      return { success: false, message: `Mock ${ctx.actionType} timed out`, retryable: true };
+      return { success: false, message: `Mock ${ctx.actionType} 超时`, retryable: true };
     }
-    return { success: true, message: `${successMessage} after retry`, data: { retried: true } };
+    return { success: true, message: `${successMessage}（重试后）`, data: { retried: true } };
   }
   return { success: true, message: successMessage };
 }
@@ -75,22 +75,22 @@ async function defaultMock(ctx: MockToolContext, successMessage: string): Promis
 export function createDefaultMockRegistry(): ActionToolRegistry {
   const registry = new ActionToolRegistry();
   registry.register('DECREASE_BID', (ctx) =>
-    defaultMock(ctx, `Mock bid decreased ${Number(ctx.parameters.percentage) || 0}%`),
+    defaultMock(ctx, `Mock 已将竞价下调 ${Number(ctx.parameters.percentage) || 0}%`),
   );
   registry.register('UPDATE_INVENTORY', (ctx) =>
-    defaultMock(ctx, `Mock inventory updated to ${Number(ctx.parameters.quantity) || 0}`),
+    defaultMock(ctx, `Mock 已将库存更新为 ${Number(ctx.parameters.quantity) || 0}`),
   );
   registry.register('GENERATE_REPORT', (ctx) =>
-    defaultMock(ctx, `Mock report generated: ${String(ctx.parameters.reportType || 'ops')}`),
+    defaultMock(ctx, `Mock 已生成报告：${String(ctx.parameters.reportType || 'ops')}`),
   );
   registry.register('STOP_CAMPAIGN', (ctx) =>
-    defaultMock(ctx, `Mock campaign stopped: ${String(ctx.target.campaignId || '')}`),
+    defaultMock(ctx, `Mock 已暂停广告活动：${String(ctx.target.campaignId || '')}`),
   );
   registry.register('CHANGE_PRICE', (ctx) =>
-    defaultMock(ctx, `Mock price changed ${Number(ctx.parameters.percentage) || 0}%`),
+    defaultMock(ctx, `Mock 已调价 ${Number(ctx.parameters.percentage) || 0}%`),
   );
   registry.register('DELETE_LISTING', (ctx) =>
-    defaultMock(ctx, `Mock listing delete recorded for ${String(ctx.target.skuCode || '')}`),
+    defaultMock(ctx, `Mock 已记录删除 Listing：${String(ctx.target.skuCode || '')}`),
   );
   return registry;
 }

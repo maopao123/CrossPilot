@@ -193,8 +193,8 @@ export class ScenarioSku360DataSource implements ISku360DataSource {
       {
         evidenceId: `EVI-SALES-${meta.skuCode}-${params.currentPeriod.from.slice(0, 10)}`,
         category: 'DATABASE',
-        title: 'Sales & Order Metrics',
-        content: `Loaded ${curOrders} orders, ${curUnits} units sold, $${curRev.toFixed(2)} revenue for ${meta.skuCode}.`,
+        title: '销售与订单指标',
+        content: `已加载 ${curOrders} 笔订单、${curUnits} 件销量、收入 $${curRev.toFixed(2)}（SKU ${meta.skuCode}）。`,
         source: 'ScenarioGeneratorService.orders',
         capturedAt: new Date().toISOString(),
         metadata: {

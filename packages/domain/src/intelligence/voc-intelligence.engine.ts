@@ -30,8 +30,8 @@ export class VocIntelligenceEngine {
     const praises = topics.filter((t) => t.topicType === 'PRAISE').map((t) => t.text);
     const requests = topics.filter((t) => t.topicType === 'FEATURE_REQUEST').map((t) => t.text);
 
-    const topPain = painPoints[0] ?? 'No dominant pain point in the provided sample.';
-    const topPraise = praises[0] ?? 'No dominant praise in the provided sample.';
+    const topPain = painPoints[0] ?? '当前样本没有占主导的痛点。';
+    const topPraise = praises[0] ?? '当前样本没有占主导的好评。';
 
     return {
       cleanedTexts,
@@ -39,14 +39,14 @@ export class VocIntelligenceEngine {
       painPoints,
       outputs: {
         productImprovement: painPoints.length
-          ? `Address reported defects: ${painPoints.slice(0, 3).join(' | ')}`
-          : 'No defect cluster from current VOC sample.',
-        listingImprovement: `Lead with proof of ${topPraise}. Explicitly answer: ${topPain}`,
-        creativeBrief: `Hero claim must rebut "${topPain}". Social proof angle: "${topPraise}".`,
+          ? `针对已反馈缺陷：${painPoints.slice(0, 3).join(' | ')}`
+          : '当前 VOC 样本未形成缺陷聚类。',
+        listingImprovement: `用实证带出「${topPraise}」。明确回应：${topPain}`,
+        creativeBrief: `主图主张必须反驳「${topPain}」。社会认同角度：「${topPraise}」。`,
         customerServiceKnowledge: [
-          `Pain: ${painPoints.slice(0, 3).join('; ') || 'n/a'}`,
-          `Praise: ${praises.slice(0, 3).join('; ') || 'n/a'}`,
-          `Requests: ${requests.slice(0, 3).join('; ') || 'n/a'}`,
+          `痛点：${painPoints.slice(0, 3).join('; ') || '无'}`,
+          `好评：${praises.slice(0, 3).join('; ') || '无'}`,
+          `需求：${requests.slice(0, 3).join('; ') || '无'}`,
         ].join('\n'),
       },
     };

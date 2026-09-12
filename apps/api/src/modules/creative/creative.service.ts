@@ -159,7 +159,7 @@ export class CreativeService {
       },
       {
         id: 'c_02',
-        title: 'Modern Vanity Morning Lifestyle Display',
+        title: '现代梳妆台晨间生活场景',
         skuCode: 'MTH-GREEN-001',
         category: 'LIFESTYLE',
         url: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?w=1200&auto=format&fit=crop&q=80',
@@ -168,7 +168,7 @@ export class CreativeService {
       },
       {
         id: 'c_03',
-        title: '1.5" Wide Slot Dimension & EVA Non-Slip Callout',
+        title: '1.5" 宽孔尺寸与 EVA 防滑脚垫标注',
         skuCode: 'MTH-GREEN-001',
         category: 'INFOGRAPHIC',
         url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&auto=format&fit=crop&q=80',

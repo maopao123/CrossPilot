@@ -646,8 +646,8 @@ export class Sku360ContextLoader {
       {
         evidenceId: `EVI-SKU360-ASSEMBLY-${identity.skuId}-${currentPeriod.from.slice(0, 10)}`,
         category: 'CALCULATED_METRIC',
-        title: 'Sku360 Cross-Domain Fact Assembly',
-        content: `Assembled 7 operational domains for SKU ${identity.skuCode || identity.skuId} across period ${currentPeriod.from} to ${currentPeriod.to}. Net Profit: $${profitContext.netProfit.current.toFixed(2)}, Margin: ${(profitContext.netMargin.current * 100).toFixed(1)}%, Days Cover: ${inventoryContext.daysCover}d.`,
+        title: 'Sku360 跨域事实组装',
+        content: `已组装 SKU ${identity.skuCode || identity.skuId} 在 ${currentPeriod.from} 至 ${currentPeriod.to} 的 7 个运营域。净利润 $${profitContext.netProfit.current.toFixed(2)}，利润率 ${(profitContext.netMargin.current * 100).toFixed(1)}%，可售天数 ${inventoryContext.daysCover} 天。`,
         source: 'Sku360ContextLoader',
         capturedAt: loadedAt,
         metadata: {
