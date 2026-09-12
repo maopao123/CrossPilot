@@ -13,18 +13,18 @@ CrossPilot V9.1
 RELEASE VERIFIED & FROZEN
 
 Epic 4
-CODE COMPLETE (read-only store foundation) — local 85f5b94, not pushed, not deployed
+CODE COMPLETE — 85f5b94 (pushing/deploying with V9.2)
 
 V9.2 Phases 1–5
-CODE COMPLETE — not pushed, not deployed
-Playbook + Fact/Evidence + Amazon Research Playbook + VOC + Recommendation Center
-No Amazon Write / no auto dispatch / WF-05 unchanged
+CODE COMPLETE — 54074d9 + RC docs
+Push + cloud deploy ordered; see V92_DEPLOYMENT_PLAN.md
 
-Live code (cloud):
+Live code (cloud) before this cutover:
 e457d5a   post-V9.1 visual system (frontend only)
 ```
 
-**不要自动开 Phase 2 / Scheduler / Launch Center，也不要为了刷绿把 XYDC `5147` 改成 `5151`。** 证据：`00_governance/V92_PHASE1_IMPLEMENTATION_EVIDENCE.md`。
+**不要自动开 V9.3 / Scheduler / Launch Center，也不要为了刷绿把 XYDC `5147` 改成 `5151`。**  
+RC：`00_governance/GIT_RELEASE_REVIEW.md`、`V92_PUSH_CHECKLIST.md`、`V92_DEPLOYMENT_PLAN.md`。
 
 Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏览器验收。真实运行时是云机。
 

@@ -62,6 +62,9 @@ flowchart TD
         L2_17["docs/00_governance/V92_PHASE1_IMPLEMENTATION_PLAN.md"]
         L2_18["docs/00_governance/V92_PHASE1_IMPLEMENTATION_EVIDENCE.md"]
         L2_19["docs/00_governance/V92_PHASE2_5_IMPLEMENTATION_EVIDENCE.md"]
+        L2_20["docs/00_governance/GIT_RELEASE_REVIEW.md"]
+        L2_21["docs/00_governance/V92_PUSH_CHECKLIST.md"]
+        L2_22["docs/00_governance/V92_DEPLOYMENT_PLAN.md"]
     end
 
     subgraph L3["LEVEL 3 — HISTORICAL DESIGN / IMPLEMENTATION (历史演进与推演记录)"]

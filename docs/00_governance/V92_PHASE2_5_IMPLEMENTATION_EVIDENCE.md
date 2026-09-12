@@ -1,7 +1,7 @@
 # V9.2 Phases 2–5 Implementation Evidence
 
 **Date:** 2026-09-12  
-**Status:** CODE COMPLETE — not pushed, not deployed  
+**Status:** CODE COMPLETE — committed in `54074d9`, not pushed, not deployed  
 
 ```text
 Phase 2 Fact/Evidence     PASS
