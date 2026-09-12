@@ -323,11 +323,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-PROF-01',
         ruleCode: 'PROFIT_DROP',
-        ruleName: 'Net Profit Baseline Drop',
+        ruleName: '净利润基准下跌',
         domain: 'PROFIT',
         status: 'NOT_EVALUATED',
         dataAvailability: fin?.availability || 'UNAVAILABLE',
-        reason: 'Current or baseline net profit data is missing or marked UNAVAILABLE.',
+        reason: '当前或基准净利润数据缺失，或标记为 UNAVAILABLE。',
         evaluatedAt: executedAt,
       });
     } else {
@@ -339,11 +339,11 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-PROF-01',
           ruleCode: 'PROFIT_DROP',
-          ruleName: 'Net Profit Baseline Drop',
+          ruleName: '净利润基准下跌',
           domain: 'PROFIT',
           status: 'NOT_EVALUATED',
           dataAvailability: fin.availability || 'AVAILABLE',
-          reason: `Baseline net profit is non-positive ($${baseProfit.toFixed(2)}). Relative percentage drop is mathematically undefined; evaluated via R-PROF-02 margin rule.`,
+          reason: `基准净利润为非正值（$${baseProfit.toFixed(2)}），相对跌幅在数学上无定义；已由 R-PROF-02 净利率规则评估。`,
           metrics: { currentProfit: currProfit, baselineProfit: baseProfit },
           evaluatedAt: executedAt,
         });
@@ -357,8 +357,8 @@ export class OperationAnomalyDetector {
           const evidenceItem: OperationEvidenceItem = {
             evidenceId: `EV-${signalId}-01`,
             category: 'CALCULATED_METRIC',
-            title: 'Net Profit Variance Attribution',
-            content: `Net profit dropped from $${baseProfit.toFixed(2)} to $${currProfit.toFixed(2)} (delta: $${delta.toFixed(2)}, ${(changePct * 100).toFixed(1)}%), exceeding threshold of -${(thresholds.profitDropPctThreshold * 100).toFixed(1)}%.`,
+            title: '净利润差异归因',
+            content: `净利润从 $${baseProfit.toFixed(2)} 下跌至 $${currProfit.toFixed(2)}（变动：$${delta.toFixed(2)}，${(changePct * 100).toFixed(1)}%），超过 -${(thresholds.profitDropPctThreshold * 100).toFixed(1)}% 的下跌阈值。`,
             source: 'ProfitCalculationService',
             sourceId: 'calculateProfit',
             capturedAt: executedAt,
@@ -387,8 +387,8 @@ export class OperationAnomalyDetector {
             direction: 'DOWN',
             detectedBy: 'FORMULA',
             ruleId: 'R-PROF-01',
-            title: `Net Profit Dropped ${(dropPct * 100).toFixed(1)}%`,
-            description: `Net profit decreased by $${Math.abs(delta).toFixed(2)} (-${(dropPct * 100).toFixed(1)}%) compared to baseline period, exceeding the ${(thresholds.profitDropPctThreshold * 100).toFixed(1)}% drop threshold.`,
+            title: `净利润下跌 ${(dropPct * 100).toFixed(1)}%`,
+            description: `净利润较基准期减少 $${Math.abs(delta).toFixed(2)}（-${(dropPct * 100).toFixed(1)}%），超过 ${(thresholds.profitDropPctThreshold * 100).toFixed(1)}% 的下跌阈值。`,
             evidence: [evidenceItem],
             detectedAt: executedAt,
           });
@@ -396,12 +396,12 @@ export class OperationAnomalyDetector {
           evaluations.push({
             ruleId: 'R-PROF-01',
             ruleCode: 'PROFIT_DROP',
-            ruleName: 'Net Profit Baseline Drop',
+            ruleName: '净利润基准下跌',
             domain: 'PROFIT',
             status: 'TRIGGERED',
             dataAvailability: fin.availability || 'AVAILABLE',
             signalId,
-            reason: `Net profit dropped ${(dropPct * 100).toFixed(1)}% (threshold: ${(thresholds.profitDropPctThreshold * 100).toFixed(1)}%).`,
+            reason: `净利润下跌 ${(dropPct * 100).toFixed(1)}%（阈值：${(thresholds.profitDropPctThreshold * 100).toFixed(1)}%）。`,
             metrics: { currentProfit: currProfit, baselineProfit: baseProfit, dropPct },
             evaluatedAt: executedAt,
           });
@@ -409,11 +409,11 @@ export class OperationAnomalyDetector {
           evaluations.push({
             ruleId: 'R-PROF-01',
             ruleCode: 'PROFIT_DROP',
-            ruleName: 'Net Profit Baseline Drop',
+            ruleName: '净利润基准下跌',
             domain: 'PROFIT',
             status: 'NO_ANOMALY',
             dataAvailability: fin.availability || 'AVAILABLE',
-            reason: `Net profit change (${(changePct * 100).toFixed(1)}%) is within acceptable threshold (-${(thresholds.profitDropPctThreshold * 100).toFixed(1)}%).`,
+            reason: `净利润变动（${(changePct * 100).toFixed(1)}%）在可接受阈值（-${(thresholds.profitDropPctThreshold * 100).toFixed(1)}%）以内。`,
             metrics: { currentProfit: currProfit, baselineProfit: baseProfit, changePct },
             evaluatedAt: executedAt,
           });
@@ -426,11 +426,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-PROF-02',
         ruleCode: 'CRITICAL_MARGIN',
-        ruleName: 'Critical Net Margin Floor',
+        ruleName: '净利率临界安全线',
         domain: 'PROFIT',
         status: 'NOT_EVALUATED',
         dataAvailability: fin?.availability || 'UNAVAILABLE',
-        reason: 'Current financial data unavailable to evaluate net margin.',
+        reason: '当前财务数据不可用，无法评估净利率。',
         evaluatedAt: executedAt,
       });
     } else {
@@ -453,11 +453,11 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-PROF-02',
           ruleCode: 'CRITICAL_MARGIN',
-          ruleName: 'Critical Net Margin Floor',
+          ruleName: '净利率临界安全线',
           domain: 'PROFIT',
           status: 'NOT_EVALUATED',
           dataAvailability: fin.availability || 'PARTIAL',
-          reason: 'Revenue and profit are zero with no order activity. Margin rule not evaluated.',
+          reason: '收入和利润均为零，无订单活动；净利率规则未评估。',
           evaluatedAt: executedAt,
         });
       } else if (margin < thresholds.criticalMarginRateThreshold || margin < 0) {
@@ -465,8 +465,8 @@ export class OperationAnomalyDetector {
         const evidenceItem: OperationEvidenceItem = {
           evidenceId: `EV-${signalId}-01`,
           category: 'CALCULATED_METRIC',
-          title: 'Net Margin Ratio Calculation',
-          content: `Net margin is ${(margin * 100).toFixed(1)}% (Profit: $${currProfit.toFixed(2)}, Revenue: $${revenue.toFixed(2)}), falling below configured safety floor of ${(thresholds.criticalMarginRateThreshold * 100).toFixed(1)}%.`,
+          title: '净利率计算',
+          content: `净利率为 ${(margin * 100).toFixed(1)}%（利润：$${currProfit.toFixed(2)}，收入：$${revenue.toFixed(2)}），低于配置的 ${(thresholds.criticalMarginRateThreshold * 100).toFixed(1)}% 安全线。`,
           source: 'ProfitCalculationService',
           sourceId: 'roundMargin',
           capturedAt: executedAt,
@@ -492,8 +492,8 @@ export class OperationAnomalyDetector {
           direction: margin < 0 ? 'DOWN' : 'STABLE',
           detectedBy: 'RULE',
           ruleId: 'R-PROF-02',
-          title: `Net Margin at ${(margin * 100).toFixed(1)}% (Critical Floor Breach)`,
-          description: `Current net margin of ${(margin * 100).toFixed(1)}% is below the ${(thresholds.criticalMarginRateThreshold * 100).toFixed(1)}% safety floor (or negative), risking operating losses.`,
+          title: `净利率 ${(margin * 100).toFixed(1)}%（跌破临界安全线）`,
+          description: `当前净利率 ${(margin * 100).toFixed(1)}% 低于 ${(thresholds.criticalMarginRateThreshold * 100).toFixed(1)}% 的安全线（或为负值），存在经营亏损风险。`,
           evidence: [evidenceItem],
           detectedAt: executedAt,
         });
@@ -501,12 +501,12 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-PROF-02',
           ruleCode: 'CRITICAL_MARGIN',
-          ruleName: 'Critical Net Margin Floor',
+          ruleName: '净利率临界安全线',
           domain: 'PROFIT',
           status: 'TRIGGERED',
           dataAvailability: fin.availability || 'AVAILABLE',
           signalId,
-          reason: `Net margin ${(margin * 100).toFixed(1)}% is below configured safety floor ${(thresholds.criticalMarginRateThreshold * 100).toFixed(1)}%.`,
+          reason: `净利率 ${(margin * 100).toFixed(1)}% 低于配置的安全线 ${(thresholds.criticalMarginRateThreshold * 100).toFixed(1)}%。`,
           metrics: { margin, netProfit: currProfit, revenue },
           evaluatedAt: executedAt,
         });
@@ -514,11 +514,11 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-PROF-02',
           ruleCode: 'CRITICAL_MARGIN',
-          ruleName: 'Critical Net Margin Floor',
+          ruleName: '净利率临界安全线',
           domain: 'PROFIT',
           status: 'NO_ANOMALY',
           dataAvailability: fin.availability || 'AVAILABLE',
-          reason: `Net margin ${(margin * 100).toFixed(1)}% meets safety floor threshold (${(thresholds.criticalMarginRateThreshold * 100).toFixed(1)}%).`,
+          reason: `净利率 ${(margin * 100).toFixed(1)}% 满足安全线阈值（${(thresholds.criticalMarginRateThreshold * 100).toFixed(1)}%）。`,
           metrics: { margin, netProfit: currProfit, revenue },
           evaluatedAt: executedAt,
         });
@@ -544,11 +544,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-ADS-01',
         ruleCode: 'ACOS_SPIKE',
-        ruleName: 'ACOS Spike Above Target',
+        ruleName: 'ACOS 超标飙升',
         domain: 'ADVERTISING',
         status: 'NOT_EVALUATED',
         dataAvailability: ads?.availability || 'UNAVAILABLE',
-        reason: 'Current advertising performance data is unavailable.',
+        reason: '当前广告效果数据不可用。',
         evaluatedAt: executedAt,
       });
     } else {
@@ -560,22 +560,22 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-ADS-01',
           ruleCode: 'ACOS_SPIKE',
-          ruleName: 'ACOS Spike Above Target',
+          ruleName: 'ACOS 超标飙升',
           domain: 'ADVERTISING',
           status: 'NO_ANOMALY',
           dataAvailability: ads.availability || 'AVAILABLE',
-          reason: 'Zero advertising spend recorded.',
+          reason: '广告花费为零。',
           evaluatedAt: executedAt,
         });
       } else if (sales === 0 && spend < MIN_AD_SPEND_SAMPLE_USD) {
         evaluations.push({
           ruleId: 'R-ADS-01',
           ruleCode: 'ACOS_SPIKE',
-          ruleName: 'ACOS Spike Above Target',
+          ruleName: 'ACOS 超标飙升',
           domain: 'ADVERTISING',
           status: 'NOT_EVALUATED',
           dataAvailability: ads.availability || 'PARTIAL',
-          reason: `Spend ($${spend.toFixed(2)}) is below minimal statistical sample floor ($${MIN_AD_SPEND_SAMPLE_USD.toFixed(2)}).`,
+          reason: `广告花费（$${spend.toFixed(2)}）低于最小统计样本下限（$${MIN_AD_SPEND_SAMPLE_USD.toFixed(2)}）。`,
           evaluatedAt: executedAt,
         });
       } else {
@@ -591,8 +591,8 @@ export class OperationAnomalyDetector {
           const evidenceItem: OperationEvidenceItem = {
             evidenceId: `EV-${signalId}-01`,
             category: 'CALCULATED_METRIC',
-            title: 'ACOS Target Deviation Analysis',
-            content: `ACOS climbed to ${(acos * 100).toFixed(1)}% (Spend: $${spend.toFixed(2)}, Sales: $${sales.toFixed(2)}), exceeding absolute ceiling of ${(thresholds.maxAcosThreshold * 100).toFixed(1)}% and target ${(targetAcos * 100).toFixed(0)}% by more than ${(thresholds.acosTargetDeviationThreshold * 100).toFixed(0)}%.`,
+            title: 'ACOS 目标偏离分析',
+            content: `ACOS 升至 ${(acos * 100).toFixed(1)}%（花费：$${spend.toFixed(2)}，销售额：$${sales.toFixed(2)}），超过 ${(thresholds.maxAcosThreshold * 100).toFixed(1)}% 的绝对上限，且偏离 ${(targetAcos * 100).toFixed(0)}% 目标超过 ${(thresholds.acosTargetDeviationThreshold * 100).toFixed(0)}%。`,
             source: 'AdOptimizerService',
             sourceId: 'analyzeSearchTerm',
             capturedAt: executedAt,
@@ -615,8 +615,8 @@ export class OperationAnomalyDetector {
             direction: 'UP',
             detectedBy: 'RULE',
             ruleId: 'R-ADS-01',
-            title: `ACOS Spiked to ${(acos * 100).toFixed(1)}% (Target: ${(targetAcos * 100).toFixed(0)}%)`,
-            description: `ACOS reached ${(acos * 100).toFixed(1)}%, surpassing both absolute ceiling (${(thresholds.maxAcosThreshold * 100).toFixed(1)}%) and target threshold.`,
+            title: `ACOS 飙升至 ${(acos * 100).toFixed(1)}%（目标：${(targetAcos * 100).toFixed(0)}%）`,
+            description: `ACOS 达到 ${(acos * 100).toFixed(1)}%，同时超过绝对上限（${(thresholds.maxAcosThreshold * 100).toFixed(1)}%）与目标阈值。`,
             evidence: [evidenceItem],
             detectedAt: executedAt,
           });
@@ -624,12 +624,12 @@ export class OperationAnomalyDetector {
           evaluations.push({
             ruleId: 'R-ADS-01',
             ruleCode: 'ACOS_SPIKE',
-            ruleName: 'ACOS Spike Above Target',
+            ruleName: 'ACOS 超标飙升',
             domain: 'ADVERTISING',
             status: 'TRIGGERED',
             dataAvailability: ads.availability || 'AVAILABLE',
             signalId,
-            reason: `ACOS ${(acos * 100).toFixed(1)}% breached both ${(thresholds.maxAcosThreshold * 100).toFixed(1)}% ceiling and target allowance.`,
+            reason: `ACOS ${(acos * 100).toFixed(1)}% 同时突破 ${(thresholds.maxAcosThreshold * 100).toFixed(1)}% 上限与目标容差。`,
             metrics: { acos, spend, sales, targetAcos },
             evaluatedAt: executedAt,
           });
@@ -637,11 +637,11 @@ export class OperationAnomalyDetector {
           evaluations.push({
             ruleId: 'R-ADS-01',
             ruleCode: 'ACOS_SPIKE',
-            ruleName: 'ACOS Spike Above Target',
+            ruleName: 'ACOS 超标飙升',
             domain: 'ADVERTISING',
             status: 'NO_ANOMALY',
             dataAvailability: ads.availability || 'AVAILABLE',
-            reason: `ACOS ${(acos * 100).toFixed(1)}% is within acceptable bounds.`,
+            reason: `ACOS ${(acos * 100).toFixed(1)}% 在可接受范围内。`,
             metrics: { acos, spend, sales, targetAcos },
             evaluatedAt: executedAt,
           });
@@ -654,11 +654,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-ADS-02',
         ruleCode: 'AD_SPEND_INEFFICIENT',
-        ruleName: 'Inefficient Ad Spend Expansion',
+        ruleName: '广告花费低效扩张',
         domain: 'ADVERTISING',
         status: 'NOT_EVALUATED',
         dataAvailability: ads?.availability || 'UNAVAILABLE',
-        reason: 'Current or baseline advertising metrics are missing.',
+        reason: '当前或基准广告指标缺失。',
         evaluatedAt: executedAt,
       });
     } else {
@@ -671,11 +671,11 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-ADS-02',
           ruleCode: 'AD_SPEND_INEFFICIENT',
-          ruleName: 'Inefficient Ad Spend Expansion',
+          ruleName: '广告花费低效扩张',
           domain: 'ADVERTISING',
           status: 'NOT_EVALUATED',
           dataAvailability: ads.availability || 'AVAILABLE',
-          reason: 'Baseline ad spend is zero; cannot evaluate relative spend expansion rate.',
+          reason: '基准期广告花费为零，无法评估相对花费扩张速度。',
           evaluatedAt: executedAt,
         });
       } else {
@@ -687,8 +687,8 @@ export class OperationAnomalyDetector {
           const evidenceItem: OperationEvidenceItem = {
             evidenceId: `EV-${signalId}-01`,
             category: 'CALCULATED_METRIC',
-            title: 'Ad Spend vs Sales Growth Disconnect',
-            content: `Ad spend surged ${(spendGrowth * 100).toFixed(1)}% ($${baseSpend.toFixed(2)} -> $${currSpend.toFixed(2)}), but attributed revenue did not grow (${(salesGrowth * 100).toFixed(1)}%, $${baseSales.toFixed(2)} -> $${currSales.toFixed(2)}).`,
+            title: '广告花费与销售增长脱节',
+            content: `广告花费激增 ${(spendGrowth * 100).toFixed(1)}%（$${baseSpend.toFixed(2)} -> $${currSpend.toFixed(2)}），但归因收入未增长（${(salesGrowth * 100).toFixed(1)}%，$${baseSales.toFixed(2)} -> $${currSales.toFixed(2)}）。`,
             source: 'AdOptimizerService',
             capturedAt: executedAt,
             metadata: { currSpend, baseSpend, spendGrowth, currSales, baseSales, salesGrowth },
@@ -710,8 +710,8 @@ export class OperationAnomalyDetector {
             direction: 'UP',
             detectedBy: 'FORMULA',
             ruleId: 'R-ADS-02',
-            title: `Ad Spend Surge (+${(spendGrowth * 100).toFixed(1)}%) with Zero Sales Growth`,
-            description: `Ad budget expanded by ${(spendGrowth * 100).toFixed(1)}% ($${currSpend - baseSpend > 0 ? '+' : ''}$${(currSpend - baseSpend).toFixed(2)}) without generating incremental sales revenue (${(salesGrowth * 100).toFixed(1)}%).`,
+            title: `广告花费激增（+${(spendGrowth * 100).toFixed(1)}%）而销售零增长`,
+            description: `广告预算扩张 ${(spendGrowth * 100).toFixed(1)}%（$${currSpend - baseSpend > 0 ? '+' : ''}$${(currSpend - baseSpend).toFixed(2)}），未带来增量销售收入（${(salesGrowth * 100).toFixed(1)}%）。`,
             evidence: [evidenceItem],
             detectedAt: executedAt,
           });
@@ -719,12 +719,12 @@ export class OperationAnomalyDetector {
           evaluations.push({
             ruleId: 'R-ADS-02',
             ruleCode: 'AD_SPEND_INEFFICIENT',
-            ruleName: 'Inefficient Ad Spend Expansion',
+            ruleName: '广告花费低效扩张',
             domain: 'ADVERTISING',
             status: 'TRIGGERED',
             dataAvailability: ads.availability || 'AVAILABLE',
             signalId,
-            reason: `Spend growth ${(spendGrowth * 100).toFixed(1)}% exceeds ${(thresholds.adSpendGrowthMaxThreshold * 100).toFixed(1)}% with sales growth ${(salesGrowth * 100).toFixed(1)}% <= 0.`,
+            reason: `花费增长 ${(spendGrowth * 100).toFixed(1)}% 超过 ${(thresholds.adSpendGrowthMaxThreshold * 100).toFixed(1)}%，而销售增长 ${(salesGrowth * 100).toFixed(1)}% <= 0。`,
             metrics: { spendGrowth, salesGrowth, currSpend, baseSpend },
             evaluatedAt: executedAt,
           });
@@ -732,11 +732,11 @@ export class OperationAnomalyDetector {
           evaluations.push({
             ruleId: 'R-ADS-02',
             ruleCode: 'AD_SPEND_INEFFICIENT',
-            ruleName: 'Inefficient Ad Spend Expansion',
+            ruleName: '广告花费低效扩张',
             domain: 'ADVERTISING',
             status: 'NO_ANOMALY',
             dataAvailability: ads.availability || 'AVAILABLE',
-            reason: 'Ad spend growth is aligned with sales velocity or within threshold.',
+            reason: '广告花费增长与销售速度匹配，或在阈值以内。',
             metrics: { spendGrowth, salesGrowth },
             evaluatedAt: executedAt,
           });
@@ -749,11 +749,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-ADS-03',
         ruleCode: 'ZERO_CONVERSION_SPEND',
-        ruleName: 'Zero Conversion Wasted Spend',
+        ruleName: '零转化浪费花费',
         domain: 'ADVERTISING',
         status: 'NOT_EVALUATED',
         dataAvailability: ads?.availability || 'UNAVAILABLE',
-        reason: 'No search term or click conversion telemetry available.',
+        reason: '无搜索词或点击转化数据。',
         evaluatedAt: executedAt,
       });
     } else if (ads.searchTerms && ads.searchTerms.length > 0) {
@@ -771,8 +771,8 @@ export class OperationAnomalyDetector {
         const evidenceItem: OperationEvidenceItem = {
           evidenceId: `EV-${signalId}-01`,
           category: 'DATABASE',
-          title: `Search Term Waste: "${topTerm.searchTerm}"`,
-          content: `Search term "${topTerm.searchTerm}" consumed ${topTerm.clicks} clicks with $${topTerm.spend.toFixed(2)} spend and 0 orders in campaign ${topTerm.campaignId || 'DEFAULT'}.`,
+          title: `搜索词浪费："${topTerm.searchTerm}"`,
+          content: `搜索词 "${topTerm.searchTerm}" 在广告活动 ${topTerm.campaignId || 'DEFAULT'} 中消耗 ${topTerm.clicks} 次点击、花费 $${topTerm.spend.toFixed(2)}，订单为 0。`,
           source: 'AdOptimizerService',
           sourceId: topTerm.searchTerm,
           capturedAt: executedAt,
@@ -800,8 +800,8 @@ export class OperationAnomalyDetector {
           direction: 'UP',
           detectedBy: 'RULE',
           ruleId: 'R-ADS-03',
-          title: `Wasted Ad Spend: "${topTerm.searchTerm}" (${topTerm.clicks} Clicks, $${topTerm.spend.toFixed(2)}, 0 Orders)`,
-          description: `Search term "${topTerm.searchTerm}" consumed ${topTerm.clicks} clicks ($${topTerm.spend.toFixed(2)}) without generating a single order. Recommend Negative Exact isolation.`,
+          title: `广告花费浪费："${topTerm.searchTerm}"（${topTerm.clicks} 次点击，$${topTerm.spend.toFixed(2)}，0 订单）`,
+          description: `搜索词 "${topTerm.searchTerm}" 消耗 ${topTerm.clicks} 次点击（$${topTerm.spend.toFixed(2)}）未产生任何订单，建议通过 Negative Exact（精准否定）隔离。`,
           evidence: [evidenceItem],
           detectedAt: executedAt,
           metadata: {
@@ -814,12 +814,12 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-ADS-03',
           ruleCode: 'ZERO_CONVERSION_SPEND',
-          ruleName: 'Zero Conversion Wasted Spend',
+          ruleName: '零转化浪费花费',
           domain: 'ADVERTISING',
           status: 'TRIGGERED',
           dataAvailability: 'AVAILABLE',
           signalId,
-          reason: `Found ${wastefulTerms.length} search term(s) with >= ${thresholds.zeroConversionClicksThreshold} clicks and 0 orders. Top wasted: "${topTerm.searchTerm}" ($${topTerm.spend.toFixed(2)}).`,
+          reason: `发现 ${wastefulTerms.length} 个搜索词点击 >= ${thresholds.zeroConversionClicksThreshold} 且订单为 0；最大浪费："${topTerm.searchTerm}"（$${topTerm.spend.toFixed(2)}）。`,
           metrics: { topTerm: topTerm.searchTerm, clicks: topTerm.clicks, spend: topTerm.spend },
           evaluatedAt: executedAt,
         });
@@ -827,11 +827,11 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-ADS-03',
           ruleCode: 'ZERO_CONVERSION_SPEND',
-          ruleName: 'Zero Conversion Wasted Spend',
+          ruleName: '零转化浪费花费',
           domain: 'ADVERTISING',
           status: 'NO_ANOMALY',
           dataAvailability: 'AVAILABLE',
-          reason: `Evaluated ${ads.searchTerms.length} search term(s); none breached zero-conversion threshold (${thresholds.zeroConversionClicksThreshold} clicks).`,
+          reason: `已评估 ${ads.searchTerms.length} 个搜索词，均未突破零转化阈值（${thresholds.zeroConversionClicksThreshold} 次点击）。`,
           evaluatedAt: executedAt,
         });
       }
@@ -846,8 +846,8 @@ export class OperationAnomalyDetector {
         const evidenceItem: OperationEvidenceItem = {
           evidenceId: `EV-${signalId}-01`,
           category: 'DATABASE',
-          title: 'Aggregate Campaign Zero-Conversion',
-          content: `Campaign generated ${clicks} clicks and $${spend.toFixed(2)} spend with 0 orders.`,
+          title: '广告活动整体零转化',
+          content: `广告活动产生 ${clicks} 次点击、花费 $${spend.toFixed(2)}，订单为 0。`,
           source: 'AdOptimizerService',
           capturedAt: executedAt,
           metadata: { clicks, orders, spend },
@@ -867,8 +867,8 @@ export class OperationAnomalyDetector {
           direction: 'UP',
           detectedBy: 'RULE',
           ruleId: 'R-ADS-03',
-          title: `Zero Orders Across ${clicks} Clicks ($${spend.toFixed(2)} Spend)`,
-          description: `Total ad traffic produced ${clicks} clicks without a conversion.`,
+          title: `${clicks} 次点击零订单（花费 $${spend.toFixed(2)}）`,
+          description: `广告流量共产生 ${clicks} 次点击，未产生任何转化。`,
           evidence: [evidenceItem],
           detectedAt: executedAt,
         });
@@ -876,12 +876,12 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-ADS-03',
           ruleCode: 'ZERO_CONVERSION_SPEND',
-          ruleName: 'Zero Conversion Wasted Spend',
+          ruleName: '零转化浪费花费',
           domain: 'ADVERTISING',
           status: 'TRIGGERED',
           dataAvailability: 'PARTIAL',
           signalId,
-          reason: `Aggregate clicks ${clicks} >= ${thresholds.zeroConversionClicksThreshold} with 0 orders.`,
+          reason: `整体点击 ${clicks} >= ${thresholds.zeroConversionClicksThreshold} 且订单为 0。`,
           metrics: { clicks, orders, spend },
           evaluatedAt: executedAt,
         });
@@ -889,11 +889,11 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-ADS-03',
           ruleCode: 'ZERO_CONVERSION_SPEND',
-          ruleName: 'Zero Conversion Wasted Spend',
+          ruleName: '零转化浪费花费',
           domain: 'ADVERTISING',
           status: 'NO_ANOMALY',
           dataAvailability: ads.availability || 'AVAILABLE',
-          reason: 'No zero-conversion spend pattern detected.',
+          reason: '未检测到零转化花费模式。',
           metrics: { clicks, orders },
           evaluatedAt: executedAt,
         });
@@ -916,9 +916,9 @@ export class OperationAnomalyDetector {
 
     if (inv?.availability === 'UNAVAILABLE' || !inv?.current) {
       const notEvalReasons = [
-        { id: 'R-INV-01', code: 'STOCKOUT_IMMINENT', name: 'Imminent Stockout Risk' },
-        { id: 'R-INV-02', code: 'OUT_OF_STOCK', name: 'Fulfillable Stockout (0 Units)' },
-        { id: 'R-INV-03', code: 'EXCESS_INVENTORY', name: 'Excess Inventory Coverage' },
+        { id: 'R-INV-01', code: 'STOCKOUT_IMMINENT', name: '断货迫近风险' },
+        { id: 'R-INV-02', code: 'OUT_OF_STOCK', name: '可售库存断货（0 件）' },
+        { id: 'R-INV-03', code: 'EXCESS_INVENTORY', name: '库存覆盖过剩' },
       ];
       for (const r of notEvalReasons) {
         evaluations.push({
@@ -928,7 +928,7 @@ export class OperationAnomalyDetector {
           domain: 'INVENTORY',
           status: 'NOT_EVALUATED',
           dataAvailability: inv?.availability || 'UNAVAILABLE',
-          reason: 'Inventory stock telemetry is unavailable.',
+          reason: '库存数据不可用。',
           evaluatedAt: executedAt,
         });
       }
@@ -959,8 +959,8 @@ export class OperationAnomalyDetector {
       const evidenceItem: OperationEvidenceItem = {
         evidenceId: `EV-${signalId}-01`,
         category: 'DATABASE',
-        title: 'Fulfillable Inventory Stockout',
-        content: `Available fulfillable inventory has dropped to 0 units. Inbound pipeline: ${inbound} units. Estimated lost daily revenue: $${roundMoney(velocity * 29.99).toFixed(2)}.`,
+        title: '可售库存断货',
+        content: `可售库存已降至 0 件。在途库存：${inbound} 件。预计每日损失收入：$${roundMoney(velocity * 29.99).toFixed(2)}。`,
         source: 'inventory_snapshot',
         capturedAt: executedAt,
         metadata: { fulfillable, inbound, velocity, leadTime },
@@ -980,8 +980,8 @@ export class OperationAnomalyDetector {
         direction: 'DOWN',
         detectedBy: 'RULE',
         ruleId: 'R-INV-02',
-        title: 'Out of Stock (0 Fulfillable Units)',
-        description: 'Fulfillable inventory is completely depleted (0 units). Sales velocity halted, damaging organic ranking.',
+        title: '已断货（可售库存 0 件）',
+        description: '可售库存已完全耗尽（0 件），销售停滞，自然搜索排名受损。',
         evidence: [evidenceItem],
         detectedAt: executedAt,
       });
@@ -989,12 +989,12 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-INV-02',
         ruleCode: 'OUT_OF_STOCK',
-        ruleName: 'Fulfillable Stockout (0 Units)',
+        ruleName: '可售库存断货（0 件）',
         domain: 'INVENTORY',
         status: 'TRIGGERED',
         dataAvailability: 'AVAILABLE',
         signalId,
-        reason: 'Fulfillable inventory is 0 units.',
+        reason: '可售库存为 0 件。',
         metrics: { fulfillable, inbound, velocity },
         evaluatedAt: executedAt,
       });
@@ -1002,11 +1002,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-INV-02',
         ruleCode: 'OUT_OF_STOCK',
-        ruleName: 'Fulfillable Stockout (0 Units)',
+        ruleName: '可售库存断货（0 件）',
         domain: 'INVENTORY',
         status: 'NO_ANOMALY',
         dataAvailability: 'AVAILABLE',
-        reason: `Fulfillable inventory (${fulfillable} units) > 0.`,
+        reason: `可售库存（${fulfillable} 件）> 0。`,
         metrics: { fulfillable },
         evaluatedAt: executedAt,
       });
@@ -1018,11 +1018,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-INV-01',
         ruleCode: 'STOCKOUT_IMMINENT',
-        ruleName: 'Imminent Stockout Risk',
+        ruleName: '断货迫近风险',
         domain: 'INVENTORY',
         status: 'NO_ANOMALY',
         dataAvailability: 'AVAILABLE',
-        reason: 'SKU is already completely out of stock; covered by R-INV-02.',
+        reason: 'SKU 已完全断货；由 R-INV-02 覆盖。',
         metrics: { daysCover, fulfillable },
         evaluatedAt: executedAt,
       });
@@ -1030,11 +1030,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-INV-01',
         ruleCode: 'STOCKOUT_IMMINENT',
-        ruleName: 'Imminent Stockout Risk',
+        ruleName: '断货迫近风险',
         domain: 'INVENTORY',
         status: 'NO_ANOMALY',
         dataAvailability: 'AVAILABLE',
-        reason: 'Zero sales velocity; days cover is effectively infinite.',
+        reason: '销售速度为零；库存覆盖天数实际为无限。',
         metrics: { daysCover, velocity },
         evaluatedAt: executedAt,
       });
@@ -1047,8 +1047,8 @@ export class OperationAnomalyDetector {
         const evidenceItem: OperationEvidenceItem = {
           evidenceId: `EV-${signalId}-01`,
           category: 'CALCULATED_METRIC',
-          title: 'Replenishment Runout Planning',
-          content: `Current stock of ${fulfillable} units at ${velocity.toFixed(1)} units/day provides only ${daysCover.toFixed(1)} days cover. This is below the replenishment threshold of ${criticalLimit} days (Lead time: ${leadTime}d, Configured Floor: ${thresholds.criticalDaysCoverFloor}d). Recommended PO: ${plan.recommendedQuantity} units.`,
+          title: '补货耗尽测算',
+          content: `当前库存 ${fulfillable} 件，按 ${velocity.toFixed(1)} 件/天销售仅可支撑 ${daysCover.toFixed(1)} 天，低于 ${criticalLimit} 天的补货阈值（交期：${leadTime} 天，配置下限：${thresholds.criticalDaysCoverFloor} 天）。建议采购单：${plan.recommendedQuantity} 件。`,
           source: 'InventoryPlanningService',
           sourceId: 'calculatePlanning',
           capturedAt: executedAt,
@@ -1077,8 +1077,8 @@ export class OperationAnomalyDetector {
           direction: 'DOWN',
           detectedBy: 'FORMULA',
           ruleId: 'R-INV-01',
-          title: `Imminent Stockout Risk (${daysCover.toFixed(1)} Days Cover <= ${criticalLimit}d Lead Time)`,
-          description: `Inventory coverage of ${daysCover.toFixed(1)} days cannot cover supplier replenishment lead time (${leadTime} days). Emergency reorder required.`,
+          title: `断货迫近风险（可售 ${daysCover.toFixed(1)} 天 <= ${criticalLimit} 天交期）`,
+          description: `库存覆盖 ${daysCover.toFixed(1)} 天，无法覆盖供应商补货交期（${leadTime} 天），需要紧急补货。`,
           evidence: [evidenceItem],
           detectedAt: executedAt,
           metadata: { recommendedQuantity: plan.recommendedQuantity },
@@ -1087,12 +1087,12 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-INV-01',
           ruleCode: 'STOCKOUT_IMMINENT',
-          ruleName: 'Imminent Stockout Risk',
+          ruleName: '断货迫近风险',
           domain: 'INVENTORY',
           status: 'TRIGGERED',
           dataAvailability: 'AVAILABLE',
           signalId,
-          reason: `Days cover ${daysCover.toFixed(1)} <= ${criticalLimit} days replenishment buffer.`,
+          reason: `可售天数 ${daysCover.toFixed(1)} <= 补货缓冲 ${criticalLimit} 天。`,
           metrics: { daysCover, criticalLimit, fulfillable, velocity },
           evaluatedAt: executedAt,
         });
@@ -1100,11 +1100,11 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-INV-01',
           ruleCode: 'STOCKOUT_IMMINENT',
-          ruleName: 'Imminent Stockout Risk',
+          ruleName: '断货迫近风险',
           domain: 'INVENTORY',
           status: 'NO_ANOMALY',
           dataAvailability: 'AVAILABLE',
-          reason: `Days cover ${daysCover.toFixed(1)} safely exceeds lead time buffer (${criticalLimit} days).`,
+          reason: `可售天数 ${daysCover.toFixed(1)} 安全高于交期缓冲（${criticalLimit} 天）。`,
           metrics: { daysCover, criticalLimit },
           evaluatedAt: executedAt,
         });
@@ -1117,8 +1117,8 @@ export class OperationAnomalyDetector {
       const evidenceItem: OperationEvidenceItem = {
         evidenceId: `EV-${signalId}-01`,
         category: 'CALCULATED_METRIC',
-        title: 'Excess Inventory Analysis',
-        content: `Current stock of ${fulfillable} units represents ${daysCover.toFixed(0)} days cover, exceeding the ${thresholds.excessDaysCoverThreshold} days excess holding limit. Risk of FBA aged inventory surcharge.`,
+        title: '库存过剩分析',
+        content: `当前库存 ${fulfillable} 件相当于 ${daysCover.toFixed(0)} 天覆盖，超过 ${thresholds.excessDaysCoverThreshold} 天的超量持有上限，存在 FBA 长期仓储附加费风险。`,
         source: 'InventoryPlanningService',
         sourceId: 'calculatePlanning',
         capturedAt: executedAt,
@@ -1139,8 +1139,8 @@ export class OperationAnomalyDetector {
         direction: 'UP',
         detectedBy: 'RULE',
         ruleId: 'R-INV-03',
-        title: `Excess Inventory (${daysCover.toFixed(0)} Days Cover > ${thresholds.excessDaysCoverThreshold}d Limit)`,
-        description: `Inventory coverage of ${daysCover.toFixed(0)} days exceeds the ${thresholds.excessDaysCoverThreshold}-day holding target. Consider promotion or price discount to accelerate sell-through.`,
+        title: `库存过剩（${daysCover.toFixed(0)} 天覆盖 > ${thresholds.excessDaysCoverThreshold} 天上限）`,
+        description: `库存覆盖 ${daysCover.toFixed(0)} 天，超过 ${thresholds.excessDaysCoverThreshold} 天的持有目标，建议通过促销或降价加速动销。`,
         evidence: [evidenceItem],
         detectedAt: executedAt,
       });
@@ -1148,12 +1148,12 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-INV-03',
         ruleCode: 'EXCESS_INVENTORY',
-        ruleName: 'Excess Inventory Coverage',
+        ruleName: '库存覆盖过剩',
         domain: 'INVENTORY',
         status: 'TRIGGERED',
         dataAvailability: 'AVAILABLE',
         signalId,
-        reason: `Days cover ${daysCover.toFixed(0)} > ${thresholds.excessDaysCoverThreshold} days.`,
+        reason: `可售天数 ${daysCover.toFixed(0)} > ${thresholds.excessDaysCoverThreshold} 天。`,
         metrics: { daysCover, fulfillable },
         evaluatedAt: executedAt,
       });
@@ -1161,11 +1161,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-INV-03',
         ruleCode: 'EXCESS_INVENTORY',
-        ruleName: 'Excess Inventory Coverage',
+        ruleName: '库存覆盖过剩',
         domain: 'INVENTORY',
         status: 'NO_ANOMALY',
         dataAvailability: 'AVAILABLE',
-        reason: `Days cover ${daysCover.toFixed(0)} is within healthy threshold (<= ${thresholds.excessDaysCoverThreshold} days).`,
+        reason: `可售天数 ${daysCover.toFixed(0)} 处于健康阈值内（<= ${thresholds.excessDaysCoverThreshold} 天）。`,
         metrics: { daysCover },
         evaluatedAt: executedAt,
       });
@@ -1189,11 +1189,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-RET-01',
         ruleCode: 'RETURN_RATE_SPIKE',
-        ruleName: 'Return Rate Spike & Acceleration',
+        ruleName: '退货率飙升与加速',
         domain: 'RETURNS',
         status: 'NOT_EVALUATED',
         dataAvailability: ret?.availability || 'UNAVAILABLE',
-        reason: 'Current or baseline return tracking data unavailable.',
+        reason: '当前或基准退货追踪数据不可用。',
         evaluatedAt: executedAt,
       });
       return;
@@ -1209,11 +1209,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-RET-01',
         ruleCode: 'RETURN_RATE_SPIKE',
-        ruleName: 'Return Rate Spike & Acceleration',
+        ruleName: '退货率飙升与加速',
         domain: 'RETURNS',
         status: 'NOT_EVALUATED',
         dataAvailability: ret.availability || 'PARTIAL',
-        reason: `Delivered volume (${curDelivered} units) is below minimum statistical sample size (${MIN_RETURN_DELIVERED_UNITS} units) to prevent low-denominator false alarms.`,
+        reason: `送达量（${curDelivered} 件）低于最小统计样本量（${MIN_RETURN_DELIVERED_UNITS} 件），以避免低基数误报。`,
         metrics: { curDelivered, curReturns },
         evaluatedAt: executedAt,
       });
@@ -1245,8 +1245,8 @@ export class OperationAnomalyDetector {
       const evidenceItem: OperationEvidenceItem = {
         evidenceId: `EV-${signalId}-01`,
         category: 'CALCULATED_METRIC',
-        title: 'Return Rate Spike Verification',
-        content: `Return rate surged from ${(baseRate * 100).toFixed(1)}% to ${(currRate * 100).toFixed(1)}% (+${(relativeGrowth * 100).toFixed(1)}%), exceeding both absolute floor ${(thresholds.returnRateSpikeThreshold * 100).toFixed(1)}% and relative surge threshold ${(thresholds.returnRateGrowthThreshold * 100).toFixed(1)}% (Current: ${curReturns}/${curDelivered}, Baseline: ${baseReturns}/${baseDelivered}).`,
+        title: '退货率飙升核验',
+        content: `退货率从 ${(baseRate * 100).toFixed(1)}% 飙升至 ${(currRate * 100).toFixed(1)}%（+${(relativeGrowth * 100).toFixed(1)}%），同时超过 ${(thresholds.returnRateSpikeThreshold * 100).toFixed(1)}% 的绝对下限与 ${(thresholds.returnRateGrowthThreshold * 100).toFixed(1)}% 的相对飙升阈值（当前：${curReturns}/${curDelivered}，基准：${baseReturns}/${baseDelivered}）。`,
         source: 'returns_summary',
         capturedAt: executedAt,
         metadata: {
@@ -1276,8 +1276,8 @@ export class OperationAnomalyDetector {
         direction: 'UP',
         detectedBy: 'FORMULA',
         ruleId: 'R-RET-01',
-        title: `Return Rate Spiked to ${(currRate * 100).toFixed(1)}% (+${(relativeGrowth * 100).toFixed(0)}% vs Baseline)`,
-        description: `Customer returns accelerated to ${(currRate * 100).toFixed(1)}% (${curReturns} returns on ${curDelivered} delivered units), surging ${(relativeGrowth * 100).toFixed(0)}% over baseline. Review reasons for batch or sizing defects.`,
+        title: `退货率飙升至 ${(currRate * 100).toFixed(1)}%（较基准 +${(relativeGrowth * 100).toFixed(0)}%）`,
+        description: `买家退货加速至 ${(currRate * 100).toFixed(1)}%（${curDelivered} 件送达中 ${curReturns} 件退货），较基准飙升 ${(relativeGrowth * 100).toFixed(0)}%，请排查批次或尺码缺陷原因。`,
         evidence: [evidenceItem],
         detectedAt: executedAt,
       });
@@ -1285,12 +1285,12 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-RET-01',
         ruleCode: 'RETURN_RATE_SPIKE',
-        ruleName: 'Return Rate Spike & Acceleration',
+        ruleName: '退货率飙升与加速',
         domain: 'RETURNS',
         status: 'TRIGGERED',
         dataAvailability: 'AVAILABLE',
         signalId,
-        reason: `Return rate ${(currRate * 100).toFixed(1)}% >= ${(thresholds.returnRateSpikeThreshold * 100).toFixed(1)}% floor AND grew ${(relativeGrowth * 100).toFixed(0)}% >= ${(thresholds.returnRateGrowthThreshold * 100).toFixed(0)}% growth threshold.`,
+        reason: `退货率 ${(currRate * 100).toFixed(1)}% >= ${(thresholds.returnRateSpikeThreshold * 100).toFixed(1)}% 下限，且增长 ${(relativeGrowth * 100).toFixed(0)}% >= ${(thresholds.returnRateGrowthThreshold * 100).toFixed(0)}% 增长阈值。`,
         metrics: { currRate, baseRate, relativeGrowth },
         evaluatedAt: executedAt,
       });
@@ -1298,11 +1298,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-RET-01',
         ruleCode: 'RETURN_RATE_SPIKE',
-        ruleName: 'Return Rate Spike & Acceleration',
+        ruleName: '退货率飙升与加速',
         domain: 'RETURNS',
         status: 'NO_ANOMALY',
         dataAvailability: 'AVAILABLE',
-        reason: `Return rate ${(currRate * 100).toFixed(1)}% is normal or within relative change tolerance.`,
+        reason: `退货率 ${(currRate * 100).toFixed(1)}% 正常，或在相对变化容差以内。`,
         metrics: { currRate, baseRate, relativeGrowth },
         evaluatedAt: executedAt,
       });
@@ -1326,11 +1326,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-REV-01',
         ruleCode: 'RATING_DETERIORATION',
-        ruleName: 'Rating Deterioration & Negative Review Surge',
+        ruleName: '评分恶化与差评激增',
         domain: 'REVIEWS',
         status: 'NOT_EVALUATED',
         dataAvailability: rev?.availability || 'UNAVAILABLE',
-        reason: 'Customer review and rating data unavailable.',
+        reason: '买家评论与评分数据不可用。',
         evaluatedAt: executedAt,
       });
       return;
@@ -1349,11 +1349,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-REV-01',
         ruleCode: 'RATING_DETERIORATION',
-        ruleName: 'Rating Deterioration & Negative Review Surge',
+        ruleName: '评分恶化与差评激增',
         domain: 'REVIEWS',
         status: 'NOT_EVALUATED',
         dataAvailability: rev.availability || 'PARTIAL',
-        reason: `Review sample size insufficient for reliable evaluation (minimum ${MIN_REVIEW_SAMPLE_COUNT} reviews required).`,
+        reason: `评论样本量不足以可靠评估（至少需要 ${MIN_REVIEW_SAMPLE_COUNT} 条评论）。`,
         metrics: { totalReviews, recentTotal },
         evaluatedAt: executedAt,
       });
@@ -1382,10 +1382,10 @@ export class OperationAnomalyDetector {
       const evidenceItem: OperationEvidenceItem = {
         evidenceId: `EV-${signalId}-01`,
         category: 'DATABASE',
-        title: 'Review Health Telemetry Analysis',
+        title: '评论健康度分析',
         content: isRatingBreached
-          ? `Overall rating dropped to ${overallRating?.toFixed(2)} stars (${totalReviews} reviews), falling below safety floor of ${thresholds.ratingDeteriorationFloor.toFixed(1)} stars.`
-          : `Recent 7-day negative review ratio reached ${(recentRatio * 100).toFixed(1)}% (${recentNegative}/${recentTotal} negative reviews), exceeding threshold of ${(thresholds.recentNegativeReviewRatioThreshold * 100).toFixed(0)}%.`,
+          ? `整体评分降至 ${overallRating?.toFixed(2)} 星（共 ${totalReviews} 条评论），低于 ${thresholds.ratingDeteriorationFloor.toFixed(1)} 星的安全线。`
+          : `近 7 天差评占比达 ${(recentRatio * 100).toFixed(1)}%（${recentNegative}/${recentTotal} 条差评），超过 ${(thresholds.recentNegativeReviewRatioThreshold * 100).toFixed(0)}% 的阈值。`,
         source: 'reviews_summary',
         capturedAt: executedAt,
         metadata: {
@@ -1414,11 +1414,11 @@ export class OperationAnomalyDetector {
         detectedBy: 'RULE',
         ruleId: 'R-REV-01',
         title: isRatingBreached
-          ? `Product Rating Deterioration: ${overallRating?.toFixed(2)}★ (< ${thresholds.ratingDeteriorationFloor.toFixed(1)}★)`
-          : `Recent Negative Review Surge: ${(recentRatio * 100).toFixed(1)}% 1-2★ Reviews`,
+          ? `产品评分恶化：${overallRating?.toFixed(2)}★（< ${thresholds.ratingDeteriorationFloor.toFixed(1)}★）`
+          : `近期差评激增：${(recentRatio * 100).toFixed(1)}% 为 1-2★ 评论`,
         description: isRatingBreached
-          ? `Overall average rating of ${overallRating?.toFixed(2)}★ has fallen below the ${thresholds.ratingDeteriorationFloor.toFixed(1)}★ threshold, hurting conversion and buy box eligibility.`
-          : `${(recentRatio * 100).toFixed(1)}% of reviews in the current period are negative (1-2★), exceeding the ${(thresholds.recentNegativeReviewRatioThreshold * 100).toFixed(0)}% threshold.`,
+          ? `平均评分 ${overallRating?.toFixed(2)}★ 已跌破 ${thresholds.ratingDeteriorationFloor.toFixed(1)}★ 阈值，影响转化率与购物车（Buy Box）资格。`
+          : `本期 ${(recentRatio * 100).toFixed(1)}% 的评论为差评（1-2★），超过 ${(thresholds.recentNegativeReviewRatioThreshold * 100).toFixed(0)}% 的阈值。`,
         evidence: [evidenceItem],
         detectedAt: executedAt,
       });
@@ -1426,14 +1426,14 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-REV-01',
         ruleCode: 'RATING_DETERIORATION',
-        ruleName: 'Rating Deterioration & Negative Review Surge',
+        ruleName: '评分恶化与差评激增',
         domain: 'REVIEWS',
         status: 'TRIGGERED',
         dataAvailability: 'AVAILABLE',
         signalId,
         reason: isRatingBreached
-          ? `Rating ${overallRating} < ${thresholds.ratingDeteriorationFloor}★.`
-          : `Recent negative review ratio ${(recentRatio * 100).toFixed(1)}% > ${(thresholds.recentNegativeReviewRatioThreshold * 100).toFixed(0)}%.`,
+          ? `评分 ${overallRating} < ${thresholds.ratingDeteriorationFloor}★。`
+          : `近期差评占比 ${(recentRatio * 100).toFixed(1)}% > ${(thresholds.recentNegativeReviewRatioThreshold * 100).toFixed(0)}%。`,
         metrics: { overallRating, recentRatio, totalReviews, recentTotal },
         evaluatedAt: executedAt,
       });
@@ -1441,11 +1441,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-REV-01',
         ruleCode: 'RATING_DETERIORATION',
-        ruleName: 'Rating Deterioration & Negative Review Surge',
+        ruleName: '评分恶化与差评激增',
         domain: 'REVIEWS',
         status: 'NO_ANOMALY',
         dataAvailability: 'AVAILABLE',
-        reason: 'Customer rating and review sentiment are healthy.',
+        reason: '买家评分与评论情绪健康。',
         metrics: { overallRating, recentRatio },
         evaluatedAt: executedAt,
       });
@@ -1470,21 +1470,21 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-COMP-01',
         ruleCode: 'COMPETITOR_PRICE_DROP',
-        ruleName: 'Competitor Aggressive Price Undercut',
+        ruleName: '竞品激进降价压制',
         domain: 'COMPETITOR',
         status: 'NOT_EVALUATED',
         dataAvailability: comp?.availability || 'UNAVAILABLE',
-        reason: 'Competitor pricing telemetry is unavailable.',
+        reason: '竞品价格数据不可用。',
         evaluatedAt: executedAt,
       });
       evaluations.push({
         ruleId: 'R-COMP-02',
         ruleCode: 'COMPETITOR_ADVANTAGE',
-        ruleName: 'Competitor Rating / Spec Advantage',
+        ruleName: '竞品评分/规格优势',
         domain: 'COMPETITOR',
         status: 'NOT_EVALUATED',
         dataAvailability: comp?.availability || 'UNAVAILABLE',
-        reason: 'Competitor rating telemetry is unavailable.',
+        reason: '竞品评分数据不可用。',
         evaluatedAt: executedAt,
       });
       return;
@@ -1512,8 +1512,8 @@ export class OperationAnomalyDetector {
       const evidenceItem: OperationEvidenceItem = {
         evidenceId: `EV-${signalId}-01`,
         category: 'EXTERNAL_DATA',
-        title: `Competitor Undercut: ${topComp.name || topComp.asin || topComp.competitorId}`,
-        content: `Competitor ${topComp.name || topComp.competitorId} (${topComp.asin || 'N/A'}) reduced price from $${topComp.baselinePrice!.toFixed(2)} to $${topComp.currentPrice.toFixed(2)} (-${(dropPct * 100).toFixed(1)}%), exceeding the ${(thresholds.competitorPriceDropPctThreshold * 100).toFixed(0)}% price drop threshold.`,
+        title: `竞品降价压制：${topComp.name || topComp.asin || topComp.competitorId}`,
+        content: `竞品 ${topComp.name || topComp.competitorId}（${topComp.asin || 'N/A'}）将价格从 $${topComp.baselinePrice!.toFixed(2)} 降至 $${topComp.currentPrice.toFixed(2)}（-${(dropPct * 100).toFixed(1)}%），超过 ${(thresholds.competitorPriceDropPctThreshold * 100).toFixed(0)}% 的降价阈值。`,
         source: 'competitor_crawler',
         sourceId: topComp.competitorId,
         capturedAt: executedAt,
@@ -1543,8 +1543,8 @@ export class OperationAnomalyDetector {
         direction: 'DOWN',
         detectedBy: 'RULE',
         ruleId: 'R-COMP-01',
-        title: `Competitor Price Drop: ${topComp.name || topComp.competitorId} (-${(dropPct * 100).toFixed(1)}%)`,
-        description: `Key competitor lowered price by ${(dropPct * 100).toFixed(1)}% to $${topComp.currentPrice.toFixed(2)}. Assess price elasticity and coupon match strategy.`,
+        title: `竞品降价：${topComp.name || topComp.competitorId}（-${(dropPct * 100).toFixed(1)}%）`,
+        description: `主要竞品降价 ${(dropPct * 100).toFixed(1)}% 至 $${topComp.currentPrice.toFixed(2)}，建议评估价格弹性与优惠券跟进策略。`,
         evidence: [evidenceItem],
         detectedAt: executedAt,
       });
@@ -1552,12 +1552,12 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-COMP-01',
         ruleCode: 'COMPETITOR_PRICE_DROP',
-        ruleName: 'Competitor Aggressive Price Undercut',
+        ruleName: '竞品激进降价压制',
         domain: 'COMPETITOR',
         status: 'TRIGGERED',
         dataAvailability: 'AVAILABLE',
         signalId,
-        reason: `Competitor ${topComp.competitorId} dropped price by ${(dropPct * 100).toFixed(1)}% >= ${(thresholds.competitorPriceDropPctThreshold * 100).toFixed(0)}%.`,
+        reason: `竞品 ${topComp.competitorId} 降价 ${(dropPct * 100).toFixed(1)}% >= ${(thresholds.competitorPriceDropPctThreshold * 100).toFixed(0)}%。`,
         metrics: { competitorId: topComp.competitorId, currentPrice: topComp.currentPrice, baselinePrice: topComp.baselinePrice, dropPct },
         evaluatedAt: executedAt,
       });
@@ -1567,22 +1567,22 @@ export class OperationAnomalyDetector {
         evaluations.push({
           ruleId: 'R-COMP-01',
           ruleCode: 'COMPETITOR_PRICE_DROP',
-          ruleName: 'Competitor Aggressive Price Undercut',
+          ruleName: '竞品激进降价压制',
           domain: 'COMPETITOR',
           status: 'NOT_EVALUATED',
           dataAvailability: 'PARTIAL',
-          reason: 'Competitors are tracked but no historical baseline prices are recorded.',
+          reason: '已在追踪竞品，但无历史基准价格记录。',
           evaluatedAt: executedAt,
         });
       } else {
         evaluations.push({
           ruleId: 'R-COMP-01',
           ruleCode: 'COMPETITOR_PRICE_DROP',
-          ruleName: 'Competitor Aggressive Price Undercut',
+          ruleName: '竞品激进降价压制',
           domain: 'COMPETITOR',
           status: 'NO_ANOMALY',
           dataAvailability: 'AVAILABLE',
-          reason: 'No key competitor price drop exceeded threshold.',
+          reason: '无主要竞品降价超过阈值。',
           evaluatedAt: executedAt,
         });
       }
@@ -1594,11 +1594,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-COMP-02',
         ruleCode: 'COMPETITOR_ADVANTAGE',
-        ruleName: 'Competitor Rating / Spec Advantage',
+        ruleName: '竞品评分/规格优势',
         domain: 'COMPETITOR',
         status: 'NOT_EVALUATED',
         dataAvailability: 'PARTIAL',
-        reason: 'Our product rating is unavailable; cannot compute relative competitor advantage delta.',
+        reason: '我方产品评分不可用，无法计算竞品相对优势差值。',
         evaluatedAt: executedAt,
       });
       return;
@@ -1617,8 +1617,8 @@ export class OperationAnomalyDetector {
       const evidenceItem: OperationEvidenceItem = {
         evidenceId: `EV-${signalId}-01`,
         category: 'EXTERNAL_DATA',
-        title: `Competitor Rating Advantage: ${topAdv.name || topAdv.asin || topAdv.competitorId}`,
-        content: `Competitor ${topAdv.name || topAdv.competitorId} holds a ${topAdv.rating!.toFixed(2)}★ rating, outperforming our product (${ourRating.toFixed(2)}★) by +${delta.toFixed(2)} stars (threshold: +${thresholds.competitorRatingAdvantageDelta.toFixed(2)}★).`,
+        title: `竞品评分优势：${topAdv.name || topAdv.asin || topAdv.competitorId}`,
+        content: `竞品 ${topAdv.name || topAdv.competitorId} 评分 ${topAdv.rating!.toFixed(2)}★，高于我方产品（${ourRating.toFixed(2)}★）+${delta.toFixed(2)} 星（阈值：+${thresholds.competitorRatingAdvantageDelta.toFixed(2)}★）。`,
         source: 'competitor_crawler',
         sourceId: topAdv.competitorId,
         capturedAt: executedAt,
@@ -1647,8 +1647,8 @@ export class OperationAnomalyDetector {
         direction: 'UP',
         detectedBy: 'RULE',
         ruleId: 'R-COMP-02',
-        title: `Competitor Rating Advantage: ${topAdv.name || topAdv.competitorId} (+${delta.toFixed(2)}★)`,
-        description: `Competitor holds higher star rating (${topAdv.rating!.toFixed(2)}★ vs our ${ourRating.toFixed(2)}★). Analyze competitor customer feedback for feature and quality insights.`,
+        title: `竞品评分优势：${topAdv.name || topAdv.competitorId}（+${delta.toFixed(2)}★）`,
+        description: `竞品评分更高（${topAdv.rating!.toFixed(2)}★，我方 ${ourRating.toFixed(2)}★），建议分析竞品的买家评论，获取功能与质量洞察。`,
         evidence: [evidenceItem],
         detectedAt: executedAt,
       });
@@ -1656,12 +1656,12 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-COMP-02',
         ruleCode: 'COMPETITOR_ADVANTAGE',
-        ruleName: 'Competitor Rating / Spec Advantage',
+        ruleName: '竞品评分/规格优势',
         domain: 'COMPETITOR',
         status: 'TRIGGERED',
         dataAvailability: 'AVAILABLE',
         signalId,
-        reason: `Competitor rating (${topAdv.rating}★) exceeds our rating (${ourRating}★) by >= ${thresholds.competitorRatingAdvantageDelta}★.`,
+        reason: `竞品评分（${topAdv.rating}★）高于我方评分（${ourRating}★）>= ${thresholds.competitorRatingAdvantageDelta}★。`,
         metrics: { competitorId: topAdv.competitorId, competitorRating: topAdv.rating, ourRating, delta },
         evaluatedAt: executedAt,
       });
@@ -1669,11 +1669,11 @@ export class OperationAnomalyDetector {
       evaluations.push({
         ruleId: 'R-COMP-02',
         ruleCode: 'COMPETITOR_ADVANTAGE',
-        ruleName: 'Competitor Rating / Spec Advantage',
+        ruleName: '竞品评分/规格优势',
         domain: 'COMPETITOR',
         status: 'NO_ANOMALY',
         dataAvailability: 'AVAILABLE',
-        reason: `No tracked competitor rating exceeds our product rating by ${thresholds.competitorRatingAdvantageDelta}★.`,
+        reason: `无已追踪竞品评分高出我方产品 ${thresholds.competitorRatingAdvantageDelta}★。`,
         metrics: { ourRating },
         evaluatedAt: executedAt,
       });

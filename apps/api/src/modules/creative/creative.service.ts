@@ -150,7 +150,7 @@ export class CreativeService {
     return [
       {
         id: 'c_01',
-        title: 'POLEGAS Natural Marble Toothbrush Holder - Main White',
+        title: 'POLEGAS 天然大理石牙刷架 - 主图白底',
         skuCode: 'MTH-GREEN-001',
         category: 'MAIN_IMAGE',
         url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&auto=format&fit=crop&q=80',

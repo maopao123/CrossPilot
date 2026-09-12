@@ -51,7 +51,7 @@ export class OperationAutomationService {
 
     const run: AutomationWorkflowRun = {
       id: runId,
-      workflowName: 'WF-Operation-01: Amazon Listing Publish Flow',
+      workflowName: 'WF-Operation-01: Amazon Listing 发布流程',
       skuCode,
       targetPrice: price,
       workspaceId,
@@ -63,20 +63,20 @@ export class OperationAutomationService {
     this.workflows.unshift(run);
 
     // Step 1: AI Listing Copy & Fact Grounding
-    const title = 'POLEGAS Natural Marble Toothbrush Holder - 1.5" Wide Slots, Heavy Solid Stone Base';
+    const title = 'POLEGAS 天然大理石牙刷架 - 1.5" 宽卡槽，重型石质底座';
     const bulletPoints = [
-      '100% GENUINE NATURAL MARBLE: Hand-carved from solid natural marble stone with organic veining, weighing 3.57 lbs for zero tip-over stability.',
-      '1.5-INCH UNIVERSAL COMPARTMENTS: Upgraded wide slot design easily accommodates Oral-B, Philips Sonicare, and manual toothbrushes.',
-      'NON-SLIP COUNTERTOP PROTECTION: Equipped with 4x soft EVA pads at base to shield quartz/granite surfaces from scratches and moisture.',
-      'HYGIENIC & EASY TO CLEAN: Sealed moisture-resistant finish prevents grime accumulation. Cleans with a damp cloth.',
-      'ELEVATED BATHROOM DÉCOR: Modern minimalist European stone aesthetics harmonizes with luxury vanity interiors.',
+      '100% 纯正天然大理石：整块天然石材手工雕刻，纹理自然，重 3.57 lbs，稳如磐石不倾倒。',
+      '1.5 英寸通用卡槽：加宽卡槽设计，轻松容纳 Oral-B、Philips Sonicare 及手动牙刷。',
+      '台面防滑保护：底部配 4 个 EVA 软垫，避免刮花与受潮，保护石英石 / 花岗岩台面。',
+      '卫生易清洁：防水密封表面不易藏污，湿布一擦即净。',
+      '浴室质感升级：现代极简欧式石材美学，适配高端卫浴台面。',
     ];
     run.steps.push({
       stepNumber: 1,
-      name: 'AI Copy Generation & Fact Grounding',
+      name: 'AI 文案生成与产品事实锚定',
       runtime: 'AI',
       status: 'COMPLETED',
-      summary: `Generated Title and 5 verified bullets for SKU ${skuCode}`,
+      summary: `已为 SKU ${skuCode} 生成标题与 5 条已验证卖点`,
       details: { title, bulletPoints },
     });
 
@@ -91,10 +91,10 @@ export class OperationAutomationService {
     const isBlocked = complianceRes.data?.status === 'BLOCK' || complianceRes.data?.status === 'REJECTED';
     run.steps.push({
       stepNumber: 2,
-      name: 'Listing Compliance & Medical Claim Inspection',
+      name: 'Listing 合规与医疗宣称检查',
       runtime: 'TOOL',
       status: isBlocked ? 'FAILED' : 'COMPLETED',
-      summary: `Amazon policy check: ${complianceRes.data?.status || 'PASS'} (0 violations)`,
+      summary: `Amazon 政策检查：${complianceRes.data?.status || 'PASS'}（0 项违规）`,
       details: complianceRes.data,
     });
 
@@ -113,10 +113,10 @@ export class OperationAutomationService {
     );
     run.steps.push({
       stepNumber: 3,
-      name: 'Creative Infographic & Dimension Verification',
+      name: '创意信息图与尺寸校验',
       runtime: 'TOOL',
       status: 'COMPLETED',
-      summary: 'Generated 1.5" slot and 3.57 lbs non-tip callout badges',
+      summary: '已生成 1.5" 卡槽与 3.57 lbs 防倾倒标注徽章',
       details: assetRes.data,
     });
 
@@ -138,10 +138,10 @@ export class OperationAutomationService {
     run.status = 'WAITING_APPROVAL';
     run.steps.push({
       stepNumber: 4,
-      name: 'Human Approval Gate (Required for Publishing)',
+      name: '人工审批闸门（发布前置）',
       runtime: 'HUMAN',
       status: 'WAITING',
-      summary: `Action proposal held for operator signoff (Price: $${price})`,
+      summary: `动作建议已挂起，等待运营签字（价格：$${price}）`,
       details: { approvalId: dbApproval.id, requiredAction: 'APPROVE_LISTING_SUBMIT' },
     });
     return run;
@@ -180,7 +180,7 @@ export class OperationAutomationService {
     if (!run) {
       run = {
         id: `wf_run_${approval.id}`,
-        workflowName: 'WF-Operation-01: Amazon Listing Publish Flow',
+        workflowName: 'WF-Operation-01: Amazon Listing 发布流程',
         skuCode: approval.targetId,
         targetPrice: effectivePrice,
         workspaceId,
@@ -189,10 +189,10 @@ export class OperationAutomationService {
         steps: [
           {
             stepNumber: 4,
-            name: 'Human Approval Gate (Required for Publishing)',
+            name: '人工审批闸门（发布前置）',
             runtime: 'HUMAN',
             status: 'COMPLETED',
-            summary: `Approved by operator at ${new Date().toLocaleTimeString()}`,
+            summary: `运营已于 ${new Date().toLocaleTimeString()} 批准`,
           },
         ],
         createdAt: approval.requestedAt.toISOString(),
@@ -203,7 +203,7 @@ export class OperationAutomationService {
       const humanStep = run.steps.find((s) => s.runtime === 'HUMAN');
       if (humanStep) {
         humanStep.status = 'COMPLETED';
-        humanStep.summary = `Approved by operator at ${new Date().toLocaleTimeString()}`;
+        humanStep.summary = `运营已于 ${new Date().toLocaleTimeString()} 批准`;
       }
     }
 
@@ -221,8 +221,8 @@ export class OperationAutomationService {
     const proposal: ActionProposal = {
       id: `act_${run.id}`,
       type: 'RPA',
-      name: 'Amazon Seller Central Listing Upload',
-      description: `Publish ${run.skuCode} to Seller Central`,
+      name: 'Amazon Seller Central Listing 上传',
+      description: `将 ${run.skuCode} 发布到 Seller Central`,
       requiresHumanApproval: true,
       targetEntity: 'SKU',
       targetId: run.skuCode,
@@ -242,20 +242,20 @@ export class OperationAutomationService {
 
     run.steps.push({
       stepNumber: 5,
-      name: 'RPA Automated Seller Central Submission',
+      name: 'RPA 自动提交 Seller Central',
       runtime: 'RPA',
       status: actionResult.status === 'SUCCEEDED' ? 'COMPLETED' : 'FAILED',
-      summary: `RPA Execution: ${actionResult.status}. Job ID: ${actionResult.data?.jobId}`,
+      summary: `RPA 执行：${actionResult.status}。任务 ID：${actionResult.data?.jobId}`,
       details: actionResult.data,
     });
 
     // Step 6: Post-Publish Verification
     run.steps.push({
       stepNumber: 6,
-      name: 'Post-Publish Ingestion & Feed Confirmation',
+      name: '发布后回传与 Feed 确认',
       runtime: 'TOOL',
       status: 'COMPLETED',
-      summary: 'Verified ASIN live state and Seller Central inventory synchronization',
+      summary: '已校验 ASIN 上线状态与 Seller Central 库存同步',
       details: {
         feedId: '8192049102',
         syncVerified: true,

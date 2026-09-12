@@ -77,7 +77,7 @@ export const CreativeImageLifestyleTool: ToolDefinition = {
         label: '商品名称',
         type: 'string',
         required: true,
-        placeholder: '例如: POLEGAS Natural Marble Toothbrush Holder',
+        placeholder: '例如: POLEGAS 天然大理石牙刷架',
       },
       sceneType: {
         name: 'sceneType',
@@ -175,7 +175,7 @@ export const CreativeInfographicGenerateTool: ToolDefinition = {
         label: '产品主标题',
         type: 'string',
         required: true,
-        placeholder: 'POLEGAS Natural Marble Toothbrush Holder',
+        placeholder: 'POLEGAS 天然大理石牙刷架',
       },
       slotDiameterInch: {
         name: 'slotDiameterInch',

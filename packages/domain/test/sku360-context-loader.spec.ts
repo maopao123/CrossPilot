@@ -66,7 +66,7 @@ describe('Epic 3 Phase 3: Sku360ContextLoader Test Suite', () => {
       expect(context.identity.marketplaceId).toBe('AMAZON_US');
       expect(context.identity.skuCode).toBe('MTH-WHITE-001');
       expect(context.identity.asin).toBe('B0BFGNSXYL');
-      expect(context.identity.productName).toBe('Natural Marble Toothbrush Holder');
+      expect(context.identity.productName).toBe('天然大理石牙刷架');
       expect(context.identity.brand).toBe('POLEGAS');
       expect(context.identity.category).toBe('Home & Kitchen');
       expect(context.identity.status).toBe('ACTIVE');

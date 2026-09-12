@@ -54,7 +54,7 @@ export default function OperationAutomationPage() {
         status: 'COMPLETED',
         summary: '生成 1.5" 孔径、3.57 lbs 净重与天然大理石真实材质标题与 5 点描述',
         details: {
-          title: 'POLEGAS Natural Marble Toothbrush Holder - 1.5" Universal Wide Slots, Heavy Solid Stone Base',
+          title: 'POLEGAS 天然大理石牙刷架 - 1.5" 通用宽卡槽，重型石质底座',
           bulletCount: 5,
         },
       },

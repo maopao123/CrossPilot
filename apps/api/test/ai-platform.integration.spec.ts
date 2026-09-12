@@ -66,7 +66,7 @@ describe('CrossPilot AI Platform Integration Tests (Milestones 2 - 8)', () => {
             id: 'comp_1',
             asin: 'B08XYZ1234',
             brand: 'LuxStone Home',
-            title: 'LuxStone Heavy Natural Resin Toothbrush Caddy',
+            title: 'LuxStone 重型天然树脂牙刷收纳架',
             category: 'Home & Kitchen',
             imageUrl: null,
             snapshots: [{ price: 27.99, rating: 4.3, reviewCount: 850, estimatedSales: 1100, estimatedRevenue: 30789, bsr: 4200 }],

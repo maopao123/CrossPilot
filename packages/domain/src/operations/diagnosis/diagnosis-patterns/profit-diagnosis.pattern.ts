@@ -60,7 +60,7 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         metric: 'netProfit',
         direction: 'DOWN',
         causalStrength: 'UNKNOWN',
-        description: 'Net profit telemetry is unavailable; variance decomposition cannot be performed.',
+        description: '净利润数据不可用，无法执行差异瀑布分解。',
       };
 
       return {
@@ -68,8 +68,8 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         workspaceId: context.identity.workspaceId,
         skuId: context.identity.skuId,
         asin: context.identity.asin,
-        title: 'Net Profit Decline ? Missing Telemetry',
-        summary: 'Profit telemetry is marked UNAVAILABLE. Cannot perform causal waterfall attribution.',
+        title: '净利润下跌？遥测数据缺失',
+        summary: '利润遥测标记为 UNAVAILABLE，无法执行因果瀑布归因。',
         primaryDriver: emptyDriver,
         secondaryDrivers: [],
         confidence: 0.2,
@@ -79,7 +79,7 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         gateStatus: 'INSUFFICIENT',
         targetSignalIds,
         rootCauseCode: 'ROOT_CAUSE_UNCONFIRMED',
-        unknowns: ['Profit financial telemetry is UNAVAILABLE; exact waterfall attribution cannot be closed.'],
+        unknowns: ['利润财务遥测为 UNAVAILABLE；无法闭合瀑布归因。'],
         calculatedAt: new Date().toISOString(),
       };
     }
@@ -144,7 +144,7 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         metric: 'advertisingCostVariance',
         impact: wfResult.breakdown.advertising,
         direction: wfResult.breakdown.advertising < 0 ? 'DOWN' : 'UP',
-        description: `Advertising expenditure variance impacted net profit by $${wfResult.breakdown.advertising.toFixed(2)}.`,
+        description: `广告费用差异使净利润变动 $${wfResult.breakdown.advertising.toFixed(2)}。`,
         relatedSignalCodes: ['ACOS_SPIKE', 'AD_SPEND_INEFFICIENT', 'ZERO_CONVERSION_SPEND'],
       },
       {
@@ -152,7 +152,7 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         metric: 'returnLossVariance',
         impact: wfResult.breakdown.returns,
         direction: wfResult.breakdown.returns < 0 ? 'DOWN' : 'UP',
-        description: `Customer returns and refund processing variance impacted net profit by $${wfResult.breakdown.returns.toFixed(2)}.`,
+        description: `买家退货与退款处理差异使净利润变动 $${wfResult.breakdown.returns.toFixed(2)}。`,
         relatedSignalCodes: ['RETURN_RATE_SPIKE'],
       },
       {
@@ -160,7 +160,7 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         metric: 'inventoryCostVariance',
         impact: wfResult.breakdown.inventory,
         direction: wfResult.breakdown.inventory < 0 ? 'DOWN' : 'UP',
-        description: `Inventory carrying, storage fees, and stockout disruption impacted net profit by $${wfResult.breakdown.inventory.toFixed(2)}.`,
+        description: `库存持有、仓储费与断货扰动使净利润变动 $${wfResult.breakdown.inventory.toFixed(2)}。`,
         relatedSignalCodes: ['STOCKOUT_IMMINENT', 'OUT_OF_STOCK', 'EXCESS_INVENTORY'],
       },
       {
@@ -168,7 +168,7 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         metric: 'priceAndVolumeVariance',
         impact: wfResult.breakdown.price,
         direction: wfResult.breakdown.price < 0 ? 'DOWN' : 'UP',
-        description: `Selling price realization and sales volume changes impacted net profit by $${wfResult.breakdown.price.toFixed(2)}.`,
+        description: `售价实现与销售量的变化使净利润变动 $${wfResult.breakdown.price.toFixed(2)}。`,
         relatedSignalCodes: ['COMPETITOR_PRICE_DROP'],
       },
       {
@@ -176,7 +176,7 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         metric: 'cogsAndAmazonFeesVariance',
         impact: wfResult.breakdown.other,
         direction: wfResult.breakdown.other < 0 ? 'DOWN' : 'UP',
-        description: `COGS, FBA fulfillment fees, and commission variances impacted net profit by $${wfResult.breakdown.other.toFixed(2)}.`,
+        description: `COGS、FBA 配送费与佣金差异使净利润变动 $${wfResult.breakdown.other.toFixed(2)}。`,
         relatedSignalCodes: ['CRITICAL_MARGIN'],
       },
     ];
@@ -232,12 +232,12 @@ export class ProfitDropPattern implements IDiagnosisPattern {
 
     if (isSalesGrowing && isProfitPlummeting) {
       rootCauseCode = 'PROFIT_DILUTION_UNPROFITABLE_GROWTH';
-      title = 'Topline Revenue Growth Masked by Severe Profit Dilution';
+      title = '收入增长被严重利润稀释掩盖';
       const salesGrowthStr = `${((context.sales?.revenue?.deltaPct ?? 0) * 100).toFixed(1)}%`;
-      summary = `Topline revenue grew by +${salesGrowthStr}, but net profit plunged by -$${absTotalVariance.toFixed(2)} (${dropPctStr}). Cost inflation in ${primaryDriver.domain} (-$${Math.abs(primaryDriver.impactAmount ?? 0).toFixed(2)}) and secondary cost drivers outpaced revenue expansion, severely compressing margins.`;
+      summary = `收入增长 +${salesGrowthStr}，但净利润下跌 -$${absTotalVariance.toFixed(2)}（${dropPctStr}）。${primaryDriver.domain} 成本上涨（-$${Math.abs(primaryDriver.impactAmount ?? 0).toFixed(2)}）及次要成本驱动超过收入扩张，严重压缩利润率。`;
     } else {
-      title = `Net Profit Declined $${absTotalVariance.toFixed(2)} (${dropPctStr})`;
-      summary = `Net profit fell from $${profit.netProfit.baseline.toFixed(2)} to $${profit.netProfit.current.toFixed(2)}. Mathematical waterfall attribution proves ${primaryDriver.domain} is the primary causal driver (-$${Math.abs(primaryDriver.impactAmount ?? 0).toFixed(2)}, ${((primaryDriver.contributionRatio ?? 0) * 100).toFixed(1)}%), followed by secondary drivers.`;
+      title = `净利润下跌 $${absTotalVariance.toFixed(2)}（${dropPctStr}）`;
+      summary = `净利润从 $${profit.netProfit.baseline.toFixed(2)} 下跌至 $${profit.netProfit.current.toFixed(2)}。数学瀑布归因证明 ${primaryDriver.domain} 是主要因果驱动（-$${Math.abs(primaryDriver.impactAmount ?? 0).toFixed(2)}，占比 ${((primaryDriver.contributionRatio ?? 0) * 100).toFixed(1)}%），次要驱动紧随其后。`;
     }
 
     // 6. Evidence Gate Status
@@ -246,19 +246,19 @@ export class ProfitDropPattern implements IDiagnosisPattern {
 
     if (profit.availability === 'PARTIAL') {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Profit telemetry is PARTIAL; some cost components were estimated.');
+      unknowns.push('利润遥测为 PARTIAL；部分成本成分为估算值。');
     }
     if (!wfResult.isExactMatch) {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push(`Waterfall attribution has an unexplained residual of $${wfResult.residual.toFixed(2)}.`);
+      unknowns.push(`瀑布归因存在 $${wfResult.residual.toFixed(2)} 的未解释残差。`);
     }
 
     const evidence: OperationEvidenceItem[] = [
       {
         evidenceId: `EV-PROFIT-WF-${context.identity.skuId}`,
         category: 'CALCULATED_METRIC',
-        title: 'Mathematical Profit Waterfall Closure',
-        content: `Exact decomposition: ${wfResult.formulaString}. Residual: $${wfResult.residual.toFixed(2)} (Exact match: ${wfResult.isExactMatch}).`,
+        title: '数学利润瀑布闭合验证',
+        content: `精确分解：${wfResult.formulaString}。残差：$${wfResult.residual.toFixed(2)}（精确匹配：${wfResult.isExactMatch}）。`,
         source: 'VarianceAttributionService',
         sourceId: 'attributeVariance',
         capturedAt: new Date().toISOString(),

@@ -778,9 +778,9 @@ describe('CrossDomainDiagnosisService', () => {
 
       const profitDiag = response.diagnoses.find((d) => d.affectedDomains.includes('PROFIT'))!;
       expect(profitDiag.rootCauseCode).toBe('PROFIT_DILUTION_UNPROFITABLE_GROWTH');
-      expect(profitDiag.title).toBe('Topline Revenue Growth Masked by Severe Profit Dilution');
-      expect(profitDiag.summary).toContain('Topline revenue grew');
-      expect(profitDiag.summary).toContain('Cost inflation in ADVERTISING');
+      expect(profitDiag.title).toBe('收入增长被严重利润稀释掩盖');
+      expect(profitDiag.summary).toContain('收入增长 +');
+      expect(profitDiag.summary).toContain('ADVERTISING 成本上涨');
       expect(profitDiag.primaryDriver.domain).toBe('ADVERTISING');
     });
   });

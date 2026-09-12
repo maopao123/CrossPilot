@@ -56,7 +56,7 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
         metric: 'spend',
         direction: 'UP',
         causalStrength: 'UNKNOWN',
-        description: 'Advertising telemetry is unavailable.',
+        description: '广告数据不可用。',
       };
 
       return {
@@ -64,8 +64,8 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
         workspaceId: context.identity.workspaceId,
         skuId: context.identity.skuId,
         asin: context.identity.asin,
-        title: 'Advertising Anomaly ? Missing Telemetry',
-        summary: 'Advertising telemetry is marked UNAVAILABLE. Search terms and ACOS attribution cannot be verified.',
+        title: '广告异常？遥测数据缺失',
+        summary: '广告遥测标记为 UNAVAILABLE，无法核验搜索词与 ACOS 归因。',
         primaryDriver: emptyDriver,
         secondaryDrivers: [],
         confidence: 0.2,
@@ -75,7 +75,7 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
         gateStatus: 'INSUFFICIENT',
         targetSignalIds,
         rootCauseCode: 'ROOT_CAUSE_UNCONFIRMED',
-        unknowns: ['Advertising telemetry is UNAVAILABLE; search terms and campaign performance cannot be verified.'],
+        unknowns: ['广告遥测为 UNAVAILABLE；无法核验搜索词与广告活动表现。'],
         calculatedAt: new Date().toISOString(),
       };
     }
@@ -120,7 +120,7 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: relatedSig,
-        description: `${zeroConversionTerms.length} non-converting search term(s) consumed $${totalWastedSpend.toFixed(2)} (${(wasteRatio * 100).toFixed(1)}% of ad budget). Top waste: "${topTerm.searchTerm}" ($${topTerm.spend.toFixed(2)}, ${topTerm.clicks} clicks, 0 orders).`,
+        description: `${zeroConversionTerms.length} 个零转化搜索词消耗 $${totalWastedSpend.toFixed(2)}（占广告预算 ${(wasteRatio * 100).toFixed(1)}%）。最大浪费："${topTerm.searchTerm}"（$${topTerm.spend.toFixed(2)}，${topTerm.clicks} 次点击，0 订单）。`,
       });
     }
 
@@ -135,7 +135,7 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: relatedSig,
-        description: `ACOS expanded to ${(curAcos * 100).toFixed(1)}% (baseline: ${(baseAcos * 100).toFixed(1)}%, target: ${(targetAcos * 100).toFixed(1)}%), generating $${excessSpend.toFixed(2)} in above-target spend.`,
+        description: `ACOS 扩张至 ${(curAcos * 100).toFixed(1)}%（基准：${(baseAcos * 100).toFixed(1)}%，目标：${(targetAcos * 100).toFixed(1)}%），产生 $${excessSpend.toFixed(2)} 的超目标花费。`,
       });
     }
 
@@ -150,7 +150,7 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: relatedSig,
-        description: `Ad spend increased ${(spendDeltaPct * 100).toFixed(1)}% (+$${adCtx.spend.delta.toFixed(2)}) while attributed sales moved only ${(salesDeltaPct * 100).toFixed(1)}%, proving diminishing returns.`,
+        description: `广告花费增长 ${(spendDeltaPct * 100).toFixed(1)}%（+$${adCtx.spend.delta.toFixed(2)}），而归因销售仅变动 ${(salesDeltaPct * 100).toFixed(1)}%，证实边际回报递减。`,
       });
     }
 
@@ -164,7 +164,7 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'INDICATIVE',
         relatedSignalIds: targetSignalIds,
-        description: `Advertising performance deviated from target thresholds with current spend of $${curSpend.toFixed(2)}.`,
+        description: `广告表现偏离目标阈值，当期花费 $${curSpend.toFixed(2)}。`,
       });
     }
 
@@ -175,17 +175,17 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
 
     // 7. Formulate Root Cause Code & Narrative
     let rootCauseCode = 'AD_ACOS_EXPANSION';
-    let title = `ACOS Surge to ${(curAcos * 100).toFixed(1)}% Exceeds ${(targetAcos * 100).toFixed(1)}% Target`;
+    let title = `ACOS 飙升至 ${(curAcos * 100).toFixed(1)}%，超过 ${(targetAcos * 100).toFixed(1)}% 目标`;
 
     if (primaryDriver.metric === 'zeroConversionSearchTermSpend' || totalWastedSpend >= 30) {
       rootCauseCode = 'AD_EFFICIENCY_SEARCH_TERM_WASTE';
-      title = `Ad Inefficiency: $${totalWastedSpend.toFixed(2)} Wasted on Non-Converting Search Terms`;
+      title = `广告低效：$${totalWastedSpend.toFixed(2)} 浪费于零转化搜索词`;
     } else if (primaryDriver.metric === 'spendDecoupledFromSales' || isDecoupled) {
       rootCauseCode = 'AD_SPEND_DECOUPLED_FROM_SALES';
-      title = `Ad Spend Surged ${(spendDeltaPct * 100).toFixed(1)}% Without Commensurate Sales Growth`;
+      title = `广告花费激增 ${(spendDeltaPct * 100).toFixed(1)}%，销售未见相应增长`;
     }
 
-    const summary = `${title}. Primary driver: ${primaryDriver.description}`;
+    const summary = `${title}。主要驱动：${primaryDriver.description}`;
 
     // 8. Evidence Gate & Unknowns
     let gateStatus: DiagnosisEvidenceGateStatus = 'SUPPORTED';
@@ -193,19 +193,19 @@ export class AdvertisingEfficiencyPattern implements IDiagnosisPattern {
 
     if (adCtx.availability === 'PARTIAL') {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Advertising telemetry is PARTIAL; some campaign metrics were aggregated.');
+      unknowns.push('广告遥测为 PARTIAL；部分广告活动指标为汇总值。');
     }
     if (searchTerms.length === 0) {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Search term report is missing; exact search query waste could not be itemized.');
+      unknowns.push('缺少搜索词报告；无法逐项列出具体搜索查询浪费。');
     }
 
     const evidence: OperationEvidenceItem[] = [
       {
         evidenceId: `EV-ADS-DIAG-${context.identity.skuId}`,
         category: 'CALCULATED_METRIC',
-        title: 'Advertising Performance Attribution',
-        content: `Current spend: $${curSpend.toFixed(2)}, sales: $${curSales.toFixed(2)}, ACOS: ${(curAcos * 100).toFixed(1)}% (target: ${(targetAcos * 100).toFixed(1)}%). Wasted search term spend: $${totalWastedSpend.toFixed(2)}.`,
+        title: '广告效果归因',
+        content: `当期花费：$${curSpend.toFixed(2)}，销售额：$${curSales.toFixed(2)}，ACOS：${(curAcos * 100).toFixed(1)}%（目标：${(targetAcos * 100).toFixed(1)}%）。搜索词浪费花费：$${totalWastedSpend.toFixed(2)}。`,
         source: 'AdOptimizerService',
         sourceId: 'analyzeSearchTerms',
         capturedAt: new Date().toISOString(),

@@ -57,7 +57,7 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
         metric: 'fulfillableQuantity',
         direction: 'DOWN',
         causalStrength: 'UNKNOWN',
-        description: 'Inventory telemetry is unavailable.',
+        description: '库存数据不可用。',
       };
 
       return {
@@ -65,8 +65,8 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
         workspaceId: context.identity.workspaceId,
         skuId: context.identity.skuId,
         asin: context.identity.asin,
-        title: 'Inventory Anomaly ? Missing Telemetry',
-        summary: 'Inventory telemetry is marked UNAVAILABLE. Stockout coverage cannot be determined.',
+        title: '库存异常？遥测数据缺失',
+        summary: '库存遥测标记为 UNAVAILABLE，无法确定断货风险。',
         primaryDriver: emptyDriver,
         secondaryDrivers: [],
         confidence: 0.2,
@@ -76,7 +76,7 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
         gateStatus: 'INSUFFICIENT',
         targetSignalIds,
         rootCauseCode: 'ROOT_CAUSE_UNCONFIRMED',
-        unknowns: ['Inventory telemetry is UNAVAILABLE; sellable stock and lead times cannot be checked.'],
+        unknowns: ['库存遥测为 UNAVAILABLE；无法核验可售库存与交期。'],
         calculatedAt: new Date().toISOString(),
       };
     }
@@ -99,7 +99,7 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
     if (fulfillable === 0 || daysCover === 0) {
       // Case A: Active Out of Stock
       rootCauseCode = 'INVENTORY_STOCKOUT_ACTIVE';
-      title = 'Active Stockout: Zero Sellable Units In-Stock';
+      title = '正在断货：在库可售数量为零';
       const estimatedDailyLoss = roundMoney(avgSales * asp);
 
       primaryDriver = {
@@ -111,7 +111,7 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'OUT_OF_STOCK').map((s) => s.signalId),
-        description: `Sellable inventory is depleted (0 units). Daily demand of ${avgSales.toFixed(1)} units/day is lost (~$${estimatedDailyLoss.toFixed(2)}/day revenue leakage).`,
+        description: `可售库存已耗尽（0 件）。日需求 ${avgSales.toFixed(1)} 件/天正在流失（约 $${estimatedDailyLoss.toFixed(2)}/天的收入泄漏）。`,
       };
 
       if (inbound > 0) {
@@ -121,11 +121,11 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
           impactAmount: 0,
           direction: 'STABLE',
           causalStrength: 'INDICATIVE',
-          description: `${inbound} units currently in-transit/inbound, pending fulfillment center check-in.`,
+          description: `${inbound} 件在途/入库中，等待运营中心签收。`,
         });
       }
 
-      summary = `SKU has run completely out of stock with 0 sellable units. Active customer demand of ${avgSales.toFixed(1)} units/day is going unfulfilled.`;
+      summary = `SKU 已完全断货，可售数量为 0。${avgSales.toFixed(1)} 件/天的活跃买家需求无法满足。`;
     } else if (daysCover <= leadTime) {
       // Case B: Imminent Stockout (Days cover < Supplier Lead Time)
       const salesDeltaPct = context.sales?.unitsSold?.deltaPct ?? 0;
@@ -133,7 +133,7 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
 
       if (isSurge) {
         rootCauseCode = 'INVENTORY_RUNOUT_HIGH_VELOCITY';
-        title = `Imminent Stockout: Accelerated by ${(salesDeltaPct * 100).toFixed(1)}% Sales Velocity Surge`;
+        title = `断货迫近：销售速度激增 ${(salesDeltaPct * 100).toFixed(1)}% 所致`;
         affectedDomains.push('SALES');
 
         primaryDriver = {
@@ -144,7 +144,7 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
           direction: 'DOWN',
           causalStrength: 'STRONG',
           relatedSignalIds: targetSignals.filter((s) => s.code === 'STOCKOUT_IMMINENT').map((s) => s.signalId),
-          description: `Current inventory coverage (${daysCover.toFixed(1)} days) breached supplier lead time (${leadTime} days). At ${avgSales.toFixed(1)} units/day, stockout is projected within ${daysCover.toFixed(1)} days.`,
+          description: `当前库存覆盖（${daysCover.toFixed(1)} 天）已跌破供应商交期（${leadTime} 天）。按 ${avgSales.toFixed(1)} 件/天计算，预计 ${daysCover.toFixed(1)} 天内断货。`,
         };
 
         secondaryDrivers.push({
@@ -154,13 +154,13 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
           contributionRatio: 0.35,
           direction: 'UP',
           causalStrength: 'STRONG',
-          description: `Sales velocity surged ${(salesDeltaPct * 100).toFixed(1)}% over baseline, outstripping standard replenishment cycle and depleting buffer stock.`,
+          description: `销售速度较基准激增 ${(salesDeltaPct * 100).toFixed(1)}%，超过标准补货周期，耗尽缓冲库存。`,
         });
 
-        summary = `Stockout will occur in ${daysCover.toFixed(1)} days before supplier replenishment (${leadTime} days lead time) can arrive. Rapid stock runout was driven by a ${(salesDeltaPct * 100).toFixed(1)}% sales demand surge.`;
+        summary = `断货将在 ${daysCover.toFixed(1)} 天内发生，早于供应商补货（交期 ${leadTime} 天）到达；快速售罄由 ${(salesDeltaPct * 100).toFixed(1)}% 的需求激增驱动。`;
       } else {
         rootCauseCode = 'INVENTORY_RUNOUT_LEAD_TIME_DEFICIT';
-        title = `Imminent Stockout: Coverage (${daysCover.toFixed(1)}d) Below Supplier Lead Time (${leadTime}d)`;
+        title = `断货迫近：覆盖（${daysCover.toFixed(1)} 天）低于供应商交期（${leadTime} 天）`;
 
         primaryDriver = {
           domain: 'INVENTORY',
@@ -170,15 +170,15 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
           direction: 'DOWN',
           causalStrength: 'STRONG',
           relatedSignalIds: targetSignals.filter((s) => s.code === 'STOCKOUT_IMMINENT').map((s) => s.signalId),
-          description: `Sellable stock (${fulfillable} units) provides only ${daysCover.toFixed(1)} days of coverage, which is less than the ${leadTime}-day supplier replenishment window.`,
+          description: `可售库存（${fulfillable} 件）仅可支撑 ${daysCover.toFixed(1)} 天，少于 ${leadTime} 天的供应商补货周期。`,
         };
 
-        summary = `Inventory coverage of ${daysCover.toFixed(1)} days has breached the ${leadTime}-day replenishment threshold. Immediate stockout risk before reorder receipt.`;
+        summary = `库存覆盖 ${daysCover.toFixed(1)} 天已跌破 ${leadTime} 天的补货阈值，补货入库前存在即时断货风险。`;
       }
     } else {
       // Case C: Excess Inventory
       rootCauseCode = 'INVENTORY_EXCESS_OVERSTOCK';
-      title = `Excess Inventory: ${daysCover.toFixed(1)} Days of Coverage`;
+      title = `库存过剩：覆盖 ${daysCover.toFixed(1)} 天`;
 
       primaryDriver = {
         domain: 'INVENTORY',
@@ -188,10 +188,10 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
         direction: 'UP',
         causalStrength: 'STRONG',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'EXCESS_INVENTORY').map((s) => s.signalId),
-        description: `Current coverage of ${daysCover.toFixed(1)} days exceeds the 90-day threshold, tying up working capital with ${fulfillable} units in storage.`,
+        description: `当前覆盖 ${daysCover.toFixed(1)} 天超过 90 天阈值，${fulfillable} 件在库库存占用营运资金。`,
       };
 
-      summary = `Excess inventory level detected (${daysCover.toFixed(1)} days cover vs 90-day ceiling). Low sales velocity (${avgSales.toFixed(1)} units/day) risks ongoing FBA storage fee surcharges.`;
+      summary = `检测到库存过剩（覆盖 ${daysCover.toFixed(1)} 天，高于 90 天上限）。低动销速度（${avgSales.toFixed(1)} 件/天）可能持续产生 FBA 长期仓储附加费。`;
     }
 
     // 3. Evidence Gate
@@ -200,15 +200,15 @@ export class InventoryStockoutPattern implements IDiagnosisPattern {
 
     if (inv.availability === 'PARTIAL') {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Inventory telemetry is PARTIAL; warehouse inbound tracking was estimated.');
+      unknowns.push('库存遥测为 PARTIAL；仓库在途追踪为估算值。');
     }
 
     const evidence: OperationEvidenceItem[] = [
       {
         evidenceId: `EV-INV-DIAG-${context.identity.skuId}`,
         category: 'CALCULATED_METRIC',
-        title: 'Inventory Coverage vs Replenishment Timeline',
-        content: `Fulfillable: ${fulfillable}, Inbound: ${inbound}, AvgDailySales: ${avgSales.toFixed(1)}, DaysCover: ${daysCover.toFixed(1)}d, LeadTime: ${leadTime}d, SafetyStock: ${inv.safetyStockDays}d.`,
+        title: '库存覆盖与补货周期对比',
+        content: `可售：${fulfillable}，在途：${inbound}，日均销量：${avgSales.toFixed(1)}，覆盖天数：${daysCover.toFixed(1)} 天，交期：${leadTime} 天，安全库存：${inv.safetyStockDays} 天。`,
         source: 'InventoryPlanningService',
         sourceId: 'calculateDaysCover',
         capturedAt: new Date().toISOString(),

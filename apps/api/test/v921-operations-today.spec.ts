@@ -17,7 +17,7 @@ describe('V9.2.1 operations today mapper', () => {
       { fulfillableQuantity: 42, skuCode: 'MTH-GREEN-001' },
     ]);
     expect(result.inventoryHealth).toBe('WATCH');
-    expect(result.inventoryNote).toContain('MTH-GREEN-001');
+    expect(result.inventoryNote).toBe('最低可售库存 42 (MTH-GREEN-001)');
   });
 
   it('computes ACOS and ROAS from campaign spend/sales, not a stored average', () => {
@@ -80,7 +80,7 @@ describe('V9.2.1 operations today mapper', () => {
     expect(cards).toHaveLength(1);
     expect(cards[0].problem).toMatch(/ACOS/i);
     expect(cards[0].evidence.join(' ')).toMatch(/Spend/);
-    expect(cards[0].impact).toMatch(/820/);
+    expect(cards[0].impact).toBe('预计利润影响 -$820.00');
     expect(cards[0].recommendation).toMatch(/keyword bidding/i);
   });
 
@@ -94,8 +94,9 @@ describe('V9.2.1 operations today mapper', () => {
       sku: { skuCode: 'MTH-GREEN-001' },
     });
     expect(card.source).toBe('SIMULATOR');
-    expect(card.recommendation).toMatch(/keyword/i);
-    expect(card.evidence[0]).toContain('MTH-GREEN-001');
+    expect(card.impact).toBe('广告花费增速超过转化');
+    expect(card.recommendation).toBe('复盘关键词竞价，暂停浪费预算的宽泛词');
+    expect(card.evidence[0]).toBe('ACOS_SPIKE 影响 SKU MTH-GREEN-001');
   });
 
   it('headline prefers the most severe issue', () => {
@@ -134,7 +135,7 @@ describe('V9.2.1 operations today mapper', () => {
       health,
       '2026-09-10',
     );
-    expect(headline).toContain('Return spike');
+    expect(headline).toBe('Return spike · 模拟 2026-09-10');
   });
 });
 
@@ -245,6 +246,6 @@ describe('V9.2.1 OperationsTodayService', () => {
     expect(dto.recommendations[0].status).toBe('WAITING_APPROVAL');
     expect(dto.recommendations[0].evidenceQuotes[0]).toMatch(/flimsy/);
     expect(dto.voc?.painPoints.length).toBeGreaterThan(0);
-    expect(dto.headline).toMatch(/Return/i);
+    expect(dto.headline).toBe('Return Rate Spike · 模拟 2026-09-10');
   });
 });

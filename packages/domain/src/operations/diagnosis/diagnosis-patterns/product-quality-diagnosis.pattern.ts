@@ -61,7 +61,7 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         metric: 'returnRate',
         direction: 'DOWN',
         causalStrength: 'UNKNOWN',
-        description: 'Returns and reviews telemetry are unavailable.',
+        description: '退货与评论数据不可用。',
       };
 
       return {
@@ -69,8 +69,8 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         workspaceId: context.identity.workspaceId,
         skuId: context.identity.skuId,
         asin: context.identity.asin,
-        title: 'Product Quality Anomaly ? Missing Telemetry',
-        summary: 'Neither return telemetry nor review VOC data is available to evaluate quality defects.',
+        title: '产品质量异常？遥测数据缺失',
+        summary: '退货遥测与评论 VOC 数据均不可用，无法评估质量缺陷。',
         primaryDriver: emptyDriver,
         secondaryDrivers: [],
         confidence: 0.2,
@@ -80,7 +80,7 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         gateStatus: 'INSUFFICIENT',
         targetSignalIds,
         rootCauseCode: 'ROOT_CAUSE_UNCONFIRMED',
-        unknowns: ['Return records and review text are both UNAVAILABLE.'],
+        unknowns: ['退货记录与评论文本均为 UNAVAILABLE。'],
         calculatedAt: new Date().toISOString(),
       };
     }
@@ -112,7 +112,7 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
       // High Returns + Low Rating + VOC Cluster = Definite Physical/Specification Defect
       rootCauseCode = 'PRODUCT_QUALITY_PHYSICAL_DEFECT';
       affectedDomains.push('RETURNS', 'REVIEWS');
-      title = `Product Quality Defect: Return Spike to ${(curReturnRate * 100).toFixed(1)}% & Rating Decline to ${overallRating.toFixed(1)}?`;
+      title = `产品质量缺陷：退货率飙升至 ${(curReturnRate * 100).toFixed(1)}% 且评分降至 ${overallRating.toFixed(1)}★`;
 
       primaryDriver = {
         domain: 'RETURNS',
@@ -122,7 +122,7 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'RETURN_RATE_SPIKE').map((s) => s.signalId),
-        description: `Return rate surged ${(returnDeltaPct * 100).toFixed(1)}% from ${(baseReturnRate * 100).toFixed(1)}% to ${(curReturnRate * 100).toFixed(1)}% (+$${returnCostDelta.toFixed(2)} refund cost). Top return reason: "${topReason}" (${(topReasonPct * 100).toFixed(0)}% of returns).`,
+        description: `退货率从 ${(baseReturnRate * 100).toFixed(1)}% 飙升 ${(returnDeltaPct * 100).toFixed(1)}% 至 ${(curReturnRate * 100).toFixed(1)}%（退款成本 +$${returnCostDelta.toFixed(2)}）。首要退货原因："${topReason}"（占退货 ${(topReasonPct * 100).toFixed(0)}%）。`,
       };
 
       secondaryDrivers.push({
@@ -133,15 +133,15 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'RATING_DETERIORATION').map((s) => s.signalId),
-        description: `Customer rating declined to ${overallRating.toFixed(1)}? with ${(negRatio * 100).toFixed(1)}% negative reviews. Top customer complaint cluster: "${topPainPoint}" (${(topPainPointPct * 100).toFixed(0)}% of complaints).`,
+        description: `买家评分降至 ${overallRating.toFixed(1)}★，差评占比 ${(negRatio * 100).toFixed(1)}%。首要投诉聚类："${topPainPoint}"（占投诉 ${(topPainPointPct * 100).toFixed(0)}%）。`,
       });
 
-      summary = `Simultaneous return rate surge and customer review deterioration corroborate a physical product defect or dimensional mismatch. Customers frequently cite "${topPainPoint}" in reviews and "${topReason}" upon return.`;
+      summary = `退货率飙升与评论恶化同时出现，相互印证实物产品缺陷或尺寸不匹配。买家常在评论中提及 "${topPainPoint}"、退货时选择 "${topReason}"。`;
     } else if (isReturnSpike) {
       // Returns only
       rootCauseCode = 'PRODUCT_RETURN_RATE_ANOMALY';
       affectedDomains.push('RETURNS');
-      title = `Return Rate Spike to ${(curReturnRate * 100).toFixed(1)}%`;
+      title = `退货率飙升至 ${(curReturnRate * 100).toFixed(1)}%`;
 
       primaryDriver = {
         domain: 'RETURNS',
@@ -151,7 +151,7 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'RETURN_RATE_SPIKE').map((s) => s.signalId),
-        description: `Return rate surged to ${(curReturnRate * 100).toFixed(1)}% over baseline (${(baseReturnRate * 100).toFixed(1)}%), generating $${returnCostDelta.toFixed(2)} in refund losses. Primary reason: "${topReason}".`,
+        description: `退货率较基准（${(baseReturnRate * 100).toFixed(1)}%）飙升至 ${(curReturnRate * 100).toFixed(1)}%，产生 $${returnCostDelta.toFixed(2)} 退款损失。首要原因："${topReason}"。`,
       };
 
       if (revAvailable) {
@@ -160,16 +160,16 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
           metric: 'overallRating',
           direction: 'STABLE',
           causalStrength: 'INDICATIVE',
-          description: `Current customer star rating remains at ${overallRating.toFixed(1)}?; return spike precedes full rating impact.`,
+          description: `当前买家评分维持在 ${overallRating.toFixed(1)}★；退货飙升的全面评分影响尚未显现。`,
         });
       }
 
-      summary = `Return rate spiked significantly above baseline, driven primarily by customer return reason "${topReason}".`;
+      summary = `退货率显著高于基准，主要由买家退货原因 "${topReason}" 驱动。`;
     } else {
       // Reviews only
       rootCauseCode = 'PRODUCT_REVIEW_RATING_DETERIORATION';
       affectedDomains.push('REVIEWS');
-      title = `Customer Rating Deterioration to ${overallRating.toFixed(1)}?`;
+      title = `买家评分恶化至 ${overallRating.toFixed(1)}★`;
 
       primaryDriver = {
         domain: 'REVIEWS',
@@ -179,7 +179,7 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'RATING_DETERIORATION').map((s) => s.signalId),
-        description: `Star rating deteriorated to ${overallRating.toFixed(1)}? with ${(negRatio * 100).toFixed(1)}% recent negative reviews. Top complaint: "${topPainPoint}".`,
+        description: `评分恶化至 ${overallRating.toFixed(1)}★，近期差评占比 ${(negRatio * 100).toFixed(1)}%。首要投诉："${topPainPoint}"。`,
       };
 
       if (retAvailable) {
@@ -188,11 +188,11 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
           metric: 'returnRate',
           direction: 'STABLE',
           causalStrength: 'INDICATIVE',
-          description: `Return rate currently at ${(curReturnRate * 100).toFixed(1)}%.`,
+          description: `当前退货率为 ${(curReturnRate * 100).toFixed(1)}%。`,
         });
       }
 
-      summary = `Customer satisfaction deteriorated with negative feedback centered on "${topPainPoint}".`;
+      summary = `买家满意度恶化，负面反馈集中于 "${topPainPoint}"。`;
     }
 
     // 3. Evidence Gate & Unknowns
@@ -201,23 +201,23 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
 
     if (ret?.availability === 'PARTIAL' || rev?.availability === 'PARTIAL') {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Returns or reviews data is PARTIAL; some categories were sampled.');
+      unknowns.push('退货或评论数据为 PARTIAL；部分类别为抽样数据。');
     }
     if (!ret?.topReturnReasons || ret.topReturnReasons.length === 0) {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Granular return reason breakdown missing; return causes estimated.');
+      unknowns.push('缺少退货原因明细；退货成分为估算。');
     }
     if (!rev?.topPainPoints || rev.topPainPoints.length === 0) {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Structured VOC text clustering missing; complaint topics estimated.');
+      unknowns.push('缺少结构化 VOC 文本聚类；投诉主题为估算。');
     }
 
     const evidence: OperationEvidenceItem[] = [
       {
         evidenceId: `EV-QUAL-DIAG-${context.identity.skuId}`,
         category: 'CALCULATED_METRIC',
-        title: 'Return Rate & VOC Sentiment Correlation',
-        content: `Return rate: ${(curReturnRate * 100).toFixed(1)}% (cost delta: +$${returnCostDelta.toFixed(2)}). Rating: ${overallRating.toFixed(1)}?, Negative review ratio: ${(negRatio * 100).toFixed(1)}%. Top return reason: "${topReason}". Top VOC topic: "${topPainPoint}".`,
+        title: '退货率与 VOC 情绪相关性',
+        content: `退货率：${(curReturnRate * 100).toFixed(1)}%（成本变动：+$${returnCostDelta.toFixed(2)}）。评分：${overallRating.toFixed(1)}★，差评占比：${(negRatio * 100).toFixed(1)}%。首要退货原因："${topReason}"。首要 VOC 主题："${topPainPoint}"。`,
         source: 'ReviewProductHealthTool',
         sourceId: 'analyzeProductHealth',
         capturedAt: new Date().toISOString(),

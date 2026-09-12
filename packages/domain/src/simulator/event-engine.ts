@@ -32,9 +32,9 @@ export const SIM_EVENT_TEMPLATES: SimEventTemplate[] = [
   {
     code: 'ACOS_SPIKE',
     severity: 'WARNING',
-    title: 'ACOS Spike on Broad Search Terms',
+    title: '广泛匹配搜索词 ACOS 飙升',
     description:
-      'Sponsored Products campaign shows rising ACOS. Broad search terms drain ad budget with poor conversion. Negative keyword recommendation generated.',
+      'Sponsored Products 广告活动 ACOS 持续走高。广泛匹配搜索词转化差、持续消耗广告预算。已生成否定关键词建议。',
     skuScoped: true,
     minDurationDays: 4,
     maxDurationDays: 7,
@@ -44,9 +44,9 @@ export const SIM_EVENT_TEMPLATES: SimEventTemplate[] = [
   {
     code: 'VIRAL_SURGE',
     severity: 'INFO',
-    title: 'Viral Sales Surge',
+    title: '销量病毒式飙升',
     description:
-      'Social bathroom decor trend highlights the marble aesthetic. Daily sales velocity jumps; inventory drawdown accelerates.',
+      '社交媒体浴室装饰潮流带火大理石美学。日销速度跳升，库存消耗加快。',
     skuScoped: true,
     minDurationDays: 10,
     maxDurationDays: 14,
@@ -56,9 +56,9 @@ export const SIM_EVENT_TEMPLATES: SimEventTemplate[] = [
   {
     code: 'RETURN_SPIKE',
     severity: 'WARNING',
-    title: 'Return Rate Spike',
+    title: '退货率飙升',
     description:
-      'Customer returns cite hole diameter too narrow for electric toothbrush handles and base chipping. Return loss climbs; customer satisfaction dips.',
+      '买家退货原因集中在孔径过窄、放不进电动牙刷手柄以及底座崩边。退货损失上升，买家满意度下滑。',
     skuScoped: true,
     minDurationDays: 8,
     maxDurationDays: 14,
@@ -68,9 +68,9 @@ export const SIM_EVENT_TEMPLATES: SimEventTemplate[] = [
   {
     code: 'NEGATIVE_REVIEW_WAVE',
     severity: 'WARNING',
-    title: 'Negative Review Wave: Hole-Size Defect',
+    title: '差评浪潮：孔径缺陷',
     description:
-      'VOC analysis identifies the primary customer complaint: reviews complain "hole too small for Oral-B iO / Philips Sonicare handles".',
+      'VOC 分析识别出主要买家投诉：买家评论抱怨「孔太小，放不下 Oral-B iO / Philips Sonicare 手柄」。',
     skuScoped: true,
     minDurationDays: 5,
     maxDurationDays: 9,

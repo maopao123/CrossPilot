@@ -221,7 +221,7 @@ describe('Commerce Simulator engine', () => {
     expect(negatives.length).toBeGreaterThan(0);
     expect(
       negatives.some((r) =>
-        ['hole too small', 'fake marble', 'chipping'].some((keyword) =>
+        ['孔太小', '假大理石', '崩边'].some((keyword) =>
           r.content.includes(keyword),
         ),
       ),

@@ -129,25 +129,25 @@ export class ScenarioService {
       data: {
         workspaceId: wsId,
         marketplaceId: marketplace.id,
-        name: 'Natural Marble Toothbrush Holder',
+        name: '天然大理石牙刷架',
         brand: 'POLEGAS',
         category: 'Home & Kitchen',
         subCategory: 'Bathroom Accessories',
         targetPrice: 29.99,
-        description: 'Luxury handcrafted natural marble toothbrush holder with heavy non-slip base.',
-        productBrief: `Product: Natural Marble Toothbrush Holder
-Target Market: Amazon US (Home & Kitchen / Bathroom Accessories)
-Core Value Proposition: Heavy non-slip real marble base (3.57 lbs) that never tips over.
-Slot Spec: 1 large slot for toothpaste (2.1 x 1.4 in) + 3 slots for toothbrushes (1.5 in diameter).
-Verified Materials: 100% natural polished stone, non-porous resin sealant bottom, EVA anti-scratch pads.
-Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee compatibility with Oral-B and Philips Sonicare handles. Added internal drainage slope.`,
+        description: '奢华手工天然大理石牙刷架，配重型防滑底座。',
+        productBrief: `产品：天然大理石牙刷架
+目标市场：Amazon US（家居与厨房 / 浴室配件）
+核心价值主张：3.57 lbs 重型防滑天然大理石底座，永不倾倒。
+卡槽规格：1 个大卡槽放牙膏（2.1 x 1.4 in）+ 3 个牙刷卡槽（直径 1.5 in）。
+已验证材质：100% 天然抛光石材，底部非渗透树脂密封，EVA 防刮垫。
+VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips Sonicare 手柄；新增内部排水坡度。`,
         features: {
           create: [
-            { name: 'Material', value: '100% Natural Marble', isCore: true, workspaceId: wsId },
-            { name: 'Weight', value: '3.57 lbs (Heavy Base)', unit: 'lbs', isCore: true, workspaceId: wsId },
-            { name: 'Slot Configuration', value: '1 Large + 3 Small Slots', isCore: true, workspaceId: wsId },
-            { name: 'Hole Diameter', value: '1.5 inches', unit: 'in', isCore: true, workspaceId: wsId },
-            { name: 'Bottom Finish', value: 'Anti-slip EVA Soft Pads', isCore: true, workspaceId: wsId },
+            { name: '材质', value: '100% 天然大理石', isCore: true, workspaceId: wsId },
+            { name: '重量', value: '3.57 lbs（重型底座）', unit: 'lbs', isCore: true, workspaceId: wsId },
+            { name: '卡槽配置', value: '1 大 + 3 小卡槽', isCore: true, workspaceId: wsId },
+            { name: '孔径', value: '1.5 英寸', unit: 'in', isCore: true, workspaceId: wsId },
+            { name: '底部处理', value: '防滑 EVA 软垫', isCore: true, workspaceId: wsId },
           ],
         },
       },
@@ -354,7 +354,7 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
         marketplaceId: marketplace.id,
         asin: 'B08XYZ1234',
         brand: 'LuxStone Home',
-        title: 'LuxStone Heavy Natural Resin Toothbrush Caddy',
+        title: 'LuxStone 重型天然树脂牙刷收纳架',
         category: 'Home & Kitchen',
         snapshots: {
           create: [
@@ -370,7 +370,7 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
         marketplaceId: marketplace.id,
         asin: 'B09ABC5678',
         brand: 'KES Home',
-        title: 'KES Heavy Marble Base Toothbrush Stand SUS304',
+        title: 'KES 重型大理石底座牙刷架 SUS304',
         category: 'Home & Kitchen',
         snapshots: {
           create: [
@@ -402,26 +402,26 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
     const topicHole = await this.prisma.vocTopic.create({
       data: {
         analysisRunId: vocRun.id,
-        topicName: 'Hole Size Narrow for Electric Handles',
+        topicName: '电动手柄孔径偏小',
         topicType: 'PAIN_POINT',
         sentiment: 'NEGATIVE',
         reviewCount: 56,
         percentage: 31.10,
         severityScore: 4.5,
-        summary: '31% of negative reviews report that the standard slots are too tight to fit popular electric toothbrush models (Oral-B iO series and Philips Sonicare DiamondClean).',
+        summary: '31% 的差评反映标准卡槽过窄，放不下主流电动牙刷（Oral-B iO 系列与 Philips Sonicare DiamondClean）。',
       },
     });
 
     const topicWeight = await this.prisma.vocTopic.create({
       data: {
         analysisRunId: vocRun.id,
-        topicName: 'Base Weight & Stability Praise',
+        topicName: '底座重量与稳定性好评',
         topicType: 'PRAISE',
         sentiment: 'POSITIVE',
         reviewCount: 76,
         percentage: 42.20,
         severityScore: 1.0,
-        summary: 'Customers strongly praise the 3.57 lbs heavy marble base that does not slide or tip over when grabbing toothbrushes.',
+        summary: '客户强烈好评 3.57 lbs 的厚重大理石底座，取用牙刷时不会滑动或倾倒。',
       },
     });
 
@@ -466,13 +466,13 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
       data: {
         workspaceId: wsId,
         productId: product.id,
-        title: 'Next-Gen Marble Toothbrush Caddy with 1.5" Universal Slots',
-        problemSummary: 'Existing market competitors have narrow holes (< 1.2") causing high return rates from electric toothbrush owners. Heavy base is highly desired.',
-        targetCustomer: 'US Urban homeowners with modern bathrooms using electric toothbrushes.',
-        recommendedPositioning: 'Premium natural stone bathroom decor with guaranteed universal compatibility.',
+        title: '下一代大理石牙刷架：1.5" 通用卡槽',
+        problemSummary: '现有市场竞品卡槽过窄（< 1.2"），导致电动牙刷用户退货率居高不下；厚实防滑底座是强需求。',
+        targetCustomer: '美国城市自住房家庭，浴室现代化、使用电动牙刷。',
+        recommendedPositioning: '高端天然石材浴室装饰，保证电动手柄通用兼容。',
         opportunityScore: 8.8,
         confidenceLevel: 0.92,
-        evidenceSummary: 'Derived from 180 verified Amazon reviews: 31% pain point on hole size, 42% praise on weight stability.',
+        evidenceSummary: '基于 180 条已验证 Amazon 评论：31% 痛点为卡槽孔径，42% 好评集中在底座重量稳定性。',
         status: 'APPROVED',
       },
     });
@@ -491,15 +491,15 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
       data: {
         listingId: listing.id,
         versionNumber: 1,
-        title: 'POLEGAS Natural Marble Toothbrush Holder - Heavy Stone Base for Bathroom',
+        title: 'POLEGAS 天然大理石牙刷架 - 浴室专用重型石质底座',
         bulletPointsJson: JSON.stringify([
-          'GENUINE NATURAL MARBLE: 100% natural polished stone with unique natural veining.',
-          'HEAVY BASE: 3.57 lbs solid base with non-slip bottom prevents tipping.',
-          '4 COMPARTMENTS: Holds toothpaste and multiple toothbrushes conveniently.',
-          'MODERN LUXURY: Elevates any master or guest bathroom countertop.',
-          'EASY TO CLEAN: Non-porous sealed finish wipes clean with a damp cloth.',
+          '纯正天然大理石：100% 天然抛光石材，纹理独一无二。',
+          '重型底座：3.57 lbs 实心底座配防滑垫，永不倾倒。',
+          '4 格分区：牙膏与多支牙刷一次收纳。',
+          '现代奢华：提升主卫或客卫台面质感。',
+          '易清洁：非渗透密封表面，湿布一擦即净。',
         ]),
-        description: 'Upgrade your bathroom with authentic marble craftsmanship.',
+        description: '用真正的大理石工艺升级你的浴室。',
         searchTerms: 'marble toothbrush holder heavy stone bathroom organizer vanity caddy',
         generationSource: 'AI_ASSISTED',
       },
@@ -509,15 +509,15 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
       data: {
         listingId: listing.id,
         versionNumber: 2,
-        title: 'POLEGAS Natural Marble Toothbrush Holder - 1.5" Wide Slots Fits Electric & Manual Handles (3.57 lbs)',
+        title: 'POLEGAS 天然大理石牙刷架 - 1.5" 宽卡槽，兼容电动与手动牙刷（3.57 lbs）',
         bulletPointsJson: JSON.stringify([
-          '100% AUTHENTIC NATURAL MARBLE: Handcrafted from solid natural stone, weighing 3.57 lbs.',
-          '1.5-INCH UNIVERSAL SLOTS: Specially engineered wide compartments fit Oral-B, Philips Sonicare, and standard manual toothbrushes.',
-          'HEAVY NON-SLIP STABILITY: Never tips or slides on wet quartz or tile countertops thanks to soft protective EVA pads.',
-          'HYGIENIC DRAINAGE GROOVES: Sloped interior base prevents stagnant water accumulation.',
-          'EASY CLEANING & CARE: Sealed against water stains. Hand wash with mild soap.',
+          '100% 纯正天然大理石：整块天然石材手工打磨，重 3.57 lbs。',
+          '1.5 英寸通用卡槽：加宽卡槽设计，兼容 Oral-B、Philips Sonicare 及标准手动牙刷。',
+          '重型防滑稳定：底部配 EVA 软垫，在湿滑的石英石或瓷砖台面上不倾倒、不滑动。',
+          '卫生排水槽：内底倾斜设计，避免积水滞留。',
+          '清洁与保养：防污密封处理，中性皂液手洗即可。',
         ]),
-        description: 'Engineered based on verified customer feedback: luxury marble with guaranteed electric handle fit.',
+        description: '依据已验证的客户反馈改良：奢华大理石，保证电动手柄适配。',
         searchTerms: 'marble toothbrush holder electric toothbrush stand sonicare oral-b heavy stone caddy',
         generationSource: 'AI_GROUNDED_VOC',
       },
@@ -535,7 +535,7 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
         status: 'PASS',
         riskLevel: 'LOW',
         ruleHitsJson: JSON.stringify([]),
-        evidenceSummary: 'Passes Amazon Detail Page Guidelines and FTC Stone Disclosure requirements.',
+        evidenceSummary: '符合 Amazon 商品详情页规范与 FTC 石材披露要求。',
         modelName: 'gpt-4o',
       },
     });
@@ -551,7 +551,7 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
           workspaceId: wsId,
           userId: demoUser.id,
           activeSkuId: greenSku.id,
-          question: 'Why did net profit drop in Week 11 compared to Week 10?',
+          question: '第 11 周净利润相比第 10 周为何下降？',
           status: 'COMPLETED',
         },
       });
@@ -576,38 +576,38 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
           {
             analysisSessionId: session.id,
             findingType: 'ADVERTISING',
-            title: 'Broad Search Term Bleed',
-            metricName: 'Ads Spend',
+            title: '广泛匹配搜索词蚕食预算',
+            metricName: '广告花费',
             impactAmount: -980.00,
             direction: 'NEGATIVE',
             confidence: 0.96,
             evidenceJson: JSON.stringify({ searchTerm: 'bathroom organizer', spend: 420.00, acos: 0.933 }),
             priority: 1,
-            recommendation: 'Add "bathroom organizer" to Negative Exact immediately to stop budget drain.',
+            recommendation: '立即把 "bathroom organizer" 加入精准否定，止住预算流失。',
           },
           {
             analysisSessionId: session.id,
             findingType: 'RETURNS',
-            title: 'Beige Grey Variant Return Spike',
-            metricName: 'Return Loss',
+            title: '米灰变体退货率飙升',
+            metricName: '退货损失',
             impactAmount: -620.00,
             direction: 'NEGATIVE',
             confidence: 0.91,
-            evidenceJson: JSON.stringify({ returnRate: 0.067, reason: 'Hole too small for electric handles' }),
+            evidenceJson: JSON.stringify({ returnRate: 0.067, reason: '电动牙刷手柄孔径不适配' }),
             priority: 2,
-            recommendation: 'Update listing specs and advise customer support to clarify 1.5" compatibility.',
+            recommendation: '更新 Listing 规格说明，并让客服明确 1.5" 兼容性。',
           },
           {
             analysisSessionId: session.id,
             findingType: 'INVENTORY',
-            title: 'Green Variant Stockout & Rush Inbound Freight',
-            metricName: 'Lost Sales Margin',
+            title: '绿色变体断货与加急头程运费',
+            metricName: '丢失的销售毛利',
             impactAmount: -510.00,
             direction: 'NEGATIVE',
             confidence: 0.88,
             evidenceJson: JSON.stringify({ daysStockout: 4, rushAirFreightCost: 315.00 }),
             priority: 3,
-            recommendation: 'Raise safety stock threshold from 7 days to 14 days for viral surge variants.',
+            recommendation: '把安全库存阈值从 7 天提高到 14 天，覆盖爆发式增长变体。',
           },
         ],
       });
@@ -620,7 +620,7 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
           taskType: 'VARIANCE_ATTRIBUTION',
           status: 'COMPLETED',
           activeSkuId: greenSku.id,
-          inputJson: JSON.stringify({ question: 'Why did net profit drop in Week 11?' }),
+          inputJson: JSON.stringify({ question: '第 11 周净利润为何下降？' }),
           resultJson: JSON.stringify(scenario.waterfallWeek11),
         },
       });
@@ -630,10 +630,10 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
           taskId: agentTask.id,
           stepNumber: 1,
           stepType: 'TOOL_CALL',
-          name: 'Query Financial & Profit Ledger',
+          name: '查询财务与利润台账',
           status: 'COMPLETED',
-          inputSummary: 'Query ProfitDaily for Week 10 vs Week 11',
-          outputSummary: 'Week 10 Net Profit: $4,120; Week 11 Net Profit: $1,840 (Delta: -$2,280)',
+          inputSummary: '查询第 10 周与第 11 周的 ProfitDaily',
+          outputSummary: '第 10 周净利润：$4,120；第 11 周净利润：$1,840（差异：-$2,280）',
         },
       });
 
@@ -654,10 +654,10 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
           taskId: agentTask.id,
           stepNumber: 2,
           stepType: 'TOOL_CALL',
-          name: 'Query Advertising Variance',
+          name: '查询广告差异',
           status: 'COMPLETED',
-          inputSummary: 'Audit Search Term ACOS and Campaign Spend',
-          outputSummary: 'Found broad match keyword "bathroom organizer" with 93.3% ACOS causing -$980 drag',
+          inputSummary: '审计搜索词 ACOS 与广告活动花费',
+          outputSummary: '发现广泛匹配关键词 "bathroom organizer" ACOS 93.3%，造成 -$980 拖累',
         },
       });
 
@@ -683,7 +683,7 @@ Key Improvements from VOC: Enlarged hole diameter to 1.5 inches to guarantee com
       skusCreated: 3,
       daysGenerated: scenario.days.length,
       eventsCount: CORE_BUSINESS_EVENTS.length,
-      message: 'Clean 90-day demo dataset generated successfully.',
+      message: '90 天纯净演示数据集已生成。',
     };
   }
 }

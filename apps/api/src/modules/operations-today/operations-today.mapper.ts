@@ -16,7 +16,7 @@ export function assessInventoryHealth(
   balances: Array<{ fulfillableQuantity: number; skuCode?: string }>,
 ): { inventoryHealth: InventoryHealthLevel; inventoryNote: string } {
   if (!balances.length) {
-    return { inventoryHealth: 'WATCH', inventoryNote: 'No inventory rows in this workspace' };
+    return { inventoryHealth: 'WATCH', inventoryNote: '当前工作区没有库存记录' };
   }
   const lowest = balances.reduce((min, row) =>
     row.fulfillableQuantity < min.fulfillableQuantity ? row : min,
@@ -25,18 +25,18 @@ export function assessInventoryHealth(
   if (lowest.fulfillableQuantity <= 0) {
     return {
       inventoryHealth: 'CRITICAL',
-      inventoryNote: `Stockout${code}`,
+      inventoryNote: `断货${code}`,
     };
   }
   if (lowest.fulfillableQuantity < 80) {
     return {
       inventoryHealth: 'WATCH',
-      inventoryNote: `Lowest fulfillable ${lowest.fulfillableQuantity}${code}`,
+      inventoryNote: `最低可售库存 ${lowest.fulfillableQuantity}${code}`,
     };
   }
   return {
     inventoryHealth: 'HEALTHY',
-    inventoryNote: `Lowest fulfillable ${lowest.fulfillableQuantity}${code}`,
+    inventoryNote: `最低可售库存 ${lowest.fulfillableQuantity}${code}`,
   };
 }
 
@@ -92,9 +92,9 @@ export function buildHealth(input: {
 }
 
 function money(n: number | undefined): string {
-  if (typeof n !== 'number' || Number.isNaN(n)) return 'Impact not quantified';
+  if (typeof n !== 'number' || Number.isNaN(n)) return '影响未量化';
   const abs = Math.abs(n).toFixed(2);
-  return n < 0 ? `Estimated profit impact -$${abs}` : `Estimated profit impact $${abs}`;
+  return n < 0 ? `预计利润影响 -$${abs}` : `预计利润影响 $${abs}`;
 }
 
 function evidenceLines(
@@ -105,7 +105,7 @@ function evidenceLines(
     .map((item) => {
       const title = item.title?.trim();
       const content = item.content?.trim();
-      if (title && content && title !== content) return `${title}: ${content}`;
+      if (title && content && title !== content) return `${title}：${content}`;
       return content || title || '';
     })
     .filter(Boolean)
@@ -142,7 +142,7 @@ export function mapDiagnosisToInsight(
     problem: diagnosis.summary || diagnosis.title,
     evidence: evidenceLines(diagnosis.evidence),
     impact: money(impactAmount),
-    recommendation: action?.reason || action?.title || 'Review the linked operating action',
+    recommendation: action?.reason || action?.title || '请查看关联的运营 Action',
   };
 }
 
@@ -153,8 +153,8 @@ export function mapSignalToInsight(
   const action = matchingAction(actions, signal.signalId ? [signal.signalId] : undefined, signal.skuId);
   const change =
     typeof signal.changePct === 'number'
-      ? `${signal.metric} ${signal.currentValue} vs baseline ${signal.baselineValue ?? 'n/a'} (${(signal.changePct * 100).toFixed(1)}%)`
-      : `${signal.metric} is ${signal.currentValue}`;
+      ? `${signal.metric} 当前 ${signal.currentValue}，对比基线 ${signal.baselineValue ?? '无'}（${(signal.changePct * 100).toFixed(1)}%）`
+      : `${signal.metric} 当前为 ${signal.currentValue}`;
   return {
     id: `wf05-sig-${signal.signalId}`,
     source: 'WF05',
@@ -163,7 +163,7 @@ export function mapSignalToInsight(
     problem: signal.description || signal.title,
     evidence: evidenceLines(signal.evidence).length ? evidenceLines(signal.evidence) : [change],
     impact: change,
-    recommendation: action?.reason || action?.title || 'Inspect the contributing campaign or SKU',
+    recommendation: action?.reason || action?.title || '检查相关的广告活动或 SKU',
   };
 }
 
@@ -175,12 +175,12 @@ export function mapSimEventToInsight(event: {
   description: string;
   sku?: { skuCode?: string | null } | null;
 }): OperationsInsightCard {
-  const sku = event.sku?.skuCode ? `SKU ${event.sku.skuCode}` : 'catalog';
+  const sku = event.sku?.skuCode ? `SKU ${event.sku.skuCode}` : '全目录';
   const recByCode: Record<string, string> = {
-    ACOS_SPIKE: 'Review keyword bidding and pause wasteful broad terms',
-    RETURN_SPIKE: 'Inspect return reasons and listing specifications',
-    NEGATIVE_REVIEW_WAVE: 'Address the dominant VOC defect in the listing',
-    VIRAL_SURGE: 'Raise replenishment before velocity empties FBA',
+    ACOS_SPIKE: '复盘关键词竞价，暂停浪费预算的宽泛词',
+    RETURN_SPIKE: '排查退货原因，核对商品详情页规格',
+    NEGATIVE_REVIEW_WAVE: '优先修复 VOC 中占比最高的缺陷',
+    VIRAL_SURGE: '销量激增，及时补货避免 FBA 断货',
   };
   const severity =
     event.severity === 'CRITICAL' || event.severity === 'WARNING' || event.severity === 'INFO'
@@ -192,14 +192,14 @@ export function mapSimEventToInsight(event: {
     severity,
     title: event.title,
     problem: event.description,
-    evidence: [`${event.code} on ${sku}`],
+    evidence: [`${event.code} 影响 ${sku}`],
     impact:
       event.code === 'ACOS_SPIKE'
-        ? 'Ad spend is rising faster than conversion'
+        ? '广告花费增速超过转化'
         : event.code === 'RETURN_SPIKE'
-          ? 'Return loss and customer satisfaction are under pressure'
-          : 'Operating conditions changed versus the quiet baseline',
-    recommendation: recByCode[event.code] || 'Open the linked evidence and decide whether to act',
+          ? '退货损失与买家满意度承压'
+          : '运营状况较平稳基线出现变化',
+    recommendation: recByCode[event.code] || '查看关联证据后决定是否执行',
   };
 }
 
@@ -221,12 +221,12 @@ export function buildHeadline(
 ): string {
   const critical = issues.find((i) => i.severity === 'CRITICAL') || issues[0];
   if (critical) {
-    return simDate ? `${critical.title} · sim ${simDate}` : critical.title;
+    return simDate ? `${critical.title} · 模拟 ${simDate}` : critical.title;
   }
   if (health.inventoryHealth === 'CRITICAL') return health.inventoryNote;
   return simDate
-    ? `No blocking issues on ${simDate}. Watch ACOS ${health.acos} and margin ${(health.margin * 100).toFixed(1)}%.`
-    : 'No blocking issues in the current operating window.';
+    ? `${simDate} 暂无阻塞性问题，关注 ACOS ${health.acos} 与毛利率 ${(health.margin * 100).toFixed(1)}%。`
+    : '当前运营窗口暂无阻塞性问题。';
 }
 
 export function pickCritical(issues: OperationsInsightCard[]): OperationsInsightCard[] {

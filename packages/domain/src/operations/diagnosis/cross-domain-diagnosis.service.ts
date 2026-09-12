@@ -114,14 +114,14 @@ export class CrossDomainDiagnosisService {
             workspaceId: context.identity.workspaceId,
             skuId: context.identity.skuId,
             asin: context.identity.asin,
-            title: `Diagnosis Error in ${pattern.patternId}`,
-            summary: `Diagnosis pattern failed during execution: ${err?.message || 'Unknown error'}`,
+            title: `诊断执行异常：${pattern.patternId}`,
+            summary: `诊断模式执行失败：${err?.message || '未知错误'}`,
             primaryDriver: {
               domain: 'PROFIT',
               metric: 'executionError',
               direction: 'DOWN',
               causalStrength: 'UNKNOWN',
-              description: `Pattern error: ${err?.message || 'Unknown'}`,
+              description: `模式错误：${err?.message || '未知'}`,
             },
             secondaryDrivers: [],
             confidence: 0.1,
@@ -130,7 +130,7 @@ export class CrossDomainDiagnosisService {
             affectedSkus: [context.identity.skuId],
             gateStatus: 'INSUFFICIENT',
             rootCauseCode: 'ROOT_CAUSE_UNCONFIRMED',
-            unknowns: [`Pattern execution crashed: ${err?.message || 'Unknown'}`],
+            unknowns: [`模式执行崩溃：${err?.message || '未知'}`],
             calculatedAt: executedAt,
           });
         }
@@ -149,8 +149,8 @@ export class CrossDomainDiagnosisService {
         workspaceId: context.identity.workspaceId,
         skuId: context.identity.skuId,
         asin: context.identity.asin,
-        title: `Unconfirmed Operational Anomaly: ${topSig.code}`,
-        summary: `Detected signal ${topSig.code} (${topSig.metric}) does not match known deterministic causal patterns. Domain evidence is insufficient to prove root cause.`,
+        title: `未确认的运营异常：${topSig.code}`,
+        summary: `检测到的信号 ${topSig.code}（${topSig.metric}）不匹配任何已知确定性因果模式，领域证据不足以证明根因。`,
         primaryDriver: {
           domain: topSig.domain,
           metric: topSig.metric,
@@ -167,7 +167,7 @@ export class CrossDomainDiagnosisService {
         gateStatus: 'INSUFFICIENT',
         targetSignalIds: [topSig.signalId],
         rootCauseCode: 'ROOT_CAUSE_UNCONFIRMED',
-        unknowns: ['Root cause could not be established; domain telemetry lacks causal closure.'],
+        unknowns: ['无法确立根因；领域遥测缺少因果闭合证据。'],
         calculatedAt: executedAt,
       });
       attributedSignalIds.add(topSig.signalId);

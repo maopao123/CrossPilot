@@ -52,7 +52,7 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
         metric: 'currentPrice',
         direction: 'DOWN',
         causalStrength: 'UNKNOWN',
-        description: 'Competitor telemetry is unavailable.',
+        description: '竞品数据不可用。',
       };
 
       return {
@@ -60,8 +60,8 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
         workspaceId: context.identity.workspaceId,
         skuId: context.identity.skuId,
         asin: context.identity.asin,
-        title: 'Competitor Anomaly ? Missing Telemetry',
-        summary: 'Competitor price and review telemetry is marked UNAVAILABLE. Market price movements cannot be tracked.',
+        title: '竞品异常？遥测数据缺失',
+        summary: '竞品价格与评论遥测标记为 UNAVAILABLE，无法追踪市场价格动态。',
         primaryDriver: emptyDriver,
         secondaryDrivers: [],
         confidence: 0.2,
@@ -71,7 +71,7 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
         gateStatus: 'INSUFFICIENT',
         targetSignalIds,
         rootCauseCode: 'ROOT_CAUSE_UNCONFIRMED',
-        unknowns: ['Competitor benchmark telemetry is UNAVAILABLE.'],
+        unknowns: ['竞品基准遥测为 UNAVAILABLE。'],
         calculatedAt: new Date().toISOString(),
       };
     }
@@ -110,7 +110,7 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
     if (isPriceDrop) {
       rootCauseCode = 'COMPETITOR_PRICE_UNDERCUT';
       const dropPctStr = `${(Math.abs(priceDeltaPct) * 100).toFixed(1)}%`;
-      title = `Competitor Price Undercut: ${primaryComp.asin || primaryComp.competitorId} Cut Price ${dropPctStr}`;
+      title = `竞品降价压制：${primaryComp.asin || primaryComp.competitorId} 降价 ${dropPctStr}`;
 
       primaryDriver = {
         domain: 'COMPETITOR',
@@ -120,7 +120,7 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength,
         relatedSignalIds: targetSignals.filter((s) => s.code === 'COMPETITOR_PRICE_DROP').map((s) => s.signalId),
-        description: `Primary competitor (${primaryComp.asin || primaryComp.competitorId}) lowered price from $${compBasePrice.toFixed(2)} to $${compPrice.toFixed(2)} (-${dropPctStr}), creating a $${(ourPrice - compPrice).toFixed(2)} price disadvantage against our $${ourPrice.toFixed(2)} ASP.`,
+        description: `主要竞品（${primaryComp.asin || primaryComp.competitorId}）将价格从 $${compBasePrice.toFixed(2)} 降至 $${compPrice.toFixed(2)}（-${dropPctStr}），相对我方 $${ourPrice.toFixed(2)} 的均价形成 $${(ourPrice - compPrice).toFixed(2)} 的价格劣势。`,
       };
 
       const ordersDeltaPct = context.sales?.ordersCount?.deltaPct ?? 0;
@@ -133,14 +133,14 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
           contributionRatio: 0.30,
           direction: 'DOWN',
           causalStrength: 'INDICATIVE',
-          description: `Our listing orders dropped ${(Math.abs(ordersDeltaPct) * 100).toFixed(1)}% concurrently with competitor price reduction.`,
+          description: `竞品降价同期，我方 listing 订单下降 ${(Math.abs(ordersDeltaPct) * 100).toFixed(1)}%。`,
         });
       }
 
-      summary = `Primary competitor price cut has introduced pricing headwind. Competitor currently sells at $${compPrice.toFixed(2)} vs our $${ourPrice.toFixed(2)}.`;
+      summary = `主要竞品降价形成价格逆风。竞品当前售价 $${compPrice.toFixed(2)}，我方为 $${ourPrice.toFixed(2)}。`;
     } else {
       rootCauseCode = 'COMPETITOR_RATING_ADVANTAGE';
-      title = `Competitor Quality Advantage: ${primaryComp.asin || primaryComp.competitorId} at ${compRating.toFixed(1)}?`;
+      title = `竞品质量优势：${primaryComp.asin || primaryComp.competitorId} 评分 ${compRating.toFixed(1)}★`;
 
       primaryDriver = {
         domain: 'COMPETITOR',
@@ -150,10 +150,10 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
         direction: 'UP',
         causalStrength: 'INDICATIVE',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'COMPETITOR_ADVANTAGE').map((s) => s.signalId),
-        description: `Competitor maintains a ${compRating.toFixed(1)}? customer rating advantage (${primaryComp.reviewCount ?? 0} reviews).`,
+        description: `竞品保持 ${compRating.toFixed(1)}★ 评分优势（${primaryComp.reviewCount ?? 0} 条评论）。`,
       };
 
-      summary = `Competitor rating superiority is creating social proof advantage in organic search placement.`;
+      summary = `竞品评分优势正在自然搜索排位中形成社会认同优势。`;
     }
 
     // 2. Evidence Gate & Unknowns
@@ -162,19 +162,19 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
 
     if (isStale) {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Competitor benchmark data is STALE (> 48h old); price and inventory state may have shifted.');
+      unknowns.push('竞品基准数据已过期（STALE，> 48 小时）；价格与库存状态可能已变化。');
     }
     if (compCtx.availability === 'PARTIAL') {
       gateStatus = 'PARTIALLY_SUPPORTED';
-      unknowns.push('Competitor telemetry is PARTIAL; only primary competitor was captured.');
+      unknowns.push('竞品遥测为 PARTIAL；仅捕获主要竞品。');
     }
 
     const evidence: OperationEvidenceItem[] = [
       {
         evidenceId: `EV-COMP-DIAG-${context.identity.skuId}`,
         category: 'EXTERNAL_DATA',
-        title: 'Competitor Benchmark Telemetry',
-        content: `Competitor ${primaryComp.asin || primaryComp.competitorId}: Price $${compPrice.toFixed(2)} (delta: $${priceDelta.toFixed(2)}, ${(priceDeltaPct * 100).toFixed(1)}%), Rating: ${compRating.toFixed(1)}?. Our ASP: $${ourPrice.toFixed(2)}.`,
+        title: '竞品基准遥测',
+        content: `竞品 ${primaryComp.asin || primaryComp.competitorId}：价格 $${compPrice.toFixed(2)}（变动：$${priceDelta.toFixed(2)}，${(priceDeltaPct * 100).toFixed(1)}%），评分：${compRating.toFixed(1)}★。我方均价：$${ourPrice.toFixed(2)}。`,
         source: 'CompetitorTracker',
         sourceId: primaryComp.asin || primaryComp.competitorId,
         capturedAt: new Date().toISOString(),

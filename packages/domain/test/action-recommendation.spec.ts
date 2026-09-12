@@ -269,7 +269,7 @@ describe('Epic 3 Phase 5: Action Recommendation Service', () => {
       expect(replenishAction!.impactType).toBe('ESTIMATED');
       // Must strictly use recommendedQuantity from planning service (420)
       expect(replenishAction!.payload?.recommendedQuantity).toBe(420);
-      expect(replenishAction!.title).toContain('420 Units');
+      expect(replenishAction!.title).toContain('420 件');
 
       const auditAction = response.actions.find((a) => a.actionType === 'INVESTIGATE_STOCKOUT');
       expect(auditAction).toBeDefined();

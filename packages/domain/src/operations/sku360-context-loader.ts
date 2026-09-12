@@ -289,8 +289,8 @@ export class Sku360ContextLoader {
       collectedEvidence.push({
         evidenceId: `EVI-ERR-${domainName.toUpperCase()}-${identity.skuId}-${Date.now()}`,
         category: 'RULE',
-        title: `Domain ${domainName} Load Warning`,
-        content: `Domain load failed or timed out: ${errorMsg}. Availability downgraded to UNAVAILABLE.`,
+        title: `${domainName} 领域加载警告`,
+        content: `领域加载失败或超时：${errorMsg}。可用性已降级为 UNAVAILABLE。`,
         source: 'Sku360ContextLoader',
         capturedAt: loadedAt,
         metadata: {

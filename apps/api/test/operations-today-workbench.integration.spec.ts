@@ -232,7 +232,7 @@ describe('Epic 3 Phase 8: Operations Today Workbench End-to-End Suite', () => {
       expect(replenishAction?.priority).toBe('P1');
       expect(replenishAction?.riskLevel).toBe('HIGH');
       expect(replenishAction?.executionMode).toBe('APPROVAL_REQUIRED');
-      expect(replenishAction?.reason).toMatch(/11\.8|recommends reordering|depleted/);
+      expect(replenishAction?.reason).toMatch(/已完全耗尽|建议下单/);
     });
   });
 

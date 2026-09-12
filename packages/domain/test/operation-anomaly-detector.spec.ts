@@ -542,7 +542,7 @@ describe('Epic 3 Phase 2: OperationAnomalyDetector 12 Core Rules Engine', () => 
       const retEval = result.evaluations.find((e) => e.ruleId === 'R-RET-01');
 
       expect(retEval?.status).toBe('NOT_EVALUATED');
-      expect(retEval?.reason).toContain('below minimum statistical sample size');
+      expect(retEval?.reason).toContain('低于最小统计样本量');
       expect(result.signals.find((s) => s.ruleId === 'R-RET-01')).toBeUndefined();
     });
 
@@ -560,7 +560,7 @@ describe('Epic 3 Phase 2: OperationAnomalyDetector 12 Core Rules Engine', () => 
       const revEval = result.evaluations.find((e) => e.ruleId === 'R-REV-01');
 
       expect(revEval?.status).toBe('NOT_EVALUATED');
-      expect(revEval?.reason).toContain('sample size insufficient');
+      expect(revEval?.reason).toContain('评论样本量不足');
     });
 
     it('should handle zero baseline profit without division by zero or NaN', () => {
@@ -577,7 +577,7 @@ describe('Epic 3 Phase 2: OperationAnomalyDetector 12 Core Rules Engine', () => 
       const profEval = result.evaluations.find((e) => e.ruleId === 'R-PROF-01');
 
       expect(profEval?.status).toBe('NOT_EVALUATED');
-      expect(profEval?.reason).toContain('mathematically undefined');
+      expect(profEval?.reason).toContain('在数学上无定义');
 
       // But R-PROF-02 (negative margin) properly catches the negative profit!
       const marginSignal = result.signals.find((s) => s.ruleId === 'R-PROF-02');

@@ -12,74 +12,74 @@ import { simDateToUtcDate } from './types.js';
 const POSITIVE_REVIEWS: { rating: number; title: string; content: string }[] = [
   {
     rating: 5,
-    title: 'Beautiful and heavy — never tips over',
+    title: '美观厚重，从来不会倒',
     content:
-      'The real marble base is gorgeous and heavy enough that it never moves. Fits my Oral-B handle perfectly in the 1.5 inch slots.',
+      '天然大理石底座质感很好，分量足，放上去从来不会移动。1.5 英寸孔位刚好放下我的 Oral-B 手柄。',
   },
   {
     rating: 5,
-    title: 'Worth every penny',
+    title: '物有所值',
     content:
-      'Upgraded my whole bathroom counter. The polished stone looks premium and the anti-slip pads keep it in place.',
+      '整个洗手台档次都提升了。抛光石材看起来很高级，防滑垫让它稳稳固定。',
   },
   {
     rating: 4,
-    title: 'Great quality, slightly smaller than expected',
+    title: '质量不错，比预期略小',
     content:
-      'Solid natural marble and good drainage slope. Wish it were a touch larger, but it holds all our toothbrushes and toothpaste.',
+      '天然大理石很扎实，排水坡度设计合理。希望再大一点点，不过放得下我们所有的牙刷和牙膏。',
   },
   {
     rating: 4,
-    title: 'Looks expensive',
+    title: '看起来很贵',
     content:
-      'Elegant piece, easy to clean. One slot edge was a little rough but nothing noticeable on the counter.',
+      '很优雅，容易清洁。有一个孔的边缘稍微有点粗糙，但摆在台面上看不出来。',
   },
   {
     rating: 3,
-    title: 'Decent but color varies',
+    title: '还可以，但颜色有差异',
     content:
-      'Natural stone so the veining differs from the photos. Quality is fine, just set expectations on the exact pattern.',
+      '天然石材，纹路和照片有差异。质量没问题，只是对实际花纹要有心理预期。',
   },
 ];
 
 const NEGATIVE_REVIEWS: { rating: number; title: string; content: string }[] = [
   {
     rating: 1,
-    title: 'Hole too small for electric toothbrush',
+    title: '孔太小，放不下电动牙刷',
     content:
-      'The hole too small problem is real — my Oral-B iO handle does not fit. Advertised as compatible but the diameter is too narrow.',
+      '孔太小的问题是真实的——我的 Oral-B iO 手柄放不进去。宣传说兼容，但直径太窄。',
   },
   {
     rating: 1,
-    title: 'Fake marble, chipped on arrival',
+    title: '假大理石，到货就有崩边',
     content:
-      'This looks like fake marble resin, not natural stone. Mine arrived with chipping on the base edge. Returning it.',
+      '看起来像假大理石树脂，不是天然石材。我的到货时底座边缘就有崩边。退货了。',
   },
   {
     rating: 2,
-    title: 'Hole too small for Sonicare handle',
+    title: '孔太小，Sonicare 手柄放不稳',
     content:
-      'My Philips Sonicare handle barely fits and the hole too small issue makes it wobble. Expected better at this price.',
+      '我的 Philips Sonicare 手柄勉强塞得下，孔太小导致放不稳。这个价位不该如此。',
   },
   {
     rating: 2,
-    title: 'Chipping after two weeks',
+    title: '两周后开始崩边',
     content:
-      'Started chipping around the slot rim after two weeks of normal use. Also skeptical this is real marble — feels like fake marble coating.',
+      '正常使用两周后孔沿开始崩边。也怀疑这不是真大理石——摸起来像假大理石涂层。',
   },
 ];
 
 const REVIEWER_NAMES = [
-  'Emma R.',
-  'Liam K.',
-  'Sophia M.',
-  'Noah T.',
-  'Ava P.',
-  'Mason W.',
-  'Isabella H.',
-  'Ethan C.',
-  'Mia S.',
-  'Lucas B.',
+  '艾玛',
+  '利亚姆',
+  '索菲亚',
+  '诺亚',
+  '艾娃',
+  '梅森',
+  '伊莎贝拉',
+  '伊森',
+  '米娅',
+  '卢卡斯',
 ];
 
 export interface ReviewEngineInput {

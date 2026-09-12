@@ -92,8 +92,8 @@ export function runInventoryEngine(input: InventoryEngineInput): InventoryEngine
         simDate: rowDate,
         code: 'REPLENISHMENT_RECEIVED',
         severity: 'INFO',
-        title: 'FBA Replenishment Received',
-        description: `${arrival.quantity} units received at the FBA fulfillment center. Available inventory restored; PPC bidding resumes at target ACOS.`,
+        title: 'FBA 补货入库',
+        description: `${arrival.quantity} 件已到达 FBA 运营中心，可售库存恢复；PPC 竞价恢复至目标 ACOS。`,
         status: 'COMPLETED',
       });
     }
@@ -119,8 +119,8 @@ export function runInventoryEngine(input: InventoryEngineInput): InventoryEngine
         simDate: rowDate,
         code: 'REORDER_PLACED',
         severity: daysCover < sku.leadTimeDays ? 'WARNING' : 'INFO',
-        title: 'FBA Replenishment Ordered',
-        description: `Stock drops below reorder point (${sku.reorderPoint} units). Purchase order for ${sku.reorderQuantity} units placed; inbound arrives in ${sku.leadTimeDays} days.`,
+        title: 'FBA 补货下单',
+        description: `库存跌破补货点（${sku.reorderPoint} 件），已创建 ${sku.reorderQuantity} 件采购订单；入库将在 ${sku.leadTimeDays} 天后到达。`,
         status: 'ACTIVE',
       });
     }
@@ -133,8 +133,8 @@ export function runInventoryEngine(input: InventoryEngineInput): InventoryEngine
         simDate: rowDate,
         code: 'LOW_STOCK',
         severity: 'CRITICAL',
-        title: 'Critical Reorder Warning',
-        description: `At the current velocity of ${avgDailySales} units/day, Days Cover drops to ${daysCover} days (< ${sku.leadTimeDays} days supplier lead time). Stockout risk without expedited PO.`,
+        title: '紧急补货预警',
+        description: `按当前 ${avgDailySales} 件/天的动销速度，可售天数降至 ${daysCover} 天（低于 ${sku.leadTimeDays} 天供应商交期）。不加急采购将有断货风险。`,
         status: 'ACTIVE',
       });
     } else if (daysCover >= sku.leadTimeDays) {
@@ -149,9 +149,9 @@ export function runInventoryEngine(input: InventoryEngineInput): InventoryEngine
         simDate: rowDate,
         code: 'STOCKOUT',
         severity: 'CRITICAL',
-        title: 'Inventory Stockout',
+        title: '库存断货',
         description:
-          'Fulfillable inventory hits zero. Listing loses Buy Box eligibility and organic ranking until replenishment arrives.',
+          '可售库存归零。补货到达前，Listing 将失去 Buy Box 资格和自然排名。',
         status: 'ACTIVE',
       });
     } else if (fulfillable > 0) {

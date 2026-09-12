@@ -38,7 +38,7 @@ export class SimulatorService {
   /** Advances N days (1–90) by repeatedly ticking. */
   async advance(workspaceId: string, days: number) {
     if (!Number.isInteger(days) || days < 1 || days > 90) {
-      throw new BadRequestException('days must be an integer between 1 and 90.');
+      throw new BadRequestException('days 必须是 1 到 90 之间的整数。');
     }
     let last: SimulatorTickResult | null = null;
     for (let i = 0; i < days; i++) {
@@ -60,7 +60,7 @@ export class SimulatorService {
         success: true,
         simDate: worldState.simDate,
         dayIndex: worldState.dayIndex,
-        message: 'Simulator world reset to initial state.',
+        message: '模拟器世界已重置为初始状态。',
       };
     } catch (err) {
       if (err instanceof SimulatorCatalogMissingError) {

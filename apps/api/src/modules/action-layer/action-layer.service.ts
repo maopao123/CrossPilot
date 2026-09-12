@@ -107,12 +107,12 @@ export class ActionLayerService {
         factId: fact.id,
         sourceType: 'ADS',
         sourceId: campaign.id,
-        quote: `Campaign ${campaign.name} ACOS ${(campaign.metrics30d?.acos ?? 0).toFixed(2)}; decrease keyword bid 20%`,
+        quote: `广告活动 ${campaign.name} ACOS ${(campaign.metrics30d?.acos ?? 0).toFixed(2)}；建议关键词竞价下调 20%`,
         confidence: 0.8,
       });
       const rec = await this.intel.createRecommendation(workspaceId, {
         decision: 'DECREASE_KEYWORD_BID',
-        reason: 'ACOS increased; decrease keyword bid 20%',
+        reason: 'ACOS 上升；建议关键词竞价下调 20%',
         confidence: 0.8,
         evidenceIds: [evidence.id],
       });
@@ -135,7 +135,7 @@ export class ActionLayerService {
       }
       const updated = await this.prisma.plannedAction.update({
         where: { id },
-        data: { status: 'APPROVED', lastMessage: 'Approved by owner (mock execution still required)' },
+        data: { status: 'APPROVED', lastMessage: '已由 owner 批准（仍需 Mock Executor 执行）' },
       });
       await this.appendHistory(workspaceId, id, userId || 'owner', 'approved', { status: 'APPROVED' }, 1);
       return this.toAction(updated);
@@ -153,7 +153,7 @@ export class ActionLayerService {
       }
       const updated = await this.prisma.plannedAction.update({
         where: { id },
-        data: { status: 'FAILED', lastMessage: 'Rejected by owner; mock executor was not called' },
+        data: { status: 'FAILED', lastMessage: '已被 owner 拒绝；未调用 Mock Executor' },
       });
       await this.appendHistory(workspaceId, id, userId || 'owner', 'rejected', { status: 'FAILED' }, 1);
       return this.toAction(updated);
@@ -171,7 +171,7 @@ export class ActionLayerService {
       }
       await this.prisma.plannedAction.update({
         where: { id },
-        data: { status: 'EXECUTING', lastMessage: 'Mock executor started' },
+        data: { status: 'EXECUTING', lastMessage: 'Mock Executor 已启动' },
       });
       await this.appendHistory(workspaceId, id, userId || 'owner', 'execution_started', asObject(row.parameters), 1);
 
