@@ -20,7 +20,7 @@ V9.3 Mock Action  +  V10 Epic 1 多店表  +  V10 Epic 2 Ports/SimulatorAdapter
 | 项 | 值 |
 | :--- | :--- |
 | 实现 SHA（API/worker dist） | `6a9b636` |
-| 文档钉死 SHA（origin / 云机 git） | `8d30554` |
+| 交接正文 SHA | `0ff909f`（本文件引入 commit；origin HEAD 以 `git log -1` 为准） |
 | 云机应用 | `/root/zls/project/CrossPilot` @ `root@116.198.230.217` |
 | 公网 | http://116.198.230.217:2222 |
 | 本机 | Windows **只写代码**。不要起 Postgres / API / Web / 浏览器验收 |
@@ -312,7 +312,7 @@ V9.2 / V9.2.1 / V9.3 SHIPPED  Action = Mock only
 V10 Epic 0          DONE     architecture + impact
 V10 Epic 1          SHIPPED  2a5b305  Store + ChannelIdentity
 V10 Epic 2          SHIPPED  6a9b636  Ports + SimulatorAdapter
-Live git            8d30554  (docs pin; API dist = 6a9b636)
+Live git            master HEAD  (handoff since 0ff909f; API dist = 6a9b636)
 Live                http://116.198.230.217:2222  health 200
 Next                Epic 3 Amazon read Adapter  ← 用户说继续就做
 Stop after Epic 3   不要开 Shopify / Action Write / WF-05 切源

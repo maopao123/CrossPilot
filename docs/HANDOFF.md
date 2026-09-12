@@ -106,13 +106,13 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | V9.3 Action Layer | **`a39a803`** | Mock planner / risk / executor / history |
 | V10 Epic 1 Store foundation | **`2a5b305`** | Store + ChannelIdentity + unique(storeId) |
 | V10 Epic 2 Ports + SimulatorAdapter | **`6a9b636`** | Catalog/Order/Inventory/Ads/Profit ports |
-| V10 下一任交接文档 | 本轮 docs commit | `V10_NEXT_AGENT_HANDOFF.md` |
-| **origin + 云机 git（push 后）** | 以 `git log -1` 为准 | API/worker **dist 仍为 `6a9b636`**（纯文档不 rebuild） |
-| **Live API/worker dist** | **`6a9b636`** | Web dist 仍为 V9.3 UI |
+| V10 下一任交接正文 | **`0ff909f`** | `V10_NEXT_AGENT_HANDOFF.md` 起于此 commit |
+| **Live API/worker dist** | **`6a9b636`** | 纯文档不 rebuild；Web dist 仍为 V9.3 UI |
+| **origin master** | push 后 `git log -1` | 文档 HEAD 会比 `0ff909f` 再前一两个 pin commit |
 
 ```text
 Tag v9.1.0            →  b3d5607     不要 retag
-Live git (docs pin)   →  8d30554
+Handoff 正文          →  0ff909f
 Live API/worker dist  →  6a9b636
 Live Web dist         →  a39a803 驾驶舱（V10 尚未改 UI）
 ```
@@ -312,7 +312,7 @@ Epic 4           DEPLOYED  LIVE_NOT_RUN
 V9.2 Phase 1-5   DEPLOYED  API only
 V9.2 Production  READY_WITH_KNOWN_LIMITATIONS
 Simulator        LIVE  via SimulatorAdapter（day 会随 60min tick 前进，勿 reset 对齐旧数字）
-Live git         8d30554  (API dist 6a9b636) @ 116.198.230.217:2222
+Live git         master HEAD  (handoff 0ff909f; API dist 6a9b636) @ 116.198.230.217:2222
 V9.2.1 UI        SHIPPED
 V9.3 Action      SHIPPED mock only
 V10 Epic 1       SHIPPED  Store + ChannelIdentity
