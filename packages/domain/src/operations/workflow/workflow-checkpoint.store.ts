@@ -214,7 +214,7 @@ export class PersistentWorkflowCheckpointStore implements IWorkflowCheckpointSto
           status: scrubbedState.status,
           activeSkuId: isPersistedSkuUuid(scrubbedState.skuIds?.[0])
             ? scrubbedState.skuIds[0]
-            : null,
+            : undefined,
           inputJson: JSON.stringify(
             SensitiveDataGuard.scrub({
               workspaceId: scrubbedState.workspaceId,
