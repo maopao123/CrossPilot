@@ -43,6 +43,11 @@ V9.3 Action Layer
 SHIPPED  a39a803  Mock Executor only
 报告：docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md
 
+V10 Multi-platform Commerce OS
+ARCHITECTURE FROZEN  (no code)
+docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md
+确认前不要开 V10 Epic / 不要接真 Amazon 写 / 不要接 Shopify API
+
 Live:
 http://116.198.230.217:2222
 health 200  postgres/redis/milvus up
@@ -62,7 +67,8 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 
 1. 本文件 `docs/HANDOFF.md`
 2. `docs/00_governance/V9_1_RELEASE_FREEZE.md`
-3. `docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md`
+3. `docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md`（V10 只读架构，未授权开发）
+4. `docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md`
 4. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
 4. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
 4. `docs/00_governance/V92_DEPLOYMENT_PLAN.md`
@@ -265,14 +271,13 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 
 ## 9. 下一会话（等人工选）
 
-V9.3 Mock Action Layer 已上线。不要自己开：
+V10 架构已冻结。不要自己开：
 
-1. 打 release tag
-2. Amazon Write / 真 SP-API 下发
-3. Shopify Adapter / V10 多平台
-4. Simulator 控制台页
-5. 配置云上 LLM key
-6. 改 `STORE_SKU360_SOURCE=prisma`
+1. V10 Epic 写代码（等人工确认）
+2. 真 Amazon Write / Shopify API
+3. 新 Agent / 新 action_type
+4. 改 WF-05 公式或 Recommendation 状态机
+5. 打 release tag / 配 LLM key / `STORE_SKU360_SOURCE=prisma`
 
 默认：**停住，问人。**
 
@@ -290,7 +295,8 @@ Live git         a39a803 @ 116.198.230.217:2222
 V9.2.1 UI        SHIPPED
 V9.3 Action      SHIPPED mock only
 health           200   /health/ai degraded
-Do not start V10 / Amazon Write / Shopify Adapter / product Scheduler
+V10 architecture FROZEN — no implementation until human confirms
+Do not start V10 code / Amazon Write / Shopify Adapter
 Do not retarget XYDC 5147→5151
 Do not add a second mock-data-service
 ```
