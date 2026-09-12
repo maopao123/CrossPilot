@@ -2,7 +2,10 @@
 
 **Date:** 2026-09-12  
 **Runtime:** `http://116.198.230.217:2222`  
+**Git:** `a39a803`  
 **Scope:** Mock Action Framework only. No Amazon Write. No WF-05 formula change. No Recommendation engine refactor.
+
+Cloud demo 2026-09-12：`plan-acos` → `DECREASE_BID` medium `WAITING_APPROVAL` → VIEWER approve 403 → OWNER approve → mock execute **SUCCESS** `Mock bid decreased 20%` → history `created / approved / execution_started / SUCCESS`.
 
 ---
 

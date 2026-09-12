@@ -39,13 +39,17 @@ SHIPPED  8c2f867
 /app/operations/today = 卖家驾驶舱
 报告：docs/00_governance/V921_UI_RELEASE_REPORT.md
 
+V9.3 Action Layer
+SHIPPED  a39a803  Mock Executor only
+报告：docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md
+
 Live:
 http://116.198.230.217:2222
 health 200  postgres/redis/milvus up
 /health/ai degraded（无 LLM key）
 ```
 
-**不要自动开 V9.3 / Launch Center / Amazon Write / 产品 Scheduler。**
+**不要自动开 V10 / Amazon Write / Shopify Adapter / 产品 Scheduler。**
 **不要为了刷绿把 XYDC `5147` 改成 `5151`。**
 **不要 retag / force-push `v9.1.0`。**
 **不要改 simulator 引擎的种子/起始日/初始库存（确定性会被测试 gold case 锁死）。**
@@ -58,7 +62,8 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 
 1. 本文件 `docs/HANDOFF.md`
 2. `docs/00_governance/V9_1_RELEASE_FREEZE.md`
-3. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
+3. `docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md`
+4. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
 4. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
 4. `docs/00_governance/V92_DEPLOYMENT_PLAN.md`
 5. `docs/40_mockData/CrossPilot_Commerce_Simulator_V1.0.md`（§15 实现决策 = Simulator 权威说明）
@@ -81,13 +86,14 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | 指针同步 | `5ef0313` | evidence / authority map |
 | 旧交接记录 | `09ad2c0` | 仅 docs |
 | V9.2 验证报告 + 稳定性补丁 | **`05b8151`** | 报告 + HTTP 日志 + worker Redis |
-| V9.2.1 UI | **`8c2f867`** | Operations Today cockpit + GET /operations/today |
-| **origin + 云机 git** | **`8c2f867`** | API + Web 已 rebuild |
+| V9.2.1 UI | `8c2f867` | Operations Today cockpit |
+| V9.3 Action Layer | **`a39a803`** | Mock planner / risk / executor / history |
+| **origin + 云机 git** | **`a39a803`** | API + Web 已 rebuild |
 
 ```text
 Tag v9.1.0  →  b3d5607     不要 retag
-Live git    →  8c2f867
-Live API/Web dist 来自 8c2f867
+Live git    →  a39a803
+Live API/Web dist 来自 a39a803
 ```
 
 建议 RC tag（**未打**）：`v9.2.0-rc1` → `54074d9`。等人工下令。
@@ -259,14 +265,14 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 
 ## 9. 下一会话（等人工选）
 
-V9.2.1 UI 已上线。不要自己开：
+V9.3 Mock Action Layer 已上线。不要自己开：
 
-1. 打 `v9.2.0-rc1` / `v9.2.1`
-2. Simulator 控制台页
-3. Live Amazon OAuth
-4. Simulator → Agent 联动（改 `STORE_SKU360_SOURCE` 必须人工下令）
+1. 打 release tag
+2. Amazon Write / 真 SP-API 下发
+3. Shopify Adapter / V10 多平台
+4. Simulator 控制台页
 5. 配置云上 LLM key
-6. V9.3 Action Layer / Launch Center / Amazon Write / 产品 Scheduler
+6. 改 `STORE_SKU360_SOURCE=prisma`
 
 默认：**停住，问人。**
 
@@ -280,10 +286,11 @@ Epic 4           DEPLOYED  LIVE_NOT_RUN
 V9.2 Phase 1-5   DEPLOYED  API only
 V9.2 Production  READY_WITH_KNOWN_LIMITATIONS
 Simulator        LIVE  day9 @ 60min/tick  RETURN_SPIKE
-Live git         8c2f867 @ 116.198.230.217:2222
-V9.2.1 UI        SHIPPED  /app/operations/today
+Live git         a39a803 @ 116.198.230.217:2222
+V9.2.1 UI        SHIPPED
+V9.3 Action      SHIPPED mock only
 health           200   /health/ai degraded
-Do not start V9.3 Action Layer / Amazon Write / product Scheduler
+Do not start V10 / Amazon Write / Shopify Adapter / product Scheduler
 Do not retarget XYDC 5147→5151
 Do not add a second mock-data-service
 ```
