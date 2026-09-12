@@ -1,7 +1,8 @@
 # V10 Epic 2 — Commerce Ports + SimulatorAdapter
 
 **Date:** 2026-09-12  
-**Status:** SHIPPED (live SHA pinned after deploy)  
+**Status:** SHIPPED / LIVE  
+**Live SHA:** `6a9b636`  
 **Scope:** Resource-level Commerce Ports + SimulatorAdapter wrapping existing SimulatorStore. No Amazon/Shopify APIs. No WF-05 / Recommendation / Action SM changes. Engine seed/start date/inventory frozen.
 
 ---
@@ -57,7 +58,17 @@ pnpm --filter @crosspilot/api test -- --testPathPattern="v10-epic2-ports|simulat
 | Amazon/Shopify adapter | `PROVIDER_UNAVAILABLE` |
 | Write ports | `WRITE_FORBIDDEN` |
 
-Live: filled after cloud rebuild (no SQL migration).
+Live (`6a9b636`, backup `/root/zls/backup/CrossPilot-pre-v10e2-202609122059`, no SQL migration):
+
+| Check | Result |
+| :--- | :--- |
+| Health | `/api/v1/health` 200; postgres/redis/milvus up |
+| Two stores | `Simulator Amazon` + `Simulator Shopify` still distinct |
+| Adapter tick | `POST /simulator/tick` 201: dayIndex 11 → **12**, 29 orders / 4 reviews / 3 ad rows |
+| Action SM | existing `DECREASE_BID` rows still `SUCCESS` |
+| Guard | `STORE_SKU360_SOURCE=prisma` **not** set |
+
+PM2: api + worker reloaded on `6a9b636`; web dist unchanged (no UI).
 
 ---
 
