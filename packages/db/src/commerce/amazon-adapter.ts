@@ -85,7 +85,7 @@ export class AmazonAdapter implements CommerceAdapter {
     }
     const data = await this.executeCapability(ctx, bound, STORE_CAPABILITIES.listingsSearch, {
       sellingPartnerId: bound.account.sellingPartnerId,
-      pageSize: 100,
+      pageSize: 20,
     });
     const listings = Array.isArray(data) ? data : [];
     const products = listings
@@ -241,12 +241,18 @@ export class AmazonAdapter implements CommerceAdapter {
       marketplace: bound.account.defaultMarketplaceCode || 'AMAZON_US',
       metadata: { amazonAccessToken: accessToken },
     };
-    const result: ProviderExecutionResult<any> = await this.transport.execute(
-      capabilityId,
-      binding,
-      input,
-      context,
-    );
+    let result: ProviderExecutionResult<any>;
+    try {
+      result = await this.transport.execute(capabilityId, binding, input, context);
+    } catch (err: any) {
+      // Well-behaved providers return failure results, but a custom transport
+      // may throw — normalize so port callers only ever see CommercePortError.
+      throw new CommercePortError(
+        err?.code === 'RATE_LIMITED' ? 'PROVIDER_RATE_LIMIT' : String(err?.code || ErrorCodes.PROVIDER_UNAVAILABLE),
+        err?.message || `Amazon capability ${capabilityId} failed`,
+        Boolean(err?.retryable),
+      );
+    }
     if (result.success) return result.data;
     const error = result.error;
     const code =

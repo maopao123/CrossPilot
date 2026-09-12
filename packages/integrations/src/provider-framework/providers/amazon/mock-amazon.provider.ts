@@ -7,8 +7,10 @@ import {
 import { MOCK_AMAZON_PROVIDER_ID, STORE_CAPABILITIES } from './amazon.config.js';
 import { MOCK_AMAZON_FIXTURES } from './amazon.fixtures.js';
 import {
+  mapCatalogItem,
   mapFinances,
   mapInventorySummaries,
+  mapListing,
   mapListingsSearch,
   mapOrders,
   mapParticipations,
@@ -44,9 +46,13 @@ export class MockAmazonProvider implements ProviderAdapter {
       case STORE_CAPABILITIES.participations:
         return mapParticipations(MOCK_AMAZON_FIXTURES.participations);
       case STORE_CAPABILITIES.listingsSearch:
-      case STORE_CAPABILITIES.listingsGet:
-      case STORE_CAPABILITIES.catalogGet:
         return mapListingsSearch(MOCK_AMAZON_FIXTURES.listings);
+      case STORE_CAPABILITIES.listingsGet:
+        // Mirror AmazonProvider: single listing, not an array.
+        return mapListing(MOCK_AMAZON_FIXTURES.listings.items[0]);
+      case STORE_CAPABILITIES.catalogGet:
+        // Mirror AmazonProvider: single catalog item, not an array.
+        return mapCatalogItem(MOCK_AMAZON_FIXTURES.listings.items[0]);
       case STORE_CAPABILITIES.ordersSearch:
       case STORE_CAPABILITIES.ordersGet:
         return mapOrders(MOCK_AMAZON_FIXTURES.orders);

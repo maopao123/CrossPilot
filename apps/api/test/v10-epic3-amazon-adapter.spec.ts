@@ -213,6 +213,55 @@ describe('V10 Epic 3 AmazonAdapter', () => {
     });
   });
 
+  it('getProduct returns one canonical product and maps NOT_FOUND to null', async () => {
+    const prisma = memoryPrisma();
+    const adapter = mockTransportAdapter(prisma);
+    const ctx = createCommerceContext('ws-1', 'store_az1', 't1');
+    const product = await adapter.getProduct(ctx, 'MTH-WHITE-001');
+    expect(product).toMatchObject({
+      id: 'MTH-WHITE-001',
+      sku: 'MTH-WHITE-001',
+      price: 29.99,
+      identities: [
+        { type: 'asin', id: 'B0C7M8W101' },
+        { type: 'amazon_sku', id: 'MTH-WHITE-001' },
+      ],
+    });
+
+    const notFound = {
+      execute: jest.fn(async () => ({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'missing', retryable: false },
+      })),
+    };
+    const nfAdapter = new AmazonAdapter(prisma, {
+      transport: notFound as any,
+      exchangeToken: async () => ({ accessToken: 't' }),
+      decryptCredential: (enc) => enc,
+    });
+    await expect(nfAdapter.getProduct(ctx, 'NOPE-001')).resolves.toBeNull();
+  });
+
+  it('normalizes a throwing transport into CommercePortError', async () => {
+    const prisma = memoryPrisma();
+    const throwing = {
+      execute: jest.fn(async () => {
+        const err: any = new Error('boom');
+        err.code = 'RATE_LIMITED';
+        err.retryable = true;
+        throw err;
+      }),
+    };
+    const adapter = new AmazonAdapter(prisma, {
+      transport: throwing as any,
+      exchangeToken: async () => ({ accessToken: 't' }),
+      decryptCredential: (enc) => enc,
+    });
+    await expect(
+      adapter.listProducts(createCommerceContext('ws-1', 'store_az1', 't1')),
+    ).rejects.toMatchObject({ code: 'PROVIDER_RATE_LIMIT', retryable: true });
+  });
+
   it('keeps ads and profit reads empty and write ports WRITE_FORBIDDEN', async () => {
     const prisma = memoryPrisma();
     const adapter = mockTransportAdapter(prisma);
