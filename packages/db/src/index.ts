@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 export * from '@prisma/client';
 export * from './simulator/simulator-store.js';
 export * from './commerce/ensure-store-account.js';
+export * from './commerce/simulator-adapter.js';
+export * from './commerce/resolve-adapter.js';
 
 declare global {
   // eslint-disable-next-line no-var

@@ -1,9 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 import {
+  SimulatorAdapter,
   SimulatorCatalogMissingError,
   SimulatorConflictError,
   SimulatorTickResult,
-  tickSimulatorWorkspace,
 } from '@crosspilot/db';
 import { SimWorldState } from '@crosspilot/domain';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -21,7 +21,7 @@ export class SimulatorService {
   /** Advances the simulated world by one day and persists the resulting dataset. */
   async tick(workspaceId: string): Promise<SimulatorTickResult> {
     try {
-      const result = await tickSimulatorWorkspace(this.prisma, workspaceId);
+      const result = await new SimulatorAdapter(this.prisma).tick(workspaceId);
       this.logger.log(`Simulator ticked to ${result.simDate} (day ${result.dayIndex}) for ${workspaceId}`);
       return result;
     } catch (err) {

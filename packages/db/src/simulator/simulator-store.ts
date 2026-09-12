@@ -37,6 +37,7 @@ export interface SimFixtures {
   /** skuCode → skuId for the SKUs referenced by the SimConfig. */
   skuMap: Record<string, string>;
   accountIds: { amazon: string; shopify: string };
+  storeIds: { amazon: string; shopify: string };
   campaignId: string;
 }
 
@@ -157,6 +158,7 @@ export class SimulatorStore {
       marketplaceId,
       skuMap,
       accountIds: { amazon: amazonAccount.id, shopify: shopifyAccount.id },
+      storeIds: { amazon: amazonBound.storeId, shopify: shopifyBound.storeId },
       campaignId: campaign.id,
     };
   }

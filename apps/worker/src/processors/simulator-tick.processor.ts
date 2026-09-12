@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import {
+  SimulatorAdapter,
   SimulatorCatalogMissingError,
   SimulatorConflictError,
-  tickSimulatorWorkspace,
 } from '@crosspilot/db';
 
 /**
@@ -23,9 +23,10 @@ export async function runSimulatorTick(prisma: PrismaClient): Promise<void> {
     return;
   }
 
+  const adapter = new SimulatorAdapter(prisma);
   for (const state of states) {
     try {
-      const result = await tickSimulatorWorkspace(prisma, state.workspaceId);
+      const result = await adapter.tick(state.workspaceId);
       console.log(
         `🕐 Simulator advanced workspace ${state.workspaceId} to ${result.simDate} ` +
           `(day ${result.dayIndex}, ${result.day.orders} orders, ${result.day.events} events)`,
