@@ -1,6 +1,7 @@
 import { ErrorCodes } from '@crosspilot/shared';
 import { CommercePortError, createCommerceContext } from '@crosspilot/domain';
 import {
+  AmazonAdapter,
   resolveCommerceAdapter,
   SimulatorAdapter,
   simulatorChannelFromProvider,
@@ -130,10 +131,10 @@ describe('V10 Epic 2 SimulatorAdapter', () => {
     expect(simulatorChannelFromProvider('simulator-shopify')).toBe('shopify');
   });
 
-  it('resolves simulator and rejects amazon/shopify until later epics', () => {
+  it('resolves simulator and amazon; shopify stays unavailable until Epic 4', () => {
     const prisma = memoryPrisma();
     expect(resolveCommerceAdapter(prisma, 'simulator')).toBeInstanceOf(SimulatorAdapter);
-    expect(() => resolveCommerceAdapter(prisma, 'amazon')).toThrow(CommercePortError);
+    expect(resolveCommerceAdapter(prisma, 'amazon')).toBeInstanceOf(AmazonAdapter);
     try {
       resolveCommerceAdapter(prisma, 'shopify');
       throw new Error('expected throw');

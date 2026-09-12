@@ -64,6 +64,7 @@ export * from './providers/amazon/amazon.fixtures.js';
 export * from './providers/amazon/amazon.provider.js';
 export * from './providers/amazon/mock-amazon.provider.js';
 export * from './secrets/secret-provider.js';
+export * from './secrets/provider-credential-crypto.js';
 export * from './cache/provider-cache.js';
 
 export interface IntegrationFrameworkBundle {

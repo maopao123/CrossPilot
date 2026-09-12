@@ -1,9 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import { providerUnavailable, type CommerceAdapter } from '@crosspilot/domain';
 import { SimulatorAdapter } from './simulator-adapter.js';
+import { AmazonAdapter } from './amazon-adapter.js';
 
 /**
- * Epic 2 registers Simulator only. Amazon/Shopify adapters are Epic 3/4.
+ * Epic 2 registered Simulator; Epic 3 adds the Amazon read adapter.
+ * Shopify stays PROVIDER_UNAVAILABLE until Epic 4.
  */
 export function resolveCommerceAdapter(
   prisma: PrismaClient | any,
@@ -11,6 +13,9 @@ export function resolveCommerceAdapter(
 ): CommerceAdapter {
   if (platform === 'simulator') {
     return new SimulatorAdapter(prisma);
+  }
+  if (platform === 'amazon') {
+    return new AmazonAdapter(prisma);
   }
   providerUnavailable(platform);
 }

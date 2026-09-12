@@ -2,11 +2,13 @@ import { ErrorCodes } from '@crosspilot/shared';
 
 export class CommercePortError extends Error {
   readonly code: string;
+  readonly retryable: boolean;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, retryable = false) {
     super(message);
     this.name = 'CommercePortError';
     this.code = code;
+    this.retryable = retryable;
   }
 }
 
