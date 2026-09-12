@@ -44,9 +44,11 @@ SHIPPED  a39a803  Mock Executor only
 报告：docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md
 
 V10 Multi-platform Commerce OS
-ARCHITECTURE FROZEN  (no code)
+ARCHITECTURE FROZEN
 docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md
-确认前不要开 V10 Epic / 不要接真 Amazon 写 / 不要接 Shopify API
+Epic 0 Impact Analysis DONE
+docs/00_governance/V10_EPIC0_IMPACT_ANALYSIS.md
+确认前不要开 Epic 1 / 不要改 schema unique / 不要接真 API
 
 Live:
 http://116.198.230.217:2222
@@ -67,7 +69,8 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 
 1. 本文件 `docs/HANDOFF.md`
 2. `docs/00_governance/V9_1_RELEASE_FREEZE.md`
-3. `docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md`（V10 只读架构，未授权开发）
+3. `docs/00_governance/V10_EPIC0_IMPACT_ANALYSIS.md`
+4. `docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md`
 4. `docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md`
 4. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
 4. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
@@ -271,9 +274,9 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 
 ## 9. 下一会话（等人工选）
 
-V10 架构已冻结。不要自己开：
+V10 Epic 0 分析已完成。不要自己开：
 
-1. V10 Epic 写代码（等人工确认）
+1. V10 Epic 1 写代码 / 改 CommerceAccount unique（等人工确认）
 2. 真 Amazon Write / Shopify API
 3. 新 Agent / 新 action_type
 4. 改 WF-05 公式或 Recommendation 状态机
