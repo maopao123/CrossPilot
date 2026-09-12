@@ -74,13 +74,13 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | V9.2 实现 | `54074d9` | Playbook + intelligence |
 | 指针同步 | `5ef0313` | evidence / authority map |
 | 旧交接记录 | `09ad2c0` | 仅 docs |
-| V9.2 验证报告 | （本轮 commit） | `V92_RELEASE_VERIFICATION_REPORT.md` |
-| HTTP 日志 + worker Redis | （本轮 commit） | 稳定性补丁；需部署后 worker 错误日志才干净 |
-| **origin + 云机 git** | 以 `git rev-parse HEAD` 为准 | 验证开始时双方都是 `7cc311b` |
+| V9.2 验证报告 + 稳定性补丁 | **`05b8151`** | 报告 + HTTP 日志 + worker Redis |
+| **origin + 云机 git** | **`05b8151`** | 已部署；API/worker rebuild；Web 未 rebuild |
 
 ```text
 Tag v9.1.0  →  b3d5607     不要 retag
-验证时 git  →  7cc311b（docs handoff after simulator）
+Live git    →  05b8151
+Live API    →  dist 来自 05b8151
 Live Web    →  仍是 e457d5a 的 Next build（无前端改动）
 ```
 
@@ -276,7 +276,8 @@ Epic 4           DEPLOYED  LIVE_NOT_RUN
 V9.2 Phase 1-5   DEPLOYED  API only
 V9.2 Production  READY_WITH_KNOWN_LIMITATIONS
 Simulator        LIVE  day9 @ 60min/tick  RETURN_SPIKE
-http://116.198.230.217:2222  health 200  /health/ai degraded
+Live git         05b8151 @ 116.198.230.217:2222
+health           200   /health/ai degraded
 Do not start V9.3 / Launch Center / Amazon Write / product Scheduler
 Do not retarget XYDC 5147→5151
 Do not add a second mock-data-service

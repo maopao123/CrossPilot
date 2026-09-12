@@ -21,7 +21,8 @@ V9.2 Production      READY_WITH_KNOWN_LIMITATIONS
 **是**：服务可部署、数据链路可跑、核心演示闭环已在云上跑通、异常路径可恢复或可降级；已知限制见 §4。
 
 本轮**没有**新建 `mock-data-service`：仓库里已有 Commerce Simulator，能力覆盖用户 Phase 4 清单。  
-本轮**只补了两处稳定性缺口**（见 §5）：HTTP 结构化日志、BullMQ worker 独立 Redis 连接。
+本轮**只补了两处稳定性缺口**（见 §5）：HTTP 结构化日志、BullMQ worker 独立 Redis 连接。  
+已部署：`05b8151` @ 云机；HTTP 日志已出现 `userId`/`workspaceId`；worker `online` 且 `listening for queue events`。
 
 ---
 
