@@ -1,6 +1,8 @@
 # V10 Epic 1 — Store + ChannelIdentity Foundation
 
 **Date:** 2026-09-12  
+**Status:** SHIPPED / LIVE  
+**Live SHA:** `2a5b305`  
 **Scope:** Database foundation + Simulator/OAuth upsert compatibility. No Adapter. No Amazon/Shopify live calls. No WF-05 / Recommendation / Action state-machine changes.
 
 ---
@@ -41,17 +43,17 @@ Application code that used `upsert({ workspaceId_provider })` now uses `ensureSt
 
 ## 3. Backfill Result
 
-Filled on deploy (see live SQL counts in §4). Mapping:
+Cloud `industry_postgres` / `crosspilot` after `prisma db execute` of `20260914000000_v10_epic1_store_foundation`:
 
-| provider | store.name | platform |
-| :--- | :--- | :--- |
-| `amazon` + region NA | Amazon US | amazon |
-| `amazon` + EU | Amazon EU | amazon |
-| `simulator-amazon` | Simulator Amazon | simulator |
-| `simulator-shopify` | Simulator Shopify | simulator |
-| `shopify` | Shopify Store | shopify |
+| provider | store.name | platform | country | status |
+| :--- | :--- | :--- | :--- | :--- |
+| `simulator-amazon` | Simulator Amazon | simulator | US | CONNECTED |
+| `simulator-shopify` | Simulator Shopify | simulator | US | CONNECTED |
 
-ChannelIdentity: **table only**, no ASIN/campaign backfill this epic.
+`commerce_accounts.store_id` NULL count = **0**.  
+No live Amazon/Shopify accounts existed, so the amazon/shopify name mapping was not exercised on production rows.  
+ChannelIdentity row count = **0** (table only).  
+`skus.asin` column kept.
 
 ---
 
@@ -75,7 +77,18 @@ rg workspaceId_provider --glob '*.{ts,js,sql}'  → 0 hits
 | Epic 4 store service | `epic4-commerce-store.spec.ts` (AUTH_REQUIRED / WRITE_FORBIDDEN / mock listings) | PASS |
 | Simulator API unit | `simulator.spec.ts` | PASS |
 
-Live (after `prisma db execute` on cloud): counts + a rolled-back insert of four stores proving unique(workspace,provider) is gone. SHA pinned after deploy.
+Live (`2a5b305`, backup `/root/zls/backup/CrossPilot-pre-v10e1-202609122045`):
+
+| Check | Result |
+| :--- | :--- |
+| Indexes | `commerce_accounts_workspace_id_provider_key` gone; `commerce_accounts_store_id_key` unique present |
+| Case 1 | Inserted Amazon US/EU + Shopify A/B in one workspace (**4 stores**, 2×amazon + 2×shopify), **ROLLBACK**; leftover `V10E1 %` = 0 |
+| Case 2 | `GET /commerce/accounts` → two stores (`Simulator Amazon`, `Simulator Shopify`); `GET /simulator/state` 200 RUNNING dayIndex=10 simDate=2026-09-11 |
+| Case 3 | `POST /actions/plan-acos` → `WAITING_APPROVAL` → approve `APPROVED` → execute `SUCCESS` (`Mock bid decreased 20%`) |
+| Health | `/api/v1/health` 200; postgres/redis/milvus up; `/app/operations/today` 200 |
+| Guard | `STORE_SKU360_SOURCE=prisma` **not** set |
+
+PM2: api + worker reloaded on `2a5b305`; web left on previous dist (no UI in this epic).
 
 ---
 
