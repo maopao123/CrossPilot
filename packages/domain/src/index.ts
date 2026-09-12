@@ -28,6 +28,7 @@ export * from './operations/index.js';
 export * from './playbook/index.js';
 export * from './intelligence/index.js';
 export * from './simulator/index.js';
+export * from './action-layer/index.js';
 
 export const DOMAIN_CONSTANTS = {
   DEFAULT_CURRENCY: 'USD',

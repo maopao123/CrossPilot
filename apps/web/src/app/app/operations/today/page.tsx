@@ -25,6 +25,7 @@ export default function OperationsTodayPage() {
   const [vocBusy, setVocBusy] = useState(false);
   const [diagBusy, setDiagBusy] = useState(false);
   const [draftBusy, setDraftBusy] = useState(false);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsViewer(ApiClient.isViewer());
@@ -107,6 +108,62 @@ export default function OperationsTodayPage() {
       setNotice(err instanceof Error ? err.message : '无法从 VOC 生成建议');
     } finally {
       setDraftBusy(false);
+    }
+  };
+
+  const handlePlan = async (recommendationId: string) => {
+    if (isViewer) return;
+    setActionBusyId(recommendationId);
+    setNotice(null);
+    try {
+      await ApiClient.post('/api/v1/actions/plan', { recommendationId });
+      await load();
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : '无法规划 Action');
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const handlePlanAcos = async () => {
+    if (isViewer) return;
+    setActionBusyId('plan-acos');
+    setNotice(null);
+    try {
+      await ApiClient.post('/api/v1/actions/plan-acos', {});
+      await load();
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : '无法规划 ACOS Action');
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const handleApproveAction = async (actionId: string) => {
+    if (isViewer) return;
+    setActionBusyId(actionId);
+    setNotice(null);
+    try {
+      await ApiClient.post(`/api/v1/actions/${actionId}/approve`);
+      await load();
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : 'Action 审批失败');
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const handleExecuteAction = async (actionId: string) => {
+    if (isViewer) return;
+    setActionBusyId(actionId);
+    setNotice(null);
+    try {
+      await ApiClient.post(`/api/v1/actions/${actionId}/execute`);
+      await load();
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : 'Mock 执行失败');
+    } finally {
+      setActionBusyId(null);
     }
   };
 
@@ -211,6 +268,11 @@ export default function OperationsTodayPage() {
         onDraftFromVoc={handleDraftFromVoc}
         canDraft={!isViewer && !data.recommendations.some((item) => item.status === 'WAITING_APPROVAL')}
         draftBusy={draftBusy}
+        onPlan={handlePlan}
+        onPlanAcos={handlePlanAcos}
+        onApproveAction={handleApproveAction}
+        onExecuteAction={handleExecuteAction}
+        actionBusyId={actionBusyId}
       />
 
       <VocPanel voc={data.voc} isViewer={isViewer} busy={vocBusy} onAnalyze={handleVoc} />

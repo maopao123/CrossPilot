@@ -1,4 +1,5 @@
 import type { BusinessRecommendationRecord, RecommendationStatus } from './intelligence-contracts.js';
+import type { PlannedActionRecord } from './action-layer-contracts.js';
 
 export type InventoryHealthLevel = 'HEALTHY' | 'WATCH' | 'CRITICAL';
 
@@ -42,6 +43,7 @@ export interface OperationsRecommendationView {
   executionDispatched: boolean;
   createdAt: string;
   updatedAt: string;
+  action?: PlannedActionRecord;
 }
 
 export interface OperationsVocView {
@@ -79,6 +81,7 @@ export interface OperationsTodayDto {
     status: string;
     healthStatus?: string;
   } | null;
+  plannedActions: PlannedActionRecord[];
 }
 
 export type { BusinessRecommendationRecord };

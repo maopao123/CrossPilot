@@ -7,6 +7,7 @@ import { InventoryModule } from '../inventory/inventory.module.js';
 import { SimulatorModule } from '../simulator/simulator.module.js';
 import { DailyDiagnosisModule } from '../daily-diagnosis/daily-diagnosis.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
+import { ActionLayerModule } from '../action-layer/action-layer.module.js';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
     SimulatorModule,
     DailyDiagnosisModule,
     IntelligenceModule,
+    ActionLayerModule,
   ],
   controllers: [OperationsTodayController],
   providers: [OperationsTodayService],

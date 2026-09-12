@@ -14,6 +14,7 @@ import { InventoryService } from '../inventory/inventory.service.js';
 import { SimulatorService } from '../simulator/simulator.service.js';
 import { DailyDiagnosisService } from '../daily-diagnosis/daily-diagnosis.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
+import { ActionLayerService } from '../action-layer/action-layer.service.js';
 import {
   aggregateCampaignMetrics,
   assessInventoryHealth,
@@ -36,6 +37,7 @@ export class OperationsTodayService {
     private readonly simulator: SimulatorService,
     private readonly diagnosis: DailyDiagnosisService,
     private readonly intel: IntelligenceService,
+    private readonly plannedActions: ActionLayerService,
   ) {}
 
   async getInsights(workspaceId: string): Promise<{ insights: OperationsInsightCard[] }> {
@@ -44,7 +46,7 @@ export class OperationsTodayService {
   }
 
   async getToday(workspaceId: string): Promise<OperationsTodayDto> {
-    const [profit, campaigns, inventory, sim, recs, facts, orderCount, latestTask, reviews] =
+    const [profit, campaigns, inventory, sim, recs, facts, orderCount, latestTask, reviews, actions] =
       await Promise.all([
         this.profit.getProfitSummary(workspaceId),
         this.advertising.getCampaigns(workspaceId),
@@ -64,6 +66,7 @@ export class OperationsTodayService {
           take: 20,
           select: { content: true, rating: true },
         }),
+        this.plannedActions.list(workspaceId),
       ]);
 
     const ads = aggregateCampaignMetrics(campaigns);
@@ -106,6 +109,11 @@ export class OperationsTodayService {
 
     const evidence = await this.intel.listEvidence(workspaceId);
     const quoteById = new Map(evidence.map((item) => [item.id, item.quote]));
+    const actionByRec = new Map(
+      actions
+        .filter((action) => action.recommendationId)
+        .map((action) => [action.recommendationId as string, action]),
+    );
     const recommendations: OperationsRecommendationView[] = recs.map((rec) => ({
       id: rec.id,
       decision: rec.decision,
@@ -119,6 +127,7 @@ export class OperationsTodayService {
       executionDispatched: rec.executionDispatched,
       createdAt: rec.createdAt,
       updatedAt: rec.updatedAt,
+      action: actionByRec.get(rec.id),
     }));
 
     const recentReviews = reviews
@@ -157,6 +166,7 @@ export class OperationsTodayService {
           status: rec.status,
           updatedAt: rec.updatedAt,
         })),
+      plannedActions: actions,
       diagnosis: diagnosisSummary
         ? {
             taskId: diagnosisSummary.taskId,

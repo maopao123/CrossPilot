@@ -43,3 +43,13 @@ test('V921: confirm path does not call Amazon write', () => {
   assert.match(page, /\/recommendations\/\$\{id\}\/approve/);
   assert.doesNotMatch(page, /amazon\/write|commerce\/amazon\/sync|listing-publish/);
 });
+
+test('V93: recommendation card exposes planned action and mock execute only', () => {
+  const rec = read('app/app/operations/today/cockpit/recommendation-center.tsx');
+  const page = read('app/app/operations/today/page.tsx');
+  assert.match(rec, /Generated action/);
+  assert.match(rec, /Run mock executor/);
+  assert.match(page, /\/api\/v1\/actions\/plan-acos/);
+  assert.match(page, /\/api\/v1\/actions\/\$\{actionId\}\/execute/);
+  assert.doesNotMatch(page, /AmazonAdsTool|sp-api|amazon\/write/);
+});

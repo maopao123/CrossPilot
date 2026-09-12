@@ -225,6 +225,7 @@ describe('V9.2.1 OperationsTodayService', () => {
       },
     };
 
+    const plannedActions = { list: jest.fn().mockResolvedValue([]) };
     const service = new OperationsTodayService(
       prisma as any,
       profit as any,
@@ -233,6 +234,7 @@ describe('V9.2.1 OperationsTodayService', () => {
       simulator as any,
       diagnosis as any,
       intel as any,
+      plannedActions as any,
     );
 
     const dto = await service.getToday('ws-1');

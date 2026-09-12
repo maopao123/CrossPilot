@@ -80,6 +80,8 @@ model Workspace {
   commerceFacts            CommerceFact[]
   evidenceItems            EvidenceItem[]
   businessRecommendations  BusinessRecommendation[]
+  plannedActions           PlannedAction[]
+  actionExecutions         ActionExecution[]
   simulationState          SimulationState?
   simulationEvents         SimulationEvent[]
   channelDailyMetrics      ChannelDailyMetric[]
@@ -1467,10 +1469,61 @@ model BusinessRecommendation {
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  plannedActions       PlannedAction[]
 
   @@index([workspaceId])
   @@index([status])
   @@map("business_recommendations")
+}
+
+// ==========================================
+// V9.3 Action Layer — planned mock execution
+// Recommendation answers why; PlannedAction answers what to run.
+// ==========================================
+
+model PlannedAction {
+  id               String   @id @default(uuid())
+  workspaceId      String   @map("workspace_id")
+  recommendationId String?  @map("recommendation_id")
+  actionType       String   @map("action_type")
+  target           Json
+  parameters       Json
+  riskLevel        String   @map("risk_level")
+  needApproval     Boolean  @default(true) @map("need_approval")
+  status           String   @default("CREATED")
+  lastMessage      String?  @map("last_message") @db.Text
+  createdBy        String?  @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  workspace        Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  recommendation   BusinessRecommendation? @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
+  executions       ActionExecution[]
+
+  @@index([workspaceId])
+  @@index([recommendationId])
+  @@index([status])
+  @@map("planned_actions")
+}
+
+model ActionExecution {
+  id        String   @id @default(uuid())
+  workspaceId String @map("workspace_id")
+  actionId  String   @map("action_id")
+  operator  String
+  timestamp DateTime @default(now())
+  input     Json
+  output    Json?
+  status    String
+  error     String?  @db.Text
+  attempt   Int      @default(1)
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  action    PlannedAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([actionId])
+  @@map("action_executions")
 }
 
 // ==========================================
