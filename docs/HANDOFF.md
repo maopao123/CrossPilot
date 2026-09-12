@@ -34,6 +34,11 @@ V9.2 Production Verification
 READY_WITH_KNOWN_LIMITATIONS
 报告：docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md
 
+V9.2.1 UI / Product Layer
+SHIPPED  8c2f867
+/app/operations/today = 卖家驾驶舱
+报告：docs/00_governance/V921_UI_RELEASE_REPORT.md
+
 Live:
 http://116.198.230.217:2222
 health 200  postgres/redis/milvus up
@@ -53,7 +58,8 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 
 1. 本文件 `docs/HANDOFF.md`
 2. `docs/00_governance/V9_1_RELEASE_FREEZE.md`
-3. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
+3. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
+4. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
 4. `docs/00_governance/V92_DEPLOYMENT_PLAN.md`
 5. `docs/40_mockData/CrossPilot_Commerce_Simulator_V1.0.md`（§15 实现决策 = Simulator 权威说明）
 
@@ -69,19 +75,19 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | 验收时已部署应用 | `7c81411` | Final Browser Acceptance 热修 |
 | Release docs / tag `v9.1.0` | `b3d5607` | 仅验收报告 |
 | Freeze 声明 | `87d4eb2` | 治理文档 |
-| 视觉系统（前端 only） | `e457d5a` | 现仍是 **Web** 构建基线 |
+| 视觉系统（前端 only） | `e457d5a` | 设计 token 基线；Web 现已 rebuild 为 `8c2f867` |
 | Epic 4 | `85f5b94` | 只读 Amazon store foundation |
 | V9.2 实现 | `54074d9` | Playbook + intelligence |
 | 指针同步 | `5ef0313` | evidence / authority map |
 | 旧交接记录 | `09ad2c0` | 仅 docs |
 | V9.2 验证报告 + 稳定性补丁 | **`05b8151`** | 报告 + HTTP 日志 + worker Redis |
-| **origin + 云机 git** | **`05b8151`** | 已部署；API/worker rebuild；Web 未 rebuild |
+| V9.2.1 UI | **`8c2f867`** | Operations Today cockpit + GET /operations/today |
+| **origin + 云机 git** | **`8c2f867`** | API + Web 已 rebuild |
 
 ```text
 Tag v9.1.0  →  b3d5607     不要 retag
-Live git    →  05b8151
-Live API    →  dist 来自 05b8151
-Live Web    →  仍是 e457d5a 的 Next build（无前端改动）
+Live git    →  8c2f867
+Live API/Web dist 来自 8c2f867
 ```
 
 建议 RC tag（**未打**）：`v9.2.0-rc1` → `54074d9`。等人工下令。
@@ -253,16 +259,14 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 
 ## 9. 下一会话（等人工选）
 
-V9.2 生产验证已完成（见报告）。不要自己开：
+V9.2.1 UI 已上线。不要自己开：
 
-1. 打 `v9.2.0-rc1`
-2. V9.2 UI / Simulator 控制台
-3. Live Amazon OAuth（LWA 已配 key，仍需卖家同意）
-4. 视觉版远程 Browser Acceptance
-5. Simulator 节奏调参（`SIMULATOR_TICK_INTERVAL_MINUTES`，改完 `pm2 reload crosspilot-worker --update-env`）
-6. Simulator → Agent 联动（改 `STORE_SKU360_SOURCE` 必须人工下令）
-7. 配置云上 LLM key（目前 `/health/ai` degraded）
-8. V9.3 / Launch Center / Amazon Write / 产品 Scheduler
+1. 打 `v9.2.0-rc1` / `v9.2.1`
+2. Simulator 控制台页
+3. Live Amazon OAuth
+4. Simulator → Agent 联动（改 `STORE_SKU360_SOURCE` 必须人工下令）
+5. 配置云上 LLM key
+6. V9.3 Action Layer / Launch Center / Amazon Write / 产品 Scheduler
 
 默认：**停住，问人。**
 
@@ -276,9 +280,10 @@ Epic 4           DEPLOYED  LIVE_NOT_RUN
 V9.2 Phase 1-5   DEPLOYED  API only
 V9.2 Production  READY_WITH_KNOWN_LIMITATIONS
 Simulator        LIVE  day9 @ 60min/tick  RETURN_SPIKE
-Live git         05b8151 @ 116.198.230.217:2222
+Live git         8c2f867 @ 116.198.230.217:2222
+V9.2.1 UI        SHIPPED  /app/operations/today
 health           200   /health/ai degraded
-Do not start V9.3 / Launch Center / Amazon Write / product Scheduler
+Do not start V9.3 Action Layer / Amazon Write / product Scheduler
 Do not retarget XYDC 5147→5151
 Do not add a second mock-data-service
 ```
