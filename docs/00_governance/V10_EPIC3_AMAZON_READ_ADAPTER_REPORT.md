@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-12
 **Status:** SHIPPED / LIVE
-**Live SHA:** `TBD`（部署后以 `git log -1` 为准，pin 进 `docs/HANDOFF.md`）
+**Live SHA:** `6c4d169`（API/worker dist；以云机 `git log -1` 为准）
 **Scope:** `AmazonAdapter` behind the Epic 2 Commerce Ports. Reuses Epic 4 GET-allowlisted `AmazonProvider` transport + LWA credential chain. Read-only: write ports stay `WRITE_FORBIDDEN`. No Shopify. No WF-05 / Action / Recommendation changes. Simulator engine untouched.
 
 ---
@@ -78,7 +78,22 @@ Live: see §5.
 
 ## 5. Live deployment
 
-TBD — filled after deploy: SHA, pm2 state, smoke results (`/health`, demo-login, `GET /commerce/accounts`, `GET /simulator/state`, `POST /simulator/tick`).
+Deploy: 2026-09-12 via `docs/_ops_deploy_v10_epic3.sh` (untracked ops script; backup `/root/zls/backup/CrossPilot-pre-v10e3-202609122133`). No new migration (schema untouched). `pnpm install --frozen-lockfile` + full rebuild; `pm2 reload` api then worker separately — both online, HEAD `6c4d169`.
+
+Smoke (in-host `127.0.0.1:3001`, after reload):
+
+| Check | Result |
+| :--- | :--- |
+| `GET /api/v1/health` | 200 |
+| `POST /auth/demo-login` OWNER | 201, workspace `0e02ccf2…` |
+| `GET /commerce/accounts` | 200 — still exactly `simulator-amazon` / `simulator-shopify`, stores not merged |
+| `GET /simulator/state` | 200, day 12 / 2026-09-13 (worker tick healthy) |
+| worker log | `Simulator scheduler enabled: 1 simulated day every 60 minute(s)`; no new errors after reload |
+
+Notes:
+
+- BullMQ `Worker.run` TypeError + `maxRetriesPerRequest` warnings exist in the 19:12 error log (**before** this deploy) and did not recur after reload — pre-existing, not an Epic 3 regression.
+- AmazonAdapter live path is intentionally dormant: no Amazon store exists in the cloud workspace, so binding would fail closed with `AUTH_REQUIRED` — verified by design (case F), no fake LIVE attempted.
 
 ## 6. Known Limitations
 

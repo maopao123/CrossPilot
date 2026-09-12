@@ -1,10 +1,10 @@
 # CrossPilot 交接
 
-**日期：** 2026-09-12（更新：V10 Epic 2 已交下一任）
+**日期：** 2026-09-12（更新：V10 Epic 3 Amazon read Adapter 已发货）
 **本文件：** 当前会话结束后的唯一项目交接入口。下一会话先读这里。
-**下一任 AI 执行说明书：** `00_governance/V10_NEXT_AGENT_HANDOFF.md`（换工具后读这份就能做 Epic 3）。
+**下一任 AI 执行说明书：** `00_governance/V10_NEXT_AGENT_HANDOFF.md`（换工具后读这份就能继续）。
 **不要把本文件当成 V9.1 Freeze 替代件。** Freeze 真相源仍是 `00_governance/V9_1_RELEASE_FREEZE.md`。
-**V10 Epic 2 证据：** `00_governance/V10_EPIC2_PORTS_RELEASE_REPORT.md`。
+**V10 Epic 3 证据：** `00_governance/V10_EPIC3_AMAZON_READ_ADAPTER_REPORT.md`。
 
 ---
 
@@ -54,6 +54,9 @@ docs/00_governance/V10_EPIC1_FOUNDATION_RELEASE_REPORT.md
 Epic 2 Commerce Ports + SimulatorAdapter
 SHIPPED  6a9b636
 docs/00_governance/V10_EPIC2_PORTS_RELEASE_REPORT.md
+Epic 3 Amazon read Adapter
+SHIPPED  6c4d169
+docs/00_governance/V10_EPIC3_AMAZON_READ_ADAPTER_REPORT.md
 
 Live:
 http://116.198.230.217:2222
@@ -61,7 +64,7 @@ health 200  postgres/redis/milvus up
 /health/ai degraded（无 LLM key）
 ```
 
-**下一任：** 用户说继续 / 做 Epic 3 / 全部做完 → 按 `V10_NEXT_AGENT_HANDOFF.md` §6 做 Amazon read Adapter。  
+**下一任：** Epic 3 已完成。用户说「做 Epic 4 / Shopify」→ 按 `V10_NEXT_AGENT_HANDOFF.md` 做 Shopify read Adapter；在那之前**不要主动开 Epic 4**。
 **不要**顺手开 Shopify / Amazon Write / Action Write / 切 `STORE_SKU360_SOURCE=prisma`。  
 **不要为了刷绿把 XYDC `5147` 改成 `5151`。不要 retag / force-push `v9.1.0`。**  
 **不要改 simulator 引擎的种子/起始日/初始库存。**
@@ -75,14 +78,15 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 1. 本文件 `docs/HANDOFF.md`
 2. `docs/00_governance/V10_NEXT_AGENT_HANDOFF.md` ← **下一任执行入口**
 3. `docs/00_governance/V9_1_RELEASE_FREEZE.md`
-4. `docs/00_governance/V10_EPIC2_PORTS_RELEASE_REPORT.md`
-5. `docs/00_governance/V10_EPIC1_FOUNDATION_RELEASE_REPORT.md`
-6. `docs/00_governance/V10_EPIC0_IMPACT_ANALYSIS.md`
-7. `docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md`
-8. `docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md`
-9. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
-10. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
-11. `docs/40_mockData/CrossPilot_Commerce_Simulator_V1.0.md`（§15 = Simulator 权威实现说明）
+4. `docs/00_governance/V10_EPIC3_AMAZON_READ_ADAPTER_REPORT.md`
+5. `docs/00_governance/V10_EPIC2_PORTS_RELEASE_REPORT.md`
+6. `docs/00_governance/V10_EPIC1_FOUNDATION_RELEASE_REPORT.md`
+7. `docs/00_governance/V10_EPIC0_IMPACT_ANALYSIS.md`
+8. `docs/00_governance/V10_COMMERCE_OS_ARCHITECTURE.md`
+9. `docs/00_governance/V93_ACTION_LAYER_RELEASE_REPORT.md`
+10. `docs/00_governance/V921_UI_RELEASE_REPORT.md`
+11. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
+12. `docs/40_mockData/CrossPilot_Commerce_Simulator_V1.0.md`（§15 = Simulator 权威实现说明）
 
 `docs/00_governance/临时命令.txt` **不要 commit**。其中旧的 Epic 4 / Freeze 正文是历史，不要再执行一遍。
 
@@ -106,14 +110,13 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | V9.3 Action Layer | **`a39a803`** | Mock planner / risk / executor / history |
 | V10 Epic 1 Store foundation | **`2a5b305`** | Store + ChannelIdentity + unique(storeId) |
 | V10 Epic 2 Ports + SimulatorAdapter | **`6a9b636`** | Catalog/Order/Inventory/Ads/Profit ports |
-| V10 下一任交接正文 | **`0ff909f`** | `V10_NEXT_AGENT_HANDOFF.md` 起于此 commit |
-| **Live API/worker dist** | **`6a9b636`** | 纯文档不 rebuild；Web dist 仍为 V9.3 UI |
-| **origin master** | push 后 `git log -1` | 文档 HEAD 会比 `0ff909f` 再前一两个 pin commit |
+| V10 Epic 3 Amazon read Adapter | **`6c4d169`** | AmazonAdapter + shared credential crypto |
+| **Live API/worker dist** | **`6c4d169`** | Epic 3 rebuild；Web dist 仍为 V9.3 UI |
+| **origin master** | push 后 `git log -1` | 文档 HEAD 会比 `6c4d169` 再前一个 pin commit |
 
 ```text
 Tag v9.1.0            →  b3d5607     不要 retag
-Handoff 正文          →  0ff909f
-Live API/worker dist  →  6a9b636
+Live API/worker dist  →  6c4d169
 Live Web dist         →  a39a803 驾驶舱（V10 尚未改 UI）
 ```
 
@@ -146,7 +149,7 @@ VIEWER：`viewer@crosspilot.com`（云库已 seed）。
 云机 `.env` 有 `AMAZON_CREDENTIAL_ENCRYPTION_KEY`（root + `apps/api/.env`）与 `SIMULATOR_ENABLED=true`（`apps/worker/.env`）。**不要打印、不要入库。**
 `STORE_SKU360_SOURCE` 保持非 `prisma`（默认 scenario）。
 
-备份：`/root/zls/backup/CrossPilot-pre-v92-202609121715`、`/root/zls/backup/CrossPilot-pre-sim-*`
+备份：`/root/zls/backup/CrossPilot-pre-v92-202609121715`、`/root/zls/backup/CrossPilot-pre-sim-*`、`/root/zls/backup/CrossPilot-pre-v10e2-202609122059`、`/root/zls/backup/CrossPilot-pre-v10e3-202609122133`
 
 ---
 
@@ -176,6 +179,20 @@ VIEWER：`viewer@crosspilot.com`（云库已 seed）。
 | `GET /simulator/state` | 200，活跃事件 RETURN_SPIKE（MTH-GREEN-001） |
 | worker 日志 | `Simulator scheduler enabled: 1 simulated day every 60 minute(s)` |
 | 云库实测 | 226 sim orders / 1 event / 42 channel metrics / 29 sim reviews，隔离标记正确 |
+
+### 4.2b V10 Epic 3 生产冒烟（2026-09-12 部署后，机内 `127.0.0.1:3001`）
+
+| 调用 | 结果 |
+| :--- | :--- |
+| 部署 HEAD | `6c4d169`，pm2 api/worker reload 后均 online |
+| `GET /api/v1/health` | 200 |
+| `POST /auth/demo-login` OWNER | 201，token + workspace `0e02ccf2…` |
+| `GET /commerce/accounts` | 200，仍是 `simulator-amazon` / `simulator-shopify` 两行，Store 未并店 |
+| `GET /simulator/state` | 200，day 12 / 2026-09-13（worker tick 正常） |
+| worker 日志 | `Simulator scheduler enabled: 1 simulated day every 60 minute(s)`；reload 后无新增报错 |
+| 云库 migration 数 | 无新增（Epic 3 不改 schema） |
+
+BullMQ `Worker.run` 的 TypeError + `maxRetriesPerRequest` 告警存在于 19:12 的旧 error log（Epic 3 reload 前），reload 后未复现 → 预先存在，不是 Epic 3 回归。
 
 V9.2 生产验证追加（同一天，机内）：
 
@@ -224,7 +241,10 @@ Simulator 数据隔离标记（source_provider='simulator' / 'sim-' reviewer / '
 
 ## 6. Known Gaps（不是本轮 Blocker）
 
-- Live SP-API：`LIVE_NOT_RUN`（无卖家授权）
+- Live SP-API：`LIVE_NOT_RUN`（无卖家授权；Epic 3 adapter 在无 LWA_REFRESH 时显式 `AUTH_REQUIRED`，fail-closed）
+- AmazonAdapter ads / profit 读返回 `[]`（GET allowlist 无 Ads 端点、finances 无 SKU/COGS 拆分，见 Epic 3 报告 §2/§6）
+- AmazonAdapter `listOrders` 不翻 `nextToken` 页（与 Epic 4 sync 一致）；ChannelIdentity 只在 catalog 读时增量写，无历史 ASIN 回填
+- 业务层（WF-05 / Playbook / Action）尚未路由到 AmazonAdapter——那是 Epic 5/6 的事
 - 无 V9.2 UI；无 Simulator 专属控制台页面（计划内 V1 边界）
 - VOC 是英文正则 + 调用方文本，不是 Firecrawl/SP-API 实评
 - `playbook_run_id` / `evidence_ids` 无 DB FK
@@ -261,11 +281,11 @@ docs/00_governance/临时命令.txt
 
 ```bash
 # 本机：commit + push origin/master 后
-scp docs/_ops_deploy_simulator.sh root@116.198.230.217:/tmp/
-ssh root@116.198.230.217 "bash /tmp/_ops_deploy_simulator.sh"
-# 备份 → fetch/checkout → 保留 .env → install → generate → apply 迁移 → 全量 build
-# → pm2 reload crosspilot-api crosspilot-worker（注意：pm2 reload 传两个名字只生效第一个，
-# worker 要单独再 reload 一次）
+scp docs/_ops_deploy_v10_epic3.sh root@116.198.230.217:/tmp/
+ssh root@116.198.230.217 "sed -i 's/\r$//' /tmp/_ops_deploy_v10_epic3.sh && bash /tmp/_ops_deploy_v10_epic3.sh"
+# 备份 → fetch/checkout → 保留 .env → install → generate → （有迁移才 apply）→ 全量 build
+# → pm2 reload crosspilot-api --update-env；sleep 3；pm2 reload crosspilot-worker --update-env
+# （铁律：pm2 reload 一次只带一个进程名）
 ```
 
 ### 8.2 重建 / 推进模拟世界
@@ -290,17 +310,15 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 
 **执行说明书：** `docs/00_governance/V10_NEXT_AGENT_HANDOFF.md`
 
-用户说继续 / 做 Epic 3 / 全部做完：直接做 **Epic 3 Amazon read Adapter**（复用 Epic 4 GET allowlist，仍只读）。
+Epic 3 **已完成**（`6c4d169`，已部署）。用户说「做 Epic 4 / Shopify」→ 按 `V10_NEXT_AGENT_HANDOFF.md` 做 **Epic 4 Shopify read Adapter**；用户没发话就停，不要主动开工。
 
 不要夹带：
 
-1. Shopify Adapter / webhook
-2. 真 Amazon Write / Action `execute()` 换真工具
+1. 真 Amazon Write / Action `execute()` 换真工具（Epic 6）
+2. WF-05 切 `STORE_SKU360_SOURCE=prisma`（Epic 5）
 3. 新 Agent / 新 `action_type` / 改 Action 状态机
 4. 改 WF-05 公式或 Recommendation 状态机
-5. 打 release tag / 配 LLM key / `STORE_SKU360_SOURCE=prisma`
-
-Epic 3 做完就停，等人。
+5. 打 release tag / 配 LLM key
 
 ---
 
@@ -312,14 +330,15 @@ Epic 4           DEPLOYED  LIVE_NOT_RUN
 V9.2 Phase 1-5   DEPLOYED  API only
 V9.2 Production  READY_WITH_KNOWN_LIMITATIONS
 Simulator        LIVE  via SimulatorAdapter（day 会随 60min tick 前进，勿 reset 对齐旧数字）
-Live git         master HEAD  (handoff 0ff909f; API dist 6a9b636) @ 116.198.230.217:2222
+Live git         master HEAD  (API dist 6c4d169) @ 116.198.230.217:2222
 V9.2.1 UI        SHIPPED
 V9.3 Action      SHIPPED mock only
 V10 Epic 1       SHIPPED  Store + ChannelIdentity
 V10 Epic 2       SHIPPED  Ports + SimulatorAdapter
-Next             Epic 3 Amazon read Adapter — 见 V10_NEXT_AGENT_HANDOFF.md
+V10 Epic 3       SHIPPED  Amazon read Adapter 6c4d169
+Next             Epic 4 Shopify read Adapter — 等用户授权（见 V10_NEXT_AGENT_HANDOFF.md）
 health           200   /health/ai degraded
-Do not start Shopify / Amazon Write / Action Write / WF-05 切源
+Do not start Amazon Write / Action Write / WF-05 切源 / Epic 4 未授权自启
 Do not retarget XYDC 5147→5151
 Do not add a second mock-data-service
 ```
