@@ -12,6 +12,7 @@ const SIMULATOR_QUEUE_NAME = 'crosspilot-simulator-tick';
 
 export class WorkerService {
   private worker: Worker<AgentTaskJobData> | null = null;
+  private taskRedis: Redis | null = null;
   private simulatorWorker: Worker | null = null;
   private simulatorQueue: Queue | null = null;
   private simulatorRedis: Redis | null = null;
@@ -27,8 +28,6 @@ export class WorkerService {
     console.log('🔄 Initializing CrossPilot Background Worker...');
 
     try {
-      const redisClient = this.redisService.getClient();
-
       // Check redis connection
       const health = await this.redisService.healthCheck();
       if (health.status === 'down') {
@@ -42,13 +41,18 @@ export class WorkerService {
       // first so a failure in the main Worker setup cannot starve it.
       await this.startSimulatorScheduler();
 
+      // BullMQ requires maxRetriesPerRequest: null. RedisService uses 1 for
+      // API health checks, so the agent-task worker gets its own connection.
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      this.taskRedis = new Redis(redisUrl, { maxRetriesPerRequest: null });
+
       this.worker = new Worker<AgentTaskJobData>(
         'crosspilot-tasks',
         async (job: Job<AgentTaskJobData>) => {
           return processAgentTaskJob(job.data);
         },
         {
-          connection: redisClient as any,
+          connection: this.taskRedis as any,
           concurrency: 5,
         },
       );
@@ -130,6 +134,10 @@ export class WorkerService {
     if (this.worker) {
       await this.worker.close();
       this.worker = null;
+    }
+    if (this.taskRedis) {
+      await this.taskRedis.quit();
+      this.taskRedis = null;
     }
     if (this.simulatorWorker) {
       await this.simulatorWorker.close();

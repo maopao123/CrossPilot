@@ -8,6 +8,7 @@ import {
 import { Request, Response } from 'express';
 import { ApiErrorResponse, ErrorCodes } from '@crosspilot/shared';
 import { ZodError } from 'zod';
+import { ensureRequestId, type RequestLike } from '../request-context.js';
 
 const PLAYBOOK_HTTP_STATUS: Record<string, number> = {
   PLAYBOOK_NOT_FOUND: HttpStatus.NOT_FOUND,
@@ -34,9 +35,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const requestId =
-      (request.headers['x-request-id'] as string) ||
-      `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const requestId = ensureRequestId(request as RequestLike);
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: string = ErrorCodes.INTERNAL_SERVER_ERROR;

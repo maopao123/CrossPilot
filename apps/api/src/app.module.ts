@@ -30,6 +30,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { WorkspaceGuard } from './common/guards/workspace.guard.js';
 import { ViewerWriteGuard } from './common/guards/viewer-write.guard.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
+import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 
 @Module({
@@ -76,6 +77,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     {
       provide: APP_GUARD,
       useClass: ViewerWriteGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestLoggingInterceptor,
     },
     {
       provide: APP_INTERCEPTOR,

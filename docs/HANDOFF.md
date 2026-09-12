@@ -1,8 +1,9 @@
 # CrossPilot 交接
 
-**日期：** 2026-09-12（更新：Commerce Simulator 部署后）
+**日期：** 2026-09-12（更新：V9.2 Production Verification）
 **本文件：** 当前会话结束后的唯一项目交接入口。下一会话先读这里，再读治理文档。
 **不要把本文件当成 V9.1 Freeze 替代件。** Freeze 真相源仍是 `00_governance/V9_1_RELEASE_FREEZE.md`。
+**V9.2 验收证据：** `00_governance/V92_RELEASE_VERIFICATION_REPORT.md`。
 
 ---
 
@@ -25,14 +26,18 @@ Amazon Write: NOT IMPLEMENTED
 EXECUTED.executionDispatched = false
 
 Commerce Simulator（Epic 4 mock data，docs/40_mockData）
-DEPLOYED & LIVE SIMULATING  93de779
-世界状态 day 7（2026-09-08），worker 每 60 分钟自动推进 1 模拟日
-云库实测：226 sim orders / 1 active event / 42 channel metrics / 29 sim reviews
+LIVE SIMULATING
+世界状态验证时 day 9（2026-09-10），worker 每 60 分钟自动推进 1 模拟日
+ACTIVE 事件：RETURN_SPIKE
+
+V9.2 Production Verification
+READY_WITH_KNOWN_LIMITATIONS
+报告：docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md
 
 Live:
-origin/master = 云机 git = 93de779
 http://116.198.230.217:2222
 health 200  postgres/redis/milvus up
+/health/ai degraded（无 LLM key）
 ```
 
 **不要自动开 V9.3 / Launch Center / Amazon Write / 产品 Scheduler。**
@@ -48,8 +53,9 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 
 1. 本文件 `docs/HANDOFF.md`
 2. `docs/00_governance/V9_1_RELEASE_FREEZE.md`
-3. `docs/00_governance/V92_DEPLOYMENT_PLAN.md`
-4. `docs/40_mockData/CrossPilot_Commerce_Simulator_V1.0.md`（§15 实现决策 = Simulator 权威说明）
+3. `docs/00_governance/V92_RELEASE_VERIFICATION_REPORT.md`
+4. `docs/00_governance/V92_DEPLOYMENT_PLAN.md`
+5. `docs/40_mockData/CrossPilot_Commerce_Simulator_V1.0.md`（§15 实现决策 = Simulator 权威说明）
 
 `docs/00_governance/临时命令.txt` **不要 commit**。其中旧的 Epic 4 / Freeze 正文是历史，不要再执行一遍。
 
@@ -68,13 +74,14 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | V9.2 实现 | `54074d9` | Playbook + intelligence |
 | 指针同步 | `5ef0313` | evidence / authority map |
 | 旧交接记录 | `09ad2c0` | 仅 docs |
-| **origin + 云机 git（当前 live）** | **`93de779`** | Commerce Simulator 全套 + 本文件 |
+| V9.2 验证报告 | （本轮 commit） | `V92_RELEASE_VERIFICATION_REPORT.md` |
+| HTTP 日志 + worker Redis | （本轮 commit） | 稳定性补丁；需部署后 worker 错误日志才干净 |
+| **origin + 云机 git** | 以 `git rev-parse HEAD` 为准 | 验证开始时双方都是 `7cc311b` |
 
 ```text
 Tag v9.1.0  →  b3d5607     不要 retag
-Live git    →  93de779
-Live API    →  dist 来自 93de779（nest build 于部署时）
-Live Web    →  仍是 e457d5a 的 Next build（本轮无前端改动，未 rebuild web）
+验证时 git  →  7cc311b（docs handoff after simulator）
+Live Web    →  仍是 e457d5a 的 Next build（无前端改动）
 ```
 
 建议 RC tag（**未打**）：`v9.2.0-rc1` → `54074d9`。等人工下令。
@@ -126,7 +133,7 @@ VIEWER：`viewer@crosspilot.com`（云库已 seed）。
   - 端点 `POST /api/v1/simulator/tick | advance | reset`、`GET /api/v1/simulator/state`
   - worker BullMQ repeatable job 每 60 分钟自动推进（`SIMULATOR_TICK_INTERVAL_MINUTES` 可调）
 
-### 4.2 云上冒烟（2026-09-12，机内 `127.0.0.1:3001`）
+### 4.2 云上冒烟 / V9.2 生产验证（2026-09-12，机内 `127.0.0.1:3001`）
 
 | 调用 | 结果 |
 | :--- | :--- |
@@ -137,7 +144,21 @@ VIEWER：`viewer@crosspilot.com`（云库已 seed）。
 | worker 日志 | `Simulator scheduler enabled: 1 simulated day every 60 minute(s)` |
 | 云库实测 | 226 sim orders / 1 event / 42 channel metrics / 29 sim reviews，隔离标记正确 |
 
-未跑：Live SP-API、OAuth、浏览器全站、`executeRun` 云上选品、Simulator 前端页面（不存在，用 API + 现有页面看数据）。
+V9.2 生产验证追加（同一天，机内）：
+
+| 调用 | 结果 |
+| :--- | :--- |
+| 页面 `/` `/login` `/app/operations/today` | HTTP 200 |
+| sim orders + inventory + ads ACOS/ROAS 公式 | PASS（acos 0.4552 = spend/sales） |
+| `POST /operations/daily-diagnosis` UUID SKU waitForCompletion | 202 → GET COMPLETED / NEEDS_ATTENTION |
+| `POST /playbook-runs/:id/execute` research | COMPLETED `ENTER_MARKET`；EXECUTED `dispatched=false` |
+| `POST /voc/analyze` | pain=1 + factId |
+| `viewer@crosspilot.com` tick | 403；读 products 200 |
+| `/health/ai` | degraded（无 LLM key） |
+
+`demo-login role=VIEWER` **不能**当 VIEWER 验收（demo 用户 membership 已是 OWNER）。
+
+未跑：Live SP-API、OAuth、浏览器全站视觉回归、Listing 真 LLM。Simulator 无前端页面。
 
 ### 4.3 库表（additive，已在云库执行）
 
@@ -179,6 +200,9 @@ Simulator 数据隔离标记（source_provider='simulator' / 'sim-' reviewer / '
 - 未打 `v9.2.0-rc1`
 - Simulator V1 未做：Customer 模型、TikTok/eBay/Walmart 渠道、真实 SP-API/Shopify Adapter、LLM 生成评论文案（当前为模板）
 - 本机（Windows）`pnpm -r run test` 中 `packages/integrations` provider-framework 测试红：期望 fixture 5147、实取 5151（XYDC live 数据漂移），**环境敏感、预先存在**，不是回归
+- `/health/ai` degraded：云上无 LLM key。诊断/Playbook 不依赖 LLM
+- Overview 读 scenario，不读 simulator；simulator 不写 `profit_daily`
+- `CURRENT_SYSTEM_AUDIT_BASELINE.md` 仍写 Epic 4 SUSPENDED / V9.2 NOT STARTED，**过期**；以本文件 + V9.2 验证报告为准
 
 ---
 
@@ -229,17 +253,16 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 
 ## 9. 下一会话（等人工选）
 
-不要自己开：
+V9.2 生产验证已完成（见报告）。不要自己开：
 
 1. 打 `v9.2.0-rc1`
-2. 云上 `POST /playbook-runs/:id/execute` 选品/VOC 冒烟
-3. V9.2 UI
-4. Live Amazon OAuth（LWA 已配 key，仍需卖家同意）
-5. 视觉版远程 Browser Acceptance
-6. Simulator 前端控制台页（看 simDate / 事件流 / 漏斗）
-7. Simulator 节奏调参（`SIMULATOR_TICK_INTERVAL_MINUTES`，改完 `pm2 reload crosspilot-worker --update-env`）
-8. Simulator → Agent 联动（Epic 4.5：自动分析销售 / 发现问题 / 运营建议）
-9. V9.3
+2. V9.2 UI / Simulator 控制台
+3. Live Amazon OAuth（LWA 已配 key，仍需卖家同意）
+4. 视觉版远程 Browser Acceptance
+5. Simulator 节奏调参（`SIMULATOR_TICK_INTERVAL_MINUTES`，改完 `pm2 reload crosspilot-worker --update-env`）
+6. Simulator → Agent 联动（改 `STORE_SKU360_SOURCE` 必须人工下令）
+7. 配置云上 LLM key（目前 `/health/ai` degraded）
+8. V9.3 / Launch Center / Amazon Write / 产品 Scheduler
 
 默认：**停住，问人。**
 
@@ -251,9 +274,10 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 CrossPilot V9.1  FROZEN  v9.1.0=b3d5607
 Epic 4           DEPLOYED  LIVE_NOT_RUN
 V9.2 Phase 1-5   DEPLOYED  API only
-Simulator        DEPLOYED & LIVE  day7 @ 60min/tick  seed=93de779
-Live git         93de779 @ 116.198.230.217:2222
-health           200
+V9.2 Production  READY_WITH_KNOWN_LIMITATIONS
+Simulator        LIVE  day9 @ 60min/tick  RETURN_SPIKE
+http://116.198.230.217:2222  health 200  /health/ai degraded
 Do not start V9.3 / Launch Center / Amazon Write / product Scheduler
 Do not retarget XYDC 5147→5151
+Do not add a second mock-data-service
 ```

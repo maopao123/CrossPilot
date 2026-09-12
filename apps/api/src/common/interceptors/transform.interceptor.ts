@@ -8,6 +8,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Request } from 'express';
 import { ApiSuccessResponse } from '@crosspilot/shared';
+import { ensureRequestId, type RequestLike } from '../request-context.js';
 
 @Injectable()
 export class TransformInterceptor<T>
@@ -30,9 +31,7 @@ export class TransformInterceptor<T>
       return next.handle();
     }
 
-    const requestId =
-      (request.headers['x-request-id'] as string) ||
-      `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const requestId = ensureRequestId(request as RequestLike);
 
     return next.handle().pipe(
       map((response) => {
