@@ -69,6 +69,7 @@ describe('Epic 4 commerce store service', () => {
   it('rejects sync without Amazon credential and without explicit mock', async () => {
     const prisma: any = {
       commerceAccount: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'acc-1', storeId: 'st-1', provider: 'amazon', region: 'NA' }),
         upsert: jest.fn().mockResolvedValue({ id: 'acc-1' }),
       },
       providerCredential: { findUnique: jest.fn().mockResolvedValue(null) },
@@ -83,7 +84,10 @@ describe('Epic 4 commerce store service', () => {
     const prev = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
     const prisma: any = {
-      commerceAccount: { upsert: jest.fn().mockResolvedValue({ id: 'acc-1' }) },
+      commerceAccount: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'acc-1', storeId: 'st-1', provider: 'amazon', region: 'NA' }),
+        upsert: jest.fn().mockResolvedValue({ id: 'acc-1' }),
+      },
       providerCredential: { findUnique: jest.fn().mockResolvedValue({ payloadEnc: 'x' }) },
     };
     const svc = new CommerceStoreService(prisma);
@@ -100,6 +104,7 @@ describe('Epic 4 commerce store service', () => {
     const sku = { id: 'sku-1', skuCode: 'MTH-WHITE-001', sellingPrice: 29.99 };
     const prisma: any = {
       commerceAccount: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'acc-1', storeId: 'st-1', sellingPartnerId: null, region: 'NA', provider: 'amazon' }),
         upsert: jest.fn().mockResolvedValue({ id: 'acc-1', sellingPartnerId: null, region: 'NA' }),
         update: jest.fn(),
         updateMany: jest.fn(),
@@ -137,6 +142,7 @@ describe('Epic 4 commerce store service', () => {
     const sku = { id: 'sku-1', skuCode: 'MTH-WHITE-001', sellingPrice: 29.99 };
     const prisma: any = {
       commerceAccount: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'acc-1', storeId: 'st-1', sellingPartnerId: 'A1', region: 'NA', provider: 'amazon' }),
         upsert: jest.fn().mockResolvedValue({ id: 'acc-1', sellingPartnerId: 'A1', region: 'NA' }),
         update: jest.fn(),
         updateMany: jest.fn(),

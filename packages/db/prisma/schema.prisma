@@ -73,6 +73,7 @@ model Workspace {
   approvals                Approval[]
   knowledgeDocuments       KnowledgeDocument[]
   evalDatasets             EvalDataset[]
+  stores                   Store[]
   commerceAccounts         CommerceAccount[]
   syncRuns                 SyncRun[]
   playbooks                Playbook[]
@@ -1305,12 +1306,54 @@ model EvalResult {
 }
 
 // ==========================================
+// V10 Epic 1 — Store + ChannelIdentity foundation
+// Canonical tables stay free of amazonId / shopifyId columns.
+// ==========================================
+
+model Store {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  platform    String
+  country     String
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  accounts    CommerceAccount[]
+  identities  ChannelIdentity[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, platform])
+  @@map("stores")
+}
+
+model ChannelIdentity {
+  id         String   @id @default(uuid())
+  storeId    String   @map("store_id")
+  platform   String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  externalId String   @map("external_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, platform, entityType, externalId])
+  @@index([storeId])
+  @@index([entityType, entityId])
+  @@map("channel_identities")
+}
+
+// ==========================================
 // Epic 4 — Real Store Data Foundation (additive)
 // ==========================================
 
 model CommerceAccount {
   id                     String               @id @default(uuid())
   workspaceId            String               @map("workspace_id")
+  storeId                String               @unique @map("store_id")
   provider               String               @default("amazon")
   sellingPartnerId       String?              @map("selling_partner_id")
   region                 String               @default("NA")
@@ -1320,11 +1363,12 @@ model CommerceAccount {
   updatedAt              DateTime             @updatedAt @map("updated_at")
 
   workspace              Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  store                  Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
   credentials            ProviderCredential[]
   syncRuns               SyncRun[]
 
-  @@unique([workspaceId, provider])
   @@index([workspaceId])
+  @@index([workspaceId, provider])
   @@map("commerce_accounts")
 }
 

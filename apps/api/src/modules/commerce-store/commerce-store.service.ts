@@ -28,6 +28,7 @@ import {
   signOAuthState,
   verifyOAuthState,
 } from './credential-crypto.js';
+import { ensureStoreBoundAccount } from '@crosspilot/db';
 
 const SYNC_CAPABILITIES = [
   STORE_CAPABILITIES.participations,
@@ -48,12 +49,14 @@ export class CommerceStoreService {
       where: { workspaceId },
       select: {
         id: true,
+        storeId: true,
         provider: true,
         sellingPartnerId: true,
         region: true,
         status: true,
         defaultMarketplaceCode: true,
         updatedAt: true,
+        store: { select: { id: true, name: true, platform: true, country: true, status: true } },
       },
     });
     return { accounts, amazonConfigured: Boolean(SecretProvider.getSecret('AMAZON_LWA_CLIENT_ID')) };
@@ -69,10 +72,11 @@ export class CommerceStoreService {
         message: 'Amazon LWA client is not configured on this deployment',
       });
     }
-    await this.prisma.commerceAccount.upsert({
-      where: { workspaceId_provider: { workspaceId, provider: 'amazon' } },
-      create: { workspaceId, provider: 'amazon', region, status: 'AUTH_REQUIRED' },
-      update: { region, status: 'AUTH_REQUIRED' },
+    await ensureStoreBoundAccount(this.prisma, {
+      workspaceId,
+      provider: 'amazon',
+      region,
+      status: 'AUTH_REQUIRED',
     });
     const state = signOAuthState({ workspaceId, userId, ts: String(Date.now()) });
     return {
@@ -104,16 +108,25 @@ export class CommerceStoreService {
       throw new UnauthorizedException({ code: ErrorCodes.TOKEN_EXPIRED, message: 'Amazon did not return a refresh token' });
     }
     const sellingPartnerId = query.selling_partner_id || undefined;
-    const account = await this.prisma.commerceAccount.upsert({
-      where: { workspaceId_provider: { workspaceId: parsed.workspaceId, provider: 'amazon' } },
-      create: {
-        workspaceId: parsed.workspaceId,
-        provider: 'amazon',
-        status: 'CONNECTED',
-        sellingPartnerId,
-      },
-      update: { status: 'CONNECTED', sellingPartnerId: sellingPartnerId || undefined },
+    const pending = await this.prisma.commerceAccount.findFirst({
+      where: { workspaceId: parsed.workspaceId, provider: 'amazon', status: 'AUTH_REQUIRED' },
+      orderBy: { updatedAt: 'desc' },
     });
+    const account = pending
+      ? await this.prisma.commerceAccount.update({
+          where: { id: pending.id },
+          data: { status: 'CONNECTED', sellingPartnerId: sellingPartnerId || pending.sellingPartnerId },
+        })
+      : {
+          id: (
+            await ensureStoreBoundAccount(this.prisma, {
+              workspaceId: parsed.workspaceId,
+              provider: 'amazon',
+              status: 'CONNECTED',
+              sellingPartnerId,
+            })
+          ).accountId,
+        };
     await this.prisma.providerCredential.upsert({
       where: { accountId_kind: { accountId: account.id, kind: 'LWA_REFRESH' } },
       create: {
@@ -167,11 +180,11 @@ export class CommerceStoreService {
   }
 
   private async ensureAccount(workspaceId: string) {
-    return this.prisma.commerceAccount.upsert({
-      where: { workspaceId_provider: { workspaceId, provider: 'amazon' } },
-      create: { workspaceId, provider: 'amazon', status: 'DISCONNECTED' },
-      update: {},
+    const bound = await ensureStoreBoundAccount(this.prisma, {
+      workspaceId,
+      provider: 'amazon',
     });
+    return { id: bound.accountId };
   }
 
   private resolveMockMode(useMock?: boolean): boolean {

@@ -8,6 +8,7 @@ import {
   SimWorldState,
   DEFAULT_SIM_START_DATE,
 } from '@crosspilot/domain';
+import { ensureStoreBoundAccount } from '../commerce/ensure-store-account.js';
 
 export const SIM_AMAZON_PROVIDER = 'simulator-amazon';
 export const SIM_SHOPIFY_PROVIDER = 'simulator-shopify';
@@ -118,26 +119,20 @@ export class SimulatorStore {
       );
     }
 
-    const amazonAccount = await this.prisma.commerceAccount.upsert({
-      where: { workspaceId_provider: { workspaceId, provider: SIM_AMAZON_PROVIDER } },
-      update: { status: 'CONNECTED' },
-      create: {
-        workspaceId,
-        provider: SIM_AMAZON_PROVIDER,
-        status: 'CONNECTED',
-        defaultMarketplaceCode: 'AMAZON_US',
-      },
+    const amazonBound = await ensureStoreBoundAccount(this.prisma, {
+      workspaceId,
+      provider: SIM_AMAZON_PROVIDER,
+      status: 'CONNECTED',
+      defaultMarketplaceCode: 'AMAZON_US',
     });
-    const shopifyAccount = await this.prisma.commerceAccount.upsert({
-      where: { workspaceId_provider: { workspaceId, provider: SIM_SHOPIFY_PROVIDER } },
-      update: { status: 'CONNECTED' },
-      create: {
-        workspaceId,
-        provider: SIM_SHOPIFY_PROVIDER,
-        status: 'CONNECTED',
-        defaultMarketplaceCode: 'AMAZON_US',
-      },
+    const shopifyBound = await ensureStoreBoundAccount(this.prisma, {
+      workspaceId,
+      provider: SIM_SHOPIFY_PROVIDER,
+      status: 'CONNECTED',
+      defaultMarketplaceCode: 'AMAZON_US',
     });
+    const amazonAccount = { id: amazonBound.accountId };
+    const shopifyAccount = { id: shopifyBound.accountId };
 
     let campaign = await this.prisma.campaign.findFirst({
       where: { workspaceId, name: { startsWith: 'SIM-' } },

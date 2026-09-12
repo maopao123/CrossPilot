@@ -36,8 +36,24 @@ function createMockPrisma() {
       findMany: jest.fn().mockResolvedValue(SKU_ROWS),
     },
     commerceAccount: {
-      upsert: jest.fn((args: any) =>
-        Promise.resolve({ id: `acct_${args.where.workspaceId_provider.provider}` }),
+      findFirst: jest.fn((args: any) => {
+        const provider = args?.where?.provider;
+        if (!provider) return Promise.resolve(null);
+        return Promise.resolve({
+          id: `acct_${provider}`,
+          storeId: `store_${provider}`,
+          provider,
+          workspaceId: WS_ID,
+        });
+      }),
+      create: jest.fn((args: any) =>
+        Promise.resolve({ id: `acct_${args.data.provider}`, storeId: args.data.storeId }),
+      ),
+      update: jest.fn((args: any) => Promise.resolve({ id: args.where.id })),
+    },
+    store: {
+      create: jest.fn((args: any) =>
+        Promise.resolve({ id: `store_${args.data.name}`, ...args.data }),
       ),
     },
     campaign: {
