@@ -133,7 +133,7 @@ export default function SuppliersPage() {
                   <span>生产交期: <strong>{sup.leadTimeDays} 天</strong></span>
                 </span>
                 <span className="text-gray-400">
-                  供货 SKU: <strong>Natural Marble 系列</strong>
+                  供货 SKU: <strong>天然大理石系列</strong>
                 </span>
               </div>
             </div>

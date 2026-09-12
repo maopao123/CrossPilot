@@ -8,10 +8,10 @@ import { getStatusLabel } from '@/constants/ui-labels';
 export function RecentDecisions({ items }: { items: OperationsTodayDto['recentDecisions'] }) {
   return (
     <section>
-      <h2 className="text-[15px] font-semibold tracking-tight">Recent decisions</h2>
-      <p className="mt-1 text-[13px] text-fg-muted">Confirmed recommendations. None of these dispatched an Amazon write.</p>
+      <h2 className="text-[15px] font-semibold tracking-tight">近期决策</h2>
+      <p className="mt-1 text-[13px] text-fg-muted">已确认的建议。这些决策均未向 Amazon 写入任何内容。</p>
       {!items.length ? (
-        <p className="mt-3 text-[13px] text-fg-muted">No confirmed decisions yet.</p>
+        <p className="mt-3 text-[13px] text-fg-muted">暂无已确认的决策。</p>
       ) : (
         <ol className="mt-4 space-y-3">
           {items.map((item) => (

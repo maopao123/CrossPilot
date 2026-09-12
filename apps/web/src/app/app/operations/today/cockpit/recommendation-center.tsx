@@ -54,20 +54,20 @@ export function RecommendationCenter({
     <section>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-tight">Recommended actions</h2>
+          <h2 className="text-[15px] font-semibold tracking-tight">Action 建议</h2>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Recommendation is why. The planned action is what the mock executor will run. Amazon is never written.
+            建议说明「为什么」，规划的 Action 是 Mock Executor 将运行的内容；Amazon 永不写入。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canDraft && onDraftFromVoc ? (
             <Button variant="secondary" disabled={draftBusy} onClick={onDraftFromVoc}>
-              {draftBusy ? 'Drafting…' : 'Draft from VOC'}
+              {draftBusy ? '生成中…' : '从 VOC 生成建议'}
             </Button>
           ) : null}
           {!isViewer && onPlanAcos ? (
             <Button variant="secondary" disabled={!!actionBusyId} onClick={onPlanAcos}>
-              {actionBusyId === 'plan-acos' ? 'Planning…' : 'Plan ACOS action'}
+              {actionBusyId === 'plan-acos' ? '规划中…' : '规划 ACOS Action'}
             </Button>
           ) : null}
         </div>
@@ -75,7 +75,7 @@ export function RecommendationCenter({
 
       {!items.length ? (
         <div className="cp-panel px-5 py-6">
-          <p className="text-[13px] text-fg-muted">No recommendations yet. Plan an ACOS bid decrease to run the Action Layer demo.</p>
+          <p className="text-[13px] text-fg-muted">暂无建议。可规划一次 ACOS 竞价下调来运行 Action Layer 演示。</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -101,37 +101,37 @@ export function RecommendationCenter({
                 </button>
                 {open ? (
                   <div className="space-y-3 border-t border-border px-5 py-4">
-                    <Meta label="Reason" value={item.reason} />
+                    <Meta label="原因" value={item.reason} />
                     <Meta
-                      label="Evidence"
-                      value={item.evidenceQuotes.length ? item.evidenceQuotes.join('\n') : 'No evidence quotes stored'}
+                      label="证据"
+                      value={item.evidenceQuotes.length ? item.evidenceQuotes.join('\n') : '未存证据原文'}
                     />
                     {item.action ? <ActionDetail action={item.action} /> : (
-                      <p className="text-[13px] text-fg-muted">No structured action yet. Planner will only accept a whitelisted action_type.</p>
+                      <p className="text-[13px] text-fg-muted">暂无结构化 Action。Planner 只接受白名单内的 action_type。</p>
                     )}
                     <div className="flex flex-wrap gap-2">
                       {canApprove ? (
                         <Button disabled={busyId === item.id} onClick={() => onApprove(item.id)}>
-                          {busyId === item.id ? 'Confirming…' : 'Confirm recommendation'}
+                          {busyId === item.id ? '确认中…' : '确认建议'}
                         </Button>
                       ) : null}
                       {!isViewer && !item.action && onPlan ? (
                         <Button variant="secondary" disabled={!!actionBusyId} onClick={() => onPlan(item.id)}>
-                          Plan action
+                          规划 Action
                         </Button>
                       ) : null}
                       {!isViewer && item.action?.status === 'WAITING_APPROVAL' && onApproveAction ? (
                         <Button disabled={actionBusyId === item.action.id} onClick={() => onApproveAction(item.action!.id)}>
-                          {actionBusyId === item.action.id ? 'Approving…' : 'Approve action'}
+                          {actionBusyId === item.action.id ? '审批中…' : '审批 Action'}
                         </Button>
                       ) : null}
                       {!isViewer && item.action?.status === 'APPROVED' && onExecuteAction ? (
                         <Button disabled={actionBusyId === item.action.id} onClick={() => onExecuteAction(item.action!.id)}>
-                          {actionBusyId === item.action.id ? 'Executing…' : 'Run mock executor'}
+                          {actionBusyId === item.action.id ? '执行中…' : '运行 Mock Executor'}
                         </Button>
                       ) : null}
                       {isViewer && item.action?.status === 'WAITING_APPROVAL' ? (
-                        <p className="text-[12px] text-fg-muted">VIEWER can read the planned action but cannot approve or execute.</p>
+                        <p className="text-[12px] text-fg-muted">VIEWER 可查看规划的 Action，但不能审批或执行。</p>
                       ) : null}
                     </div>
                   </div>
@@ -150,7 +150,7 @@ function ActionSummary({ action }: { action: PlannedActionRecord }) {
     <div className="mt-3 flex flex-wrap gap-2 text-[12px] text-fg-muted">
       <StatusPill tone={pillTone(action.status)}>{getStatusLabel(action.status)}</StatusPill>
       <span>{action.lastMessage || action.actionType}</span>
-      <span>Risk {action.riskLevel}</span>
+      <span>风险 {getStatusLabel(action.riskLevel)}</span>
     </div>
   );
 }
@@ -158,12 +158,12 @@ function ActionSummary({ action }: { action: PlannedActionRecord }) {
 function ActionDetail({ action }: { action: PlannedActionRecord }) {
   return (
     <div className="space-y-2 rounded-lg border border-border bg-surface-elevated px-4 py-3">
-      <Meta label="Generated action" value={action.lastMessage || action.actionType} />
-      <Meta label="Risk" value={action.riskLevel} />
-      <Meta label="Approval" value={action.needApproval ? 'Required' : 'Not required'} />
-      <Meta label="Execution" value={action.status === 'SUCCESS' ? 'SUCCESS' : action.status === 'FAILED' ? 'FAILED' : 'Pending'} />
+      <Meta label="生成的 Action" value={action.lastMessage || action.actionType} />
+      <Meta label="风险" value={getStatusLabel(action.riskLevel)} />
+      <Meta label="审批" value={action.needApproval ? '需要' : '不需要'} />
+      <Meta label="执行" value={action.status === 'SUCCESS' ? '成功' : action.status === 'FAILED' ? '失败' : '待执行'} />
       <Meta
-        label="Target"
+        label="目标"
         value={JSON.stringify(action.target)}
       />
     </div>

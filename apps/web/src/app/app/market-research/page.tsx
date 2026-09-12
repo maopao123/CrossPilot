@@ -520,7 +520,7 @@ export default function MarketResearchPage() {
                 {currentProvider === 'xydc' ? '西柚洞察 (XYDC)' : '模拟数据源 (MockMarketProvider)'}
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-border bg-surface-elevated text-gray-300">
-                Transport: {currentTransport}
+                传输通道: {currentTransport}
               </span>
               {currentMode === 'LIVE' ? (
                 <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded flex items-center space-x-1">
@@ -541,7 +541,7 @@ export default function MarketResearchPage() {
               </span>
               <span className="flex items-center space-x-1 text-emerald-400/90">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>凭据脱敏已生效 (Secret Redaction Active)</span>
+                <span>凭据脱敏已生效</span>
               </span>
             </div>
           </div>
@@ -565,7 +565,7 @@ export default function MarketResearchPage() {
           <div className="flex items-center justify-between border-b border-border pb-2">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
               <ShieldCheck className="w-4 h-4 text-blue-400" />
-              <span>结构化事实凭证链 (Research Evidence Lineage)</span>
+              <span>结构化事实凭证链</span>
             </h4>
             <span className="text-[10px] text-gray-400 font-mono">不可篡改真实依据记录</span>
           </div>
@@ -672,7 +672,7 @@ export default function MarketResearchPage() {
                 </span>
               </div>
               <p className="text-xs text-gray-400">
-                启发式规则模型 • 未经过真实转化率校准 (Uncalibrated) • 纯代码确定性公式加权计算 • 仅作相对机会比较与品类初筛，非绝对销量或成功率保证
+                启发式规则模型 • 未经过真实转化率校准 • 纯代码确定性公式加权计算 • 仅作相对机会比较与品类初筛，非绝对销量或成功率保证
               </p>
             </div>
 
@@ -695,7 +695,7 @@ export default function MarketResearchPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-gray-300 flex items-center space-x-1">
                   <Compass className="w-3.5 h-3.5 text-blue-400" />
-                  <span>决策作用域 (Scope):</span>
+                  <span>决策作用域:</span>
                 </span>
                 <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 font-mono text-[11px]">
                   {opportunityDecision.scopeDisclosure.decisionScope} (品类级市场机会)
@@ -786,7 +786,7 @@ export default function MarketResearchPage() {
                 <div className="flex items-center space-x-2 border-b border-border/50 pb-2">
                   <Sparkles className="w-4 h-4 text-purple-400" />
                   <span className="text-xs font-bold text-white uppercase tracking-wider">
-                    决策层执行综述 (Executive Synthesis)
+                    决策层执行综述
                   </span>
                 </div>
                 <p className="text-xs text-gray-300 leading-relaxed mt-3">
@@ -838,7 +838,7 @@ export default function MarketResearchPage() {
             <div className="bg-surface-elevated border border-border rounded-xl p-4 space-y-2.5">
               <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-400 border-b border-border/50 pb-2">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>市场优势与客观事实 (Strengths)</span>
+                <span>市场优势与客观事实</span>
               </div>
               <div className="space-y-2">
                 {opportunityDecision.strengths.map((fact, idx) => (
@@ -858,7 +858,7 @@ export default function MarketResearchPage() {
             <div className="bg-surface-elevated border border-border rounded-xl p-4 space-y-2.5">
               <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-400 border-b border-border/50 pb-2">
                 <AlertCircle className="w-4 h-4" />
-                <span>竞争壁垒与数据风险 (Risks)</span>
+                <span>竞争壁垒与数据风险</span>
               </div>
               <div className="space-y-2">
                 {opportunityDecision.risks.map((fact, idx) => (
@@ -878,7 +878,7 @@ export default function MarketResearchPage() {
             <div className="bg-surface-elevated border border-border rounded-xl p-4 space-y-2.5">
               <div className="flex items-center space-x-1.5 text-xs font-bold text-purple-400 border-b border-border/50 pb-2">
                 <Lightbulb className="w-4 h-4" />
-                <span>VOC 机会与改良建议 (Opportunities)</span>
+                <span>VOC 机会与改良建议</span>
               </div>
               <div className="space-y-2">
                 {opportunityDecision.opportunities.map((fact, idx) => (
@@ -904,7 +904,7 @@ export default function MarketResearchPage() {
             <div className="flex items-center space-x-2 border-b border-border pb-2">
               <Layers className="w-4 h-4 text-blue-400" />
               <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                六大市场信号逐项解析 (Six Market Signals Matrix)
+                六大市场信号逐项解析
               </h3>
             </div>
 
@@ -914,7 +914,7 @@ export default function MarketResearchPage() {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white flex items-center space-x-1.5">
-                      <span>1. 市场需求 (Demand)</span>
+                      <span>1. 市场需求</span>
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 font-mono">
                         {opportunityDecision.signals.demand.scope}
                       </span>
@@ -959,7 +959,7 @@ export default function MarketResearchPage() {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white flex items-center space-x-1.5">
-                      <span>2. 竞争友好度 (Competition)</span>
+                      <span>2. 竞争友好度</span>
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-mono">
                         {opportunityDecision.signals.competition.scope}
                       </span>
@@ -1004,7 +1004,7 @@ export default function MarketResearchPage() {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white flex items-center space-x-1.5">
-                      <span>3. 商业价格 (Commercial)</span>
+                      <span>3. 商业价格</span>
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
                         {opportunityDecision.signals.commercial.scope}
                       </span>
@@ -1049,7 +1049,7 @@ export default function MarketResearchPage() {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white flex items-center space-x-1.5">
-                      <span>4. 趋势动量 (Trend)</span>
+                      <span>4. 趋势动量</span>
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
                         {opportunityDecision.signals.trend.scope}
                       </span>
@@ -1072,7 +1072,11 @@ export default function MarketResearchPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-400">BSR 走向:</span>
                       <span className="text-white font-mono font-semibold">
-                        {opportunityDecision.signals.trend.rawMetrics.bsrDirection || 'STABLE'}
+                        {opportunityDecision.signals.trend.rawMetrics.bsrDirection === 'RANK_IMPROVED'
+                          ? '名次上升'
+                          : opportunityDecision.signals.trend.rawMetrics.bsrDirection === 'RANK_DECLINED'
+                            ? '名次下降'
+                            : '名次平稳'}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1094,7 +1098,7 @@ export default function MarketResearchPage() {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white flex items-center space-x-1.5">
-                      <span>5. 评价健康度 (Review Health)</span>
+                      <span>5. 评价健康度</span>
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-500/10 text-teal-300 border border-teal-500/20 font-mono">
                         {opportunityDecision.signals.reviewHealth.scope}
                       </span>
@@ -1139,7 +1143,7 @@ export default function MarketResearchPage() {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white flex items-center space-x-1.5">
-                      <span>6. VOC 用户心声机会 (VOC)</span>
+                      <span>6. VOC 用户心声机会</span>
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-orange-500/10 text-orange-300 border border-orange-500/20 font-mono">
                         {opportunityDecision.signals.voc.scope}
                       </span>
@@ -1190,7 +1194,7 @@ export default function MarketResearchPage() {
             <div className="flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-blue-400" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Keyword Intelligence 搜索词市场情报
+                搜索词市场情报
               </h3>
               <span className="text-[11px] font-mono px-2.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold">
                 {searchResult.keywordMetric.keyword}
@@ -1210,7 +1214,7 @@ export default function MarketResearchPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-surface-elevated border border-border p-3.5 rounded-lg">
-              <span className="text-xs text-gray-400">周/月搜索量 (Search Volume)</span>
+              <span className="text-xs text-gray-400">周/月搜索量</span>
               <div className="text-xl font-bold text-white mt-1">
                 {searchResult.keywordMetric.searchVolume != null
                   ? searchResult.keywordMetric.searchVolume.toLocaleString()
@@ -1220,7 +1224,7 @@ export default function MarketResearchPage() {
             </div>
 
             <div className="bg-surface-elevated border border-border p-3.5 rounded-lg">
-              <span className="text-xs text-gray-400">ABA 搜索排名 (ABA Rank)</span>
+              <span className="text-xs text-gray-400">ABA 搜索排名</span>
               <div className="text-xl font-bold text-white mt-1">
                 {searchResult.keywordMetric.abaRank != null
                   ? `#${searchResult.keywordMetric.abaRank.toLocaleString()}`
@@ -1240,7 +1244,7 @@ export default function MarketResearchPage() {
             </div>
 
             <div className="bg-surface-elevated border border-border p-3.5 rounded-lg">
-              <span className="text-xs text-gray-400">竞争难度 (Competition)</span>
+              <span className="text-xs text-gray-400">竞争难度</span>
               <div className="text-xl font-bold text-amber-400 mt-1">
                 {searchResult.keywordMetric.competition != null
                   ? `${(searchResult.keywordMetric.competition * 100).toFixed(0)}%`
@@ -1259,7 +1263,7 @@ export default function MarketResearchPage() {
             <div className="flex items-center space-x-2">
               <Target className="w-4 h-4 text-emerald-400" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Top Products 核心头部竞品 (ABA Top ASINs 批量穿透)
+                核心头部竞品 (ABA 头部 ASIN 批量穿透)
               </h3>
               <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-semibold">
                 {searchResult.products.length} 款已检索
@@ -1804,7 +1808,7 @@ export default function MarketResearchPage() {
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-blue-400" />
                         <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                          日级多维历史指标明细 (Daily Points)
+                          日级多维历史指标明细
                         </h4>
                       </div>
                       <span className="text-[11px] text-gray-400">
@@ -1816,7 +1820,7 @@ export default function MarketResearchPage() {
                       <table className="w-full text-xs text-left">
                         <thead className="text-[10px] text-gray-400 uppercase bg-surface/80 sticky top-0 border-b border-border">
                           <tr>
-                            <th className="px-4 py-2">日期 (Date)</th>
+                            <th className="px-4 py-2">日期</th>
                             <th className="px-4 py-2">BSR 排名</th>
                             <th className="px-4 py-2">展示售价</th>
                             <th className="px-4 py-2">星级评分</th>
@@ -1897,7 +1901,7 @@ export default function MarketResearchPage() {
                 <div>
                   <div className="flex items-center space-x-2">
                     <h3 className="text-base font-bold text-white tracking-tight">
-                      商品评价与口碑概览 (Review & Rating Health)
+                      商品评价与口碑概览
                     </h3>
                     <span className="font-mono text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded">
                       {vocModalAsin}
@@ -1979,7 +1983,7 @@ export default function MarketResearchPage() {
                         <span>⭐ {vocData.voc.averageRating != null ? vocData.voc.averageRating.toFixed(1) : '—'}</span>
                       </div>
                       <span className="text-[11px] text-gray-500 block pt-1 border-t border-border/40">
-                        {vocData.voc.averageRating != null ? '基于真实 Marketplace 页面评分' : '暂无评分数据'}
+                        {vocData.voc.averageRating != null ? '基于真实商城页面评分' : '暂无评分数据'}
                       </span>
                     </div>
 
@@ -2027,12 +2031,12 @@ export default function MarketResearchPage() {
                         <div className="flex items-center space-x-2">
                           <Compass className="w-4 h-4 text-blue-400" />
                           <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                            外部原声分析范围与数据源多样性 (Scope & Provenance)
+                            外部原声分析范围与数据源多样性
                           </h4>
                         </div>
                         <span className="text-[10px] px-2 py-0.5 rounded font-mono font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20">
                           {vocData.voc.analysisScope.type === 'CATEGORY'
-                            ? '品类外部原声 (Category External VOC)'
+                            ? '品类外部原声 (VOC)'
                             : vocData.voc.analysisScope.type === 'PRODUCT_PLUS_CATEGORY'
                             ? '商品 + 品类混合原声'
                             : '商品精准外部原声'}
@@ -2123,7 +2127,7 @@ export default function MarketResearchPage() {
                         <div className="flex items-center space-x-2">
                           <ArrowDownRight className="w-4 h-4 text-rose-400" />
                           <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                            核心买家痛点 (Top Pain Points)
+                            核心买家痛点
                           </h4>
                         </div>
                         <div className="space-y-2">
@@ -2150,7 +2154,7 @@ export default function MarketResearchPage() {
                                   </span>
                                   {pp.scope && (
                                     <span className="text-[10px] text-gray-400 font-mono">
-                                      {pp.scope === 'CATEGORY' ? '品类原声 (Category)' : pp.scope}
+                                      {pp.scope === 'CATEGORY' ? '品类原声' : pp.scope}
                                     </span>
                                   )}
                                 </div>
@@ -2195,7 +2199,7 @@ export default function MarketResearchPage() {
                           <div className="flex items-center space-x-2">
                             <ArrowUpRight className="w-4 h-4 text-emerald-400" />
                             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                              核心买家爽点与正面反馈 (Praise Points)
+                              核心买家爽点与正面反馈
                             </h4>
                           </div>
                           <div className="space-y-2">
@@ -2222,7 +2226,7 @@ export default function MarketResearchPage() {
                                     </span>
                                     {pp.scope && (
                                       <span className="text-[10px] text-gray-400 font-mono">
-                                        {pp.scope === 'CATEGORY' ? '品类原声 (Category)' : pp.scope}
+                                        {pp.scope === 'CATEGORY' ? '品类原声' : pp.scope}
                                       </span>
                                     )}
                                   </div>
@@ -2268,7 +2272,7 @@ export default function MarketResearchPage() {
                           <div className="flex items-center space-x-2">
                             <Target className="w-4 h-4 text-purple-400" />
                             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                              购买动机与使用场景 (Buyer Motivations)
+                              购买动机与使用场景
                             </h4>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2297,7 +2301,7 @@ export default function MarketResearchPage() {
                           <div className="flex items-center space-x-2">
                             <Sparkles className="w-4 h-4 text-blue-400" />
                             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                              典型使用场景 (Use Cases)
+                              典型使用场景
                             </h4>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2326,7 +2330,7 @@ export default function MarketResearchPage() {
                           <div className="flex items-center space-x-2">
                             <Lightbulb className="w-4 h-4 text-amber-400" />
                             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                              买家期待改进特性 (Desired Features)
+                              买家期待改进特性
                             </h4>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

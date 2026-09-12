@@ -23,17 +23,17 @@ test('V921: Operations Today cockpit uses the facade and copilot sections', () =
 
 test('V921: insight cards require problem evidence impact recommendation', () => {
   const stack = read('app/app/operations/today/cockpit/insight-stack.tsx');
-  assert.match(stack, /Problem/);
-  assert.match(stack, /Evidence/);
-  assert.match(stack, /Impact/);
-  assert.match(stack, /Recommendation/);
+  assert.match(stack, /问题/);
+  assert.match(stack, /证据/);
+  assert.match(stack, /影响/);
+  assert.match(stack, /建议/);
 });
 
 test('V921: VIEWER cannot approve recommendations', () => {
   const rec = read('app/app/operations/today/cockpit/recommendation-center.tsx');
   assert.match(rec, /isViewer/);
   assert.match(rec, /canApprove/);
-  assert.match(rec, /VIEWER can read/);
+  assert.match(rec, /VIEWER 可查看/);
   const page = read('app/app/operations/today/page.tsx');
   assert.match(page, /if \(isViewer\) return/);
 });
@@ -47,8 +47,8 @@ test('V921: confirm path does not call Amazon write', () => {
 test('V93: recommendation card exposes planned action and mock execute only', () => {
   const rec = read('app/app/operations/today/cockpit/recommendation-center.tsx');
   const page = read('app/app/operations/today/page.tsx');
-  assert.match(rec, /Generated action/);
-  assert.match(rec, /Run mock executor/);
+  assert.match(rec, /生成的 Action/);
+  assert.match(rec, /运行 Mock Executor/);
   assert.match(page, /\/api\/v1\/actions\/plan-acos/);
   assert.match(page, /\/api\/v1\/actions\/\$\{actionId\}\/execute/);
   assert.doesNotMatch(page, /AmazonAdsTool|sp-api|amazon\/write/);

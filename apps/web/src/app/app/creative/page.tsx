@@ -207,7 +207,7 @@ export default function CreativeStudioPage() {
           <div className="relative group rounded-lg overflow-hidden border border-border aspect-square bg-surface-elevated">
             <img
               src={creativePack.mainImage.imageUrl}
-              alt="Main Product"
+              alt="主图"
               className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-2">
@@ -247,7 +247,7 @@ export default function CreativeStudioPage() {
           <div className="relative group rounded-lg overflow-hidden border border-border aspect-square bg-surface-elevated">
             <img
               src={creativePack.lifestyleImage.lifestyleImageUrl}
-              alt="Lifestyle"
+              alt="场景图"
               className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-2">

@@ -15,6 +15,7 @@ import {
   BrainCircuit,
   ArrowRight,
 } from 'lucide-react';
+import { getSeverityLabel } from '@/constants/ui-labels';
 
 export default function ArchitecturePage() {
   return (
@@ -54,7 +55,7 @@ export default function ArchitecturePage() {
             <p className="text-gray-300">Next.js 14 App Router + Tailwind CSS</p>
             <ul className="text-gray-400 space-y-1 list-disc list-inside">
               <li>经营工作台页面（Overview / Operations Today 等）</li>
-              <li>交互式 1-Click Demo Reset</li>
+              <li>交互式 1-Click 演示重置</li>
               <li>SSE 实时决策轨迹流展示</li>
               <li>SSR & 静态预渲染 100% 通过</li>
             </ul>
@@ -72,7 +73,7 @@ export default function ArchitecturePage() {
           </div>
 
           <div className="bg-surface-elevated border border-border p-4 rounded-xl space-y-2">
-            <div className="font-bold text-purple-400 text-sm">数据与持久化层 (Data Tier)</div>
+            <div className="font-bold text-purple-400 text-sm">数据与持久化层（数据层）</div>
             <p className="text-gray-300">PostgreSQL + Redis + Milvus</p>
             <ul className="text-gray-400 space-y-1 list-disc list-inside">
               <li>PostgreSQL 16: 业务单一事实源 (Prisma)</li>
@@ -114,7 +115,7 @@ export default function ArchitecturePage() {
               Reorder Point = (LeadTime + SafetyStockDays) × DailySales = 22 × 10.2 = 224 pcs
             </div>
             <p className="text-[11px] text-gray-400">
-              触发 CRITICAL 级别补货告警，1-Click 直达 PO 自动补货 500 pcs。
+              触发{getSeverityLabel('CRITICAL')}级别补货告警，1-Click 直达 PO 自动补货 500 pcs。
             </p>
           </div>
         </div>
@@ -146,7 +147,7 @@ export default function ArchitecturePage() {
             </h4>
             <p className="text-gray-300 leading-relaxed">
               <strong>Helium 10 等工具聚焦在公网市场大盘与站外选品</strong>，无法感知卖家内部的真实采购成本、FBA在途库存、退货瑕疵率以及真实的净利润；
-              <strong>CrossPilot 实现了“站外大盘 + 站内经营数据”的全面打通</strong>：通过把竞品追踪、Listing 生成合规质检、广告调价和 FBA 补货串成闭环，验证了 AI Native Operations Platform 的完整形态。
+              <strong>CrossPilot 实现了“站外大盘 + 站内经营数据”的全面打通</strong>：通过把竞品追踪、Listing 生成合规质检、广告调价和 FBA 补货串成闭环，验证了 AI Native 运营平台的完整形态。
             </p>
           </div>
 

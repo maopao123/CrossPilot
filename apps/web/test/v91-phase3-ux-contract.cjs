@@ -177,7 +177,7 @@ test('V91-026: Overview does not present hardcoded -$2,280 as live data', () => 
 test('V91-027: dead Copilot entry is disabled Coming Later; Architecture is not a KB console', () => {
   const sidebar = read('components/sidebar.tsx');
   const architecture = read('app/app/architecture/page.tsx');
-  assert.match(sidebar, /Coming Later/);
+  assert.match(sidebar, /敬请期待/);
   assert.doesNotMatch(sidebar, /Mastra Agent/);
   assert.doesNotMatch(sidebar, /Architecture & Defense/);
   assert.doesNotMatch(architecture, /14 大经营子页面/);

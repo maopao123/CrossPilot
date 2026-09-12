@@ -179,7 +179,7 @@ export default function BusinessOverviewPage() {
               : '暂无瀑布数据'}
           </div>
           <Link href="/app/business-analyst" className="mt-1 inline-flex items-center text-[11px] text-accent hover:underline">
-            {typeof waterfall?.totalVariance === 'number' ? '查看归因' : 'Demo Scenario'} <ArrowRight className="ml-0.5 h-3 w-3" />
+            {typeof waterfall?.totalVariance === 'number' ? '查看归因' : '演示场景'} <ArrowRight className="ml-0.5 h-3 w-3" />
           </Link>
         </div>
       </div>
@@ -286,7 +286,7 @@ export default function BusinessOverviewPage() {
                 {skus.find((s) => s.skuCode === 'MTH-WHITE-001')?.skuCode || 'WHITE'}
               </td>
               <td className="px-4 py-3">主力款</td>
-              <td className="px-4 py-3 text-fg-muted">场景数据 · Demo Scenario</td>
+              <td className="px-4 py-3 text-fg-muted">场景数据 · 演示场景</td>
               <td className="px-4 py-3 text-right">
                 <Link
                   href={skus.find((s) => s.skuCode === 'MTH-WHITE-001') ? `/app/skus/${skus.find((s) => s.skuCode === 'MTH-WHITE-001')!.id}` : '/app/skus'}

@@ -30,6 +30,13 @@ const CATEGORIES = [
   { id: 'PRODUCT_RESEARCH', label: '选品调研 (Research)' },
 ];
 
+const CATEGORY_LABELS: Record<string, string> = {
+  CREATIVE: '素材生产',
+  OPERATION: '运营管理',
+  DATA: '数据与财务',
+  PRODUCT_RESEARCH: '选品调研',
+};
+
 interface ToolMeta {
   id: string;
   name: string;
@@ -175,7 +182,7 @@ export default function ToolCenterPage() {
               <div className="flex items-center space-x-2">
                 <h1 className="cp-title">工具中心</h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  V9 Tool Platform
+                  V9 Tool 平台
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -311,7 +318,7 @@ export default function ToolCenterPage() {
               <div>
                 <div className="flex items-center space-x-2">
                   <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/20 text-blue-300">
-                    {selectedTool.category}
+                    {CATEGORY_LABELS[selectedTool.category] || selectedTool.category}
                   </span>
                   <h2 className="text-lg font-bold text-white">{selectedTool.name}</h2>
                 </div>
@@ -454,7 +461,7 @@ export default function ToolCenterPage() {
                   <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
                     <img
                       src={executionResult.data.imageUrl}
-                      alt="Rendered Preview"
+                      alt="渲染预览"
                       className="w-48 h-48 rounded-lg object-cover border border-border shadow-md"
                     />
                     <div className="space-y-2 text-xs text-gray-400">

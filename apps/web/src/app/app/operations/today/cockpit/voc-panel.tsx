@@ -23,37 +23,37 @@ export function VocPanel({
     <section className="cp-panel px-5 py-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-tight">Customer voice</h2>
+          <h2 className="text-[15px] font-semibold tracking-tight">买家之声（VOC）</h2>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Pain points from recent reviews. This is pattern matching, not a live scrape.
+            来自近期评论的痛点。这是模式匹配，不是实时抓取。
           </p>
         </div>
         {!isViewer ? (
           <Button variant="secondary" disabled={busy || !voc?.recentReviews.length} onClick={onAnalyze}>
-            {busy ? 'Analyzing…' : 'Re-run VOC'}
+            {busy ? '分析中…' : '重新运行 VOC'}
           </Button>
         ) : null}
       </div>
 
       {!voc || (!pains.length && !voc.listingSuggestion) ? (
-        <p className="mt-4 text-[13px] text-fg-muted">No VOC sample in this workspace yet.</p>
+        <p className="mt-4 text-[13px] text-fg-muted">当前工作区暂无 VOC 样本。</p>
       ) : (
         <div className="mt-5 grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-4">
             {pains.slice(0, 3).map((pain) => (
               <div key={pain} className="border-l-2 border-amber-500/50 pl-4">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-fg-muted">Problem</div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-fg-muted">问题</div>
                 <p className="mt-1 text-[14px] leading-relaxed">{pain}</p>
                 {freq !== null ? (
-                  <p className="mt-2 text-[12px] text-fg-muted">Frequency in sample {freq}%</p>
+                  <p className="mt-2 text-[12px] text-fg-muted">样本中出现频率 {freq}%</p>
                 ) : null}
               </div>
             ))}
           </div>
           <div>
-            <div className="text-[11px] uppercase tracking-[0.14em] text-fg-muted">Listing suggestion</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-fg-muted">Listing 建议</div>
             <p className="mt-1 text-[13px] leading-relaxed">
-              {voc.listingSuggestion || voc.productImprovement || 'No listing rewrite stored'}
+              {voc.listingSuggestion || voc.productImprovement || '未存 Listing 改写内容'}
             </p>
           </div>
         </div>

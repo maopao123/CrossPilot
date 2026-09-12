@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ApiClient } from '@/lib/api-client';
-import { getStatusLabel } from '@/constants/ui-labels';
+import { getStatusLabel, RUNTIME_LABELS } from '@/constants/ui-labels';
 import {
   PlayCircle,
   CheckCircle2,
@@ -193,11 +193,11 @@ export default function OperationAutomationPage() {
             <div className="flex items-center space-x-2">
               <h1 className="cp-title">运营自动化</h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                P0 RPA Pipeline
+                P0 RPA 流水线
               </span>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">
-              WF-Operation-01 Listing Publish：AI 负责内容生成与合规质检，人类把关审批门禁，RPA 负责稳定填报与发布
+              WF-Operation-01 Listing 发布：AI 负责内容生成与合规质检，人类把关审批门禁，RPA 负责稳定填报与发布
             </p>
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function OperationAutomationPage() {
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <h3 className="text-sm font-bold text-white">
-                    人工审批门禁等待中 (WAITING_APPROVAL)
+                    人工审批门禁等待中（{getStatusLabel('WAITING_APPROVAL')}）
                   </h3>
                   <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-amber-500/20 text-amber-300">
                     高风险门禁
@@ -376,7 +376,7 @@ export default function OperationAutomationPage() {
                         : 'bg-blue-500/20 text-blue-300'
                     }`}
                   >
-                    {step.runtime}
+                    {RUNTIME_LABELS[step.runtime]}
                   </span>
                 </div>
 
@@ -409,7 +409,7 @@ export default function OperationAutomationPage() {
             <Terminal className="w-4 h-4 text-emerald-400" />
             <h3 className="text-sm font-bold text-white">RPA 自动化执行实时审计日志</h3>
           </div>
-          <span className="text-[11px] text-gray-400 font-mono">Adapter: Yingdao/Mock RPA Engine</span>
+          <span className="text-[11px] text-gray-400 font-mono">适配器：影刀/Mock RPA 引擎</span>
         </div>
 
         <div className="p-4 rounded-lg bg-black/80 border border-border font-mono text-xs text-gray-300 space-y-1.5 max-h-56 overflow-y-auto">

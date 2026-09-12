@@ -137,9 +137,9 @@ export function Sidebar({
           className="flex cursor-not-allowed select-none items-center gap-2 text-[12px] text-fg-muted opacity-70"
         >
           <Bot className="h-4 w-4" strokeWidth={1.5} />
-          <span className="font-medium">AI Copilot</span>
+          <span className="font-medium">AI 助手</span>
           <span className="rounded bg-surface-elevated px-1.5 py-0.5 text-[10px] text-fg-muted">
-            Coming Later
+            敬请期待
           </span>
         </div>
       </div>

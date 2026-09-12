@@ -6,20 +6,20 @@ import { pct, ratio, usd } from './format';
 
 export function HealthStrip({ health }: { health: OperationsTodayHealth }) {
   const items = [
-    { label: 'Revenue', value: usd(health.revenue), hint: `margin ${pct(health.margin)}` },
-    { label: 'Profit', value: usd(health.profit), hint: `ads ${usd(health.adsCost)}` },
-    { label: 'Orders', value: String(health.orders), hint: 'workspace total' },
-    { label: 'ACOS', value: pct(health.acos), hint: 'spend / ad sales' },
-    { label: 'ROAS', value: ratio(health.roas), hint: 'ad sales / spend' },
+    { label: '收入', value: usd(health.revenue), hint: `毛利率 ${pct(health.margin)}` },
+    { label: '利润', value: usd(health.profit), hint: `广告花费 ${usd(health.adsCost)}` },
+    { label: '订单', value: String(health.orders), hint: '工作区总计' },
+    { label: 'ACOS', value: pct(health.acos), hint: '花费 / 广告销售额' },
+    { label: 'ROAS', value: ratio(health.roas), hint: '广告销售额 / 花费' },
     {
-      label: 'Inventory',
-      value: health.inventoryHealth === 'HEALTHY' ? 'Steady' : health.inventoryHealth === 'WATCH' ? 'Watch' : 'Stockout',
+      label: '库存',
+      value: health.inventoryHealth === 'HEALTHY' ? '平稳' : health.inventoryHealth === 'WATCH' ? '关注' : '缺货',
       hint: health.inventoryNote,
     },
   ];
 
   return (
-    <section aria-label="Business health">
+    <section aria-label="经营健康度">
       <div className="cp-metric-strip">
         {items.map((item) => (
           <div key={item.label} className="cp-metric">

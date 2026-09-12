@@ -220,8 +220,8 @@ export default function BusinessAnalystPage() {
       {sseLogs.length > 0 && (
         <div className="bg-black/80 border border-gray-800 rounded-xl p-4 font-mono text-[11px] text-gray-300 space-y-1 max-h-48 overflow-y-auto">
           <div className="flex items-center justify-between text-gray-500 pb-2 border-b border-gray-800">
-            <span>📡 SSE Server-Sent Events 流式轨迹监控</span>
-            <span className="text-emerald-400 font-semibold">{sseActive ? 'CONNECTING / STREAMING' : 'IDLE'}</span>
+            <span>📡 SSE 流式轨迹监控</span>
+            <span className="text-emerald-400 font-semibold">{sseActive ? '连接中 / 流传输' : '空闲'}</span>
           </div>
           {sseLogs.map((log, idx) => (
             <div key={idx} className="text-emerald-400/90 leading-tight">
@@ -354,7 +354,7 @@ export default function BusinessAnalystPage() {
 
             <div className="space-y-2.5">
               {(toolTraces.length > 0 ? toolTraces : [
-                { tool: 'query_profit_summary', input: { periodA: 'Week 10', periodB: 'Week 11' }, output: { week10: 4120, week11: 1840, variance: -2280 }, latencyMs: 145 },
+                { tool: 'query_profit_summary', input: { periodA: '第10周', periodB: '第11周' }, output: { week10: 4120, week11: 1840, variance: -2280 }, latencyMs: 145 },
                 { tool: 'query_ad_metrics', input: { campaignType: 'SPONSORED_PRODUCTS' }, output: { acosSpikeKeyword: 'bathroom organizer', spend: 420 }, latencyMs: 180 },
                 { tool: 'query_return_summary', input: { sku: 'MTH-GREY-001' }, output: { returnRate: 0.067, lossDelta: 620 }, latencyMs: 140 },
                 { tool: 'query_inventory_risk', input: { sku: 'MTH-GREEN-001' }, output: { stockoutHours: 96, rushShippingFee: 315 }, latencyMs: 110 },
@@ -375,11 +375,11 @@ export default function BusinessAnalystPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] mt-2">
                     <div className="bg-surface p-2 rounded border border-border/70 text-gray-400">
-                      <span className="text-gray-500 font-bold block mb-0.5">输入参数 (Input):</span>
+                      <span className="text-gray-500 font-bold block mb-0.5">输入参数:</span>
                       <code>{JSON.stringify(trace.input)}</code>
                     </div>
                     <div className="bg-surface p-2 rounded border border-border/70 text-emerald-400">
-                      <span className="text-gray-500 font-bold block mb-0.5">输出结果 (Output):</span>
+                      <span className="text-gray-500 font-bold block mb-0.5">输出结果:</span>
                       <code>{JSON.stringify(trace.output)}</code>
                     </div>
                   </div>

@@ -60,6 +60,10 @@ export const STATUS_LABELS: Record<string, string> = {
   PAUSED: '已暂停',
   ENABLED: '投放中',
   ARCHIVED_CAMP: '已归档',
+
+  // Listing 生成引擎降级状态
+  TEMPLATE_FALLBACK: '模板降级',
+  LEGACY_TEMPLATE: '传统模板',
 };
 
 /**

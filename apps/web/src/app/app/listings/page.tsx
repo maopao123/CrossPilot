@@ -594,11 +594,11 @@ export default function ListingStudioPage() {
                   ) : activeVersion.generationMode === 'TEMPLATE_FALLBACK' || activeVersion.generationSource === 'TEMPLATE_FALLBACK' ? (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
                       <AlertTriangle className="w-3 h-3 mr-1 text-amber-400" />
-                      受控模板降级 (TEMPLATE_FALLBACK)
+                      受控模板降级
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/30">
-                      传统模板模式 (LEGACY_TEMPLATE)
+                      传统模板模式
                     </span>
                   )}
 
@@ -733,7 +733,7 @@ export default function ListingStudioPage() {
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                   {imageUrls.map((url, idx) => (
                     <div key={idx} className="relative group rounded-lg overflow-hidden border border-border bg-surface-elevated aspect-square">
-                      <img src={url} alt={`Product shot ${idx + 1}`} className="w-full h-full object-cover" />
+                      <img src={url} alt={`产品图 ${idx + 1}`} className="w-full h-full object-cover" />
                       <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
                         #{idx + 1}
                       </div>

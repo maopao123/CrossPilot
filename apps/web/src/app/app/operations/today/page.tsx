@@ -226,7 +226,7 @@ export default function OperationsTodayPage() {
         description={data.headline}
         badge={
           <StatusPill tone={healthTone}>
-            {data.sim.simDate ? `Sim ${data.sim.simDate}` : 'Live window'}
+            {data.sim.simDate ? `模拟 ${data.sim.simDate}` : '实时窗口'}
           </StatusPill>
         }
         actions={
@@ -234,7 +234,7 @@ export default function OperationsTodayPage() {
             <span className="text-[12px] text-fg-muted">只读</span>
           ) : (
             <Button variant="secondary" disabled={diagBusy} onClick={handleDiagnosis}>
-              {diagBusy ? 'Diagnosing…' : 'Refresh diagnosis'}
+              {diagBusy ? '诊断中…' : '重新诊断'}
             </Button>
           )
         }
@@ -248,16 +248,16 @@ export default function OperationsTodayPage() {
 
       <InsightStack
         title="需要处理"
-        kicker="Highest-severity issues first. Open a card to read evidence."
+        kicker="按严重程度从高到低排列，点开卡片可查看证据。"
         cards={data.criticalIssues}
-        empty="No critical operating issues in the current window."
+        empty="当前时间窗口内没有需要立即处理的运营问题。"
       />
 
       <InsightStack
         title="AI 发现"
-        kicker="Problem, evidence, impact, then a recommended next step."
+        kicker="按问题、证据、影响展示，并给出建议的下一步。"
         cards={data.insights}
-        empty="No diagnosis or simulator events yet. Refresh diagnosis to generate WF-05 insights."
+        empty="暂无诊断或 Simulator 事件，点击「重新诊断」生成 WF-05 洞察。"
       />
 
       <RecommendationCenter
