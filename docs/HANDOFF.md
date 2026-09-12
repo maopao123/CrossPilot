@@ -13,14 +13,15 @@ CrossPilot V9.1
 RELEASE VERIFIED & FROZEN
 
 Epic 4
-CODE COMPLETE — 85f5b94 (pushing/deploying with V9.2)
+DEPLOYED (read-only store foundation) — 85f5b94 ancestor of live HEAD
 
 V9.2 Phases 1–5
-CODE COMPLETE — 54074d9 + RC docs
-Push + cloud deploy ordered; see V92_DEPLOYMENT_PLAN.md
+DEPLOYED — live HEAD 5ef0313
+Playbook / facts / recommendations API smoke PASS
+Live SP-API: LIVE_NOT_RUN
 
-Live code (cloud) before this cutover:
-e457d5a   post-V9.1 visual system (frontend only)
+Live code (cloud):
+5ef0313   Epic 4 + V9.2 + RC docs
 ```
 
 **不要自动开 V9.3 / Scheduler / Launch Center，也不要为了刷绿把 XYDC `5147` 改成 `5151`。**  
@@ -52,11 +53,11 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | 验收时已部署应用 | `7c81411` | Final Browser Acceptance 热修后的运行代码 |
 | Release documentation baseline / tag `v9.1.0` | `b3d5607` | `7c81411 → b3d5607` 只有验收报告 |
 | Freeze 声明提交 | `87d4eb2` | 治理文档；不改 tagged 应用基线 |
-| **当前 origin/master 与云机 HEAD** | **`e457d5a`** | post-V9.1 视觉系统；前端 only |
+| **当前 origin/master 与云机 HEAD** | **`5ef0313`** | Epic 4 + V9.2 Phase 1–5 + RC docs |
 
 ```text
 Tag v9.1.0  →  b3d5607     不要 retag，不要 force-push
-Live web    →  e457d5a     已部署到 2222
+Live HEAD   →  5ef0313     API 已 reload；Web 未重建（V9.2 无新 UI）
 ```
 
 `git diff --name-only 7c81411..b3d5607` = `docs/00_governance/V9_1_FINAL_BROWSER_ACCEPTANCE_REPORT.md`。
