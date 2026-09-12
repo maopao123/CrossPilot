@@ -25,6 +25,7 @@ import { DailyDiagnosisModule } from './modules/daily-diagnosis/daily-diagnosis.
 import { CommerceStoreModule } from './modules/commerce-store/commerce-store.module.js';
 import { PlaybookModule } from './modules/playbook/playbook.module.js';
 import { IntelligenceModule } from './modules/intelligence/intelligence.module.js';
+import { SimulatorModule } from './modules/simulator/simulator.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { WorkspaceGuard } from './common/guards/workspace.guard.js';
 import { ViewerWriteGuard } from './common/guards/viewer-write.guard.js';
@@ -61,6 +62,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     CommerceStoreModule,
     PlaybookModule,
     IntelligenceModule,
+    SimulatorModule,
   ],
   providers: [
     {

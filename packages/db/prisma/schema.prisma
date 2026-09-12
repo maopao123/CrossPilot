@@ -80,6 +80,9 @@ model Workspace {
   commerceFacts            CommerceFact[]
   evidenceItems            EvidenceItem[]
   businessRecommendations  BusinessRecommendation[]
+  simulationState          SimulationState?
+  simulationEvents         SimulationEvent[]
+  channelDailyMetrics      ChannelDailyMetric[]
 
   defaultMarketplace       Marketplace?               @relation(fields: [defaultMarketplaceId], references: [id])
 
@@ -214,6 +217,8 @@ model Sku {
   launchPlans              LaunchPlan[]
   analysisSessions         AnalysisSession[]
   agentTasks               AgentTask[]
+  simulationEvents         SimulationEvent[]
+  channelDailyMetrics      ChannelDailyMetric[]
 
   @@unique([workspaceId, skuCode])
   @@index([workspaceId])
@@ -1466,4 +1471,69 @@ model BusinessRecommendation {
   @@index([workspaceId])
   @@index([status])
   @@map("business_recommendations")
+}
+
+// ==========================================
+// Commerce Simulator（docs/40_mockData）
+// 模拟经营世界：时钟状态 / 业务事件 / 渠道日指标
+// ==========================================
+
+model SimulationState {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  simDate     DateTime @map("sim_date") @db.Date
+  dayIndex    Int      @default(0) @map("day_index")
+  status      String   @default("RUNNING")
+  config      Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId])
+  @@map("simulation_states")
+}
+
+model SimulationEvent {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  skuId       String?  @map("sku_id")
+  simDate     DateTime @map("sim_date") @db.Date
+  code        String
+  severity    String   @default("INFO") // INFO | WARNING | CRITICAL
+  title       String
+  description String   @db.Text
+  status      String   @default("ACTIVE") // ACTIVE | RESOLVED | COMPLETED
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sku         Sku?      @relation(fields: [skuId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([simDate])
+  @@map("simulation_events")
+}
+
+model ChannelDailyMetric {
+  id             String   @id @default(uuid())
+  workspaceId    String   @map("workspace_id")
+  skuId          String   @map("sku_id")
+  channel        String // amazon | shopify
+  metricDate     DateTime @map("metric_date") @db.Date
+  sessions       Int      @default(0)
+  addToCart      Int      @default(0) @map("add_to_cart")
+  checkout       Int      @default(0)
+  orders         Int      @default(0)
+  conversionRate Decimal  @default(0) @map("conversion_rate") @db.Decimal(6, 4)
+  bounceRate     Decimal  @default(0) @map("bounce_rate") @db.Decimal(6, 4)
+  revenue        Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sku            Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, channel, skuId, metricDate])
+  @@index([workspaceId])
+  @@index([metricDate])
+  @@map("channel_daily_metrics")
 }
