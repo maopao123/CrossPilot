@@ -103,4 +103,14 @@ Notes:
 - `listOrders` does not page `nextToken` (single page, same as Epic 4 sync).
 - Business layers (WF-05 / Playbook / Action Planner) still do not `import` SP-API; nothing routes them through the AmazonAdapter yet — that wiring is Epic 5/6 territory.
 
+## 7. Post-ship review fixes（`71d405f`）
+
+复查修复三处，均带回归测试：
+
+1. `listProducts` 的 `pageSize` 100 → 20（SP-API `/listings/2021-08-01/items` 上限 20，原值会被 live 400）。
+2. `MockAmazonProvider` 的 `listingsGet` / `catalogGet` 原来返回数组，与真实 `AmazonProvider` 的单对象形状不一致 → 导致 `AmazonAdapter.getProduct` 走 mock 时永远拿到 null。已对齐为单对象，并新增 `getProduct` 单对象/NOT_FOUND→null 两个用例锁定形状契约。
+3. `executeCapability` 对**抛异常**的 transport（不规范实现）原来会让原始异常逃逸出端口 → 现在统一归一为 `CommercePortError`（含 `RATE_LIMITED → PROVIDER_RATE_LIMIT` 命名与 retryable 透传），新增用例。
+
+回归：api 全量 23 套 151 PASS（epic3 11 例）、`amazon-store.test.cjs` PASS、typecheck 绿。
+
 Next: Epic 4 Shopify read adapter（未授权，等用户指令）。

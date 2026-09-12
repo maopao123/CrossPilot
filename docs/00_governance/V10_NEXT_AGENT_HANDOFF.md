@@ -13,14 +13,14 @@
 
 ```text
 V9.3 Mock Action  +  V10 Epic 1 多店表  +  Epic 2 Ports/SimulatorAdapter
-        +  Epic 3 Amazon read Adapter（6c4d169，已部署）
+        +  Epic 3 Amazon read Adapter（6c4d169 + 复查修复 71d405f，已部署）
         ↓
 下一件授权工作 = Epic 4 Shopify read Adapter（等用户发话）
 ```
 
 | 项 | 值 |
 | :--- | :--- |
-| 实现 SHA（API/worker dist） | `6c4d169` |
+| 实现 SHA（API/worker dist） | `71d405f` |
 | 云机应用 | `/root/zls/project/CrossPilot` @ `root@116.198.230.217` |
 | 公网 | http://116.198.230.217:2222 |
 | 本机 | Windows **只写代码**。不要起 Postgres / API / Web / 浏览器验收 |
@@ -268,8 +268,8 @@ V9.2 / V9.2.1 / V9.3 SHIPPED  Action = Mock only
 V10 Epic 0          DONE     architecture + impact
 V10 Epic 1          SHIPPED  2a5b305  Store + ChannelIdentity
 V10 Epic 2          SHIPPED  6a9b636  Ports + SimulatorAdapter
-V10 Epic 3          SHIPPED  6c4d169  Amazon read Adapter
-Live git            master HEAD  (API dist = 6c4d169)
+V10 Epic 3          SHIPPED  6c4d169 + 复查修复 71d405f  Amazon read Adapter
+Live git            master HEAD  (API dist = 71d405f)
 Live                http://116.198.230.217:2222  health 200
 Next                Epic 4 Shopify read Adapter  ← 仅用户发话后开工
 Stop                不要开 Epic 5/6；不要 Amazon/Action Write；不要 WF-05 切源

@@ -110,13 +110,13 @@ Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏�
 | V9.3 Action Layer | **`a39a803`** | Mock planner / risk / executor / history |
 | V10 Epic 1 Store foundation | **`2a5b305`** | Store + ChannelIdentity + unique(storeId) |
 | V10 Epic 2 Ports + SimulatorAdapter | **`6a9b636`** | Catalog/Order/Inventory/Ads/Profit ports |
-| V10 Epic 3 Amazon read Adapter | **`6c4d169`** | AmazonAdapter + shared credential crypto |
-| **Live API/worker dist** | **`6c4d169`** | Epic 3 rebuild；Web dist 仍为 V9.3 UI |
-| **origin master** | push 后 `git log -1` | 文档 HEAD 会比 `6c4d169` 再前一个 pin commit |
+| V10 Epic 3 Amazon read Adapter | **`6c4d169`** | AmazonAdapter + shared credential crypto；复查修复 `71d405f` |
+| **Live API/worker dist** | **`71d405f`** | Epic 3 + 复查修复；Web dist 仍为 V9.3 UI |
+| **origin master** | push 后 `git log -1` | 文档 HEAD 与 dist 可能再差 pin commit |
 
 ```text
 Tag v9.1.0            →  b3d5607     不要 retag
-Live API/worker dist  →  6c4d169
+Live API/worker dist  →  71d405f
 Live Web dist         →  a39a803 驾驶舱（V10 尚未改 UI）
 ```
 
@@ -193,6 +193,8 @@ VIEWER：`viewer@crosspilot.com`（云库已 seed）。
 | 云库 migration 数 | 无新增（Epic 3 不改 schema） |
 
 BullMQ `Worker.run` 的 TypeError + `maxRetriesPerRequest` 告警存在于 19:12 的旧 error log（Epic 3 reload 前），reload 后未复现 → 预先存在，不是 Epic 3 回归。
+
+复查修复热更新（`71d405f`，同一晚）：mock `listingsGet` 单对象形状对齐、`pageSize` 20、transport 抛异常归一。部署后 HEAD `71d405f`，health 200，api/worker online，无新报错。详见 Epic 3 报告 §7。
 
 V9.2 生产验证追加（同一天，机内）：
 
@@ -310,7 +312,7 @@ pm2 logs crosspilot-worker   # 找 Simulator scheduler / tick 日志
 
 **执行说明书：** `docs/00_governance/V10_NEXT_AGENT_HANDOFF.md`
 
-Epic 3 **已完成**（`6c4d169`，已部署）。用户说「做 Epic 4 / Shopify」→ 按 `V10_NEXT_AGENT_HANDOFF.md` 做 **Epic 4 Shopify read Adapter**；用户没发话就停，不要主动开工。
+Epic 3 **已完成**（`6c4d169` + 复查修复 `71d405f`，均已部署）。用户说「做 Epic 4 / Shopify」→ 按 `V10_NEXT_AGENT_HANDOFF.md` 做 **Epic 4 Shopify read Adapter**；用户没发话就停，不要主动开工。
 
 不要夹带：
 
@@ -330,12 +332,12 @@ Epic 4           DEPLOYED  LIVE_NOT_RUN
 V9.2 Phase 1-5   DEPLOYED  API only
 V9.2 Production  READY_WITH_KNOWN_LIMITATIONS
 Simulator        LIVE  via SimulatorAdapter（day 会随 60min tick 前进，勿 reset 对齐旧数字）
-Live git         master HEAD  (API dist 6c4d169) @ 116.198.230.217:2222
+Live git         master HEAD  (API dist 71d405f) @ 116.198.230.217:2222
 V9.2.1 UI        SHIPPED
 V9.3 Action      SHIPPED mock only
 V10 Epic 1       SHIPPED  Store + ChannelIdentity
 V10 Epic 2       SHIPPED  Ports + SimulatorAdapter
-V10 Epic 3       SHIPPED  Amazon read Adapter 6c4d169
+V10 Epic 3       SHIPPED  Amazon read Adapter 6c4d169 + 复查修复 71d405f
 Next             Epic 4 Shopify read Adapter — 等用户授权（见 V10_NEXT_AGENT_HANDOFF.md）
 health           200   /health/ai degraded
 Do not start Amazon Write / Action Write / WF-05 切源 / Epic 4 未授权自启
