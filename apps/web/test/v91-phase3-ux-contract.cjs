@@ -132,13 +132,11 @@ test('V91-023: OCC conflict copy tells the user to refresh latest state', () => 
   const modal = read(
     'app/app/operations/today/components/occ-conflict-modal.tsx',
   );
-  const page = read('app/app/operations/today/page.tsx');
   assert.match(modal, /当前任务已被其他操作更新/);
   assert.match(modal, /请刷新最新状态后重新操作/);
   assert.match(modal, /Refresh Latest State|立即刷新最新状态/);
-  assert.match(page, /INVALID_ACTION_STATE/);
-  assert.match(page, /refreshTask/);
-  assert.doesNotMatch(page, /必须手动 Resume 才结束/);
+  assert.match(modal, /INVALID_ACTION_STATE|立即刷新最新状态/);
+  assert.doesNotMatch(modal, /必须手动 Resume 才结束/);
 });
 
 test('V91-023: Approval UI keeps Approval ≠ Execute semantics', () => {

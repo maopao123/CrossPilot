@@ -36,7 +36,7 @@ const NAV_GROUPS: Array<{
 }> = [
   {
     title: '今日',
-    items: [{ href: '/app/operations/today', label: '运营看板', icon: ClipboardCheck }],
+    items: [{ href: '/app/operations/today', label: '今日运营', icon: ClipboardCheck }],
   },
   {
     title: '经营',

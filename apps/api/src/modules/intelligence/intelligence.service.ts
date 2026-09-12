@@ -76,6 +76,26 @@ export class IntelligenceService {
     });
   }
 
+  latestVoc(workspaceId: string) {
+    return this.wrap(async () => {
+      const facts = await this.facts.listFacts(workspaceId);
+      const stored = facts.find((fact) => fact.factType === 'VOC');
+      if (!stored) return null;
+      const outputs =
+        stored.valueJson.outputs && typeof stored.valueJson.outputs === 'object'
+          ? (stored.valueJson.outputs as Record<string, string>)
+          : {};
+      return {
+        factId: stored.id,
+        observedAt: stored.observedAt,
+        painCount: stored.valueJson.value,
+        listingSuggestion: outputs.listingImprovement,
+        productImprovement: outputs.productImprovement,
+        outputs,
+      };
+    });
+  }
+
   private async wrap<T>(fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();

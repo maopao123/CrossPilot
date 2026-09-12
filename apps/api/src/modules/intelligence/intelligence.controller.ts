@@ -86,4 +86,10 @@ export class IntelligenceController {
   analyzeVoc(@CurrentWorkspace() workspaceId: string, @Body() body: VocIntelligenceInput) {
     return this.intel.analyzeVoc(workspaceId, body || {});
   }
+
+  /** Latest stored VOC snapshot. Analyze remains POST /voc/analyze. */
+  @Get('voc')
+  latestVoc(@CurrentWorkspace() workspaceId: string) {
+    return this.intel.latestVoc(workspaceId);
+  }
 }

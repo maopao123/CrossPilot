@@ -12,4 +12,5 @@ export * from './contracts/knowledge-contracts.js';
 export * from './contracts/operation-contracts.js';
 export * from './contracts/playbook-contracts.js';
 export * from './contracts/intelligence-contracts.js';
+export * from './contracts/operations-today-contracts.js';
 

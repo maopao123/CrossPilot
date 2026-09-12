@@ -1,446 +1,221 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  DailyOperationTaskSummaryDto,
-  RecommendedAction,
-  BusinessSignal,
-  DiagnosisMode,
-  WorkflowExecutionStatus,
-  DailyOperationWorkflowEvent,
-} from '@crosspilot/shared';
-import {
-  DailyDiagnosisApiClient,
-  DailyDiagnosisApiError,
-} from '@/lib/daily-diagnosis.api';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { OperationsTodayDto } from '@crosspilot/shared';
 import { ApiClient } from '@/lib/api-client';
-import {
-  OperationsHeader,
-  BusinessHealthSummary,
-  WorkflowProgressBanner,
-  ActionList,
-  ActionDetailDrawer,
-  ApprovalConfirmationModal,
-  OccConflictModal,
-  SkuRiskRankingTable,
-  EmptyAndHealthyState,
-} from './components/index';
+import { DailyDiagnosisApiClient, DailyDiagnosisApiError } from '@/lib/daily-diagnosis.api';
+import { PageHeader, StatusPill } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
+import { InlineError, PageLoading } from '@/components/ui/skeleton';
 import { useBusinessContext } from '@/components/business-context-provider';
-import { InlineError } from '@/components/ui/skeleton';
+import { HealthStrip } from './cockpit/health-strip';
+import { InsightStack } from './cockpit/insight-stack';
+import { RecommendationCenter } from './cockpit/recommendation-center';
+import { VocPanel } from './cockpit/voc-panel';
+import { RecentDecisions } from './cockpit/recent-decisions';
 
 export default function OperationsTodayPage() {
-  const { marketplaceId: contextMarketplace, skuId: contextSkuId } = useBusinessContext();
-  const [taskId, setTaskId] = useState<string | null>(null);
-  const [summary, setSummary] = useState<DailyOperationTaskSummaryDto | null>(null);
-  const [actions, setActions] = useState<RecommendedAction[]>([]);
-  const [signals, setSignals] = useState<BusinessSignal[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [lastEventMessage, setLastEventMessage] = useState<string>('');
-  const [selectedSkuFilter, setSelectedSkuFilter] = useState<string | null>(null);
-  const [drawerAction, setDrawerAction] = useState<RecommendedAction | null>(null);
-  const [highRiskActionToApprove, setHighRiskActionToApprove] = useState<RecommendedAction | null>(null);
-  const [occConflict, setOccConflict] = useState<{
-    isOpen: boolean;
-    message?: string;
-    isActionAlreadyDecided?: boolean;
-  }>({ isOpen: false });
-
-  const [marketplaceId, setMarketplaceId] = useState(contextMarketplace || 'AMAZON_US');
-  const [inflightActionId, setInflightActionId] = useState<string | null>(null);
-  const inflightRef = useRef<string | null>(null);
-  const [mode, setMode] = useState<DiagnosisMode>('WORKSPACE');
-  const [dateRange] = useState({
-    from: '2026-03-01T00:00:00Z',
-    to: '2026-03-14T00:00:00Z',
-  });
-  const [baselinePeriod] = useState({
-    from: '2026-02-15T00:00:00Z',
-    to: '2026-02-28T00:00:00Z',
-  });
-
-  const [isViewer, setIsViewer] = useState(false);
+  const { skuId } = useBusinessContext();
+  const [data, setData] = useState<OperationsTodayDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const disconnectSseRef = useRef<(() => void) | null>(null);
+  const [isViewer, setIsViewer] = useState(false);
+  const [busyRecId, setBusyRecId] = useState<string | null>(null);
+  const [vocBusy, setVocBusy] = useState(false);
+  const [diagBusy, setDiagBusy] = useState(false);
+  const [draftBusy, setDraftBusy] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsViewer(ApiClient.isViewer());
-      const savedTaskId = sessionStorage.getItem('crosspilot_active_op_task');
-      if (savedTaskId) {
-        setTaskId(savedTaskId);
-      }
-    }
+    setIsViewer(ApiClient.isViewer());
+  }, []);
+
+  const load = useCallback(async () => {
+    setError(null);
+    const payload = await ApiClient.get<OperationsTodayDto>('/api/v1/operations/today');
+    setData(payload);
   }, []);
 
   useEffect(() => {
-    if (contextMarketplace) {
-      setMarketplaceId(contextMarketplace);
-    }
-  }, [contextMarketplace]);
-
-  // Fetch task details from API
-  const refreshTask = useCallback(async (targetTaskId: string) => {
-    try {
-      const data = await DailyDiagnosisApiClient.getTaskSummary(
-        targetTaskId,
-        'actions,signals,diagnoses,stepTraces,contexts'
-      );
-      setSummary(data);
-      if (data.actions) {
-        setActions(data.actions);
-      }
-      if (data.signals) {
-        setSignals(data.signals);
-      }
-      if (data.status === 'RUNNING') {
-        setIsRunning(true);
-      } else {
-        setIsRunning(false);
-      }
-    } catch (err: any) {
-      if (err instanceof DailyDiagnosisApiError && err.status === 404) {
-        // Task no longer exists
-        sessionStorage.removeItem('crosspilot_active_op_task');
-        setTaskId(null);
-        setSummary(null);
-      } else {
-        console.error('[OperationsToday] Error refreshing task:', err);
-      }
-    }
-  }, []);
-
-  // Connect SSE Stream
-  const setupSse = useCallback(
-    (activeTaskId: string) => {
-      // Disconnect existing
-      if (disconnectSseRef.current) {
-        disconnectSseRef.current();
-        disconnectSseRef.current = null;
-      }
-
-      setIsStreaming(true);
-
-      const closeFn = DailyDiagnosisApiClient.connectEvents(activeTaskId, {
-        onSnapshot: (snapshot) => {
-          setSummary(snapshot);
-          if (snapshot.actions) setActions(snapshot.actions);
-          if (snapshot.signals) setSignals(snapshot.signals);
-          if (snapshot.status !== 'RUNNING') {
-            setIsRunning(false);
-          }
-        },
-        onEvent: (event: DailyOperationWorkflowEvent) => {
-          if (event.message) {
-            setLastEventMessage(event.message);
-          }
-
-          if (
-            event.type === 'workflow.checkpoint' ||
-            event.type === 'approval.required' ||
-            event.type === 'action.approved' ||
-            event.type === 'action.rejected' ||
-            event.type === 'action.dismissed' ||
-            event.type === 'workflow.completed'
-          ) {
-            refreshTask(activeTaskId);
-          }
-
-          if (event.type === 'workflow.completed' || event.type === 'workflow.failed') {
-            setIsRunning(false);
-            setIsStreaming(false);
-            if (disconnectSseRef.current) {
-              disconnectSseRef.current();
-              disconnectSseRef.current = null;
-            }
-          }
-        },
-        onError: () => {
-          setIsStreaming(false);
-          if (disconnectSseRef.current) {
-            disconnectSseRef.current();
-            disconnectSseRef.current = null;
-          }
-          void refreshTask(activeTaskId);
-        },
+    let cancelled = false;
+    setLoading(true);
+    load()
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : '无法载入今日运营');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-
-      disconnectSseRef.current = closeFn;
-    },
-    [refreshTask]
-  );
-
-  // Hook SSE to active task
-  useEffect(() => {
-    if (taskId) {
-      refreshTask(taskId);
-      setupSse(taskId);
-    }
     return () => {
-      if (disconnectSseRef.current) {
-        disconnectSseRef.current();
-      }
+      cancelled = true;
     };
-  }, [taskId, refreshTask, setupSse]);
+  }, [load]);
 
-  // Handle Run Diagnosis
-  const handleRunDiagnosis = async (chosenMode: DiagnosisMode) => {
-    if (isRunning || isViewer) return;
-    if (chosenMode === 'SKU' && !contextSkuId) {
-      setNotice('请先在顶栏选择 SKU');
-      return;
-    }
-
-    setIsRunning(true);
-    setLastEventMessage('正在初始化日常运营诊断工作流...');
-
+  const handleApprove = async (id: string) => {
+    if (isViewer) return;
+    setBusyRecId(id);
+    setNotice(null);
     try {
-      const res = await DailyDiagnosisApiClient.startDiagnosis({
-        marketplaceId,
-        mode: chosenMode,
-        skuId: chosenMode === 'SKU' ? contextSkuId || undefined : undefined,
-        dateRange,
-        baselinePeriod,
-        options: {
-          waitForCompletion: false,
-          workflowVersion: 'WF05_V1',
+      await ApiClient.post(`/api/v1/recommendations/${id}/approve`);
+      await load();
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : '确认失败');
+    } finally {
+      setBusyRecId(null);
+    }
+  };
+
+  const handleVoc = async () => {
+    if (isViewer || !data?.voc?.recentReviews.length) return;
+    setVocBusy(true);
+    setNotice(null);
+    try {
+      await ApiClient.post('/api/v1/voc/analyze', { reviews: data.voc.recentReviews });
+      await load();
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : 'VOC 分析失败');
+    } finally {
+      setVocBusy(false);
+    }
+  };
+
+  const handleDraftFromVoc = async () => {
+    if (isViewer || !data?.voc?.recentReviews.length) return;
+    setDraftBusy(true);
+    setNotice(null);
+    try {
+      const voc = await ApiClient.post<{
+        factId: string;
+        painPoints: string[];
+        outputs: { productImprovement: string; listingImprovement: string };
+      }>('/api/v1/voc/analyze', { reviews: data.voc.recentReviews });
+      const evidence = await ApiClient.post<{ id: string }>('/api/v1/evidence', {
+        factId: voc.factId,
+        sourceType: 'VOC',
+        sourceId: voc.factId,
+        quote: voc.outputs?.listingImprovement || voc.painPoints?.[0] || 'VOC sample',
+        confidence: 0.7,
+      });
+      await ApiClient.post('/api/v1/recommendations', {
+        decision: voc.painPoints?.length ? 'IMPROVE_LISTING' : 'MONITOR_VOC',
+        reason: voc.outputs?.productImprovement || voc.outputs?.listingImprovement || 'Review current VOC',
+        confidence: 0.7,
+        evidenceIds: [evidence.id],
+      });
+      await load();
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : '无法从 VOC 生成建议');
+    } finally {
+      setDraftBusy(false);
+    }
+  };
+
+  const handleDiagnosis = async () => {
+    if (isViewer || diagBusy) return;
+    setDiagBusy(true);
+    setNotice(null);
+    try {
+      const started = await DailyDiagnosisApiClient.startDiagnosis({
+        marketplaceId: 'AMAZON_US',
+        mode: skuId ? 'SKU' : 'WORKSPACE',
+        skuId: skuId || undefined,
+        dateRange: {
+          from: '2026-03-01T00:00:00Z',
+          to: '2026-03-14T00:00:00Z',
         },
+        baselinePeriod: {
+          from: '2026-02-15T00:00:00Z',
+          to: '2026-02-28T00:00:00Z',
+        },
+        options: { waitForCompletion: true, workflowVersion: 'WF05_V1' },
       });
-
-      setTaskId(res.taskId);
-      sessionStorage.setItem('crosspilot_active_op_task', res.taskId);
-      setupSse(res.taskId);
-    } catch (err: any) {
-      setIsRunning(false);
-      console.error('[OperationsToday] Error starting diagnosis:', err);
-      setNotice(err.message || '启动工作流诊断失败，请检查服务状态');
-    }
-  };
-
-  // Decision Handlers
-  const openOccConflict = async (actionAlreadyDecided: boolean) => {
-    if (taskId) {
-      await refreshTask(taskId);
-    }
-    setOccConflict({
-      isOpen: true,
-      isActionAlreadyDecided: actionAlreadyDecided,
-      message: actionAlreadyDecided
-        ? '该行动已被其他操作完成。已刷新为最新状态，请勿重复提交。'
-        : '当前任务已被其他操作更新。请刷新最新状态后重新操作。',
-    });
-  };
-
-  const handleExecuteApproval = async (action: RecommendedAction, note?: string) => {
-    if (!taskId || !summary || inflightRef.current) return;
-    inflightRef.current = action.actionId;
-    setInflightActionId(action.actionId);
-
-    try {
-      await DailyDiagnosisApiClient.approveAction(taskId, action.actionId, {
-        expectedVersion: summary.checkpointVersion,
-        note,
-      });
-
-      setActions((prev) =>
-        prev.map((a) => (a.actionId === action.actionId ? { ...a, status: 'APPROVED' } : a))
-      );
-
-      if (drawerAction && drawerAction.actionId === action.actionId) {
-        setDrawerAction((prev) => (prev ? { ...prev, status: 'APPROVED' } : null));
+      if (started.taskId) {
+        sessionStorage.setItem('crosspilot_active_op_task', started.taskId);
       }
-
-      setHighRiskActionToApprove(null);
-      await refreshTask(taskId);
-    } catch (err: any) {
+      await load();
+    } catch (err: unknown) {
       if (err instanceof DailyDiagnosisApiError) {
-        if (err.code === 'INVALID_ACTION_STATE') {
-          await openOccConflict(true);
-        } else if (err.code === 'CHECKPOINT_VERSION_CONFLICT' || err.status === 409) {
-          await openOccConflict(false);
-        } else {
-          setNotice(err.message);
-        }
+        setNotice(err.message);
       } else {
-        setNotice('审批操作失败');
+        setNotice(err instanceof Error ? err.message : '诊断启动失败');
       }
     } finally {
-      inflightRef.current = null;
-      setInflightActionId(null);
+      setDiagBusy(false);
     }
   };
 
-  const handleApproveAction = (action: RecommendedAction, note?: string) => {
-    if (action.riskLevel === 'HIGH') {
-      setHighRiskActionToApprove(action);
-    } else {
-      handleExecuteApproval(action, note);
-    }
-  };
+  if (loading && !data) {
+    return <PageLoading />;
+  }
 
-  const handleRejectAction = async (action: RecommendedAction, note?: string) => {
-    if (!taskId || !summary || inflightRef.current) return;
-    inflightRef.current = action.actionId;
-    setInflightActionId(action.actionId);
+  if (error && !data) {
+    return <InlineError message={error} />;
+  }
 
-    try {
-      await DailyDiagnosisApiClient.rejectAction(taskId, action.actionId, {
-        expectedVersion: summary.checkpointVersion,
-        note,
-      });
+  if (!data) return null;
 
-      setActions((prev) =>
-        prev.map((a) => (a.actionId === action.actionId ? { ...a, status: 'REJECTED' } : a))
-      );
-
-      if (drawerAction && drawerAction.actionId === action.actionId) {
-        setDrawerAction((prev) => (prev ? { ...prev, status: 'REJECTED' } : null));
-      }
-
-      await refreshTask(taskId);
-    } catch (err: any) {
-      if (err instanceof DailyDiagnosisApiError && err.status === 409) {
-        await openOccConflict(err.code === 'INVALID_ACTION_STATE');
-      } else {
-        setNotice(err?.message || '驳回操作失败');
-      }
-    } finally {
-      inflightRef.current = null;
-      setInflightActionId(null);
-    }
-  };
-
-  const handleDismissAction = async (action: RecommendedAction, note?: string) => {
-    if (!taskId || !summary || inflightRef.current) return;
-    inflightRef.current = action.actionId;
-    setInflightActionId(action.actionId);
-
-    try {
-      await DailyDiagnosisApiClient.dismissAction(taskId, action.actionId, {
-        expectedVersion: summary.checkpointVersion,
-        note,
-      });
-
-      setActions((prev) =>
-        prev.map((a) => (a.actionId === action.actionId ? { ...a, status: 'DISMISSED' } : a))
-      );
-
-      if (drawerAction && drawerAction.actionId === action.actionId) {
-        setDrawerAction((prev) => (prev ? { ...prev, status: 'DISMISSED' } : null));
-      }
-
-      await refreshTask(taskId);
-    } catch (err: any) {
-      if (err instanceof DailyDiagnosisApiError && err.status === 409) {
-        await openOccConflict(err.code === 'INVALID_ACTION_STATE');
-      } else {
-        setNotice(err?.message || '忽略操作失败');
-      }
-    } finally {
-      inflightRef.current = null;
-      setInflightActionId(null);
-    }
-  };
+  const healthTone =
+    data.health.inventoryHealth === 'CRITICAL' || data.criticalIssues.some((i) => i.severity === 'CRITICAL')
+      ? 'danger'
+      : data.criticalIssues.length
+        ? 'warning'
+        : 'success';
 
   return (
-    <div className="cp-page space-y-3">
+    <div className="cp-page">
       {notice ? <InlineError message={notice} /> : null}
-      <OperationsHeader
-        marketplaceId={marketplaceId}
-        onMarketplaceChange={setMarketplaceId}
-        dateRange={dateRange}
-        baselinePeriod={baselinePeriod}
-        workflowStatus={summary?.status || null}
-        lastUpdated={summary?.updatedAt || summary?.startedAt || null}
-        isRunning={isRunning}
-        onRunDiagnosis={handleRunDiagnosis}
-        mode={mode}
-        onModeChange={setMode}
+      <PageHeader
+        title="今日运营"
+        description={data.headline}
+        badge={
+          <StatusPill tone={healthTone}>
+            {data.sim.simDate ? `Sim ${data.sim.simDate}` : 'Live window'}
+          </StatusPill>
+        }
+        actions={
+          isViewer ? (
+            <span className="text-[12px] text-fg-muted">只读</span>
+          ) : (
+            <Button variant="secondary" disabled={diagBusy} onClick={handleDiagnosis}>
+              {diagBusy ? 'Diagnosing…' : 'Refresh diagnosis'}
+            </Button>
+          )
+        }
+      />
+
+      <p className="max-w-[72ch] text-[14px] leading-relaxed text-fg">
+        今天店铺发生了什么，哪些问题要处理，AI 建议是什么，下一步只需确认。确认不会对 Amazon 下发。
+      </p>
+
+      <HealthStrip health={data.health} />
+
+      <InsightStack
+        title="需要处理"
+        kicker="Highest-severity issues first. Open a card to read evidence."
+        cards={data.criticalIssues}
+        empty="No critical operating issues in the current window."
+      />
+
+      <InsightStack
+        title="AI 发现"
+        kicker="Problem, evidence, impact, then a recommended next step."
+        cards={data.insights}
+        empty="No diagnosis or simulator events yet. Refresh diagnosis to generate WF-05 insights."
+      />
+
+      <RecommendationCenter
+        items={data.recommendations}
         isViewer={isViewer}
+        busyId={busyRecId}
+        onApprove={handleApprove}
+        onDraftFromVoc={handleDraftFromVoc}
+        canDraft={!isViewer && !data.recommendations.some((item) => item.status === 'WAITING_APPROVAL')}
+        draftBusy={draftBusy}
       />
 
-      {/* 2. Real-time Workflow Progress Banner */}
-      <WorkflowProgressBanner
-        status={summary?.status || (isRunning ? 'RUNNING' : null)}
-        currentStep={summary?.currentStep}
-        stepTraces={summary?.stepTraces}
-        lastEventMessage={lastEventMessage}
-        isStreaming={isStreaming}
-      />
+      <VocPanel voc={data.voc} isViewer={isViewer} busy={vocBusy} onAnalyze={handleVoc} />
 
-      {/* 3. Business Health Summary */}
-      <BusinessHealthSummary summary={summary} isLoading={isRunning} />
-
-      {/* 4. SKU Risk Ranking Table */}
-      {summary && (
-        <SkuRiskRankingTable
-          summary={summary}
-          actions={actions}
-          signals={signals}
-          selectedSku={selectedSkuFilter}
-          onSelectSku={(skuId) => {
-            setSelectedSkuFilter(selectedSkuFilter === skuId ? null : skuId);
-          }}
-        />
-      )}
-
-      {/* 5. Today's Action List */}
-      {summary && actions.length > 0 ? (
-        <ActionList
-          actions={actions}
-          onSelectAction={(action) => setDrawerAction(action)}
-          onApproveAction={handleApproveAction}
-          onRejectAction={handleRejectAction}
-          onDismissAction={handleDismissAction}
-          selectedSkuFilter={selectedSkuFilter}
-          onClearSkuFilter={() => setSelectedSkuFilter(null)}
-          isViewer={isViewer}
-          busyActionId={inflightActionId}
-        />
-      ) : (
-        <EmptyAndHealthyState
-          summary={summary}
-          onRetry={() => handleRunDiagnosis(mode)}
-          isRunning={isRunning}
-        />
-      )}
-
-      {/* 6. Action Detail Drawer */}
-      <ActionDetailDrawer
-        action={drawerAction}
-        onClose={() => setDrawerAction(null)}
-        onApprove={(action, note) => {
-          handleApproveAction(action, note);
-        }}
-        onReject={handleRejectAction}
-        onDismiss={handleDismissAction}
-        isViewer={isViewer}
-        busyActionId={inflightActionId}
-      />
-
-      {/* 7. High Risk Approval Confirmation Modal */}
-      <ApprovalConfirmationModal
-        action={highRiskActionToApprove}
-        busy={!!inflightActionId}
-        onConfirm={() => {
-          if (highRiskActionToApprove) {
-            handleExecuteApproval(highRiskActionToApprove);
-          }
-        }}
-        onCancel={() => setHighRiskActionToApprove(null)}
-      />
-
-      {/* 8. OCC Version Conflict Modal */}
-      <OccConflictModal
-        isOpen={occConflict.isOpen}
-        message={occConflict.message}
-        isActionAlreadyDecided={occConflict.isActionAlreadyDecided}
-        onRefresh={() => {
-          setOccConflict({ isOpen: false });
-          if (taskId) refreshTask(taskId);
-        }}
-        onClose={() => setOccConflict({ isOpen: false })}
-      />
+      <RecentDecisions items={data.recentDecisions} />
     </div>
   );
 }
