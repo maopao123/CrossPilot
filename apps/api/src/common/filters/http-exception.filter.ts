@@ -56,7 +56,32 @@ export class HttpExceptionFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      if (process.env.NODE_ENV === 'production') {
+      const errCode = (exception as any)?.code;
+      if (errCode === 'CHECKPOINT_VERSION_CONFLICT') {
+        status = HttpStatus.CONFLICT;
+        code = 'CHECKPOINT_VERSION_CONFLICT';
+        message = exception.message;
+      } else if (errCode === 'WORKFLOW_NOT_FOUND') {
+        status = HttpStatus.NOT_FOUND;
+        code = 'WORKFLOW_NOT_FOUND';
+        message = exception.message;
+      } else if (errCode === 'INVALID_ACTION_STATE') {
+        status = HttpStatus.CONFLICT;
+        code = 'INVALID_ACTION_STATE';
+        message = exception.message;
+      } else if (errCode === 'PERSISTENCE_UNAVAILABLE') {
+        status = HttpStatus.SERVICE_UNAVAILABLE;
+        code = 'PERSISTENCE_UNAVAILABLE';
+        message = exception.message;
+      } else if (errCode === 'WORKSPACE_ACCESS_DENIED') {
+        status = HttpStatus.FORBIDDEN;
+        code = 'WORKSPACE_ACCESS_DENIED';
+        message = exception.message;
+      } else if (errCode === 'AUTH_FORBIDDEN') {
+        status = HttpStatus.FORBIDDEN;
+        code = 'AUTH_FORBIDDEN';
+        message = exception.message;
+      } else if (process.env.NODE_ENV === 'production') {
         message = 'An unexpected internal error occurred';
       } else {
         message = exception.message;

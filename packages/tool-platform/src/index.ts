@@ -12,4 +12,5 @@ export * from './tools/operation-automation.tools.js';
 export * from './tools/product-visual-extract.tool.js';
 export * from './tools/keyword-intake.tools.js';
 export * from './tools/market/market.tools.js';
+export * from './tools/operation-daily-diagnosis.tools.js';
 export * from './tools/default-tools.js';

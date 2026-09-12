@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
+import { loadCatalogSkus, CatalogSku } from '../../../lib/catalog';
 import { OrderInfo, InventoryBalanceInfo } from '@crosspilot/shared';
 import { getStatusLabel } from '../../../constants/ui-labels';
 import {
@@ -15,7 +16,12 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
 
   const [orderQty, setOrderQty] = useState(2);
-  const [selectedSku, setSelectedSku] = useState('sku_white_001');
+  const [catalogSkus, setCatalogSkus] = useState<CatalogSku[]>([]);
+  const [selectedSku, setSelectedSku] = useState('');
+  const [marketplaceId, setMarketplaceId] = useState('');
+  const [isViewer, setIsViewer] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [orderNotice, setOrderNotice] = useState<{
     type: 'success' | 'error';
     text: string;
@@ -24,15 +30,26 @@ export default function OrdersPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [ordRes, invRes] = await Promise.allSettled([
+      setLoadError(null);
+      setIsViewer(ApiClient.isViewer());
+      const [ordRes, invRes, catalog] = await Promise.allSettled([
         ApiClient.get<OrderInfo[]>('/api/v1/orders'),
         ApiClient.get<InventoryBalanceInfo[]>('/api/v1/inventory'),
+        loadCatalogSkus(),
       ]);
 
       if (ordRes.status === 'fulfilled') setOrders(ordRes.value);
+      else setLoadError('无法载入订单列表');
       if (invRes.status === 'fulfilled') setInventory(invRes.value);
+      if (catalog.status === 'fulfilled') {
+        setCatalogSkus(catalog.value.skus);
+        if (catalog.value.marketplaceId) setMarketplaceId(catalog.value.marketplaceId);
+        if (catalog.value.skus.length > 0 && !selectedSku) {
+          setSelectedSku(catalog.value.skus[0].id);
+        }
+      }
     } catch (err) {
-      console.error('无法载入订单数据:', err);
+      setLoadError('无法载入订单数据');
     } finally {
       setLoading(false);
     }
@@ -43,12 +60,18 @@ export default function OrdersPage() {
   }, []);
 
   const handleCreateOrder = async () => {
+    if (submitting) return;
     setOrderNotice(null);
     try {
+      setSubmitting(true);
       const randomOrderNo = `114-${Math.floor(1000000 + Math.random() * 9000000)}-${Math.floor(1000000 + Math.random() * 9000000)}`;
       
+      if (!selectedSku || !marketplaceId) {
+        setOrderNotice({ type: 'error', text: '没有可用的 SKU 或站点，无法下单' });
+        return;
+      }
       const newOrder = await ApiClient.post<OrderInfo>('/api/v1/orders', {
-        marketplaceId: 'mkt_us_001',
+        marketplaceId,
         orderNumber: randomOrderNo,
         items: [
           {
@@ -70,6 +93,8 @@ export default function OrdersPage() {
         type: 'error',
         text: `❌ 下单失败: ${err.message}`,
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -116,8 +141,11 @@ export default function OrdersPage() {
               onChange={(e) => setSelectedSku(e.target.value)}
               className="bg-surface border border-border text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
             >
-              <option value="sku_white_001">MTH-WHITE-001 (天然大理石 White)</option>
-              <option value="sku_green_002">MTH-GREEN-002 (天然大理石 Green)</option>
+              {catalogSkus.map((sku) => (
+                <option key={sku.id} value={sku.id}>
+                  {sku.skuCode} {sku.variantName ? `(${sku.variantName})` : ''}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -135,7 +163,8 @@ export default function OrdersPage() {
           <div className="self-end flex items-center space-x-2">
             <button
               onClick={handleCreateOrder}
-              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded transition flex items-center space-x-1 cursor-pointer"
+              disabled={isViewer || submitting || !selectedSku || !marketplaceId}
+              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded transition flex items-center space-x-1 cursor-pointer"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span>提交订单扣减库存</span>

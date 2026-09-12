@@ -13,35 +13,59 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { ApiClient } from '@/lib/api-client';
+import { loadCatalogSkus, CatalogSku, displayAmount, displayCount, displayPercentFromRate } from '@/lib/catalog';
 import { getStatusLabel, getVocLabel, getSeverityLabel } from '@/constants/ui-labels';
 
 export default function ReviewsPage() {
   const [activeTab, setActiveTab] = useState<'reviews' | 'returns'>('reviews');
-  const [selectedSku, setSelectedSku] = useState('sku_white_001');
+  const [catalogSkus, setCatalogSkus] = useState<CatalogSku[]>([]);
+  const [selectedSku, setSelectedSku] = useState('');
   const [returnsData, setReturnsData] = useState<any[]>([]);
-  const [returnSummary, setReturnSummary] = useState({
-    count: 3,
-    refundTotal: 89.97,
-    returnRate: 0.032,
-  });
+  const [returnSummary, setReturnSummary] = useState<{
+    count: number;
+    refundTotal: number;
+    returnRate: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadSkus() {
+      try {
+        const catalog = await loadCatalogSkus();
+        setCatalogSkus(catalog.skus);
+        if (catalog.skus[0]?.id) setSelectedSku(catalog.skus[0].id);
+      } catch {
+        setLoadError('无法载入 SKU 列表');
+      }
+    }
+    loadSkus();
+  }, []);
 
   useEffect(() => {
     async function loadData() {
+      if (!selectedSku) return;
       setIsLoading(true);
+      setLoadError(null);
       try {
         const [rets, summary] = await Promise.all([
-          ApiClient.get<any[]>(`/api/v1/profit/returns/${selectedSku}`).catch(() => []),
-          ApiClient.get<any>(`/api/v1/profit/returns/${selectedSku}/summary`).catch(() => ({
-            count: 3,
-            refundTotal: 89.97,
-            returnRate: 0.032,
-          })),
+          ApiClient.get<any[]>(`/api/v1/skus/${selectedSku}/returns`),
+          ApiClient.get<any>(`/api/v1/skus/${selectedSku}/return-summary`),
         ]);
-        if (rets && rets.length > 0) setReturnsData(rets);
-        if (summary) setReturnSummary(summary);
+        setReturnsData(Array.isArray(rets) ? rets : []);
+        setReturnSummary(
+          summary
+            ? {
+                count: summary.count ?? 0,
+                refundTotal: summary.refundTotal ?? 0,
+                returnRate: summary.returnRate ?? 0,
+              }
+            : { count: 0, refundTotal: 0, returnRate: 0 },
+        );
       } catch (err) {
-        console.error('无法载入评论与退货数据:', err);
+        setLoadError('无法载入退货数据');
+        setReturnsData([]);
+        setReturnSummary(null);
       } finally {
         setIsLoading(false);
       }
@@ -109,9 +133,11 @@ export default function ReviewsPage() {
             onChange={(e) => setSelectedSku(e.target.value)}
             className="bg-surface-elevated border border-border text-white text-xs px-3 py-2 rounded-lg font-mono focus:outline-none focus:border-blue-500 cursor-pointer"
           >
-            <option value="sku_white_001">Carrara White (MTH-WHITE-001)</option>
-            <option value="sku_black_002">Nero Marquina (MTH-BLACK-002)</option>
-            <option value="sku_green_003">Emerald Green (MTH-GREEN-003)</option>
+              {catalogSkus.map((sku) => (
+                <option key={sku.id} value={sku.id}>
+                  {sku.skuCode} {sku.variantName ? `(${sku.variantName})` : ''}
+                </option>
+              ))}
           </select>
         </div>
       </div>
@@ -133,7 +159,7 @@ export default function ReviewsPage() {
             <TrendingDown className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">
-            {(returnSummary.returnRate * 100).toFixed(1)}%
+            {displayPercentFromRate(returnSummary?.returnRate)}
           </div>
           <span className="text-xs text-gray-400 mt-1 block">类目均值：4.5%（健康）</span>
         </div>
@@ -143,7 +169,7 @@ export default function ReviewsPage() {
             <span className="text-xs text-gray-400 font-medium">退货总数</span>
             <RotateCcw className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="text-2xl font-bold text-white mt-2">{returnSummary.count} 单</div>
+          <div className="text-2xl font-bold text-white mt-2">{displayCount(returnSummary?.count)} 单</div>
           <span className="text-xs text-gray-400 mt-1 block">已完成退款履约核销</span>
         </div>
 
@@ -153,7 +179,7 @@ export default function ReviewsPage() {
             <DollarSign className="w-4 h-4 text-rose-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">
-            ${Number(returnSummary.refundTotal).toFixed(2)}
+            ${displayAmount(returnSummary?.refundTotal)}
           </div>
           <span className="text-xs text-rose-400 mt-1 block">自动核减当日净利润</span>
         </div>

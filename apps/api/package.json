@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@crosspilot/actions": "workspace:*",
+    "@crosspilot/ai": "workspace:*",
     "@crosspilot/db": "workspace:*",
     "@crosspilot/domain": "workspace:*",
     "@crosspilot/integrations": "workspace:*",

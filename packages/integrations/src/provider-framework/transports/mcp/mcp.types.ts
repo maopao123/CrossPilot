@@ -39,6 +39,7 @@ export interface McpToolCallResult {
     text?: string;
     data?: any;
   }>;
+  structuredContent?: any;
   isError?: boolean;
   raw?: any;
 }

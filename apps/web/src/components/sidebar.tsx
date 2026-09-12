@@ -23,10 +23,12 @@ import {
   Wrench,
   Sparkles,
   PlayCircle,
+  ClipboardCheck,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/app/overview', label: '01 经营概览', subLabel: 'Business Overview', icon: LayoutDashboard },
+  { href: '/app/operations/today', label: '今日运营看板', subLabel: 'Operations Today', icon: ClipboardCheck },
   { href: '/app/market-research', label: '02 市场调研', subLabel: 'Market Research', icon: Search },
   { href: '/app/products', label: '03 产品中心', subLabel: 'Product Center', icon: Box },
   { href: '/app/competitors', label: '04 竞品与 VOC', subLabel: 'Competitor & VOC', icon: Users },
@@ -41,7 +43,7 @@ const NAV_ITEMS = [
   { href: '/app/profit', label: '13 利润中心', subLabel: 'Profit Center', icon: TrendingUp },
   { href: '/app/business-analyst', label: '14 AI 经营分析', subLabel: 'AI Business Analyst', icon: BrainCircuit },
   { href: '/app/operations/automation', label: '15 运营自动化', subLabel: 'Operation Automation', icon: PlayCircle },
-  { href: '/app/architecture', label: '16 架构与知识库', subLabel: 'Architecture & Defense', icon: BookOpen },
+  { href: '/app/architecture', label: '16 系统架构', subLabel: 'Architecture', icon: BookOpen },
 ];
 
 export function Sidebar() {
@@ -86,13 +88,15 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* AI Copilot Drawer Footer */}
       <div className="p-3 border-t border-border bg-surface-elevated/40">
-        <div className="flex items-center space-x-2 text-xs text-gray-300">
+        <div
+          aria-disabled="true"
+          className="flex items-center space-x-2 text-xs text-gray-400 opacity-70 cursor-not-allowed select-none"
+        >
           <Bot className="w-4 h-4 text-purple-400" />
-          <span className="font-semibold text-white">AI Copilot</span>
+          <span className="font-semibold">AI Copilot</span>
           <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded">
-            Mastra Agent
+            Coming Later
           </span>
         </div>
       </div>

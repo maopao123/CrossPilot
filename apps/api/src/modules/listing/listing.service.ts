@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   ComplianceJudgeService,
@@ -14,6 +14,7 @@ import {
   KeywordFileExtractTool,
   KeywordNormalizeTool,
 } from '@crosspilot/tool-platform';
+import { ErrorCodes } from '@crosspilot/shared';
 
 export interface GenerateListingOptions {
   customDirectives?: string;
@@ -94,14 +95,22 @@ export class ListingService {
         claims: v.claimsJson ? JSON.parse(v.claimsJson) : [],
         knowledgeEvidence: v.knowledgeEvidenceJson ? JSON.parse(v.knowledgeEvidenceJson) : [],
         marketplace: v.marketplace || 'AMAZON_US',
-        locale: v.locale || 'en-US',
         generationSource: v.generationSource,
+        generationMode: v.generationSource?.includes('TEMPLATE')
+          ? v.generationSource?.includes('LEGACY')
+            ? 'LEGACY_TEMPLATE'
+            : 'TEMPLATE_FALLBACK'
+          : 'AI',
+        modelUsed: v.complianceChecks[0]?.modelName || 'deepseek-chat',
+        promptVersion: v.complianceChecks[0]?.promptVersion || 'listing.generate.v1',
         createdAt: v.createdAt,
         complianceCheck: v.complianceChecks[0]
           ? {
               status: v.complianceChecks[0].status,
               riskLevel: v.complianceChecks[0].riskLevel,
               evidenceSummary: v.complianceChecks[0].evidenceSummary,
+              modelName: v.complianceChecks[0].modelName,
+              promptVersion: v.complianceChecks[0].promptVersion,
               ruleHits: JSON.parse(v.complianceChecks[0].ruleHitsJson || '[]'),
             }
           : null,
@@ -240,13 +249,21 @@ export class ListingService {
     workspaceId: string,
     optionsOrDirectives?: string | GenerateListingOptions,
   ) {
+    if (!skuId || typeof skuId !== 'string' || !skuId.trim()) {
+      throw new BadRequestException({
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: 'skuId is required',
+      });
+    }
+    const resolvedSkuId = skuId.trim();
+
     const options: GenerateListingOptions =
       typeof optionsOrDirectives === 'string'
         ? { customDirectives: optionsOrDirectives }
         : optionsOrDirectives || {};
 
     const sku = await this.prisma.sku.findFirst({
-      where: { id: skuId, workspaceId },
+      where: { id: resolvedSkuId, workspaceId },
       include: {
         product: {
           include: {
@@ -257,7 +274,12 @@ export class ListingService {
       },
     });
 
-    if (!sku) throw new NotFoundException(`SKU ${skuId} not found in workspace`);
+    if (!sku) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: `SKU ${resolvedSkuId} not found in workspace`,
+      });
+    }
 
     // Load or extract visual facts with snapshot caching (§338.30.2)
     let visualFacts: VisualFact[] = [];
@@ -345,7 +367,7 @@ export class ListingService {
         knowledgeEvidenceJson: JSON.stringify(dagResult.listingDraft.knowledgeEvidence || []),
         marketplace: dagResult.listingDraft.marketplace,
         locale: dagResult.listingDraft.locale,
-        generationSource: dagResult.listingDraft.generationSource,
+        generationSource: dagResult.listingDraft.generationMode || dagResult.listingDraft.generationSource,
       },
     });
 
@@ -364,7 +386,7 @@ export class ListingService {
         ruleHitsJson: JSON.stringify(dagResult.complianceResult.violations),
         evidenceSummary: dagResult.complianceResult.evidenceSummary,
         modelName: dagResult.listingDraft.modelUsed || 'AUTO',
-        promptVersion: 'v2.0-DAG14',
+        promptVersion: dagResult.listingDraft.promptVersion || 'listing.generate.v1',
       },
     });
 
@@ -384,6 +406,10 @@ export class ListingService {
         searchTerms: dagResult.listingDraft.searchTerms,
         claims: dagResult.listingDraft.claims,
         generationSource: dagResult.listingDraft.generationSource,
+        generationMode: dagResult.listingDraft.generationMode,
+        modelUsed: dagResult.listingDraft.modelUsed,
+        promptVersion: dagResult.listingDraft.promptVersion,
+        llmUsage: dagResult.listingDraft.llmUsage,
         directivesUsed: options.customDirectives || 'Standard factual constraints from Product Brief',
         imageBriefs: dagResult.listingDraft.imageBriefs,
         aPlusPlan: dagResult.listingDraft.aPlusPlan,
@@ -393,7 +419,6 @@ export class ListingService {
         knowledgeEvidence: dagResult.listingDraft.knowledgeEvidence,
         marketplace: dagResult.listingDraft.marketplace,
         locale: dagResult.listingDraft.locale,
-        modelUsed: dagResult.listingDraft.modelUsed,
       },
       compliance: dagResult.complianceResult,
       creativeBrief: dagResult.creativeBrief,

@@ -40,25 +40,17 @@ export class WorkspaceGuard implements CanActivate {
       return false;
     }
 
-    let workspaceId =
+    const workspaceId =
       request.headers['x-workspace-id'] ||
       request.params?.workspaceId ||
       request.query?.workspaceId ||
-      request.body?.workspaceId ||
-      user.workspaceId;
+      request.body?.workspaceId;
 
     if (!workspaceId) {
-      const firstMember = await this.prisma.workspaceMember.findFirst({
-        where: { userId: user.sub },
+      throw new ForbiddenException({
+        code: ErrorCodes.WORKSPACE_ACCESS_DENIED,
+        message: 'x-workspace-id is required',
       });
-      if (firstMember) {
-        workspaceId = firstMember.workspaceId;
-      } else {
-        throw new ForbiddenException({
-          code: ErrorCodes.WORKSPACE_ACCESS_DENIED,
-          message: 'User does not belong to any workspace.',
-        });
-      }
     }
 
     const member = await this.prisma.workspaceMember.findUnique({

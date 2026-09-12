@@ -5,11 +5,9 @@ import {
   Param,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ProductService } from './product.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import { WorkspaceGuard } from '../../common/guards/workspace.guard.js';
 import {
   CreateProductInput,
   CreateProductSchema,
@@ -18,7 +16,6 @@ import {
 } from '@crosspilot/shared';
 
 @Controller()
-@UseGuards(WorkspaceGuard)
 export class ProductController {
   constructor(private productService: ProductService) {}
 

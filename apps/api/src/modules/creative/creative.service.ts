@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ErrorCodes } from '@crosspilot/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ToolCenterService } from '../tool-center/tool-center.service.js';
 
@@ -33,13 +34,21 @@ export class CreativeService {
   ): Promise<CreativePackResult> {
     const sku = await this.prisma.sku.findFirst({
       where: {
+        workspaceId,
         OR: [{ id: skuCodeOrId }, { skuCode: skuCodeOrId }],
       },
       include: { product: true },
     });
 
-    const skuCode = sku?.skuCode || skuCodeOrId;
-    const productName = sku?.product.name || 'Natural Marble Toothbrush Holder';
+    if (!sku) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: `SKU '${skuCodeOrId}' was not found in this workspace`,
+      });
+    }
+
+    const skuCode = sku.skuCode;
+    const productName = sku.product.name;
     const startTime = Date.now();
 
     // Extract directions from brief if supplied (§338.30.7)

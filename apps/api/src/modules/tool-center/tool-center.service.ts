@@ -21,6 +21,7 @@ export interface RecordedToolRun {
   traceId: string;
   source: string;
   createdAt: string;
+  workspaceId?: string;
 }
 
 @Injectable()
@@ -94,6 +95,7 @@ export class ToolCenterService {
       traceId: result.traceId,
       source,
       createdAt: new Date().toISOString(),
+      workspaceId,
     };
     this.recentExecutions.unshift(record);
     if (this.recentExecutions.length > 50) {
@@ -145,36 +147,42 @@ export class ToolCenterService {
   }
 
   async listExecutions(limit = 20, workspaceId?: string): Promise<RecordedToolRun[]> {
-    if (workspaceId) {
-      try {
-        const dbExecutions = await this.prisma.toolExecution.findMany({
-          where: { task: { workspaceId } },
-          orderBy: { createdAt: 'desc' },
-          take: limit,
+    if (!workspaceId) {
+      return [];
+    }
+    try {
+      const dbExecutions = await this.prisma.toolExecution.findMany({
+        where: { task: { workspaceId } },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      });
+      if (dbExecutions.length > 0) {
+        return dbExecutions.map((e) => {
+          const toolDef = this.registry.get(e.toolName);
+          return {
+            id: e.id,
+            toolId: e.toolName,
+            toolName: toolDef?.name || e.toolName,
+            category: toolDef?.category || 'DATA',
+            input: JSON.parse(e.inputJson || '{}'),
+            output: JSON.parse(e.outputJson || '{}'),
+            status: e.status as 'SUCCESS' | 'FAILED',
+            durationMs: e.latencyMs,
+            traceId: `trace_${e.id}`,
+            source: 'TOOL_CENTER',
+            createdAt: e.createdAt.toISOString(),
+            workspaceId,
+          };
         });
-        if (dbExecutions.length > 0) {
-          return dbExecutions.map((e) => {
-            const toolDef = this.registry.get(e.toolName);
-            return {
-              id: e.id,
-              toolId: e.toolName,
-              toolName: toolDef?.name || e.toolName,
-              category: toolDef?.category || 'DATA',
-              input: JSON.parse(e.inputJson || '{}'),
-              output: JSON.parse(e.outputJson || '{}'),
-              status: e.status as 'SUCCESS' | 'FAILED',
-              durationMs: e.latencyMs,
-              traceId: `trace_${e.id}`,
-              source: 'TOOL_CENTER',
-              createdAt: e.createdAt.toISOString(),
-            };
-          });
-        }
-      } catch {
-        // Fallback to in-memory records
       }
+    } catch {
+      return this.recentExecutions
+        .filter((e) => e.workspaceId === workspaceId)
+        .slice(0, limit);
     }
 
-    return this.recentExecutions.slice(0, limit);
+    return this.recentExecutions
+      .filter((e) => e.workspaceId === workspaceId)
+      .slice(0, limit);
   }
 }

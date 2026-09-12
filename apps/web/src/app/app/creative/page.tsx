@@ -73,6 +73,7 @@ export default function CreativeStudioPage() {
   });
 
   const handleGeneratePack = async () => {
+    if (ApiClient.isViewer()) return;
     setIsGenerating(true);
 
     try {

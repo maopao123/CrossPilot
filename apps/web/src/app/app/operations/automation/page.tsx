@@ -112,6 +112,7 @@ export default function OperationAutomationPage() {
   ]);
 
   const handleStartWorkflow = async () => {
+    if (ApiClient.isViewer()) return;
     setIsRunning(true);
     setApprovalStatus('PENDING');
 
@@ -142,6 +143,7 @@ export default function OperationAutomationPage() {
   };
 
   const handleApprove = async () => {
+    if (ApiClient.isViewer()) return;
     setIsRunning(true);
     setApprovalStatus('APPROVED');
 
@@ -173,17 +175,8 @@ export default function OperationAutomationPage() {
 
   const handleReject = () => {
     setApprovalStatus('REJECTED');
-    setActiveWorkflow((prev) => ({
-      ...prev,
-      status: 'FAILED',
-      steps: prev.steps.map((s) =>
-        s.runtime === 'HUMAN'
-          ? { ...s, status: 'FAILED', summary: '运营负责人已驳回发布申请' }
-          : s,
-      ),
-    }));
     setRpaLogs((prev) => [
-      `[${new Date().toLocaleTimeString()}] [Human Gate] Action REJECTED by operator. Workflow cancelled.`,
+      `[${new Date().toLocaleTimeString()}] [Human Gate] 驳回未持久化：当前没有驳回接口（Known Gap），不会落库。`,
       ...prev,
     ]);
   };

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ApiClient } from '../../../lib/api-client';
 import { getSeverityLabel } from '../../../constants/ui-labels';
+import { useBusinessContext } from '../../../components/business-context-provider';
 import {
   Box,
   TrendingUp,
@@ -41,20 +42,28 @@ interface DayAggregate {
   margin: number;
 }
 
+interface WaterfallSummary {
+  totalVariance?: number;
+}
+
 export default function BusinessOverviewPage() {
+  const { workspaceName, skus } = useBusinessContext();
   const [timeline, setTimeline] = useState<BusinessEvent[]>([]);
   const [dailyData, setDailyData] = useState<DayAggregate[]>([]);
+  const [waterfall, setWaterfall] = useState<WaterfallSummary | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<BusinessEvent | null>(null);
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchOverviewData = async () => {
     try {
       setLoading(true);
-      const [timelineRes, dailyRes] = await Promise.allSettled([
+      const [timelineRes, dailyRes, waterfallRes] = await Promise.allSettled([
         ApiClient.get<BusinessEvent[]>('/api/v1/scenario/timeline'),
         ApiClient.get<{ days: DayAggregate[] }>('/api/v1/scenario/daily'),
+        ApiClient.get<WaterfallSummary | null>('/api/v1/analyst/waterfall'),
       ]);
 
       if (timelineRes.status === 'fulfilled' && Array.isArray(timelineRes.value)) {
@@ -64,7 +73,18 @@ export default function BusinessOverviewPage() {
       if (dailyRes.status === 'fulfilled' && dailyRes.value?.days) {
         setDailyData(dailyRes.value.days);
       }
+      if (waterfallRes.status === 'fulfilled' && waterfallRes.value) {
+        setWaterfall(waterfallRes.value);
+      } else {
+        setWaterfall(null);
+      }
+      const failed =
+        timelineRes.status === 'rejected' &&
+        dailyRes.status === 'rejected' &&
+        waterfallRes.status === 'rejected';
+      setLoadError(failed ? '无法载入经营概览数据' : null);
     } catch (err) {
+      setLoadError('无法载入经营概览数据');
       console.error('无法载入业务概览数据:', err);
     } finally {
       setLoading(false);
@@ -114,11 +134,11 @@ export default function BusinessOverviewPage() {
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-bold text-white tracking-tight">01 经营概览</h1>
             <span className="text-xs bg-emerald-500/20 text-emerald-400 font-semibold px-2 py-0.5 rounded border border-emerald-500/30">
-              90天全生命周期模拟
+              Demo Scenario
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            SKU 360 运营平台 • 天然大理石牙刷架 (Amazon 美国站)
+            {workspaceName || '当前工作区'} • 90 天场景时间线（非实时店铺账）
           </p>
         </div>
 
@@ -131,7 +151,7 @@ export default function BusinessOverviewPage() {
           )}
           <button
             onClick={handleResetDemo}
-            disabled={resetting}
+            disabled={resetting || ApiClient.isViewer()}
             className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-md cursor-pointer"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
@@ -142,10 +162,17 @@ export default function BusinessOverviewPage() {
 
       {/* 90-Day KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {loadError && (
+          <div className="col-span-full text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+            {loadError}
+          </div>
+        )}
         <div className="bg-surface border border-border rounded-xl p-4">
           <span className="text-xs text-gray-400">90天总销售额</span>
           <div className="text-xl font-bold text-white mt-1">
-            ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {dailyData.length === 0
+              ? 'N/A'
+              : `$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </div>
           <span className="text-[11px] text-emerald-400 flex items-center mt-0.5">
             日均: ${(totalRevenue / 90).toFixed(0)} / 天
@@ -183,12 +210,14 @@ export default function BusinessOverviewPage() {
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-4">
-          <span className="text-xs text-gray-400">第 11 周利润异动</span>
-          <div className="text-xl font-bold text-rose-400 mt-1">
-            -$2,280.00
+          <span className="text-xs text-gray-400">利润异动（Analyst Waterfall）</span>
+          <div className={`text-xl font-bold mt-1 ${typeof waterfall?.totalVariance === 'number' && waterfall.totalVariance < 0 ? 'text-rose-400' : 'text-white'}`}>
+            {typeof waterfall?.totalVariance === 'number'
+              ? `${waterfall.totalVariance < 0 ? '-' : ''}$${Math.abs(waterfall.totalVariance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : '暂无瀑布数据'}
           </div>
           <Link href="/app/business-analyst" className="text-[11px] text-blue-400 hover:underline flex items-center mt-0.5">
-            查看归因瀑布图 <ArrowRight className="w-3 h-3 ml-0.5" />
+            {typeof waterfall?.totalVariance === 'number' ? '查看归因瀑布图' : 'Demo Scenario / 无实时 Attribution'} <ArrowRight className="w-3 h-3 ml-0.5" />
           </Link>
         </div>
       </div>
@@ -293,15 +322,22 @@ export default function BusinessOverviewPage() {
         <div className="bg-surface border border-border rounded-xl p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-300">Carrara White (主力款)</span>
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">平稳增长</span>
+            <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">Demo Scenario</span>
           </div>
-          <div className="text-sm font-bold text-white mt-2">MTH-WHITE-001</div>
+          <div className="text-sm font-bold text-white mt-2">
+            {skus.find((s) => s.skuCode === 'MTH-WHITE-001')?.skuCode || 'WHITE SKU'}
+          </div>
           <p className="text-xs text-gray-400 mt-1">
             日均销量 14~18 件 • 售价 $29.99 • 毛利率 23.4% • 退货率 2.1% 稳健
           </p>
           <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs">
             <span className="text-gray-400">库存水位: 420 件</span>
-            <Link href="/app/skus" className="text-blue-400 hover:underline">查看详情 &rarr;</Link>
+            <Link
+              href={skus.find((s) => s.skuCode === 'MTH-WHITE-001') ? `/app/skus/${skus.find((s) => s.skuCode === 'MTH-WHITE-001')!.id}` : '/app/skus'}
+              className="text-blue-400 hover:underline"
+            >
+              查看详情 &rarr;
+            </Link>
           </div>
         </div>
 
@@ -309,9 +345,11 @@ export default function BusinessOverviewPage() {
         <div className="bg-surface border border-border rounded-xl p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-300">Emerald Green (爆款突发)</span>
-            <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">激增与断货</span>
+            <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">Demo Scenario</span>
           </div>
-          <div className="text-sm font-bold text-white mt-2">MTH-GREEN-001</div>
+          <div className="text-sm font-bold text-white mt-2">
+            {skus.find((s) => s.skuCode === 'MTH-GREEN-001')?.skuCode || 'GREEN SKU'}
+          </div>
           <p className="text-xs text-gray-400 mt-1">
             社媒带货激增至 35 件/天 • 触发 12天断货预警 (E04) • 补货 500 件入库
           </p>
@@ -325,9 +363,11 @@ export default function BusinessOverviewPage() {
         <div className="bg-surface border border-border rounded-xl p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-300">Beige Grey (退货改善)</span>
-            <span className="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">VOC 优化验证</span>
+            <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">Demo Scenario</span>
           </div>
-          <div className="text-sm font-bold text-white mt-2">MTH-GREY-001</div>
+          <div className="text-sm font-bold text-white mt-2">
+            {skus.find((s) => s.skuCode === 'MTH-GREY-001')?.skuCode || 'GREY SKU'}
+          </div>
           <p className="text-xs text-gray-400 mt-1">
             孔径 1.1&quot; 偏小退货率曾达 6.7% • VOC 提取推动 Listing 尺寸明确为 1.5&quot;
           </p>

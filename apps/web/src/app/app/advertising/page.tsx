@@ -68,11 +68,14 @@ export default function AdvertisingPage() {
   const [recommendations, setRecommendations] = useState<NegativeRec[]>([]);
   const [applying, setApplying] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isViewer, setIsViewer] = useState(false);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setIsViewer(ApiClient.isViewer());
       const [campRes, termsRes, recsRes] = await Promise.allSettled([
         ApiClient.get<Campaign[]>('/api/v1/advertising/campaigns'),
         ApiClient.get<SearchTerm[]>('/api/v1/advertising/search-terms'),
@@ -100,9 +103,11 @@ export default function AdvertisingPage() {
   }, []);
 
   const handleApplyNegative = async (rec: NegativeRec) => {
+    if (isViewer) return;
     try {
       setApplying(rec.searchTerm);
       setApplySuccess(null);
+      setApplyError(null);
       const res = await ApiClient.post<any>('/api/v1/advertising/apply-negative', {
         campaignId: rec.campaignId,
         searchTerm: rec.searchTerm,
@@ -110,7 +115,7 @@ export default function AdvertisingPage() {
       setApplySuccess(res.message);
       await loadData();
     } catch (err: any) {
-      console.error('应用否定关键词失败:', err);
+      setApplyError(err.message || '应用否定关键词失败');
     } finally {
       setApplying(null);
     }
@@ -181,9 +186,12 @@ export default function AdvertisingPage() {
               {applySuccess && (
                 <span className="text-xs text-emerald-400 font-semibold">{applySuccess}</span>
               )}
+              {applyError && (
+                <span className="text-xs text-rose-400 font-semibold">{applyError}</span>
+              )}
               <button
                 onClick={() => handleApplyNegative(recommendations[0])}
-                disabled={applying === recommendations[0].searchTerm}
+                disabled={isViewer || applying === recommendations[0].searchTerm}
                 className="flex items-center space-x-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-md cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4" />

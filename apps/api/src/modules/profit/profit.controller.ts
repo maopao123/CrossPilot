@@ -5,15 +5,12 @@
   Param,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ProfitService } from './profit.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import { WorkspaceGuard } from '../../common/guards/workspace.guard.js';
 import { CreateReturnInput, CreateReturnSchema } from '@crosspilot/shared';
 
 @Controller()
-@UseGuards(WorkspaceGuard)
 export class ProfitController {
   constructor(private profitService: ProfitService) {}
 

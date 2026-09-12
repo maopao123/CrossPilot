@@ -27,7 +27,16 @@ import {
   MarketOverviewTool,
   MarketKeywordSearchTool,
   MarketProductTrendTool,
+  ReviewProductHealthTool,
+  VocProductAnalyzeTool,
 } from './market/market.tools.js';
+import {
+  RunDailyOperationDiagnosisTool,
+  GetDailyOperationStatusTool,
+  ApproveOperationActionTool,
+  RejectOperationActionTool,
+  DismissOperationActionTool,
+} from './operation-daily-diagnosis.tools.js';
 
 export const ALL_DEFAULT_TOOLS = [
   // Existing Domain Wrappers
@@ -60,6 +69,15 @@ export const ALL_DEFAULT_TOOLS = [
   MarketOverviewTool,
   MarketKeywordSearchTool,
   MarketProductTrendTool,
+  ReviewProductHealthTool,
+  VocProductAnalyzeTool,
+
+  // WF-05 Daily Operation Diagnosis Tools (Epic 3 Phase 7)
+  RunDailyOperationDiagnosisTool,
+  GetDailyOperationStatusTool,
+  ApproveOperationActionTool,
+  RejectOperationActionTool,
+  DismissOperationActionTool,
 ];
 
 export function createDefaultToolRegistry(): ToolRegistry {

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
 import { getStatusLabel, getSeverityLabel } from '../../../constants/ui-labels';
+import { useBusinessContext } from '../../../components/business-context-provider';
 import {
   FileEdit,
   ShieldCheck,
@@ -64,11 +65,16 @@ interface ListingVersion {
   marketplace?: string;
   locale?: string;
   generationSource: string;
+  generationMode?: string;
+  modelUsed?: string;
+  promptVersion?: string;
   createdAt: string;
   complianceCheck: {
     status: string;
     riskLevel: string;
     evidenceSummary: string;
+    modelName?: string;
+    promptVersion?: string;
     ruleHits: any[];
   } | null;
 }
@@ -95,8 +101,9 @@ interface StepTrace {
 }
 
 export default function ListingStudioPage() {
-  const [skuCode, setSkuCode] = useState('MTH-WHITE-001');
-  const [marketplace, setMarketplace] = useState('AMAZON_US');
+  const { skus, skuId, selectedSku, marketplaceId, switchSku } = useBusinessContext();
+  const [skuCode, setSkuCode] = useState(selectedSku?.skuCode || '');
+  const [marketplace, setMarketplace] = useState(marketplaceId || 'AMAZON_US');
   const [modelName, setModelName] = useState('AUTO');
   const [listing, setListing] = useState<SkuListing | null>(null);
   const [activeVersion, setActiveVersion] = useState<ListingVersion | null>(null);
@@ -112,6 +119,7 @@ export default function ListingStudioPage() {
   const [creativeSentSuccess, setCreativeSentSuccess] = useState(false);
   const [complianceResult, setComplianceResult] = useState<any | null>(null);
   const [stepTraces, setStepTraces] = useState<StepTrace[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Editable listing fields
   const [editableTitle, setEditableTitle] = useState('');
@@ -152,18 +160,26 @@ export default function ListingStudioPage() {
     },
   ]);
 
+  useEffect(() => {
+    if (selectedSku?.skuCode) setSkuCode(selectedSku.skuCode);
+    if (marketplaceId) setMarketplace(marketplaceId);
+  }, [selectedSku, marketplaceId]);
+
   // Load listing for selected SKU
   const loadListing = async () => {
     try {
       const skusRes = await ApiClient.get<any[]>('/api/v1/products');
-      let skuId = '';
-      if (Array.isArray(skusRes) && skusRes.length > 0 && skusRes[0].skus) {
-        const targetSku = skusRes[0].skus.find((s: any) => s.skuCode === skuCode) || skusRes[0].skus[0];
-        skuId = targetSku.id;
-      }
+      const catalogSkus = Array.isArray(skusRes)
+        ? skusRes.flatMap((product) => product.skus || [])
+        : [];
+      const targetSku =
+        catalogSkus.find((s: any) => s.id === skuId) ||
+        catalogSkus.find((s: any) => s.skuCode === skuCode) ||
+        catalogSkus[0];
+      const resolvedSkuId = targetSku?.id;
 
-      if (skuId) {
-        const res = await ApiClient.get<SkuListing>(`/api/v1/listings/sku/${skuId}`);
+      if (resolvedSkuId) {
+        const res = await ApiClient.get<SkuListing>(`/api/v1/listings/sku/${resolvedSkuId}`);
         setListing(res);
         if (res.visualFacts && res.visualFacts.length > 0) {
           setVisualFacts(res.visualFacts);
@@ -195,13 +211,14 @@ export default function ListingStudioPage() {
 
   useEffect(() => {
     loadListing();
-  }, [skuCode]);
+  }, [skuCode, skuId]);
 
   // Multimodal Visual Facts Extraction Action
   const handleExtractVisualFacts = async (force = false) => {
     if (!listing?.productId) return;
     try {
       setExtractingVisual(true);
+      setActionError(null);
       const res = await ApiClient.post<any>('/api/v1/listings/visual-extract', {
         productId: listing.productId,
         images: imageUrls,
@@ -210,8 +227,8 @@ export default function ListingStudioPage() {
       if (res.visualFacts) {
         setVisualFacts(res.visualFacts);
       }
-    } catch (err) {
-      console.error('提取视觉事实失败:', err);
+    } catch (err: any) {
+      setActionError(err?.message || '提取视觉事实失败');
     } finally {
       setExtractingVisual(false);
     }
@@ -249,9 +266,10 @@ export default function ListingStudioPage() {
 
   // Upgraded WF-02 14-Step DAG Generation Action
   const handleGenerateDag = async () => {
-    if (!listing) return;
+    if (!listing || ApiClient.isViewer()) return;
     try {
       setGenerating(true);
+      setActionError(null);
       const res = await ApiClient.post<any>('/api/v1/listings/generate', {
         skuId: listing.skuId,
         customDirectives: 'Ground on VOC hole size 1.5" and 3.57 lbs natural stone base.',
@@ -273,8 +291,8 @@ export default function ListingStudioPage() {
       }
       // Reload listing versions
       loadListing();
-    } catch (err) {
-      console.error('14 步 DAG 编排生成失败:', err);
+    } catch (err: any) {
+      setActionError(err?.message || '14 步 DAG 编排生成失败');
     } finally {
       setGenerating(false);
     }
@@ -284,14 +302,15 @@ export default function ListingStudioPage() {
   const handleComplianceCheck = async () => {
     try {
       setChecking(true);
+      setActionError(null);
       const res = await ApiClient.post<any>('/api/v1/listings/compliance-check', {
         title: editableTitle,
         bulletPoints: editableBullets,
         description: editableDescription,
       });
       setComplianceResult(res);
-    } catch (err) {
-      console.error('合规检查失败:', err);
+    } catch (err: any) {
+      setActionError(err?.message || '合规检查失败');
     } finally {
       setChecking(false);
     }
@@ -338,6 +357,9 @@ export default function ListingStudioPage() {
               Listing Intelligence • 14 步 DAG
             </span>
           </div>
+          {actionError && (
+            <p className="text-xs text-rose-400 mt-2">{actionError}</p>
+          )}
           <p className="text-sm text-muted-foreground mt-1">
             多模态图片视觉提取缓存 • 多源关键词库 • Rufus 意图上下文 • 三层知识库 RAG • 事实锚定与素材中心无缝衔接
           </p>
@@ -378,17 +400,20 @@ export default function ListingStudioPage() {
 
           {/* SKU Switcher */}
           <div className="flex items-center space-x-1 bg-surface border border-border p-1 rounded-lg">
-            {['MTH-WHITE-001', 'MTH-GREEN-001', 'MTH-GREY-001'].map((code) => (
+            {skus.map((sku) => (
               <button
-                key={code}
-                onClick={() => setSkuCode(code)}
+                key={sku.id}
+                onClick={() => {
+                  switchSku(sku.id);
+                  setSkuCode(sku.skuCode);
+                }}
                 className={`text-xs px-2.5 py-1 rounded font-semibold transition cursor-pointer ${
-                  skuCode === code
+                  skuId === sku.id || skuCode === sku.skuCode
                     ? 'bg-blue-600 text-white'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {code.replace('MTH-', '')}
+                {sku.skuCode}
               </button>
             ))}
           </div>
@@ -399,7 +424,9 @@ export default function ListingStudioPage() {
       <div className="bg-surface border border-border rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
         <div className="flex items-center space-x-3 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">当前产品事实依据:</span>
-          <span className="text-foreground">天然大理石牙刷架</span>
+          <span className="text-foreground">
+            {selectedSku?.productName || listing?.productName || '当前 SKU'}
+          </span>
           <span className="text-gray-400">•</span>
           <span>100% 天然石材 / 3.57 磅 / 1.5 英寸插槽</span>
           <span className="text-gray-400">•</span>
@@ -554,6 +581,40 @@ export default function ListingStudioPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Generation Mode & Metadata Banner */}
+              {activeVersion && (
+                <div className="flex flex-wrap items-center gap-2 p-2.5 bg-surface-elevated border border-border rounded-lg text-xs">
+                  <span className="text-muted-foreground font-semibold">生成引擎:</span>
+                  {activeVersion.generationMode === 'AI' || activeVersion.generationSource === 'AI' ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      <Sparkles className="w-3 h-3 mr-1 text-emerald-400" />
+                      真实大模型生成 (AI Runtime)
+                    </span>
+                  ) : activeVersion.generationMode === 'TEMPLATE_FALLBACK' || activeVersion.generationSource === 'TEMPLATE_FALLBACK' ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      <AlertTriangle className="w-3 h-3 mr-1 text-amber-400" />
+                      受控模板降级 (TEMPLATE_FALLBACK)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/30">
+                      传统模板模式 (LEGACY_TEMPLATE)
+                    </span>
+                  )}
+
+                  <span className="text-border">|</span>
+                  <span className="text-muted-foreground font-semibold">模型:</span>
+                  <span className="font-mono text-[11px] text-foreground bg-surface px-1.5 py-0.5 rounded border border-border">
+                    {activeVersion.modelUsed || activeVersion.complianceCheck?.modelName || 'deepseek-chat'}
+                  </span>
+
+                  <span className="text-border">|</span>
+                  <span className="text-muted-foreground font-semibold">Prompt 契约:</span>
+                  <span className="font-mono text-[11px] text-foreground bg-surface px-1.5 py-0.5 rounded border border-border">
+                    {activeVersion.promptVersion || activeVersion.complianceCheck?.promptVersion || 'listing.generate.v1'}
+                  </span>
+                </div>
+              )}
 
               {/* Title Editor */}
               <div className="space-y-1.5">

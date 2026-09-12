@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ApiClient } from '../../../../lib/api-client';
+import { displayAmount, displayCount, displayPercentFromRate } from '../../../../lib/catalog';
 import { Sku360Overview } from '@crosspilot/shared';
 import { getStatusLabel } from '../../../../constants/ui-labels';
 import {
@@ -20,16 +21,19 @@ export default function Sku360Page() {
   const skuId = params?.skuId as string;
   const [data, setData] = useState<Sku360Overview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadSkuOverview() {
       try {
+        setLoadError(null);
         const res = await ApiClient.get<Sku360Overview>(
           `/api/v1/skus/${skuId}/overview`,
         );
         setData(res);
       } catch (err) {
-        console.error('无法载入 SKU 360 数据:', err);
+        setLoadError('无法载入 SKU 360 数据');
+        setData(null);
       } finally {
         setLoading(false);
       }
@@ -41,6 +45,14 @@ export default function Sku360Page() {
     return (
       <div className="py-20 text-center text-gray-400 text-sm">
         正在加载 SKU 360 数据...
+      </div>
+    );
+  }
+
+  if (loadError || !data) {
+    return (
+      <div className="py-20 text-center text-rose-400 text-sm">
+        {loadError || 'SKU 不存在或无数据'}
       </div>
     );
   }
@@ -87,7 +99,7 @@ export default function Sku360Page() {
             <div className="text-right">
               <span className="text-xs text-gray-400">当前售价</span>
               <div className="text-xl font-bold text-white">
-                ${sku?.sellingPrice || 29.99}
+                ${displayAmount(sku?.sellingPrice)}
               </div>
             </div>
           </div>
@@ -104,10 +116,10 @@ export default function Sku360Page() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white">
-              {inv?.fulfillableQuantity || 450} <span className="text-xs font-normal text-gray-400">件</span>
+              {displayCount(inv?.fulfillableQuantity)} <span className="text-xs font-normal text-gray-400">件</span>
             </div>
             <div className="flex items-center justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-border">
-              <span>在途库存: {inv?.inboundQuantity || 200} 件</span>
+              <span>在途库存: {displayCount(inv?.inboundQuantity)} 件</span>
               <span className={`px-1.5 py-0.5 rounded font-semibold text-[10px] ${
                 inv?.riskLevel === 'HEALTHY'
                   ? 'bg-emerald-500/20 text-emerald-300'
@@ -117,7 +129,7 @@ export default function Sku360Page() {
               </span>
             </div>
             <div className="text-xs text-gray-400 mt-1">
-              可售天数: <strong>{inv?.daysCover || 35} 天</strong>
+              可售天数: <strong>{displayCount(inv?.daysCover)} 天</strong>
             </div>
           </div>
         </div>
@@ -131,13 +143,13 @@ export default function Sku360Page() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white">
-              ${quote?.unitCost || 8.50} <span className="text-xs font-normal text-gray-400">/ 件</span>
+              ${displayAmount(quote?.unitCost)} <span className="text-xs font-normal text-gray-400">/ 件</span>
             </div>
             <div className="flex items-center justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-border">
-              <span>供应商: {quote?.supplierName || '福建天然石材厂'}</span>
+              <span>供应商: {quote?.supplierName || 'N/A'}</span>
             </div>
             <div className="text-xs text-gray-400 mt-1">
-              生产交期: <strong>{quote?.leadTimeDays || 15} 天</strong>
+              生产交期: <strong>{displayCount(quote?.leadTimeDays)} 天</strong>
             </div>
           </div>
         </div>
@@ -151,14 +163,14 @@ export default function Sku360Page() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white">
-              ${sales?.revenue?.toFixed(2) || '28,490.50'}
+              ${displayAmount(sales?.revenue)}
             </div>
             <div className="flex items-center justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-border">
-              <span>销量: <strong>{sales?.unitsSold || 950} 件</strong></span>
-              <span>订单: <strong>{sales?.ordersCount || 920} 单</strong></span>
+              <span>销量: <strong>{displayCount(sales?.unitsSold)} 件</strong></span>
+              <span>订单: <strong>{displayCount(sales?.ordersCount)} 单</strong></span>
             </div>
             <div className="text-xs text-emerald-400 mt-1 font-medium">
-              30天日均销量: ~{(Number(sales?.unitsSold || 950) / 30).toFixed(1)} 件/天
+              30天日均销量: {sales?.unitsSold === undefined || sales?.unitsSold === null ? 'N/A' : `~${(Number(sales.unitsSold) / 30).toFixed(1)} 件/天`}
             </div>
           </div>
         </div>
@@ -172,11 +184,11 @@ export default function Sku360Page() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white">
-              {((returns?.returnRate || 0.032) * 100).toFixed(1)}% <span className="text-xs font-normal text-gray-400">退货率</span>
+              {displayPercentFromRate(returns?.returnRate)} <span className="text-xs font-normal text-gray-400">退货率</span>
             </div>
             <div className="flex items-center justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-border">
-              <span>退货件数: {returns?.count || 3} 件</span>
-              <span>退款: ${returns?.refundTotal?.toFixed(2) || '89.97'}</span>
+              <span>退货件数: {displayCount(returns?.count)} 件</span>
+              <span>退款: ${displayAmount(returns?.refundTotal)}</span>
             </div>
             <div className="text-xs text-gray-400 mt-1">
               健康阈值: &lt; 5.0%
@@ -194,33 +206,33 @@ export default function Sku360Page() {
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">总销售额</span>
-            <div className="text-base font-bold text-white mt-1">${profit?.revenue?.toFixed(2) || '28,490.50'}</div>
+            <div className="text-base font-bold text-white mt-1">${displayAmount(profit?.revenue)}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">商品采购成本 (COGS)</span>
-            <div className="text-base font-bold text-rose-400 mt-1">-${profit?.cogs?.toFixed(2) || '8,075.00'}</div>
+            <div className="text-base font-bold text-rose-400 mt-1">-${displayAmount(profit?.cogs)}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">Amazon 销售佣金 (15%)</span>
-            <div className="text-base font-bold text-rose-400 mt-1">-${profit?.amazonFees?.toFixed(2) || '4,273.58'}</div>
+            <div className="text-base font-bold text-rose-400 mt-1">-${displayAmount(profit?.amazonFees)}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">FBA 配送费</span>
-            <div className="text-base font-bold text-rose-400 mt-1">-${profit?.fbaFee?.toFixed(2) || '4,275.00'}</div>
+            <div className="text-base font-bold text-rose-400 mt-1">-${displayAmount(profit?.fbaFee)}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">PPC 广告花费</span>
-            <div className="text-base font-bold text-rose-400 mt-1">-${profit?.adsCost?.toFixed(2) || '3,500.00'}</div>
+            <div className="text-base font-bold text-rose-400 mt-1">-${displayAmount(profit?.adsCost)}</div>
           </div>
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">退货损失</span>
-            <div className="text-base font-bold text-rose-400 mt-1">-${profit?.returnLoss?.toFixed(2) || '89.97'}</div>
+            <div className="text-base font-bold text-rose-400 mt-1">-${displayAmount(profit?.returnLoss)}</div>
           </div>
           <div className="bg-emerald-950/40 p-3 rounded-lg border border-emerald-500/30">
             <span className="text-[11px] text-emerald-300 font-semibold">净利润</span>
-            <div className="text-base font-bold text-emerald-400 mt-1">${profit?.netProfit?.toFixed(2) || '8,276.95'}</div>
+            <div className="text-base font-bold text-emerald-400 mt-1">${displayAmount(profit?.netProfit)}</div>
             <span className="text-[10px] text-emerald-400">
-              利润率: {((profit?.margin || 0.2905) * 100).toFixed(1)}%
+              利润率: {profit?.margin === undefined || profit?.margin === null ? 'N/A' : `${(profit.margin * 100).toFixed(1)}%`}
             </span>
           </div>
         </div>

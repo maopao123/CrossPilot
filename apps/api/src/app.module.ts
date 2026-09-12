@@ -21,8 +21,10 @@ import { EvalModule } from './modules/eval/eval.module.js';
 import { ToolCenterModule } from './modules/tool-center/tool-center.module.js';
 import { CreativeModule } from './modules/creative/creative.module.js';
 import { OperationAutomationModule } from './modules/operation-automation/operation-automation.module.js';
+import { DailyDiagnosisModule } from './modules/daily-diagnosis/daily-diagnosis.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { WorkspaceGuard } from './common/guards/workspace.guard.js';
+import { ViewerWriteGuard } from './common/guards/viewer-write.guard.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 
@@ -52,6 +54,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     ToolCenterModule,
     CreativeModule,
     OperationAutomationModule,
+    DailyDiagnosisModule,
   ],
   providers: [
     {
@@ -61,6 +64,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     {
       provide: APP_GUARD,
       useClass: WorkspaceGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ViewerWriteGuard,
     },
     {
       provide: APP_INTERCEPTOR,

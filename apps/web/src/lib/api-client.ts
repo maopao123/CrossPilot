@@ -10,11 +10,14 @@ export class ApiClient {
     return localStorage.getItem('crosspilot_token');
   }
 
-  public static setSession(token: string, workspaceId?: string) {
+  public static setSession(token: string, workspaceId?: string, role?: string) {
     if (typeof window === 'undefined') return;
     localStorage.setItem('crosspilot_token', token);
     if (workspaceId) {
       localStorage.setItem('crosspilot_workspace_id', workspaceId);
+    }
+    if (role) {
+      localStorage.setItem('crosspilot_role', role);
     }
   }
 
@@ -22,11 +25,21 @@ export class ApiClient {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('crosspilot_token');
     localStorage.removeItem('crosspilot_workspace_id');
+    localStorage.removeItem('crosspilot_role');
   }
 
   public static getActiveWorkspaceId(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('crosspilot_workspace_id');
+  }
+
+  public static getRole(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('crosspilot_role');
+  }
+
+  public static isViewer(): boolean {
+    return this.getRole() === 'VIEWER';
   }
 
   public static async request<T>(
@@ -57,7 +70,21 @@ export class ApiClient {
       headers,
     });
 
-    const json = await res.json();
+    let json: any = null;
+    try {
+      json = await res.json();
+    } catch {
+      json = null;
+    }
+
+    if (res.status === 401) {
+      this.clearSession();
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login');
+      }
+      const err = json as ApiErrorResponse;
+      throw new Error(err?.error?.message || 'Authentication required. Please login.');
+    }
 
     if (!res.ok) {
       const err = json as ApiErrorResponse;

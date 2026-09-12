@@ -4,11 +4,9 @@
   Get,
   Param,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import { PurchaseService } from './purchase.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import { WorkspaceGuard } from '../../common/guards/workspace.guard.js';
 import {
   CreatePurchaseOrderInput,
   CreatePurchaseOrderSchema,
@@ -17,7 +15,6 @@ import {
 } from '@crosspilot/shared';
 
 @Controller('purchase-orders')
-@UseGuards(WorkspaceGuard)
 export class PurchaseController {
   constructor(private purchaseService: PurchaseService) {}
 

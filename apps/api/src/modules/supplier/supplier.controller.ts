@@ -1,7 +1,6 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { SupplierService } from './supplier.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import { WorkspaceGuard } from '../../common/guards/workspace.guard.js';
 import {
   CreateSupplierInput,
   CreateSupplierQuoteInput,
@@ -10,7 +9,6 @@ import {
 } from '@crosspilot/shared';
 
 @Controller()
-@UseGuards(WorkspaceGuard)
 export class SupplierController {
   constructor(private supplierService: SupplierService) {}
 

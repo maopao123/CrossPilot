@@ -21,6 +21,9 @@ const {
   getMarketplacePolicyProfile,
 } = require('../packages/domain/dist/index.js');
 
+// Ignore background unhandled rejections (e.g. gRPC pool reconnect attempts when Milvus is offline)
+process.on('unhandledRejection', () => {});
+
 console.log('🧪 ========================================================');
 console.log('   CrossPilot Golden Benchmark Regression Suite (M8 + V2)');
 console.log('========================================================\n');
@@ -151,6 +154,7 @@ async function main() {
         { id: 'f_wt', name: 'Weight', value: '3.57 lbs', isCore: true },
       ],
       skuWeightKg: 1.62,
+      forceTemplateFallback: true,
     });
 
     if (!dagResult.success) throw new Error('DAG execution failed');

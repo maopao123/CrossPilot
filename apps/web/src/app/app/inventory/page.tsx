@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
+import { displayAmount, displayCount } from '../../../lib/catalog';
 import { InventoryBalanceInfo } from '@crosspilot/shared';
 import { getStatusLabel } from '../../../constants/ui-labels';
 import {
@@ -13,20 +14,31 @@ export default function InventoryPage() {
   const [balances, setBalances] = useState<InventoryBalanceInfo[]>([]);
   const [recommendation, setRecommendation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isViewer, setIsViewer] = useState(false);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
+      setIsViewer(ApiClient.isViewer());
       const inv = await ApiClient.get<InventoryBalanceInfo[]>('/api/v1/inventory');
-      setBalances(inv);
+      setBalances(Array.isArray(inv) ? inv : []);
 
-      const rec = await ApiClient.post<any>(
-        '/api/v1/skus/sku_white_001/reorder-recommendation',
-        { leadTimeDays: 15, targetDaysCover: 45 }
-      );
-      setRecommendation(rec);
+      const firstSkuId = Array.isArray(inv) && inv[0]?.skuId ? inv[0].skuId : null;
+      if (firstSkuId && !ApiClient.isViewer()) {
+        const rec = await ApiClient.post<any>(
+          `/api/v1/skus/${firstSkuId}/reorder-recommendation`,
+          { leadTimeDays: 15, targetDaysCover: 45 }
+        );
+        setRecommendation(rec);
+      } else {
+        setRecommendation(null);
+      }
     } catch (err) {
-      console.error('无法载入库存数据:', err);
+      setLoadError('无法载入库存数据');
+      setBalances([]);
+      setRecommendation(null);
     } finally {
       setLoading(false);
     }
@@ -66,7 +78,7 @@ export default function InventoryPage() {
         <div className="bg-surface border border-border rounded-xl p-5">
           <span className="text-xs text-gray-400 font-semibold uppercase">FBA 可售库存</span>
           <div className="text-3xl font-bold text-white mt-2">
-            {balances[0]?.fulfillableQuantity ?? 450} <span className="text-sm font-normal text-gray-400">件</span>
+            {displayCount(balances[0]?.fulfillableQuantity)} <span className="text-sm font-normal text-gray-400">件</span>
           </div>
           <p className="text-[11px] text-emerald-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -77,7 +89,7 @@ export default function InventoryPage() {
         <div className="bg-surface border border-border rounded-xl p-5">
           <span className="text-xs text-gray-400 font-semibold uppercase">在途采购库存</span>
           <div className="text-3xl font-bold text-white mt-2">
-            {balances[0]?.inboundQuantity ?? 200} <span className="text-sm font-normal text-gray-400">件</span>
+            {displayCount(balances[0]?.inboundQuantity)} <span className="text-sm font-normal text-gray-400">件</span>
           </div>
           <p className="text-[11px] text-blue-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -88,7 +100,7 @@ export default function InventoryPage() {
         <div className="bg-surface border border-border rounded-xl p-5">
           <span className="text-xs text-gray-400 font-semibold uppercase">预留库存</span>
           <div className="text-3xl font-bold text-white mt-2">
-            {balances[0]?.reservedQuantity ?? 15} <span className="text-sm font-normal text-gray-400">件</span>
+            {displayCount(balances[0]?.reservedQuantity)} <span className="text-sm font-normal text-gray-400">件</span>
           </div>
           <p className="text-[11px] text-amber-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -99,7 +111,7 @@ export default function InventoryPage() {
         <div className="bg-surface border border-border rounded-xl p-5">
           <span className="text-xs text-gray-400 font-semibold uppercase">不可售库存</span>
           <div className="text-3xl font-bold text-white mt-2">
-            {balances[0]?.unfulfillableQuantity ?? 2} <span className="text-sm font-normal text-gray-400">件</span>
+            {displayCount(balances[0]?.unfulfillableQuantity)} <span className="text-sm font-normal text-gray-400">件</span>
           </div>
           <p className="text-[11px] text-rose-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -128,42 +140,42 @@ export default function InventoryPage() {
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">日均销量 (30天)</span>
             <div className="text-base font-bold text-white mt-1">
-              {recommendation?.avgDailySales || 8.5} 件/天
+              {displayAmount(recommendation?.avgDailySales, 1)} 件/天
             </div>
           </div>
 
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">可售天数</span>
             <div className="text-base font-bold text-white mt-1">
-              {recommendation?.daysCover || 52.9} 天
+              {displayAmount(recommendation?.daysCover, 1)} 天
             </div>
           </div>
 
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">供应商生产交期</span>
             <div className="text-base font-bold text-white mt-1">
-              {recommendation?.leadTimeDays || 15} 天
+              {displayCount(recommendation?.leadTimeDays)} 天
             </div>
           </div>
 
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">安全库存天数</span>
             <div className="text-base font-bold text-white mt-1">
-              {recommendation?.safetyStockDays || 14} 天
+              {displayCount(recommendation?.safetyStockDays)} 天
             </div>
           </div>
 
           <div className="bg-surface-elevated p-3 rounded-lg border border-border">
             <span className="text-[11px] text-gray-400">补货触发点</span>
             <div className="text-base font-bold text-amber-400 mt-1">
-              {recommendation?.reorderPoint || 247} 件
+              {displayCount(recommendation?.reorderPoint)} 件
             </div>
           </div>
 
           <div className="bg-blue-950/40 p-3 rounded-lg border border-blue-500/30">
             <span className="text-[11px] text-blue-300 font-semibold">推荐补货量</span>
             <div className="text-base font-bold text-blue-400 mt-1">
-              {recommendation?.recommendedQuantity || 0} 件
+              {displayCount(recommendation?.recommendedQuantity)} 件
             </div>
           </div>
         </div>

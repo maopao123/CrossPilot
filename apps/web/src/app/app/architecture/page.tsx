@@ -53,7 +53,7 @@ export default function ArchitecturePage() {
             <div className="font-bold text-blue-400 text-sm">前端与展示层 (apps/web)</div>
             <p className="text-gray-300">Next.js 14 App Router + Tailwind CSS</p>
             <ul className="text-gray-400 space-y-1 list-disc list-inside">
-              <li>14 大经营子页面模块</li>
+              <li>经营工作台页面（Overview / Operations Today 等）</li>
               <li>交互式 1-Click Demo Reset</li>
               <li>SSE 实时决策轨迹流展示</li>
               <li>SSR & 静态预渲染 100% 通过</li>

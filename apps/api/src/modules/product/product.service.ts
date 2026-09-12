@@ -18,77 +18,21 @@ export class ProductService {
   constructor(private prisma: PrismaService) {}
 
   async listProducts(workspaceId: string, keyword?: string): Promise<ProductInfo[]> {
-    try {
-      const where: any = { workspaceId };
-      if (keyword) {
-        where.name = { contains: keyword, mode: 'insensitive' };
-      }
-
-      const products = await this.prisma.product.findMany({
-        where,
-        include: {
-          skus: true,
-          features: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      return products.map((p) => this.mapProduct(p));
-    } catch {
-      // Offline fallback demo product (Natural Marble Toothbrush Holder)
-      return [
-        {
-          id: 'prod_mth_001',
-          workspaceId,
-          marketplaceId: 'AMAZON_US',
-          name: 'Natural Marble Toothbrush Holder',
-          brand: 'POLEGAS',
-          category: 'Home & Kitchen',
-          subCategory: 'Bathroom Accessories',
-          status: 'ACTIVE',
-          targetPrice: 29.99,
-          description: 'Heavy marble toothbrush organizer for luxury bathrooms.',
-          productBrief: 'Real natural marble, heavy base prevents tipping, fits electric toothbrushes.',
-          skus: [
-            {
-              id: 'sku_white_001',
-              workspaceId,
-              productId: 'prod_mth_001',
-              skuCode: 'MTH-WHITE-001',
-              variantName: 'White Carrara',
-              color: 'White',
-              sellingPrice: 29.99,
-              currencyCode: 'USD',
-              status: 'ACTIVE',
-            },
-            {
-              id: 'sku_green_001',
-              workspaceId,
-              productId: 'prod_mth_001',
-              skuCode: 'MTH-GREEN-001',
-              variantName: 'Emerald Green',
-              color: 'Green',
-              sellingPrice: 32.99,
-              currencyCode: 'USD',
-              status: 'ACTIVE',
-            },
-            {
-              id: 'sku_grey_001',
-              workspaceId,
-              productId: 'prod_mth_001',
-              skuCode: 'MTH-GREY-001',
-              variantName: 'Beige Grey',
-              color: 'Grey',
-              sellingPrice: 29.99,
-              currencyCode: 'USD',
-              status: 'ACTIVE',
-            },
-          ],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
+    const where: any = { workspaceId };
+    if (keyword) {
+      where.name = { contains: keyword, mode: 'insensitive' };
     }
+
+    const products = await this.prisma.product.findMany({
+      where,
+      include: {
+        skus: true,
+        features: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return products.map((p) => this.mapProduct(p));
   }
 
   async getProductById(workspaceId: string, productId: string): Promise<ProductInfo> {
@@ -159,6 +103,16 @@ export class ProductService {
   }
 
   async createSku(workspaceId: string, input: CreateSkuInput): Promise<SkuInfo> {
+    const product = await this.prisma.product.findFirst({
+      where: { id: input.productId, workspaceId },
+    });
+    if (!product) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: 'Product not found in this workspace',
+      });
+    }
+
     const sku = await this.prisma.sku.create({
       data: {
         workspaceId,
@@ -197,171 +151,111 @@ export class ProductService {
   }
 
   async getSku360Overview(workspaceId: string, skuId: string): Promise<Sku360Overview> {
-    try {
-      const sku = await this.prisma.sku.findFirst({
-        where: { id: skuId, workspaceId },
-        include: {
-          product: true,
-          inventoryBalances: true,
-          quotes: {
-            include: { supplier: true },
-            orderBy: { effectiveDate: 'desc' },
-            take: 1,
-          },
-          orderItems: {
-            include: { order: true },
-          },
-          reviews: true,
+    const sku = await this.prisma.sku.findFirst({
+      where: { id: skuId, workspaceId },
+      include: {
+        product: true,
+        inventoryBalances: true,
+        quotes: {
+          include: { supplier: true },
+          orderBy: { effectiveDate: 'desc' },
+          take: 1,
         },
+        orderItems: {
+          include: { order: true },
+        },
+        reviews: true,
+      },
+    });
+
+    if (!sku) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: 'SKU not found in workspace',
       });
+    }
 
-      if (!sku) {
-        throw new NotFoundException({
-          code: ErrorCodes.RESOURCE_NOT_FOUND,
-          message: 'SKU not found in workspace',
-        });
-      }
+    const balance = sku.inventoryBalances[0] || {
+      fulfillableQuantity: 0,
+      inboundQuantity: 0,
+      reservedQuantity: 0,
+    };
 
-      const balance = sku.inventoryBalances[0] || {
-        fulfillableQuantity: 0,
-        inboundQuantity: 0,
-        reservedQuantity: 0,
-      };
+    const quote = sku.quotes[0];
+    const ordersCount = sku.orderItems.length;
+    const unitsSold = sku.orderItems.reduce((sum, item) => sum + item.quantity, 0);
+    const revenue = sku.orderItems.reduce(
+      (sum, item) => sum + item.quantity * Number(item.unitPrice),
+      0,
+    );
+    const avgDailySales = unitsSold > 0 ? Math.round((unitsSold / 30) * 10) / 10 : 0;
 
-      const planning = InventoryPlanningService.calculatePlanning({
+    const planning = InventoryPlanningService.calculatePlanning({
+      fulfillableQuantity: balance.fulfillableQuantity,
+      inboundQuantity: balance.inboundQuantity,
+      avgDailySales,
+      leadTimeDays: quote?.supplier?.leadTimeDays ?? 15,
+    });
+
+    const profitBreakdown = ProfitCalculationService.calculateProfit({
+      orderItems: sku.orderItems.map((item) => ({
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        unitCost: quote ? Number(quote.unitCost) : 8.5,
+        fbaFeePerUnit: 4.5,
+        referralFeeRate: 0.15,
+      })),
+      adsCost: revenue * 0.12,
+    });
+
+    const returns = await this.prisma.returnRecord.findMany({
+      where: { workspaceId, skuId },
+    });
+    const refundTotal = returns.reduce(
+      (sum, r) => sum + Number(r.refundAmount),
+      0,
+    );
+    const returnRate =
+      unitsSold > 0
+        ? Math.round((returns.length / unitsSold + Number.EPSILON) * 10000) / 10000
+        : 0;
+
+    return {
+      sku: this.mapSku(sku),
+      product: {
+        id: sku.product.id,
+        name: sku.product.name,
+        brand: sku.product.brand,
+        category: sku.product.category,
+      },
+      inventory: {
         fulfillableQuantity: balance.fulfillableQuantity,
         inboundQuantity: balance.inboundQuantity,
-        avgDailySales: 15,
-        leadTimeDays: 15,
-      });
-
-      const quote = sku.quotes[0];
-      const ordersCount = sku.orderItems.length;
-      const unitsSold = sku.orderItems.reduce((sum, item) => sum + item.quantity, 0);
-      const revenue = sku.orderItems.reduce(
-        (sum, item) => sum + item.quantity * Number(item.unitPrice),
-        0,
-      );
-
-      const profitBreakdown = ProfitCalculationService.calculateProfit({
-        orderItems: sku.orderItems.map((item) => ({
-          quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-          unitCost: quote ? Number(quote.unitCost) : 8.5,
-          fbaFeePerUnit: 4.5,
-          referralFeeRate: 0.15,
-        })),
-        adsCost: revenue * 0.12,
-      });
-
-      const returns = await this.prisma.returnRecord.findMany({
-        where: { workspaceId, skuId },
-      });
-      const refundTotal = returns.reduce(
-        (sum, r) => sum + Number(r.refundAmount),
-        0,
-      );
-      const returnRate = unitsSold > 0 ? (returns.length / unitsSold) * 100 : 0;
-
-      return {
-        sku: this.mapSku(sku),
-        product: {
-          id: sku.product.id,
-          name: sku.product.name,
-          brand: sku.product.brand,
-          category: sku.product.category,
-        },
-        inventory: {
-          fulfillableQuantity: balance.fulfillableQuantity,
-          inboundQuantity: balance.inboundQuantity,
-          reservedQuantity: balance.reservedQuantity,
-          daysCover: planning.daysCover,
-          reorderPoint: planning.reorderPoint,
-          riskLevel: planning.riskLevel,
-        },
-        quote: quote
-          ? {
-              supplierId: quote.supplierId,
-              supplierName: quote.supplier.name,
-              unitCost: Number(quote.unitCost),
-              leadTimeDays: quote.supplier.leadTimeDays,
-            }
-          : undefined,
-        salesSummary: {
-          ordersCount,
-          unitsSold,
-          revenue: Math.round(revenue * 100) / 100,
-        },
-        profitSummary: profitBreakdown,
-        returnsSummary: {
-          count: returns.length,
-          refundTotal: Math.round(refundTotal * 100) / 100,
-          returnRate: Math.round(returnRate * 10) / 10,
-        },
-      };
-    } catch (err: any) {
-      if (err instanceof NotFoundException) throw err;
-      // Standalone demo preview fallback
-      const profit = ProfitCalculationService.calculateProfit({
-        orderItems: [
-          {
-            quantity: 942,
-            unitPrice: 29.99,
-            unitCost: 8.5,
-            fbaFeePerUnit: 4.5,
-            referralFeeRate: 0.15,
-          },
-        ],
-        adsCost: 3500,
-        storageFee: 210,
-        returns: [{ refundAmount: 1220 }],
-      });
-
-      return {
-        sku: {
-          id: skuId || 'sku_white_001',
-          workspaceId,
-          productId: 'prod_mth_001',
-          skuCode: 'MTH-WHITE-001',
-          variantName: 'White Carrara',
-          color: 'White',
-          sellingPrice: 29.99,
-          currencyCode: 'USD',
-          status: 'ACTIVE',
-        },
-        product: {
-          id: 'prod_mth_001',
-          name: 'Natural Marble Toothbrush Holder',
-          brand: 'POLEGAS',
-          category: 'Home & Kitchen',
-        },
-        inventory: {
-          fulfillableQuantity: 420,
-          inboundQuantity: 300,
-          reservedQuantity: 45,
-          daysCover: 28,
-          reorderPoint: 435,
-          riskLevel: 'HEALTHY',
-        },
-        quote: {
-          supplierId: 'sup_marble_001',
-          supplierName: 'Fujian Natural Stone Factory',
-          unitCost: 8.5,
-          leadTimeDays: 15,
-        },
-        salesSummary: {
-          ordersCount: 942,
-          unitsSold: 1030,
-          revenue: 30870,
-        },
-        profitSummary: profit,
-        returnsSummary: {
-          count: 32,
-          refundTotal: 1220,
-          returnRate: 3.4,
-        },
-      };
-    }
+        reservedQuantity: balance.reservedQuantity,
+        daysCover: planning.daysCover,
+        reorderPoint: planning.reorderPoint,
+        riskLevel: planning.riskLevel,
+      },
+      quote: quote
+        ? {
+            supplierId: quote.supplierId,
+            supplierName: quote.supplier.name,
+            unitCost: Number(quote.unitCost),
+            leadTimeDays: quote.supplier.leadTimeDays,
+          }
+        : undefined,
+      salesSummary: {
+        ordersCount,
+        unitsSold,
+        revenue: Math.round(revenue * 100) / 100,
+      },
+      profitSummary: profitBreakdown,
+      returnsSummary: {
+        count: returns.length,
+        refundTotal: Math.round(refundTotal * 100) / 100,
+        returnRate,
+      },
+    };
   }
 
   private mapProduct(p: any): ProductInfo {

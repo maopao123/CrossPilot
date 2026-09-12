@@ -1,0 +1,866 @@
+你正在对 CrossPilot V9.1 做最终发布前验收。
+
+当前正式状态：
+
+```text
+CrossPilot V9
+
+Epic 1
+RELEASE VERIFIED & FROZEN
+
+Epic 2
+RELEASE VERIFIED & FROZEN
+
+Epic 3
+RELEASE VERIFIED & FROZEN
+
+
+CrossPilot V9.1
+
+Phase 1
+P0/P1 Production Bug Fix
+COMPLETED & VERIFIED
+
+Phase 2
+Stability Fix
+COMPLETED & VERIFIED
+
+Phase 2.1
+Persistent Idempotency Hardening
+COMPLETED & VERIFIED
+
+Phase 2.2
+XYDC Review Count Adjudication
+COMPLETED & VERIFIED
+
+Phase 3
+UX / Governance Polish
+COMPLETED & VERIFIED
+
+
+Epic 4
+SUSPENDED / NOT STARTED
+```
+
+现在进入：
+
+# CrossPilot V9.1
+
+# Final Browser Acceptance
+
+本阶段不是开发阶段。
+
+目标是：
+
+在真实启动的 API + Web 环境中，使用浏览器实际走通 V9.1 主要用户路径，验证：
+
+* 路由
+* 登录
+* Workspace Context
+* SKU Context
+* REST
+* SSE
+* RBAC
+* HITL
+* OCC
+* Tool Center
+* 订单 / 库存 / 利润 / Reviews
+* 错误状态
+* 空状态
+* Workspace 隔离
+
+最终判断：
+
+V9.1 是否可以正式冻结。
+
+---
+
+# 一、必须先阅读
+
+1. `docs/00_governance/CURRENT_SYSTEM_AUDIT_BASELINE.md`
+2. `docs/00_governance/V9_1_FULL_PRODUCT_BUG_AUDIT.md`
+3. `docs/00_governance/V9_1_PHASE1_P0_P1_FIX_REPORT.md`
+4. `docs/00_governance/V9_1_PHASE2_STABILITY_FIX_REPORT.md`
+5. `docs/00_governance/V9_1_PHASE2_1_IDEMPOTENCY_HARDENING_REPORT.md`
+6. `docs/00_governance/V9_1_PHASE2_2_XYDC_REVIEW_COUNT_ADJUDICATION.md`
+7. `docs/00_governance/V9_1_PHASE3_UX_GOVERNANCE_POLISH_REPORT.md`
+8. `docs/00_governance/V9_PRODUCT_CAPABILITY_MATRIX.md`
+
+以：
+
+```text
+当前代码事实
++
+Level 1 Governance
+```
+
+为准。
+
+历史文档只用于追溯。
+
+---
+
+# 二、严格边界
+
+本阶段原则：
+
+# VERIFY FIRST
+
+# FIX ONLY IF BLOCKING AND PROVEN
+
+不要主动扩展功能。
+
+禁止：
+
+* Epic 4
+* SP-API
+* Amazon Ads 真执行
+* 自动改价
+* Listing 真发布
+* ERP 真下单
+* Scheduler
+* Launch Center
+* Knowledge Base 新页面
+* Agent Trace 大屏
+* Creative 新 Pipeline
+* WF-03 / WF-04 重构
+* 冻结算法重写
+
+---
+
+# 三、启动真实运行环境
+
+启动实际：
+
+```text
+API
+Web
+PostgreSQL
+Milvus（需要的路径）
+```
+
+使用项目当前标准启动方式。
+
+必须记录：
+
+* API URL
+* Web URL
+* Database 状态
+* Seed / Workspace
+* 测试角色
+* 使用的环境变量模式
+
+不得仅靠源码 contract 判断浏览器 PASS。
+
+---
+
+# 四、浏览器验收 Scenario A — Login / App Shell
+
+真实浏览器执行：
+
+```text
+/login
+→ 登录
+→ /app/overview
+```
+
+验证：
+
+1. 登录成功
+2. token 持久化
+3. workspaceId 正确
+4. role 正确
+5. TopBar 不显示假 OWNER
+6. 页面刷新后 Session 仍正确
+7. 无 token 访问 `/app/*` → `/login`
+8. 401 后清 session 并回登录
+
+结果必须记录：
+
+```text
+PASS / FAIL
+```
+
+---
+
+# 五、Scenario B — Workspace Switch
+
+准备至少：
+
+```text
+Workspace A
+Workspace B
+```
+
+真实切换：
+
+```text
+A
+↓
+选择 SKU A
+↓
+切换 Workspace B
+```
+
+必须验证：
+
+* active workspaceId 更新
+* role 更新
+* SKU 清空
+* Operations active task 清空
+* reload 后仍为 B
+* 后续 API header：
+
+```text
+x-workspace-id: B
+```
+
+* 不再显示 A 的 KPI / SKU / Task
+* 相同 skuCode 跨 workspace 不串数据
+
+这是最终验收重点。
+
+---
+
+# 六、Scenario C — SKU Context
+
+TopBar 选择真实 SKU。
+
+验证：
+
+* SKU 来源真实 `/products`
+* 使用 `sku.id`
+* SKU 360 正确跳转
+* Listing 可使用对应 SKU
+* 不出现：
+
+```text
+sku_white_001
+```
+
+作为生产主键。
+
+Marketplace：
+
+如果当前只支持 defaultMarketplace：
+
+只验证展示正确。
+
+不要测试不存在的多站点切换功能。
+
+---
+
+# 七、Scenario D — Operations Today
+
+这是 V9.1 核心路径。
+
+真实操作：
+
+```text
+Operations Today
+↓
+Start Diagnosis
+↓
+REST
+↓
+SSE
+↓
+Diagnosis
+↓
+Recommendations
+↓
+WAITING_APPROVAL
+↓
+Approve / Reject / Dismiss
+↓
+FINALIZE
+```
+
+必须验证：
+
+### REST
+
+请求真实命中：
+
+```text
+/api/v1/operations/daily-diagnosis
+```
+
+不是 404。
+
+### SSE
+
+必须真实验证：
+
+```text
+fetch + Authorization Bearer
+x-workspace-id
+```
+
+收到：
+
+* snapshot
+* workflow events
+* heartbeat / stream activity
+* terminal event
+
+并确认：
+
+* 无 `?token=`
+* 无 EventSource
+* terminal 后 abort
+* error 后不会无限重连
+
+---
+
+# 八、Scenario E — HITL / OCC
+
+使用两个浏览器窗口或两个并发操作上下文。
+
+模拟：
+
+```text
+Operator A
+Operator B
+```
+
+打开同一个 Action。
+
+A 先批准。
+
+B 使用旧 version 再操作。
+
+必须看到：
+
+```text
+409 CHECKPOINT_VERSION_CONFLICT
+```
+
+前端表现：
+
+* 不是原始技术报错
+* 显示刷新提示
+* Refresh Latest State 可用
+* 刷新后显示真实 action 状态
+
+再验证：
+
+```text
+INVALID_ACTION_STATE
+```
+
+时：
+
+自动获取最新状态。
+
+并确认：
+
+```text
+Approve ≠ Execute
+```
+
+页面没有说：
+
+* 已采购
+* 已改广告
+* 已发布
+* 已调价
+
+---
+
+# 九、Scenario F — VIEWER
+
+必须创建或使用真实 VIEWER 用户。
+
+不要只靠源码测试。
+
+VIEWER 登录后：
+
+验证 GET 页面可访问。
+
+尝试：
+
+* 创建订单
+* Listing generate
+* Apply negative keyword
+* Receive PO
+* Tool execute write tool
+* Operations action approve
+
+必须：
+
+```text
+403 AUTH_FORBIDDEN
+```
+
+并且 UI：
+
+* 按钮 disabled
+  或
+* 不显示
+
+不能出现：
+
+```text
+UI 禁用
+但 API 可写
+```
+
+也不能出现：
+
+```text
+UI 可写
+但点击才 403
+```
+
+主要写入口应保持一致。
+
+---
+
+# 十、Scenario G — Tool Center
+
+进入：
+
+```text
+/app/tool-center
+```
+
+验证：
+
+* Tool list 来自 `GET /api/v1/tools`
+* 当前 28 tools 与 Registry 真实结果一致或解释差异
+* 不出现已删除：
+
+```text
+operation.listing.publish
+```
+
+执行一个安全 Read Tool。
+
+验证：
+
+* success
+* duration / output 正常
+* API envelope 没被 TransformInterceptor 剥掉
+
+如验证：
+
+```text
+operation.daily.*
+```
+
+确认与 Operations Today 看到的是同一个 Postgres workflow state。
+
+---
+
+# 十一、Scenario H — Orders
+
+真实走：
+
+```text
+Orders
+↓
+选择真实 SKU UUID
+↓
+选择真实 Marketplace
+↓
+Create Order
+```
+
+验证：
+
+* 不使用硬编码 ID
+* submit 时按钮 disabled
+* 不产生双订单
+* workspace isolation 正常
+* VIEWER 不能创建
+
+如果成功：
+
+列表出现真实新订单。
+
+---
+
+# 十二、Scenario I — Inventory / Reorder
+
+验证：
+
+* Inventory 使用真实数据
+* 0 inventory 显示 0
+* 不显示 fallback 450
+* reorder recommendation 使用真实 sku.id
+* 不存在 SKU → 404 / Error
+* 不出现假健康数据
+
+不要修改补货公式。
+
+---
+
+# 十三、Scenario J — Profit / Overview
+
+验证：
+
+### Profit
+
+API 正常：
+
+显示真实结果。
+
+API / 数据为空：
+
+显示：
+
+```text
+N/A / Empty / Error
+```
+
+不得出现历史：
+
+```text
+28,490.50
+450
+89.97
+```
+
+fallback。
+
+### Overview
+
+验证：
+
+* 不再硬编码 `-$2,280`
+* `/analyst/waterfall` 有数据 → 展示真实 variance
+* 无数据 → Demo Scenario / Empty
+* 不冒充实时账
+
+---
+
+# 十四、Scenario K — Reviews / Returns
+
+验证：
+
+```text
+/skus/:skuId/returns
+/return-summary
+```
+
+真实工作。
+
+检查：
+
+* URL 不再 404
+* returnRate 只乘一次 100
+* 0 → 0%
+* 不使用 0.032 fallback
+* 无数据时不显示假 `$89.97`
+
+VOC 硬编码卡片：
+
+属于 Known Gap。
+
+不要在本阶段重构。
+
+---
+
+# 十五、Scenario L — Business Analyst
+
+真实测试 authenticated SSE：
+
+```text
+fetch
++ Bearer
++ workspace
+```
+
+验证：
+
+* 不使用 EventSource
+* 不使用 query token
+* stream 能真实建立
+* terminal 时 abort
+* 401 不显示“演示流结束”
+
+如果 WF-04 问答仍是 PARTIAL：
+
+按 Known Gap。
+
+不要扩展 LLM 能力。
+
+---
+
+# 十六、Scenario M — Purchase Order
+
+至少验证：
+
+合法状态：
+
+```text
+SHIPPED
+→ RECEIVE
+→ RECEIVED
+```
+
+非法状态：
+
+例如：
+
+```text
+DRAFT
+→ RECEIVE
+```
+
+必须：
+
+```text
+409
+PURCHASE_INVALID_STATUS_TRANSITION
+```
+
+UI 不应在非法状态显示 Receive CTA。
+
+---
+
+# 十七、Scenario N — Accessibility Smoke
+
+浏览器实际操作：
+
+* Tab
+* Shift+Tab
+* ESC
+* Enter
+
+检查：
+
+```text
+Approval Modal
+OCC Modal
+Action Drawer
+```
+
+至少验证：
+
+* focus 进入 modal
+* Tab 不跑出 Dialog
+* ESC 关闭
+* 关闭后 focus 回触发按钮
+* focus ring 可见
+* 状态有文字而不是只有颜色
+
+这不是完整 WCAG audit。
+
+只做已实现功能 smoke。
+
+---
+
+# 十八、XYDC 5151 / 5147 处理
+
+保持 Phase 2.2 裁决。
+
+不要：
+
+```text
+5147 → 5151
+```
+
+Mock / Mapper：
+
+固定 fixture 可断言 5147。
+
+LIVE：
+
+不得断言固定 review count。
+
+如果浏览器过程中 XYDC live 数据继续变化：
+
+不是 V9.1 regression。
+
+---
+
+# 十九、发现 Bug 时怎么处理
+
+本阶段原则：
+
+如果发现：
+
+### P0 / P1 Blocking Bug
+
+例如：
+
+* 跨租户泄漏
+* 登录完全失败
+* Operations Today 完全不可用
+* SSE 完全不可用
+* VIEWER 能写
+* 核心页面真实数据被假数据覆盖
+
+可以进行：
+
+```text
+Minimal Blocking Fix
+```
+
+然后重新跑相关 Scenario 和 Regression。
+
+### P2 / P3 非阻塞
+
+记录为：
+
+```text
+POST-V9.1 BACKLOG
+```
+
+不要边验收边大修。
+
+---
+
+# 二十、质量门禁
+
+Browser Acceptance 后再次执行：
+
+```text
+pnpm -r typecheck
+pnpm --filter @crosspilot/api test
+pnpm --filter @crosspilot/domain test
+pnpm --filter @crosspilot/web test
+node scripts/run-evals.cjs
+pnpm --filter @crosspilot/web run build
+```
+
+对于：
+
+```text
+pnpm -r test
+```
+
+如唯一失败仍为：
+
+```text
+XYDC LIVE mutable review count
+```
+
+按 Phase 2.2 标记：
+
+```text
+KNOWN ENVIRONMENT-DEPENDENT TEST
+NOT RELEASE BLOCKER
+```
+
+但必须确认没有新增其它失败。
+
+---
+
+# 二十一、最终 Release 判定规则
+
+只有满足：
+
+```text
+No P0 blocker
+No P1 blocker
+
+Tenant isolation PASS
+Auth PASS
+VIEWER PASS
+Operations Today REST PASS
+Operations Today SSE PASS
+HITL PASS
+OCC PASS
+Workflow Persistence PASS
+Tool Center PASS
+Honest Data PASS
+Workspace Switch PASS
+Major Business Pages PASS
+Quality Gate PASS
+```
+
+才允许结论：
+
+```text
+V9.1 READY TO FREEZE
+```
+
+如果存在 P0/P1：
+
+结论必须：
+
+```text
+V9.1 NOT READY
+```
+
+不能因为“基本能用”就发布。
+
+---
+
+# 二十二、输出报告
+
+生成：
+
+`docs/00_governance/V9_1_FINAL_BROWSER_ACCEPTANCE_REPORT.md`
+
+必须包含：
+
+1. Executive Summary
+2. Runtime Environment
+3. Browser Test Matrix
+4. Login / Auth
+5. Workspace Switch
+6. SKU Context
+7. Operations Today REST
+8. Operations Today SSE
+9. HITL / OCC
+10. VIEWER RBAC
+11. Tool Center
+12. Orders
+13. Inventory
+14. Profit / Overview
+15. Reviews / Returns
+16. Business Analyst SSE
+17. Purchase Order
+18. Accessibility Smoke
+19. Bugs Found
+20. Blocking Fixes Applied
+21. Known Gaps
+22. XYDC Adjudication
+23. Final Quality Gate
+24. Release Decision
+25. Frozen Architecture Diff
+26. Stop Boundary
+
+---
+
+# 二十三、停止边界
+
+Browser Acceptance 做完之后：
+
+如果通过：
+
+停在：
+
+```text
+CrossPilot V9.1
+Final Browser Acceptance
+PASSED
+
+Release Decision:
+READY TO FREEZE
+```
+
+如果失败：
+
+停在：
+
+```text
+CrossPilot V9.1
+Final Browser Acceptance
+FAILED
+
+Release Decision:
+NOT READY
+```
+
+不要自动启动 Epic 4。
+
+不要自动实现 Known Gaps。
+
+不要自动做 V9.2。
+
+等待人工做最终 Release Freeze 决定。

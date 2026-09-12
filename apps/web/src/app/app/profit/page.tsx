@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
+import { displayAmount } from '../../../lib/catalog';
 import {
   TrendingUp,
   RotateCcw,
@@ -14,17 +15,30 @@ export default function ProfitPage() {
   const [dailyRecords, setDailyRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [returnMsg, setReturnMsg] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isViewer, setIsViewer] = useState(false);
+  const [simulateSkuId, setSimulateSkuId] = useState<string | null>(null);
+  const [simulateOrderItemId, setSimulateOrderItemId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sumRes, dailyRes] = await Promise.allSettled([
+      setIsViewer(ApiClient.isViewer());
+      setLoadError(null);
+      const [sumRes, dailyRes, ordersRes] = await Promise.allSettled([
         ApiClient.get<any>('/api/v1/profit/summary'),
         ApiClient.get<any[]>('/api/v1/profit/daily'),
+        ApiClient.get<any[]>('/api/v1/orders'),
       ]);
 
       if (sumRes.status === 'fulfilled') setSummary(sumRes.value);
+      else setLoadError('无法载入利润汇总');
       if (dailyRes.status === 'fulfilled') setDailyRecords(dailyRes.value);
+      if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
+        const firstItem = ordersRes.value[0]?.items?.[0];
+        setSimulateOrderItemId(firstItem?.id || null);
+        setSimulateSkuId(firstItem?.skuId || null);
+      }
     } catch (err) {
       console.error('无法载入利润数据:', err);
     } finally {
@@ -41,9 +55,13 @@ export default function ProfitPage() {
       setReturnMsg('正在创建退货记录并重新计算全天净利润与利润率...');
       const refundAmount = 29.99;
       
+      if (!simulateOrderItemId || !simulateSkuId) {
+        setReturnMsg('❌ 没有可用订单项，无法模拟退货');
+        return;
+      }
       const res = await ApiClient.post<any>('/api/v1/returns', {
-        orderItemId: 'ord_item_demo_01',
-        skuId: 'sku_white_001',
+        orderItemId: simulateOrderItemId,
+        skuId: simulateSkuId,
         refundAmount,
         reason: '买家自主退货：表面有细微划痕',
         returnDate: new Date().toISOString(),
@@ -87,7 +105,8 @@ export default function ProfitPage() {
         <div className="flex items-center space-x-3">
           <button
             onClick={handleSimulateReturn}
-            className="flex items-center space-x-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 text-xs font-semibold px-3 py-2 rounded-lg transition cursor-pointer"
+            disabled={isViewer || !simulateOrderItemId}
+            className="flex items-center space-x-2 bg-rose-600/20 hover:bg-rose-600/30 disabled:opacity-50 text-rose-300 border border-rose-500/40 text-xs font-semibold px-3 py-2 rounded-lg transition cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
             <span>模拟退货重算利润</span>
@@ -111,7 +130,7 @@ export default function ProfitPage() {
         <div className="bg-surface border border-border p-4 rounded-xl">
           <span className="text-xs text-gray-400 font-medium">销售额</span>
           <div className="text-xl font-bold text-white mt-1">
-            ${summary?.revenue?.toFixed(2) || '28,490.50'}
+            ${displayAmount(summary?.revenue)}
           </div>
           <span className="text-[10px] text-emerald-400 flex items-center mt-1">
             <ArrowUpRight className="w-3 h-3" /> Amazon 美国站
@@ -121,7 +140,7 @@ export default function ProfitPage() {
         <div className="bg-surface border border-border p-4 rounded-xl">
           <span className="text-xs text-gray-400 font-medium">采购成本 (COGS)</span>
           <div className="text-xl font-bold text-rose-400 mt-1">
-            -${summary?.cogs?.toFixed(2) || '8,075.00'}
+            -${displayAmount(summary?.cogs)}
           </div>
           <span className="text-[10px] text-gray-400 mt-1 block">
             供应商报价: $8.50 / 件
@@ -131,7 +150,7 @@ export default function ProfitPage() {
         <div className="bg-surface border border-border p-4 rounded-xl">
           <span className="text-xs text-gray-400 font-medium">Amazon 佣金与 FBA</span>
           <div className="text-xl font-bold text-rose-400 mt-1">
-            -${((summary?.amazonFees || 4273.58) + (summary?.fbaFee || 4275.0)).toFixed(2)}
+            -${summary ? displayAmount((summary.amazonFees ?? 0) + (summary.fbaFee ?? 0)) : 'N/A'}
           </div>
           <span className="text-[10px] text-gray-400 mt-1 block">
             15% 佣金 + $4.5/件 FBA
@@ -141,7 +160,7 @@ export default function ProfitPage() {
         <div className="bg-surface border border-border p-4 rounded-xl">
           <span className="text-xs text-gray-400 font-medium">PPC 广告花费</span>
           <div className="text-xl font-bold text-rose-400 mt-1">
-            -${summary?.adsCost?.toFixed(2) || '3,500.00'}
+            -${displayAmount(summary?.adsCost)}
           </div>
           <span className="text-[10px] text-blue-400 mt-1 block">
             ACOS: 12.3%
@@ -151,7 +170,7 @@ export default function ProfitPage() {
         <div className="bg-surface border border-border p-4 rounded-xl">
           <span className="text-xs text-gray-400 font-medium">退货损失</span>
           <div className="text-xl font-bold text-rose-400 mt-1">
-            -${summary?.returnLoss?.toFixed(2) || '89.97'}
+            -${displayAmount(summary?.returnLoss)}
           </div>
           <span className="text-[10px] text-amber-400 mt-1 block">
             退款总额 (退货损失)
@@ -161,10 +180,10 @@ export default function ProfitPage() {
         <div className="bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-xl">
           <span className="text-xs text-emerald-300 font-semibold">净利润</span>
           <div className="text-xl font-bold text-emerald-400 mt-1">
-            ${summary?.netProfit?.toFixed(2) || '8,276.95'}
+            ${displayAmount(summary?.netProfit)}
           </div>
           <span className="text-[10px] text-emerald-300 font-medium mt-1 block">
-            利润率: {((summary?.margin || 0.2905) * 100).toFixed(1)}% • ROI: {((summary?.roi || 0.715) * 100).toFixed(1)}%
+            利润率: {summary?.margin === undefined || summary?.margin === null ? 'N/A' : `${(summary.margin * 100).toFixed(1)}%`} • ROI: {summary?.roi === undefined || summary?.roi === null ? 'N/A' : `${(summary.roi * 100).toFixed(1)}%`}
           </span>
         </div>
       </div>

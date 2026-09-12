@@ -15,8 +15,16 @@ export * from './variance/variance-attribution.service.js';
 export * from './compliance/compliance-judge.service.js';
 export * from './advertising/ad-optimizer.service.js';
 export * from './listing/listing.types.js';
+export * from './listing/listing-claim.types.js';
+export * from './listing/unit-conversion.service.js';
+export * from './listing/claim-grounding.service.js';
+export * from './listing/claim-repair.service.js';
+export * from './listing/surface-claim-extractor.service.js';
 export * from './listing/marketplace-policy.profile.js';
 export * from './listing/listing-workflow-dag.service.js';
+export * from './knowledge/index.js';
+export * from './research/index.js';
+export * from './operations/index.js';
 
 export const DOMAIN_CONSTANTS = {
   DEFAULT_CURRENCY: 'USD',

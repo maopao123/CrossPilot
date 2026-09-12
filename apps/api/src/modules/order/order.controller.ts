@@ -5,15 +5,12 @@
   Param,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { OrderService } from './order.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import { WorkspaceGuard } from '../../common/guards/workspace.guard.js';
 import { CreateOrderInput, CreateOrderSchema } from '@crosspilot/shared';
 
 @Controller('orders')
-@UseGuards(WorkspaceGuard)
 export class OrderController {
   constructor(private orderService: OrderService) {}
 

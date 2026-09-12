@@ -51,9 +51,14 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition cursor-pointer">
+          <button
+            type="button"
+            disabled
+            title="本阶段不支持在页面新建产品，请使用已有目录"
+            className="flex items-center space-x-2 bg-blue-600/40 text-white text-xs font-semibold px-3 py-2 rounded-lg opacity-60 cursor-not-allowed"
+          >
             <Plus className="w-4 h-4" />
-            <span>新建产品</span>
+            <span>新建产品（未开放）</span>
           </button>
         </div>
       </div>

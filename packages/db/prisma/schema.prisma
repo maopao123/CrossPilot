@@ -69,6 +69,7 @@ model Workspace {
   inventoryRecommendations InventoryRecommendation[]
   analysisSessions         AnalysisSession[]
   agentTasks               AgentTask[]
+  workflowIdempotencyKeys  WorkflowIdempotency[]
   approvals                Approval[]
   knowledgeDocuments       KnowledgeDocument[]
   evalDatasets             EvalDataset[]
@@ -1059,29 +1060,51 @@ model AnalysisWaterfall {
 // ==========================================
 
 model AgentTask {
-  id             String          @id @default(uuid())
-  workspaceId    String          @map("workspace_id")
-  userId         String          @map("user_id")
-  taskType       String          @map("task_type") // LISTING_GENERATE, COMPLIANCE_CHECK, VOC_ANALYZE, VARIANCE_ATTRIBUTION, INVENTORY_PLAN
-  status         String          @default("COMPLETED") // PENDING, RUNNING, COMPLETED, FAILED
-  activeSkuId    String?         @map("active_sku_id")
-  inputJson      String          @map("input_json") @db.Text
-  resultJson     String?         @map("result_json") @db.Text
-  errorCode      String?         @map("error_code")
-  errorMessage   String?         @map("error_message")
-  startedAt      DateTime        @default(now()) @map("started_at")
-  completedAt    DateTime?       @map("completed_at")
-  createdAt      DateTime        @default(now()) @map("created_at")
+  id                String          @id @default(uuid())
+  workspaceId       String          @map("workspace_id")
+  userId            String?         @map("user_id")
+  taskType          String          @map("task_type") // LISTING_GENERATE, COMPLIANCE_CHECK, VOC_ANALYZE, VARIANCE_ATTRIBUTION, INVENTORY_PLAN, DAILY_OPERATION_WF05
+  status            String          @default("COMPLETED") // PENDING, RUNNING, WAITING_APPROVAL, COMPLETED, FAILED, PARTIALLY_APPROVED, PARTIAL_SUCCESS
+  activeSkuId       String?         @map("active_sku_id")
+  checkpointVersion Int             @default(1) @map("checkpoint_version")
+  checkpointedAt    DateTime?       @map("checkpointed_at")
+  workflowVersion   String?         @default("WF05_V1") @map("workflow_version")
+  currentStep       String?         @map("current_step")
+  inputJson         String          @map("input_json") @db.Text
+  resultJson        String?         @map("result_json") @db.Text
+  errorCode         String?         @map("error_code")
+  errorMessage      String?         @map("error_message")
+  startedAt         DateTime        @default(now()) @map("started_at")
+  completedAt       DateTime?       @map("completed_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at")
 
   workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user           User            @relation(fields: [userId], references: [id])
+  user           User?           @relation(fields: [userId], references: [id])
   sku            Sku?            @relation(fields: [activeSkuId], references: [id])
   steps          AgentStep[]
   toolExecutions ToolExecution[]
   approvals      Approval[]
 
   @@index([workspaceId])
+  @@index([checkpointVersion])
   @@map("agent_tasks")
+}
+
+model WorkflowIdempotency {
+  id             String   @id @default(uuid())
+  workspaceId    String   @map("workspace_id")
+  scope          String
+  idempotencyKey String   @map("idempotency_key")
+  taskId         String   @map("task_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, scope, idempotencyKey])
+  @@index([taskId])
+  @@index([workspaceId])
+  @@map("workflow_idempotency")
 }
 
 model AgentStep {
@@ -1134,7 +1157,7 @@ model Approval {
   targetType       String     @map("target_type")
   targetId         String     @map("target_id")
   requestedPayload String     @map("requested_payload") @db.Text
-  status           String     @default("PENDING") // PENDING, APPROVED, REJECTED
+  status           String     @default("PENDING") // PENDING, APPROVED, REJECTED, DISMISSED
   requestedBy      String     @map("requested_by")
   approvedBy       String?    @map("approved_by")
   requestedAt      DateTime   @default(now()) @map("requested_at")

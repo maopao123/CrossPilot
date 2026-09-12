@@ -78,3 +78,148 @@ export interface XydcRawTrend {
   metric_name: string;
   historical_data: XydcRawTrendPoint[];
 }
+
+/**
+ * Real Schema DTOs for XYDC MCP Remote Tool: get_asin_info
+ * Verified via live MCP discovery against https://mcp.xydc.com/mcp
+ */
+export interface XydcProductEntity {
+  asin: string;
+  country: string;
+  amazonUrl?: string;
+  smallPicUrl?: string;
+  bigPicUrl?: string;
+  title?: string;
+  currency?: string;
+  price?: string | number | null;
+  stars?: string | number | null;
+  ratings?: number | null;
+}
+
+export interface XydcGetAsinInfoResponse {
+  status: number;
+  cost_credits: number;
+  data: {
+    entities?: XydcProductEntity[];
+    error?: boolean;
+    reason?: string;
+    message?: string;
+  };
+}
+
+/**
+ * Real Schema DTOs for XYDC MCP Remote Tool: get_keyword_info
+ * Verified via live MCP discovery against https://mcp.xydc.com/mcp
+ */
+export interface XydcSearchTermTopAsin {
+  asin: string;
+  clickShare: string;
+  conversionShare: string;
+}
+
+export interface XydcSearchTermAbaReport {
+  reportFromDate: string;
+  reportToDate: string;
+  searchFrequencyRank: number;
+  weeklySearchVolume: number;
+  topAsins: XydcSearchTermTopAsin[];
+}
+
+export interface XydcSearchTermCostPerClick {
+  value: string;
+  minSuggestedBid: string;
+  maxSuggestedBid: string;
+}
+
+export interface XydcSearchTermEntity {
+  searchTerm: string;
+  clickConversionRate?: string | null;
+  competitiveDifficulty?: number | null;
+  organicRotation?: string | null;
+  abaReport?: XydcSearchTermAbaReport | null;
+  costPerClick?: XydcSearchTermCostPerClick | null;
+}
+
+export interface XydcGetKeywordInfoResponse {
+  status: number;
+  cost_credits: number;
+  data: {
+    total?: number;
+    list?: XydcSearchTermEntity[];
+    error?: boolean;
+    reason?: string;
+    message?: string;
+  };
+}
+
+/**
+ * Real Schema DTOs for XYDC MCP Remote Tool: get_asin_bsr_trends
+ * Verified via live MCP discovery against https://mcp.xydc.com/mcp
+ */
+export interface XydcBsrCategory {
+  categoryId: string;
+  name: string;
+  root: boolean;
+}
+
+export interface XydcBsrValue {
+  categoryId: string;
+  rank: number | null;
+}
+
+export interface XydcBsrTrendPoint {
+  date: string;
+  values: XydcBsrValue[];
+}
+
+export interface XydcGetBsrTrendsResponse {
+  status: number;
+  cost_credits: number;
+  data: {
+    asin?: string;
+    country?: string;
+    categoryTree?: XydcBsrCategory[];
+    trends?: XydcBsrTrendPoint[];
+    dateRangeNotice?: string;
+    error?: boolean;
+    reason?: string;
+    message?: string;
+  };
+}
+
+/**
+ * Real Schema DTOs for XYDC MCP Remote Tool: get_asin_info_trends
+ * Verified via live MCP discovery against https://mcp.xydc.com/mcp
+ */
+export interface XydcPriceDistribution {
+  display: string;
+  deal: string;
+  strikethrough: string;
+  origin: string;
+  prime: string;
+  coupon: string[];
+  promotion: string[];
+  subscribe: string[];
+  other: string[];
+}
+
+export interface XydcInfoTrendPoint {
+  date: string;
+  ratings: number | null;
+  stars: string;
+  priceDistribution: XydcPriceDistribution;
+}
+
+export interface XydcGetInfoTrendsResponse {
+  status: number;
+  cost_credits: number;
+  data: {
+    asin?: string;
+    country?: string;
+    trends?: XydcInfoTrendPoint[];
+    dateRangeNotice?: string;
+    error?: boolean;
+    reason?: string;
+    message?: string;
+  };
+}

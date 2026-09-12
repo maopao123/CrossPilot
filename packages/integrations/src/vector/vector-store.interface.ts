@@ -17,5 +17,14 @@ export interface VectorStore {
   disconnect(): Promise<void>;
   healthCheck(): Promise<ServiceHealthItem>;
   insert(collectionName: string, vectors: VectorRecord[]): Promise<void>;
-  search(collectionName: string, vector: number[], topK: number): Promise<VectorSearchResult[]>;
+  search(
+    collectionName: string,
+    vector: number[],
+    topK: number,
+    filterExpr?: string,
+    outputFields?: string[],
+  ): Promise<VectorSearchResult[]>;
+  flush?(collectionName: string): Promise<void>;
+  delete?(collectionName: string, ids: string[]): Promise<void>;
 }
+

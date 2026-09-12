@@ -67,6 +67,53 @@ export class MarketController {
     return this.marketService.getProductTrend(workspaceId, asin, metric, range, marketplace);
   }
 
+  @Get('market-research/review-health')
+  getProductReviewHealth(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('asin') asin: string,
+    @Query('marketplace') marketplace?: string,
+    @Query('skipCache') skipCache?: string,
+  ) {
+    return this.marketService.getProductReviewHealth(
+      workspaceId,
+      asin,
+      marketplace,
+      skipCache === 'true',
+    );
+  }
+
+  @Get('market-research/voc')
+  getProductVoc(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('asin') asin: string,
+    @Query('marketplace') marketplace?: string,
+    @Query('skipCache') skipCache?: string,
+  ) {
+    return this.marketService.getProductVoc(
+      workspaceId,
+      asin,
+      marketplace,
+      skipCache === 'true',
+    );
+  }
+
+  @Get('market-research/opportunity')
+  calculateOpportunity(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('keyword') keyword?: string,
+    @Query('asin') asin?: string,
+    @Query('marketplace') marketplace?: string,
+    @Query('skipCache') skipCache?: string,
+  ) {
+    return this.marketService.calculateOpportunity(
+      workspaceId,
+      keyword || 'marble toothbrush holder',
+      asin,
+      marketplace,
+      skipCache === 'true',
+    );
+  }
+
   @Get('competitors')
   getCompetitors(@CurrentWorkspace() workspaceId: string) {
     return this.marketService.getCompetitors(workspaceId);

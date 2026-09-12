@@ -1,7 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { IntegrationGateway } from '@crosspilot/integrations';
-import { MarketOverviewSnapshot } from '@crosspilot/shared';
+import { OpportunityScoreEngine } from '@crosspilot/domain';
+import {
+  MarketOverviewSnapshot,
+  MarketProduct,
+  ProductOpportunity,
+  ProductReviewHealthResult,
+  ResearchCostBudget,
+  ResearchEvidence,
+  TrendSummary,
+  VocProductAnalysisResult,
+} from '@crosspilot/shared';
 
 @Injectable()
 export class MarketService {
@@ -206,12 +216,22 @@ export class MarketService {
       { keyword, category, marketplace, limit },
       { workspaceId: workspaceId || 'default', traceId: `trace_${Date.now()}`, marketplace },
     );
+    const rawData = res.data;
+    const products = Array.isArray(rawData) ? rawData : rawData?.products || [];
+    const keywordMetric = rawData?.keywordMetric || null;
+    const query = rawData?.query || { keyword, marketplace };
+    const evidence = rawData?.evidence || [];
+
     return {
-      products: res.data || [],
-      total: Array.isArray(res.data) ? res.data.length : 0,
+      query,
+      keywordMetric,
+      products,
+      total: products.length,
+      evidence,
       provider: res.providerId,
       transport: res.transport,
       mode: res.mode,
+      compositeTrace: (res as any).compositeTrace,
       capturedAt: res.capturedAt,
     };
   }
@@ -256,8 +276,8 @@ export class MarketService {
   async getProductTrend(
     workspaceId: string,
     asin: string,
-    metric = 'SALES',
-    range = '90d',
+    metric = 'ALL',
+    range = '30d',
     marketplace = 'AMAZON_US',
   ) {
     const gateway = IntegrationGateway.getInstance();
@@ -266,12 +286,197 @@ export class MarketService {
       { asin, metric, range, marketplace },
       { workspaceId: workspaceId || 'default', traceId: `trace_${Date.now()}`, marketplace },
     );
+    const trends = Array.isArray(res.data) ? res.data : res.data ? [res.data] : [];
     return {
-      trend: res.data,
+      trend: trends.length > 0 ? trends[0] : null,
+      trends,
       provider: res.providerId,
       transport: res.transport,
       mode: res.mode,
       capturedAt: res.capturedAt,
+      metadata: res.metadata,
+      evidence: res.metadata?.evidence || [],
     };
   }
+
+  async getProductReviewHealth(
+    workspaceId: string,
+    asin: string,
+    marketplace = 'AMAZON_US',
+    skipCache = false,
+  ) {
+    const gateway = IntegrationGateway.getInstance();
+    const res = await gateway.executeCapability(
+      'review.product.health',
+      { asin, marketplace, skipCache },
+      { workspaceId: workspaceId || 'default', traceId: `trace_${Date.now()}`, marketplace },
+    );
+    return {
+      health: res.data,
+      provider: res.providerId,
+      transport: res.transport,
+      mode: res.mode,
+      capturedAt: res.capturedAt,
+      metadata: res.metadata,
+      evidence: res.metadata?.evidence || res.data?.evidence || [],
+    };
+  }
+
+  async getProductVoc(
+    workspaceId: string,
+    asin: string,
+    marketplace = 'AMAZON_US',
+    skipCache = false,
+  ) {
+    const gateway = IntegrationGateway.getInstance();
+    const res = await gateway.executeCapability(
+      'voc.product.analyze',
+      { asin, marketplace, skipCache },
+      { workspaceId: workspaceId || 'default', traceId: `trace_${Date.now()}`, marketplace },
+    );
+    return {
+      voc: res.data,
+      provider: res.providerId,
+      transport: res.transport,
+      mode: res.mode,
+      capturedAt: res.capturedAt,
+      metadata: res.metadata,
+      evidence: res.metadata?.evidence || res.data?.evidence || [],
+    };
+  }
+
+  async calculateOpportunity(
+    workspaceId: string,
+    keyword: string,
+    asin?: string,
+    marketplace = 'AMAZON_US',
+    skipCache = false,
+  ): Promise<ProductOpportunity> {
+    const traceId = `trace_opp_${Date.now()}`;
+    const gateway = IntegrationGateway.getInstance();
+
+    let xydcCredits = 0;
+    let firecrawlCredits = 0;
+    let totalRequests = 0;
+    let cacheHits = 0;
+
+    // 1. Search products and get composite keyword metrics
+    totalRequests++;
+    let products: MarketProduct[] = [];
+    let keywordMetric: any = null;
+    let searchEvidences: ResearchEvidence[] = [];
+
+    try {
+      const searchRes = await gateway.executeCapability(
+        'market.product.search',
+        { keyword, marketplace, limit: 10 },
+        { workspaceId: workspaceId || 'default', traceId, marketplace },
+      );
+      if (searchRes.mode === 'CACHED') cacheHits++;
+      else xydcCredits += 1;
+
+      const rawSearch = searchRes.data;
+      products = Array.isArray(rawSearch) ? rawSearch : rawSearch?.products || [];
+      keywordMetric = rawSearch?.keywordMetric || null;
+      searchEvidences = rawSearch?.evidence || [];
+    } catch (err) {
+      // Graceful fallback
+    }
+
+    // 2. Select representative ASIN (provided asin, or top 1 from search results, or default)
+    const targetAsin = asin || products[0]?.asin || 'B0BFGNSXYL';
+
+    // 3. Fetch Trend for representative ASIN
+    totalRequests++;
+    let topAsinTrend: TrendSummary | null = null;
+    let trendEvidences: ResearchEvidence[] = [];
+    try {
+      const trendRes = await gateway.executeCapability(
+        'market.product.trend',
+        { asin: targetAsin, metric: 'ALL', range: '30d', marketplace },
+        { workspaceId: workspaceId || 'default', traceId, marketplace },
+      );
+      if (trendRes.mode === 'CACHED') cacheHits++;
+      else xydcCredits += 1;
+
+      const trends = Array.isArray(trendRes.data) ? trendRes.data : trendRes.data ? [trendRes.data] : [];
+      if (trends.length > 0 && trends[0]?.summary) {
+        topAsinTrend = trends[0].summary;
+      }
+      trendEvidences = trendRes.metadata?.evidence || [];
+    } catch (err) {
+      // Graceful fallback
+    }
+
+    // 4. Fetch Review Health for representative ASIN
+    totalRequests++;
+    let productReviewHealth: ProductReviewHealthResult | null = null;
+    let reviewEvidences: ResearchEvidence[] = [];
+    try {
+      const healthRes = await gateway.executeCapability(
+        'review.product.health',
+        { asin: targetAsin, marketplace, skipCache },
+        { workspaceId: workspaceId || 'default', traceId, marketplace },
+      );
+      if (healthRes.mode === 'CACHED') cacheHits++;
+      else xydcCredits += 1;
+
+      productReviewHealth = healthRes.data;
+      reviewEvidences = healthRes.metadata?.evidence || healthRes.data?.evidence || [];
+    } catch (err) {
+      // Graceful fallback
+    }
+
+    // 5. Fetch External VOC for representative ASIN
+    totalRequests++;
+    let vocAnalysis: VocProductAnalysisResult | null = null;
+    let vocEvidences: ResearchEvidence[] = [];
+    try {
+      const vocRes = await gateway.executeCapability(
+        'voc.product.analyze',
+        { asin: targetAsin, marketplace, skipCache },
+        { workspaceId: workspaceId || 'default', traceId, marketplace },
+      );
+      if (vocRes.mode === 'CACHED') cacheHits++;
+      else firecrawlCredits += 5;
+
+      vocAnalysis = vocRes.data;
+      vocEvidences = vocRes.metadata?.evidence || vocRes.data?.evidence || [];
+    } catch (err) {
+      // Graceful fallback
+    }
+
+    // Aggregate all unique evidences
+    const allEvidences = [
+      ...searchEvidences,
+      ...trendEvidences,
+      ...reviewEvidences,
+      ...vocEvidences,
+    ];
+
+    // Compute Cost Budget (Strictly null USD without verified provider billing API)
+    const costBudget: ResearchCostBudget = {
+      xydcCredits,
+      firecrawlCredits,
+      totalRequests,
+      cacheHits,
+      estimatedCostUsd: null,
+      costDisclaimer: '当前 Provider (XYDC / Firecrawl) 尚未接入官方实时计费账单接口，不虚构估算美元金额。',
+    };
+
+    // 6. Execute OpportunityScoreEngine
+    return OpportunityScoreEngine.evaluate({
+      keyword,
+      marketplace,
+      representativeAsin: targetAsin,
+      keywordMetric,
+      products,
+      topAsinTrend,
+      productReviewHealth,
+      vocAnalysis,
+      evidences: allEvidences,
+      costBudget,
+    });
+  }
 }
+

@@ -83,7 +83,7 @@ describe('V9 Incremental Upgrade Integration Tests', () => {
         { revenue: 29.99, cogs: 5.8 },
         'ws_test_001',
       );
-      const history = await toolCenterService.listExecutions();
+      const history = await toolCenterService.listExecutions(20, 'ws_test_001');
       expect(history.length).toBeGreaterThan(0);
       expect(history[0].toolId).toBe('finance.profit.calculate');
       expect(history[0].status).toBe('SUCCESS');

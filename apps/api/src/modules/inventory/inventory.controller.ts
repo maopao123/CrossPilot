@@ -4,14 +4,11 @@
   Get,
   Param,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import { WorkspaceGuard } from '../../common/guards/workspace.guard.js';
 
 @Controller()
-@UseGuards(WorkspaceGuard)
 export class InventoryController {
   constructor(private inventoryService: InventoryService) {}
 

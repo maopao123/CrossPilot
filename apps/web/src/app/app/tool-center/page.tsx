@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ApiClient } from '@/lib/api-client';
 import { getStatusLabel } from '@/constants/ui-labels';
 import {
@@ -56,239 +56,12 @@ interface ToolMeta {
   };
 }
 
-const INITIAL_TOOLS: ToolMeta[] = [
-  {
-    id: 'creative.image.generate',
-    name: '电商高转化商品图生成器',
-    category: 'CREATIVE',
-    description: '基于商品卖点、场景提示词与风格预设，生成高分辨率亚马逊主图与附图素材。',
-    version: '1.0.0',
-    costEstimate: { amount: 0.04, unit: 'USD' },
-    timeoutMs: 15000,
-    tags: ['creative', 'ai-image', 'amazon'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        prompt: {
-          name: 'prompt',
-          label: '创意提示词 (Prompt)',
-          type: 'textarea',
-          required: true,
-          defaultValue: 'Carrara natural marble toothbrush holder, clean modern bathroom vanity, soft daylight',
-          placeholder: '输入详细的商品与场景描述...',
-        },
-        style: {
-          name: 'style',
-          label: '视觉风格',
-          type: 'select',
-          defaultValue: 'luxury_minimalist',
-          options: [
-            { label: '亚马逊标准白底棚拍 (Studio White)', value: 'studio_white' },
-            { label: '轻奢极简北欧风 (Luxury Minimalist)', value: 'luxury_minimalist' },
-            { label: '真实生活家居场景 (Home Lifestyle)', value: 'home_lifestyle' },
-          ],
-        },
-        aspectRatio: {
-          name: 'aspectRatio',
-          label: '宽高比例',
-          type: 'select',
-          defaultValue: '1:1',
-          options: [
-            { label: '1:1 (2000x2000 亚马逊主图)', value: '1:1' },
-            { label: '4:3 (常见辅图)', value: '4:3' },
-            { label: '16:9 (横版宽幅/A+)', value: '16:9' },
-          ],
-        },
-      },
-    },
-  },
-  {
-    id: 'creative.infographic.generate',
-    name: '卖点标注与孔径尺寸信息图生成器',
-    category: 'CREATIVE',
-    description: '自动基于商品关键事实生成带刻度尺标注、重量图示与防滑垫解构的专业亚马逊第 2/3 张卖点图。',
-    version: '1.0.0',
-    costEstimate: { amount: 0.03, unit: 'USD' },
-    timeoutMs: 12000,
-    tags: ['creative', 'infographic', 'dimensions'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        productTitle: {
-          name: 'productTitle',
-          label: '产品主标题',
-          type: 'string',
-          required: true,
-          defaultValue: 'POLEGAS Natural Marble Toothbrush Holder',
-        },
-        slotDiameterInch: {
-          name: 'slotDiameterInch',
-          label: '升级插槽孔径 (英寸)',
-          type: 'number',
-          defaultValue: 1.5,
-        },
-        netWeightLbs: {
-          name: 'netWeightLbs',
-          label: '产品净重 (磅)',
-          type: 'number',
-          defaultValue: 3.57,
-        },
-      },
-    },
-  },
-  {
-    id: 'compliance.listing.check',
-    name: 'Listing 合规与宣称真实性判决器',
-    category: 'OPERATION',
-    description: '严格审计亚马逊商品标题、五点描述与商品详情，自动拦截医疗/FDA虚假宣称、极值排行夸大与孔径尺寸隐患。',
-    version: '1.0.0',
-    costEstimate: { amount: 0, unit: 'USD' },
-    timeoutMs: 8000,
-    tags: ['listing', 'compliance', 'amazon'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: {
-          name: 'title',
-          label: '商品标题 (Title)',
-          type: 'string',
-          required: true,
-          defaultValue: 'POLEGAS Natural Marble Toothbrush Holder (Carrara White) - 1.5" Wide Universal Slots',
-        },
-        bulletPoints: {
-          name: 'bulletPoints',
-          label: '五点描述 (Bullet Points)',
-          type: 'textarea',
-          required: true,
-          defaultValue: '100% Authentic Natural Marble with organic veining, 3.57 lbs weight prevents tipping over.\n1.5-inch universal compartments comfortably fit Oral-B and Sonicare electric toothbrushes.\nBottom features 4x cushioned EVA pads to protect vanity granite countertops from moisture.',
-        },
-      },
-    },
-  },
-  {
-    id: 'finance.profit.calculate',
-    name: '财务利润核算工具 (Profit Calculator)',
-    category: 'DATA',
-    description: '精确核算单件商品或周期的毛利、净利润、亚马逊佣金、FBA配送费与利润率，杜绝浮点数漂移。',
-    version: '1.0.0',
-    costEstimate: { amount: 0, unit: 'USD' },
-    timeoutMs: 5000,
-    tags: ['finance', 'profit', 'amazon'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        revenue: {
-          name: 'revenue',
-          label: '销售收入 ($)',
-          type: 'number',
-          required: true,
-          defaultValue: 29.99,
-        },
-        cogs: {
-          name: 'cogs',
-          label: '商品采购成本 COGS ($)',
-          type: 'number',
-          required: true,
-          defaultValue: 5.80,
-        },
-        referralFeeRate: {
-          name: 'referralFeeRate',
-          label: '亚马逊佣金比例',
-          type: 'number',
-          defaultValue: 0.15,
-        },
-        fbaFee: {
-          name: 'fbaFee',
-          label: 'FBA 履约配送费 ($)',
-          type: 'number',
-          defaultValue: 4.50,
-        },
-        adSpend: {
-          name: 'adSpend',
-          label: '平摊广告花费 ($)',
-          type: 'number',
-          defaultValue: 3.20,
-        },
-      },
-    },
-  },
-  {
-    id: 'operation.keyword.combine',
-    name: '关键词矩阵笛卡尔组合与去重器',
-    category: 'OPERATION',
-    description: '自动对核心词根、材质修饰词及场景修饰词进行矩阵组合与去重，生成 250 字节合规 Search Terms。',
-    version: '1.0.0',
-    costEstimate: { amount: 0, unit: 'USD' },
-    timeoutMs: 5000,
-    tags: ['keywords', 'seo', 'operation'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        seedKeywords: {
-          name: 'seedKeywords',
-          label: '核心词根 (逗号分隔)',
-          type: 'string',
-          required: true,
-          defaultValue: 'toothbrush holder, toothbrush stand, electric caddy',
-        },
-        modifiers: {
-          name: 'modifiers',
-          label: '材质与场景修饰词',
-          type: 'string',
-          required: true,
-          defaultValue: 'natural marble, solid stone, wide slot, non slip, modern luxury vanity',
-        },
-      },
-    },
-  },
-  {
-    id: 'operation.listing.publish',
-    name: '亚马逊 Listing RPA 自动化填报发布器',
-    category: 'OPERATION',
-    description: '将经过合规判决与人工批准的 Listing 结构化字段自动委派至 RPA 引擎，执行打开 Seller Central、填报变体信息并提交审核。',
-    version: '1.0.0',
-    costEstimate: { amount: 0.10, unit: 'USD' },
-    timeoutMs: 60000,
-    tags: ['rpa', 'seller-central', 'publish'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        skuCode: {
-          name: 'skuCode',
-          label: '目标 SKU 编码',
-          type: 'string',
-          required: true,
-          defaultValue: 'MTH-GREEN-001',
-        },
-        title: {
-          name: 'title',
-          label: '商品标题',
-          type: 'string',
-          required: true,
-          defaultValue: 'POLEGAS Natural Marble Toothbrush Holder - 1.5" Wide Slots',
-        },
-        price: {
-          name: 'price',
-          label: '发布标价 ($)',
-          type: 'number',
-          required: true,
-          defaultValue: 29.99,
-        },
-      },
-    },
-  },
-];
-
 export default function ToolCenterPage() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [selectedTool, setSelectedTool] = useState<ToolMeta>(INITIAL_TOOLS[0]);
-  const [formData, setFormData] = useState<Record<string, any>>(() => {
-    const init: Record<string, any> = {};
-    for (const [k, v] of Object.entries(INITIAL_TOOLS[0].inputSchema.properties)) {
-      if (v.defaultValue !== undefined) init[k] = v.defaultValue;
-    }
-    return init;
-  });
+  const [catalogTools, setCatalogTools] = useState<ToolMeta[]>([]);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [selectedTool, setSelectedTool] = useState<ToolMeta | null>(null);
+  const [formData, setFormData] = useState<Record<string, any>>({});
   const [isRunning, setIsRunning] = useState(false);
   const [executionResult, setExecutionResult] = useState<any>(null);
   const [executionHistory, setExecutionHistory] = useState<any[]>([
@@ -310,6 +83,22 @@ export default function ToolCenterPage() {
     },
   ]);
 
+  useEffect(() => {
+    async function loadCatalog() {
+      try {
+        const tools = await ApiClient.get<ToolMeta[]>('/api/v1/tools');
+        const list = Array.isArray(tools) ? tools : [];
+        setCatalogTools(list);
+        if (list.length > 0) {
+          handleSelectTool(list[0]);
+        }
+      } catch (err: any) {
+        setCatalogError(err?.message || '无法载入工具目录');
+      }
+    }
+    loadCatalog();
+  }, []);
+
   const handleSelectTool = (tool: ToolMeta) => {
     setSelectedTool(tool);
     setExecutionResult(null);
@@ -325,6 +114,7 @@ export default function ToolCenterPage() {
   };
 
   const handleRunTool = async () => {
+    if (ApiClient.isViewer() || !selectedTool) return;
     setIsRunning(true);
     setExecutionResult(null);
 
@@ -369,8 +159,8 @@ export default function ToolCenterPage() {
 
   const filteredTools =
     selectedCategory === 'ALL'
-      ? INITIAL_TOOLS
-      : INITIAL_TOOLS.filter((t) => t.category === selectedCategory);
+      ? catalogTools
+      : catalogTools.filter((t) => t.category === selectedCategory);
 
   return (
     <div className="space-y-6">
@@ -400,7 +190,7 @@ export default function ToolCenterPage() {
         <div className="mt-4 md:mt-0 flex items-center space-x-3 text-xs">
           <div className="px-3 py-2 bg-surface-elevated rounded-lg border border-border text-gray-300 flex items-center space-x-2">
             <Layers className="w-4 h-4 text-blue-400" />
-            <span>已注册工具: <strong className="text-white">{INITIAL_TOOLS.length}</strong></span>
+            <span>已注册工具: <strong className="text-white">{catalogTools.length}</strong></span>
           </div>
           <div className="px-3 py-2 bg-surface-elevated rounded-lg border border-border text-gray-300 flex items-center space-x-2">
             <Sliders className="w-4 h-4 text-purple-400" />
@@ -437,8 +227,11 @@ export default function ToolCenterPage() {
             可用工具列表 ({filteredTools.length})
           </div>
           <div className="space-y-2 max-h-[700px] overflow-y-auto pr-1">
+            {catalogError && (
+              <div className="text-xs text-rose-400">{catalogError}</div>
+            )}
             {filteredTools.map((tool) => {
-              const isSelected = selectedTool.id === tool.id;
+              const isSelected = selectedTool?.id === tool.id;
               return (
                 <div
                   key={tool.id}
@@ -466,7 +259,7 @@ export default function ToolCenterPage() {
                   <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between text-[11px] text-gray-400">
                     <span className="font-mono text-gray-500 text-[10px]">{tool.id}</span>
                     <span className="text-gray-400 font-medium">
-                      预估成本: {tool.costEstimate.amount > 0 ? `$${tool.costEstimate.amount}` : '免费'}
+                      预估成本: {(tool.costEstimate?.amount || 0) > 0 ? `$${tool.costEstimate?.amount}` : '免费'}
                     </span>
                   </div>
                 </div>
@@ -508,6 +301,12 @@ export default function ToolCenterPage() {
 
         {/* Right Column: Tool Executor & Form (8 cols) */}
         <div className="lg:col-span-8 space-y-6">
+          {!selectedTool ? (
+            <div className="bg-surface border border-border rounded-xl p-6 text-sm text-gray-400">
+              {catalogError || '正在载入工具目录...'}
+            </div>
+          ) : (
+          <>
           {/* Tool Detail Header */}
           <div className="bg-surface border border-border rounded-xl p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-border gap-2">
@@ -526,7 +325,7 @@ export default function ToolCenterPage() {
                   v{selectedTool.version}
                 </span>
                 <span className="px-2 py-1 bg-surface-elevated rounded border border-border text-gray-400 font-mono">
-                  超时: {selectedTool.timeoutMs / 1000}秒
+                  超时: {(selectedTool.timeoutMs || 8000) / 1000}秒
                 </span>
               </div>
             </div>
@@ -539,7 +338,7 @@ export default function ToolCenterPage() {
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(selectedTool.inputSchema.properties).map(([fieldKey, prop]) => {
+                {Object.entries(selectedTool.inputSchema?.properties || {}).map(([fieldKey, prop]) => {
                   const val = formData[fieldKey] !== undefined ? formData[fieldKey] : '';
                   const isFullWidth = prop.type === 'textarea' || prop.type === 'array';
 
@@ -602,14 +401,14 @@ export default function ToolCenterPage() {
                   <span>
                     单次运行费用:{' '}
                     <strong className="text-white">
-                      {selectedTool.costEstimate.amount > 0 ? `$${selectedTool.costEstimate.amount} USD` : '$0.00 (免费)'}
+                      {(selectedTool.costEstimate?.amount || 0) > 0 ? `$${selectedTool.costEstimate?.amount} USD` : '$0.00 (免费)'}
                     </strong>
                   </span>
                 </div>
 
                 <button
                   onClick={handleRunTool}
-                  disabled={isRunning}
+                  disabled={isRunning || ApiClient.isViewer()}
                   className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg text-xs font-semibold text-white transition ${
                     isRunning
                       ? 'bg-blue-600/50 cursor-not-allowed'
@@ -708,6 +507,8 @@ export default function ToolCenterPage() {
                 </pre>
               </div>
             </div>
+          )}
+          </>
           )}
         </div>
       </div>

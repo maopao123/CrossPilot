@@ -98,10 +98,21 @@ export interface ListingKnowledgeEvidence {
     | 'AMAZON_GUIDELINE'
     | 'SEO_REFERENCE'
     | 'COSMO_RESEARCH'
-    | 'GEO_RESEARCH';
-  authorityLevel: 'AUTHORITY' | 'OPTIMIZATION' | 'CONTEXT';
+    | 'GEO_RESEARCH'
+    | 'INTERNAL_GUIDE'
+    | 'RUFUS_QA_PATTERN';
+  authorityLevel: 'AUTHORITY' | 'OPTIMIZATION' | 'CONTEXT' | 'INTENT';
   quotedText: string;
+  citationId?: string;
+  chunkId?: string;
+  documentId?: string;
+  title?: string;
+  score?: number;
+  marketplace?: string;
 }
+
+import { ListingClaim } from './listing-claim.types.js';
+export * from './listing-claim.types.js';
 
 export interface ListingDraftV2 {
   marketplace: string;
@@ -141,11 +152,25 @@ export interface ListingDraftV2 {
     coveredBy: ('TITLE' | 'BULLET' | 'DESCRIPTION' | 'A_PLUS')[];
     answerSnippet?: string;
   }>;
-  claims: Array<{
-    claim: string;
-    factIds: string[];
-  }>;
+  claims: ListingClaim[];
+  declaredClaims?: ListingClaim[];
+  surfaceClaims?: ListingClaim[];
+  declaredClaimGroundingRate?: number;
+  finalSurfaceGroundingRate?: number;
+  repairedClaimsCount?: number;
+  isRepaired?: boolean;
   knowledgeEvidence?: ListingKnowledgeEvidence[];
+  knowledgeMode?: 'LIVE' | 'DEGRADED' | 'STATIC_FALLBACK';
+  knowledgeGateStatus?: 'SUFFICIENT' | 'DEGRADED_PASS' | 'INSUFFICIENT';
+  knowledgeTrace?: any;
   generationSource: string;
+  generationMode?: 'AI' | 'TEMPLATE_FALLBACK' | 'LEGACY_TEMPLATE';
   modelUsed?: string;
+  promptVersion?: string;
+  llmUsage?: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+    totalTokens: number | null;
+    estimatedCostUsd: number | null;
+  };
 }

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -63,6 +64,27 @@ export class PurchaseService {
     workspaceId: string,
     input: CreatePurchaseOrderInput,
   ): Promise<PurchaseOrderInfo> {
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id: input.supplierId, workspaceId },
+    });
+    if (!supplier) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: 'Supplier not found in this workspace',
+      });
+    }
+    for (const item of input.items) {
+      const sku = await this.prisma.sku.findFirst({
+        where: { id: item.skuId, workspaceId },
+      });
+      if (!sku) {
+        throw new NotFoundException({
+          code: ErrorCodes.RESOURCE_NOT_FOUND,
+          message: `SKU '${item.skuId}' not found in this workspace`,
+        });
+      }
+    }
+
     // Calculate total amount
     const totalAmount = input.items.reduce(
       (sum, item) => sum + item.quantity * item.unitCost,
@@ -106,10 +128,7 @@ export class PurchaseService {
     poId: string,
   ): Promise<PurchaseOrderInfo> {
     const po = await this.getPurchaseOrderById(workspaceId, poId);
-    PurchaseOrderStateMachine.assertTransition(
-      po.status as PurchaseOrderStatus,
-      'CONFIRMED',
-    );
+    this.assertPoTransition(po.status as PurchaseOrderStatus, 'CONFIRMED');
 
     const updated = await this.prisma.purchaseOrder.update({
       where: { id: poId },
@@ -147,10 +166,7 @@ export class PurchaseService {
         });
       }
 
-      PurchaseOrderStateMachine.assertTransition(
-        po.status as PurchaseOrderStatus,
-        'SHIPPED',
-      );
+      this.assertPoTransition(po.status as PurchaseOrderStatus, 'SHIPPED');
 
       // Update PO status to SHIPPED and increase inbound on inventory balance
       const updated = await tx.purchaseOrder.update({
@@ -217,10 +233,7 @@ export class PurchaseService {
         });
       }
 
-      PurchaseOrderStateMachine.assertTransition(
-        po.status as PurchaseOrderStatus,
-        'RECEIVED',
-      );
+      this.assertPoTransition(po.status as PurchaseOrderStatus, 'RECEIVED');
 
       // Validate each received item belongs to this PO and check over-receipt
       for (const recItem of input.items) {
@@ -326,6 +339,20 @@ export class PurchaseService {
 
       return this.mapPo(updatedPo);
     });
+  }
+
+  private assertPoTransition(
+    current: PurchaseOrderStatus,
+    next: PurchaseOrderStatus,
+  ): void {
+    try {
+      PurchaseOrderStateMachine.assertTransition(current, next);
+    } catch (err: any) {
+      throw new ConflictException({
+        code: ErrorCodes.PURCHASE_INVALID_STATUS_TRANSITION,
+        message: err?.message || 'Invalid purchase order status transition',
+      });
+    }
   }
 
   private mapPo(po: any): PurchaseOrderInfo {

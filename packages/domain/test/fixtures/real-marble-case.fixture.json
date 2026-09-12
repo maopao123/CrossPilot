@@ -1,0 +1,2978 @@
+{
+  "keyword": "marble toothbrush holder",
+  "marketplace": "AMAZON_US",
+  "representativeAsin": "B0BFGNSXYL",
+  "keywordMetric": {
+    "source": "XYDC",
+    "marketplace": "AMAZON_US",
+    "keyword": "marble toothbrush holder",
+    "searchVolume": 1432,
+    "abaRank": 133475,
+    "competition": 0.59,
+    "relevance": null,
+    "growth": null,
+    "cpc": 0.93,
+    "topAsins": [
+      "B0DQL19ZVM",
+      "B0BFGNSXYL",
+      "B0CTGTJZBM"
+    ],
+    "capturedAt": "2026-09-11T09:34:43.111Z"
+  },
+  "products": [
+    {
+      "source": "XYDC",
+      "marketplace": "AMAZON_US",
+      "externalId": "B0DQL19ZVM",
+      "asin": "B0DQL19ZVM",
+      "title": "BCS Toothbrush Holder for Bathrooms, 4 Slots Marble Toothbrush and Toothpaste Holder Stand Bathroom Organizer Countertop for Electric Toothbrush, Floss, Razor, Comb - Karibib Ice",
+      "brand": null,
+      "category": null,
+      "price": 36.99,
+      "monthlySales": null,
+      "monthlyRevenue": null,
+      "rating": 4.3,
+      "reviewCount": 103,
+      "bsr": null,
+      "imageUrl": "https://m.media-amazon.com/images/I/51wDUkOc5vL._AC_UY512_.jpg",
+      "sourceUrl": "https://www.amazon.com/dp/B0DQL19ZVM",
+      "capturedAt": "2026-09-11T09:34:43.356Z"
+    },
+    {
+      "source": "XYDC",
+      "marketplace": "AMAZON_US",
+      "externalId": "B0BFGNSXYL",
+      "asin": "B0BFGNSXYL",
+      "title": "GFWARE Toothbrush Holders for Bathrooms, 5 Slots Bamboo Toothbrush Holder Kids Electric Toothbrush Holder and Toothpaste Holder for Bathroom Countertop Accessories Storage, Marble Toothbrush Organizer",
+      "brand": null,
+      "category": null,
+      "price": 9.99,
+      "monthlySales": null,
+      "monthlyRevenue": null,
+      "rating": 4.6,
+      "reviewCount": 5147,
+      "bsr": null,
+      "imageUrl": "https://m.media-amazon.com/images/I/613FPhzNozL._AC_UY512_.jpg",
+      "sourceUrl": "https://www.amazon.com/dp/B0BFGNSXYL",
+      "capturedAt": "2026-09-11T09:34:43.356Z"
+    },
+    {
+      "source": "XYDC",
+      "marketplace": "AMAZON_US",
+      "externalId": "B0CTGTJZBM",
+      "asin": "B0CTGTJZBM",
+      "title": "Diatomite Toothbrush Holders Tooth Brush Organizer - Marble White | Water-Absorbent Material, 3 Slots for Electric Toothbrush and Toothpaste, for Bathroom Countertop, Shower, Vanity",
+      "brand": null,
+      "category": null,
+      "price": 11.99,
+      "monthlySales": null,
+      "monthlyRevenue": null,
+      "rating": 4.6,
+      "reviewCount": 1053,
+      "bsr": null,
+      "imageUrl": "https://m.media-amazon.com/images/I/61KxYDSONYL._AC_UY512_.jpg",
+      "sourceUrl": "https://www.amazon.com/dp/B0CTGTJZBM",
+      "capturedAt": "2026-09-11T09:34:43.356Z"
+    }
+  ],
+  "topAsinTrend": {
+    "startValue": 1024,
+    "endValue": 834,
+    "minValue": 518,
+    "maxValue": 1055,
+    "averageValue": 798.68,
+    "changeAbsolute": -190,
+    "changePercent": -18.55,
+    "direction": "RANK_IMPROVED"
+  },
+  "productReviewHealth": {
+    "asin": "B0BFGNSXYL",
+    "marketplace": "AMAZON_US",
+    "averageRating": 4.6,
+    "totalReviewCount": 5147,
+    "analyzedReviewCount": null,
+    "ratingDistribution": null,
+    "summary": "当前公开累计评价数：5,147，平均星级：4.6。当前 Provider 未提供单条 Review 文本，因此尚未进行文本级 VOC 分析。",
+    "supportedDimensions": [
+      "averageRating",
+      "totalReviewCount",
+      "ratingTrend",
+      "reviewCountTrend"
+    ],
+    "unsupportedDimensions": [
+      "painPoints",
+      "praisePoints",
+      "buyerMotivations",
+      "negativeFeedback",
+      "reviewTextExtraction"
+    ],
+    "evidenceNotice": "商品评价与口碑指标基于平台公开数据，非物理工程质检结论。当前 XYDC MCP 工具链未提供单品粒度 Review 文本挖掘工具（仅提供星级与评价总量指标）。",
+    "evidence": [
+      {
+        "evidenceId": "ev_rev_1789119283807_h3hh4",
+        "source": "XYDC",
+        "providerId": "xydc",
+        "transport": "MCP",
+        "type": "REVIEW_METRIC",
+        "sourceId": "B0BFGNSXYL",
+        "title": "XYDC 官方商品评价与星级健康度 (B0BFGNSXYL)",
+        "content": "商品 ASIN: B0BFGNSXYL\n公开平均评分: 4.6★\n公开累计评价总数: 5,147\n已分析 Review 文本数: 0 (当前 Provider 未提供单条评论文本)\n数据来源: XYDC Remote Tool get_asin_info (耗费: 1 Credits)",
+        "mode": "LIVE",
+        "capturedAt": "2026-09-11T09:34:43.807Z",
+        "costCredits": 1,
+        "metadata": {
+          "asin": "B0BFGNSXYL",
+          "marketplace": "AMAZON_US",
+          "averageRating": 4.6,
+          "totalReviewCount": 5147,
+          "analyzedReviewCount": null,
+          "supportedDimensions": [
+            "averageRating",
+            "totalReviewCount",
+            "ratingTrend",
+            "reviewCountTrend"
+          ],
+          "unsupportedDimensions": [
+            "painPoints",
+            "praisePoints",
+            "buyerMotivations",
+            "negativeFeedback",
+            "reviewTextExtraction"
+          ]
+        }
+      }
+    ]
+  },
+  "vocAnalysis": {
+    "asin": "B0BFGNSXYL",
+    "marketplace": "AMAZON_US",
+    "vocSourceType": "EXTERNAL_VOC",
+    "analysisScope": {
+      "type": "CATEGORY",
+      "targetAsin": "B0BFGNSXYL",
+      "query": "marble toothbrush holder",
+      "totalAnalyzedItems": 25,
+      "exactProductItems": 0,
+      "brandProductItems": 0,
+      "categoryItems": 16,
+      "genericItems": 9,
+      "searchSnippetCount": 25,
+      "fullTextCount": 0,
+      "uniqueSourcePages": 25,
+      "knownAuthorCount": "[REDACTED]",
+      "unknownAuthorCount": "[REDACTED]",
+      "uniqueKnownAuthors": "[REDACTED]",
+      "uniqueAuthors": "[REDACTED]",
+      "sourceDistribution": {
+        "REVIEWS": 8,
+        "YOUTUBE": 1,
+        "WEB": 4,
+        "SOCIAL": 1,
+        "FORUM": 1,
+        "REDDIT": 10
+      },
+      "domainDistribution": {
+        "www.walmart.com": 1,
+        "www.cb2.com": 1,
+        "www.target.com": 2,
+        "www.amazon.com": 2,
+        "www.homedepot.com": 1,
+        "www.youtube.com": 1,
+        "nymag.com": 1,
+        "www.etsy.com": 1,
+        "www.instagram.com": 1,
+        "identifyasmodern.com": 1,
+        "www.thewhitecompany.com": 1,
+        "metteditmer.com": 1,
+        "www.sferra.com": 1,
+        "www.reddit.com": 10
+      }
+    },
+    "totalReviewCount": 25,
+    "analyzedReviewCount": 25,
+    "averageRating": null,
+    "ratingDistribution": null,
+    "painPoints": [
+      {
+        "topic": "Interior corners difficult to clean without narrow brush",
+        "category": "USABILITY",
+        "frequency": 21,
+        "percentage": 84,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "21 of 25 analyzed discussions (Category VOC)",
+        "severity": "LOW",
+        "quotes": [
+          {
+            "quoteText": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush.",
+            "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Shop Modern Marble Toothbrush-Razor Cup.",
+            "url": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "In stock Rating 4.8(171)I loved loved loved this toothbrush holder!",
+            "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_31e9och9_1",
+          "evi_extvoc_fc_fc_txt_glb39v0d_2",
+          "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+          "evi_extvoc_fc_fc_txt_jruud50h_4",
+          "evi_extvoc_fc_fc_txt_62hg0kay_5",
+          "evi_extvoc_fc_fc_txt_qbsx9oug_8",
+          "evi_extvoc_fc_fc_txt_40v7vxo7_9",
+          "evi_extvoc_fc_fc_txt_0x8sbie6_10",
+          "evi_extvoc_fc_fc_txt_mvu2d8cn_11",
+          "evi_extvoc_fc_fc_txt_ay99vor5_12",
+          "evi_extvoc_fc_fc_txt_au202yj9_13",
+          "evi_extvoc_fc_fc_txt_af3mcv7l_15",
+          "evi_extvoc_fc_fc_txt_9zn3r3xz_16",
+          "evi_extvoc_fc_fc_txt_qmif0rn2_17",
+          "evi_extvoc_fc_fc_txt_96bksbqx_18",
+          "evi_extvoc_fc_fc_txt_1c8m3rw2_19",
+          "evi_extvoc_fc_fc_txt_u8n20rrc_20",
+          "evi_extvoc_fc_fc_txt_ttnc6uv0_21",
+          "evi_extvoc_fc_fc_txt_4n5myplx_22",
+          "evi_extvoc_fc_fc_txt_uc7v3ky3_24"
+        ]
+      },
+      {
+        "topic": "Water and moisture drainage issues causing mold/grime at bottom",
+        "category": "MAINTENANCE",
+        "frequency": 6,
+        "percentage": 24,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "6 of 25 analyzed discussions (Category VOC)",
+        "severity": "MEDIUM",
+        "quotes": [
+          {
+            "quoteText": "The only thing I would watch out for is mold.",
+            "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Drop a denture cleaner tablet in there then fill with water and let it site for 30 mins.",
+            "url": "https://www.reddit.com/r/CleaningTips/comments/1kg1znp/need_help_cleaning_a_toothbrush_holder/",
+            "sourceType": "REDDIT",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "GENERIC"
+          },
+          {
+            "quoteText": "The residual water clinging to the toothbrush after using it slides down and collects in the bottom of the toothbrush holder, where it sits ...",
+            "url": "https://www.reddit.com/r/CleaningTips/comments/eyci2z/toothbrush_holders_get_nasty_at_the_bottom_so/",
+            "sourceType": "REDDIT",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "GENERIC"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_glb39v0d_2",
+          "evi_extvoc_fc_fc_txt_qmif0rn2_17",
+          "evi_extvoc_fc_fc_txt_96bksbqx_18",
+          "evi_extvoc_fc_fc_txt_4n5myplx_22",
+          "evi_extvoc_fc_fc_txt_64jzys2y_23",
+          "evi_extvoc_fc_fc_txt_uc7v3ky3_24"
+        ]
+      },
+      {
+        "topic": "Slot opening too narrow for wide electric toothbrush handles",
+        "category": "PRODUCT_DESIGN",
+        "frequency": 5,
+        "percentage": 20,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "5 of 25 analyzed discussions (Category VOC)",
+        "severity": "HIGH",
+        "quotes": [
+          {
+            "quoteText": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush.",
+            "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Free delivery 30-day returns4-Slot Hygienic Design - This marble toothbrush holder features 3 small holes for standard toothbrushes and 1 large hole for toothpaste, razors, ...",
+            "url": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Can it fit large ...",
+            "url": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+          "evi_extvoc_fc_fc_txt_02ufa8c7_7",
+          "evi_extvoc_fc_fc_txt_mvu2d8cn_11",
+          "evi_extvoc_fc_fc_txt_ttnc6uv0_21"
+        ]
+      },
+      {
+        "topic": "Fragility and chipping risk if dropped on hard tile countertop",
+        "category": "MATERIAL_QUALITY",
+        "frequency": 1,
+        "percentage": 4,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "1 of 25 analyzed discussions (Category VOC)",
+        "severity": "MEDIUM",
+        "quotes": [
+          {
+            "quoteText": "Drop a denture cleaner tablet in there then fill with water and let it site for 30 mins.",
+            "url": "https://www.reddit.com/r/CleaningTips/comments/1kg1znp/need_help_cleaning_a_toothbrush_holder/",
+            "sourceType": "REDDIT",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "GENERIC"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qmif0rn2_17"
+        ]
+      }
+    ],
+    "praisePoints": [
+      {
+        "topic": "Aesthetic modern minimalist look elevates bathroom decor",
+        "category": "AESTHETICS",
+        "frequency": 16,
+        "percentage": 64,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "16 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "It is nice and looks like marble.",
+            "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Shop Modern Marble Toothbrush-Razor Cup.",
+            "url": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Free delivery 30-day returns4-Slot Hygienic Design - This marble toothbrush holder features 3 small holes for standard toothbrushes and 1 large hole for toothpaste, razors, ...",
+            "url": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_31e9och9_1",
+          "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+          "evi_extvoc_fc_fc_txt_jruud50h_4",
+          "evi_extvoc_fc_fc_txt_02ufa8c7_7",
+          "evi_extvoc_fc_fc_txt_qbsx9oug_8",
+          "evi_extvoc_fc_fc_txt_40v7vxo7_9",
+          "evi_extvoc_fc_fc_txt_0x8sbie6_10",
+          "evi_extvoc_fc_fc_txt_mvu2d8cn_11",
+          "evi_extvoc_fc_fc_txt_ay99vor5_12",
+          "evi_extvoc_fc_fc_txt_au202yj9_13",
+          "evi_extvoc_fc_fc_txt_a8a5s9ic_14",
+          "evi_extvoc_fc_fc_txt_af3mcv7l_15",
+          "evi_extvoc_fc_fc_txt_9zn3r3xz_16",
+          "evi_extvoc_fc_fc_txt_1c8m3rw2_19",
+          "evi_extvoc_fc_fc_txt_ttnc6uv0_21"
+        ]
+      },
+      {
+        "topic": "Heavy natural stone weight prevents tipping or sliding on vanity",
+        "category": "PRODUCT_DESIGN",
+        "frequency": 6,
+        "percentage": 24,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "6 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush.",
+            "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Q1: Is this marble organizer heavy enough to stay stable on a countertop?",
+            "url": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "In stockThe series is very robust quite heavy, the material marble just gets prettier and prettier as time goes on.",
+            "url": "https://metteditmer.com/products/martum01",
+            "sourceType": "WEB",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_02ufa8c7_7",
+          "evi_extvoc_fc_fc_txt_au202yj9_13",
+          "evi_extvoc_fc_fc_txt_96bksbqx_18",
+          "evi_extvoc_fc_fc_txt_1c8m3rw2_19",
+          "evi_extvoc_fc_fc_txt_uc7v3ky3_24"
+        ]
+      },
+      {
+        "topic": "Durable construction with high long-term longevity",
+        "category": "QUALITY",
+        "frequency": 4,
+        "percentage": 16,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "4 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "The quality was amazing.",
+            "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "“It has held up fabulously,” she says.",
+            "url": "https://nymag.com/strategist/article/best-toothbrush-holders.html",
+            "sourceType": "WEB",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "GENERIC"
+          },
+          {
+            "quoteText": "In stockWith its durable and easy to clean surface, this set is perfect for any bathroom- whether you're looking to add a touch of class to your home or stylize your ...",
+            "url": "https://identifyasmodern.com/products/white-marble-toothbrush-holder",
+            "sourceType": "FORUM",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_glb39v0d_2",
+          "evi_extvoc_fc_fc_txt_jkcxteu5_6",
+          "evi_extvoc_fc_fc_txt_0x8sbie6_10",
+          "evi_extvoc_fc_fc_txt_ay99vor5_12"
+        ]
+      }
+    ],
+    "buyerMotivations": [
+      {
+        "motivation": "Replacing lightweight plastic holders that tip over or accumulate grime",
+        "frequency": 2,
+        "percentage": 8,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "2 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          "I had been wiping out my old toothbrush holder, but I just upgraded to a much nicer marble toothbrush holder with dividers and a plug on the ...",
+          "I picked up my toothbrush and saw a black slime on the bottom tip of it."
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_af3mcv7l_15",
+          "evi_extvoc_fc_fc_txt_uc7v3ky3_24"
+        ]
+      },
+      {
+        "motivation": "Elevating vanity decor aesthetic with heavy authentic stone/marble look",
+        "frequency": 15,
+        "percentage": 60,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "15 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          "It is nice and looks like marble.",
+          "Shop Modern Marble Toothbrush-Razor Cup."
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_31e9och9_1",
+          "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+          "evi_extvoc_fc_fc_txt_jruud50h_4",
+          "evi_extvoc_fc_fc_txt_02ufa8c7_7",
+          "evi_extvoc_fc_fc_txt_40v7vxo7_9",
+          "evi_extvoc_fc_fc_txt_0x8sbie6_10",
+          "evi_extvoc_fc_fc_txt_mvu2d8cn_11",
+          "evi_extvoc_fc_fc_txt_ay99vor5_12",
+          "evi_extvoc_fc_fc_txt_au202yj9_13",
+          "evi_extvoc_fc_fc_txt_a8a5s9ic_14",
+          "evi_extvoc_fc_fc_txt_af3mcv7l_15",
+          "evi_extvoc_fc_fc_txt_9zn3r3xz_16",
+          "evi_extvoc_fc_fc_txt_1c8m3rw2_19",
+          "evi_extvoc_fc_fc_txt_ttnc6uv0_21"
+        ]
+      }
+    ],
+    "useCases": [
+      {
+        "useCase": "Multi-item vanity countertop organization (toothbrushes, paste, razors)",
+        "frequency": 20,
+        "percentage": 80,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "20 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush.",
+            "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Shop Modern Marble Toothbrush-Razor Cup.",
+            "url": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_31e9och9_1",
+          "evi_extvoc_fc_fc_txt_glb39v0d_2",
+          "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+          "evi_extvoc_fc_fc_txt_jruud50h_4",
+          "evi_extvoc_fc_fc_txt_62hg0kay_5",
+          "evi_extvoc_fc_fc_txt_02ufa8c7_7",
+          "evi_extvoc_fc_fc_txt_qbsx9oug_8",
+          "evi_extvoc_fc_fc_txt_40v7vxo7_9",
+          "evi_extvoc_fc_fc_txt_mvu2d8cn_11",
+          "evi_extvoc_fc_fc_txt_ay99vor5_12",
+          "evi_extvoc_fc_fc_txt_au202yj9_13",
+          "evi_extvoc_fc_fc_txt_af3mcv7l_15",
+          "evi_extvoc_fc_fc_txt_9zn3r3xz_16",
+          "evi_extvoc_fc_fc_txt_96bksbqx_18",
+          "evi_extvoc_fc_fc_txt_1c8m3rw2_19",
+          "evi_extvoc_fc_fc_txt_u8n20rrc_20",
+          "evi_extvoc_fc_fc_txt_ttnc6uv0_21",
+          "evi_extvoc_fc_fc_txt_4n5myplx_22",
+          "evi_extvoc_fc_fc_txt_uc7v3ky3_24"
+        ]
+      },
+      {
+        "useCase": "Family bathroom shared storage separating multiple users",
+        "frequency": 5,
+        "percentage": 20,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "5 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "Mine unfortunately did start molding on the ...",
+            "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Free in-store returnsRead page 1 of our customer reviews for more information on the Creative Home Curvy Natural Marble Toothbrush Holder in Champagne Color.",
+            "url": "https://www.homedepot.com/p/reviews/Creative-Home-Curvy-Natural-Marble-Toothbrush-Holder-in-Champagne-Color-74173/313723896/1",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_glb39v0d_2",
+          "evi_extvoc_fc_fc_txt_jruud50h_4",
+          "evi_extvoc_fc_fc_txt_0x8sbie6_10",
+          "evi_extvoc_fc_fc_txt_mvu2d8cn_11",
+          "evi_extvoc_fc_fc_txt_1c8m3rw2_19"
+        ]
+      },
+      {
+        "useCase": "Multi-functional caddy (makeup brushes, cosmetic tools)",
+        "frequency": 4,
+        "percentage": 16,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "4 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush.",
+            "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "Shop Modern Marble Toothbrush-Razor Cup.",
+            "url": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_31e9och9_1",
+          "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+          "evi_extvoc_fc_fc_txt_jkcxteu5_6"
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "question": "Does the slot accommodate larger electric brush charger handles?",
+        "frequency": 3,
+        "percentage": 12,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "3 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush.",
+            "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "· Q2: How does the size compare to other marble holders?",
+            "url": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_02ufa8c7_7",
+          "evi_extvoc_fc_fc_txt_ttnc6uv0_21"
+        ]
+      },
+      {
+        "question": "Is the marble surface sealed against toothpaste stains and water spots?",
+        "frequency": 7,
+        "percentage": 28,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "7 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "Matches the soap holder i got for face soap ...",
+            "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "In stockWith its durable and easy to clean surface, this set is perfect for any bathroom- whether you're looking to add a touch of class to your home or stylize your ...",
+            "url": "https://identifyasmodern.com/products/white-marble-toothbrush-holder",
+            "sourceType": "FORUM",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+          "evi_extvoc_fc_fc_txt_0x8sbie6_10",
+          "evi_extvoc_fc_fc_txt_qmif0rn2_17",
+          "evi_extvoc_fc_fc_txt_96bksbqx_18",
+          "evi_extvoc_fc_fc_txt_u8n20rrc_20",
+          "evi_extvoc_fc_fc_txt_4n5myplx_22",
+          "evi_extvoc_fc_fc_txt_uc7v3ky3_24"
+        ]
+      }
+    ],
+    "desiredFeatures": [
+      {
+        "feature": "Bottom drainage holes or removable base for effortless rinsing",
+        "frequency": 2,
+        "percentage": 8,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "2 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "Free delivery 30-day returns4-Slot Hygienic Design - This marble toothbrush holder features 3 small holes for standard toothbrushes and 1 large hole for toothpaste, razors, ...",
+            "url": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          },
+          {
+            "quoteText": "It is one piece that can be rinsed out through the four round slots.",
+            "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-153/-/A-17247411?showOnlyQuestions=true",
+            "sourceType": "REVIEWS",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "CATEGORY"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+          "evi_extvoc_fc_fc_txt_mvu2d8cn_11"
+        ]
+      },
+      {
+        "feature": "Anti-scratch silicone or rubber pads on bottom to protect countertops",
+        "frequency": 3,
+        "percentage": 12,
+        "sampleSize": 25,
+        "scope": "CATEGORY",
+        "denominatorText": "3 of 25 analyzed discussions (Category VOC)",
+        "quotes": [
+          {
+            "quoteText": "The residual water clinging to the toothbrush after using it slides down and collects in the bottom of the toothbrush holder, where it sits ...",
+            "url": "https://www.reddit.com/r/CleaningTips/comments/eyci2z/toothbrush_holders_get_nasty_at_the_bottom_so/",
+            "sourceType": "REDDIT",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "GENERIC"
+          },
+          {
+            "quoteText": "It's also super easy to print, not requiring any supports because the top and bottom print separately and then screw together.",
+            "url": "https://www.reddit.com/r/BambuLab/comments/1r5njiu/a_simple_no_support_toothbrush_holder/",
+            "sourceType": "REDDIT",
+            "reviewer": null,
+            "reviewDate": null,
+            "scope": "GENERIC"
+          }
+        ],
+        "evidenceIds": [
+          "evi_extvoc_fc_fc_txt_96bksbqx_18",
+          "evi_extvoc_fc_fc_txt_64jzys2y_23",
+          "evi_extvoc_fc_fc_txt_uc7v3ky3_24"
+        ]
+      }
+    ],
+    "rawTexts": [
+      {
+        "sourceId": "fc_txt_qe7jm6ba",
+        "sourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush. It is nice and looks like marble. Matches the soap holder i got for face soap ...",
+        "title": "Better Homes & Gardens Faux Marble Toothbrush Holder, White - Walmart",
+        "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.726Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.walmart.com",
+          "pageUrl": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+          "sourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_31e9och9",
+        "sourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "In stock Rating 4.5(547)On sale. Shop Modern Marble Toothbrush-Razor Cup. Carve out a neat spot in the bath. Honed smooth, marble bath accessories rock a spa vibe in soft white ...",
+        "title": "Modern Marble Toothbrush-Razor Cup + Reviews - CB2",
+        "url": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.726Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush"
+          ],
+          "domain": "www.cb2.com",
+          "pageUrl": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+          "sourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_glb39v0d",
+        "sourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "In stock Rating 4.8(171)I loved loved loved this toothbrush holder! The quality was amazing. The only thing I would watch out for is mold. Mine unfortunately did start molding on the ...",
+        "title": "Marble Toothbrush Holder White - Threshold™ : Target",
+        "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.target.com",
+          "pageUrl": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+          "sourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_whg1bfdk",
+        "sourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "Free delivery 30-day returns4-Slot Hygienic Design - This marble toothbrush holder features 3 small holes for standard toothbrushes and 1 large hole for toothpaste, razors, ...",
+        "title": "Amazon.com: BCS Toothbrush Holder for Bathrooms, 4 Slots Marble ...",
+        "url": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.amazon.com",
+          "pageUrl": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+          "sourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_jruud50h",
+        "sourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "Free in-store returnsRead page 1 of our customer reviews for more information on the Creative Home Curvy Natural Marble Toothbrush Holder in Champagne Color.",
+        "title": "Creative Home - Curvy Natural Marble Toothbrush Holder in Champagne ...",
+        "url": "https://www.homedepot.com/p/reviews/Creative-Home-Curvy-Natural-Marble-Toothbrush-Holder-in-Champagne-Color-74173/313723896/1",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.homedepot.com",
+          "pageUrl": "https://www.homedepot.com/p/reviews/Creative-Home-Curvy-Natural-Marble-Toothbrush-Holder-in-Champagne-Color-74173/313723896/1",
+          "sourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_62hg0kay",
+        "sourceType": "YOUTUBE",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "her #she #interiordesign In today's TOP Must See Sponsorship vlog video, I'll be showing you a NPET 3 cup toothbrush holder.",
+        "title": "BEST Toothbrush Holder EVER?! NPET Review #gamechanger #her ...",
+        "url": "https://www.youtube.com/watch?v=Az98Hq7cDDw",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.youtube.com",
+          "pageUrl": "https://www.youtube.com/watch?v=Az98Hq7cDDw",
+          "sourceType": "YOUTUBE",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_jkcxteu5",
+        "sourceType": "WEB",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "“It has held up fabulously,” she says. “I'd say it's as good as new.” Since the sides are open, the holder doesn't hold in moisture or get too ...",
+        "title": "10 Best Toothbrush Holders | The Strategist - New York Magazine",
+        "url": "https://nymag.com/strategist/article/best-toothbrush-holders.html",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "nymag.com",
+          "pageUrl": "https://nymag.com/strategist/article/best-toothbrush-holders.html",
+          "sourceType": "WEB",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_02ufa8c7",
+        "sourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "Q1: Is this marble organizer heavy enough to stay stable on a countertop? A: Yes! · Q2: How does the size compare to other marble holders? Can it fit large ...",
+        "title": "Real Luxurious Natural Marble Toothbrush Holder & Makeup Brush ...",
+        "url": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.amazon.com",
+          "pageUrl": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+          "sourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_qbsx9oug",
+        "sourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "4.51.2K \"This toothbrush holder is the cutest thing in my bathroom! I absolutely love it. It's so unique and elevates something in the bathroom that would otherwise be ...",
+        "title": "Marble Toothbrush Holder - Etsy",
+        "url": "https://www.etsy.com/market/marble_toothbrush_holder",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.etsy.com",
+          "pageUrl": "https://www.etsy.com/market/marble_toothbrush_holder",
+          "sourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_40v7vxo7",
+        "sourceType": "SOCIAL",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "These little Amazon buys quietly fixed all the annoying things in my bathroom! Follow + comment BATH for links A marble toothbrush ...",
+        "title": "the colors and so many more Amazon bathroom must haves you'll wonder ...",
+        "url": "https://www.instagram.com/p/DbqPXnGkQqe/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush"
+          ],
+          "domain": "www.instagram.com",
+          "pageUrl": "https://www.instagram.com/p/DbqPXnGkQqe/",
+          "sourceType": "SOCIAL",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_0x8sbie6",
+        "sourceType": "FORUM",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "In stockWith its durable and easy to clean surface, this set is perfect for any bathroom- whether you're looking to add a touch of class to your home or stylize your ...",
+        "title": "White Marble Toothbrush Holder - Identify as Modern",
+        "url": "https://identifyasmodern.com/products/white-marble-toothbrush-holder",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "identifyasmodern.com",
+          "pageUrl": "https://identifyasmodern.com/products/white-marble-toothbrush-holder",
+          "sourceType": "FORUM",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_mvu2d8cn",
+        "sourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "A: Hi pekmom - Elevate your sink counter top decor with this marble toothbrush holder. It is one piece that can be rinsed out through the four round slots.",
+        "title": "Marble Toothbrush Holder White - Threshold™ : Target",
+        "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-153/-/A-17247411?showOnlyQuestions=true",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.target.com",
+          "pageUrl": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-153/-/A-17247411?showOnlyQuestions=true",
+          "sourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_ay99vor5",
+        "sourceType": "WEB",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "In stock Rating 4.9(23)Tall Glass Storage Jar. £25.00. (66). Marble Toothbrush Holder. 4.9/5. Based on 23 reviews. Design. Poor; Excellent. Quality. Poor; Excellent. Ratings and ...",
+        "title": "Marble Toothbrush Holder | Bathroom Accessories & Storage | The Wh...",
+        "url": "https://www.thewhitecompany.com/uk/Marble-Toothbrush-Holder/p/BAHOO",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.thewhitecompany.com",
+          "pageUrl": "https://www.thewhitecompany.com/uk/Marble-Toothbrush-Holder/p/BAHOO",
+          "sourceType": "WEB",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_au202yj9",
+        "sourceType": "WEB",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "In stockThe series is very robust quite heavy, the material marble just gets prettier and prettier as time goes on. The toothbrush holder is available in two beautiful ...",
+        "title": "MARBLE Toothbrush Holder, Brown - Mette Ditmer",
+        "url": "https://metteditmer.com/products/martum01",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "metteditmer.com",
+          "pageUrl": "https://metteditmer.com/products/martum01",
+          "sourceType": "WEB",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_a8a5s9ic",
+        "sourceType": "WEB",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "In stock Free deliveryStriking forms, defined by precision, are beautifully juxtaposed against the meandering white veins that organically grace the black marble surface of each ...",
+        "title": "Marquina Toothbrush Holder - Marble Bath Accessories - SFERRA",
+        "url": "https://www.sferra.com/products/marquina-toothbrush-holder?srsltid=AfmBOorSj0fkSl7--XSusnF9TAhOwCLTnL_aWRD4NmnU2KNO4Xuiyzo-",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.sferra.com",
+          "pageUrl": "https://www.sferra.com/products/marquina-toothbrush-holder?srsltid=AfmBOorSj0fkSl7--XSusnF9TAhOwCLTnL_aWRD4NmnU2KNO4Xuiyzo-",
+          "sourceType": "WEB",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_af3mcv7l",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "I had been wiping out my old toothbrush holder, but I just upgraded to a much nicer marble toothbrush holder with dividers and a plug on the ...",
+        "title": "Tips for cleaning a toothbrush holder? : r/homemaking - Reddit",
+        "url": "https://www.reddit.com/r/homemaking/comments/587wy8/tips_for_cleaning_a_toothbrush_holder/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/homemaking/comments/587wy8/tips_for_cleaning_a_toothbrush_holder/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_9zn3r3xz",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "WITT this came from my grandmothers house and is brass and marble. We believe it may be a toothbrush holder? Any ideas on what era it's from ...",
+        "title": "This was at my grandmothers house, brass(?) and marble... vintage ...",
+        "url": "https://www.reddit.com/r/whatisthisthing/comments/kgmlgp/this_was_at_my_grandmothers_house_brass_and/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/whatisthisthing/comments/kgmlgp/this_was_at_my_grandmothers_house_brass_and/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_qmif0rn2",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "Drop a denture cleaner tablet in there then fill with water and let it site for 30 mins.",
+        "title": "Need help cleaning a toothbrush holder : r/CleaningTips - Reddit",
+        "url": "https://www.reddit.com/r/CleaningTips/comments/1kg1znp/need_help_cleaning_a_toothbrush_holder/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/CleaningTips/comments/1kg1znp/need_help_cleaning_a_toothbrush_holder/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_96bksbqx",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "The residual water clinging to the toothbrush after using it slides down and collects in the bottom of the toothbrush holder, where it sits ...",
+        "title": "Toothbrush holders get nasty at the bottom, so throw them into ... - Reddit",
+        "url": "https://www.reddit.com/r/CleaningTips/comments/eyci2z/toothbrush_holders_get_nasty_at_the_bottom_so/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/CleaningTips/comments/eyci2z/toothbrush_holders_get_nasty_at_the_bottom_so/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_1c8m3rw2",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "Can you guys share pictures (preferably your own) so I can get ideas how to make our countertops look more appealing with the toothbrushes ...",
+        "title": "How do you decorate your bathroom countertops with electric ... - Reddit",
+        "url": "https://www.reddit.com/r/HomeDecorating/comments/1d0ophq/how_do_you_decorate_your_bathroom_countertops/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [
+            "bathroom"
+          ],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/HomeDecorating/comments/1d0ophq/how_do_you_decorate_your_bathroom_countertops/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_u8n20rrc",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "I love my Muji toothbrush holders. They are simply large, white porcelain rings that are hollow, and, therefore easy to clean. I've always found ...",
+        "title": "soap dispensers, soap dish, toothbrush/paste holder ... - Reddit",
+        "url": "https://www.reddit.com/r/BuyItForLife/comments/69esn8/request_looking_for_bifl_quality_bathroom_counter/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [
+            "bathroom"
+          ],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/BuyItForLife/comments/69esn8/request_looking_for_bifl_quality_bathroom_counter/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_ttnc6uv0",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "Fits battery powered electric toothbrushes and toothpaste, printed in Ziro Marble PLA. I know it's simple, but I'm still at the Tinkercad stage ...",
+        "title": "Very simple toothbrush holder : r/functionalprint - Reddit",
+        "url": "https://www.reddit.com/r/functionalprint/comments/87wnph/very_simple_toothbrush_holder/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/functionalprint/comments/87wnph/very_simple_toothbrush_holder/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_4n5myplx",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "I use a toothbrush holder made out of diatomaceous earth! It's meant to absorb water and limit bacteria growth. It still gets a little grimey ...",
+        "title": "If you have one of these in your bathroom, throw it away ... - Reddit",
+        "url": "https://www.reddit.com/r/CleaningTips/comments/1mkipx1/if_you_have_one_of_these_in_your_bathroom_throw/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [
+            "bathroom"
+          ],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/CleaningTips/comments/1mkipx1/if_you_have_one_of_these_in_your_bathroom_throw/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_64jzys2y",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "It's also super easy to print, not requiring any supports because the top and bottom print separately and then screw together. I added a ...",
+        "title": "A simple, no support Toothbrush Holder : r/BambuLab - Reddit",
+        "url": "https://www.reddit.com/r/BambuLab/comments/1r5njiu/a_simple_no_support_toothbrush_holder/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/BambuLab/comments/1r5njiu/a_simple_no_support_toothbrush_holder/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      },
+      {
+        "sourceId": "fc_txt_uc7v3ky3",
+        "sourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "text": "I picked up my toothbrush and saw a black slime on the bottom tip of it. Then I saw this and almost threw up... filled it with boiling water ...",
+        "title": "r/MoldlyInteresting - What actual horror grew in our toothbrush holder?",
+        "url": "https://www.reddit.com/r/MoldlyInteresting/comments/181im75/what_actual_horror_grew_in_our_toothbrush_holder/",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "metadata": {
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.reddit.com",
+          "pageUrl": "https://www.reddit.com/r/MoldlyInteresting/comments/181im75/what_actual_horror_grew_in_our_toothbrush_holder/",
+          "sourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET"
+        }
+      }
+    ],
+    "summary": "共分析 25 条外部公开讨论样本（分析范围：品类外部原声 Category External VOC，涵盖 25 个独立来源页面、14 个域名，涵盖 Reddit、零售评测等）。核心赞誉集中于“Aesthetic modern minimalist look elevates bathroom decor”（16 of 25 analyzed discussions (Category VOC)，占比 64%）；主要买家痛点集中于“Interior corners difficult to clean without narrow brush”（21 of 25 analyzed discussions (Category VOC)，占比 84%）。注：数据来源于品类公开采样，反映同类产品通用特征，不代表该 ASIN 站内买家绝对比例。",
+    "evidenceNotice": "外部声量与讨论原声基于 Reddit、公开零售论坛等站外内容挖掘（分析范围：CATEGORY，样本量 25 条，来源页面 25 个，独立域名 14 个），非 Amazon 站内官方评价。所有痛点与使用场景均通过纯代码完成频次与占比统计，并经过 100% 原文逐字子串核验与来源 URL 标记。",
+    "supportedDimensions": [
+      "painPoints",
+      "praisePoints",
+      "buyerMotivations",
+      "useCases",
+      "questions",
+      "desiredFeatures",
+      "evidenceQuotes"
+    ],
+    "unsupportedDimensions": [
+      "averageRating",
+      "totalReviewCount",
+      "ratingDistribution",
+      "sales"
+    ],
+    "evidence": [
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_qe7jm6ba",
+        "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Better Homes & Gardens Faux Marble Toothbrush Hold",
+        "content": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush. It is nice and looks like marble. Matches the soap holder i got for face soap ...",
+        "capturedAt": "2026-09-11T09:34:52.726Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+          "sourceUrl": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+          "vocSourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.726Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.walmart.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_31e9och9_1",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_31e9och9",
+        "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Modern Marble Toothbrush-Razor Cup + Reviews - CB2",
+        "content": "In stock Rating 4.5(547)On sale. Shop Modern Marble Toothbrush-Razor Cup. Carve out a neat spot in the bath. Honed smooth, marble bath accessories rock a spa vibe in soft white ...",
+        "capturedAt": "2026-09-11T09:34:52.726Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+          "sourceUrl": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+          "vocSourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.726Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush"
+          ],
+          "domain": "www.cb2.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_glb39v0d_2",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_glb39v0d",
+        "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Marble Toothbrush Holder White - Threshold™ : Targ",
+        "content": "In stock Rating 4.8(171)I loved loved loved this toothbrush holder! The quality was amazing. The only thing I would watch out for is mold. Mine unfortunately did start molding on the ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+          "sourceUrl": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+          "vocSourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.target.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_whg1bfdk",
+        "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Amazon.com: BCS Toothbrush Holder for Bathrooms, 4",
+        "content": "Free delivery 30-day returns4-Slot Hygienic Design - This marble toothbrush holder features 3 small holes for standard toothbrushes and 1 large hole for toothpaste, razors, ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+          "sourceUrl": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+          "vocSourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.amazon.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_jruud50h_4",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_jruud50h",
+        "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Creative Home - Curvy Natural Marble Toothbrush Ho",
+        "content": "Free in-store returnsRead page 1 of our customer reviews for more information on the Creative Home Curvy Natural Marble Toothbrush Holder in Champagne Color.",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.homedepot.com/p/reviews/Creative-Home-Curvy-Natural-Marble-Toothbrush-Holder-in-Champagne-Color-74173/313723896/1",
+          "sourceUrl": "https://www.homedepot.com/p/reviews/Creative-Home-Curvy-Natural-Marble-Toothbrush-Holder-in-Champagne-Color-74173/313723896/1",
+          "vocSourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.homedepot.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_62hg0kay_5",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_62hg0kay",
+        "title": "External VOC [YOUTUBE|SEARCH_SNIPPET|GENERIC]: BEST Toothbrush Holder EVER?! NPET Review #gamecha",
+        "content": "her #she #interiordesign In today's TOP Must See Sponsorship vlog video, I'll be showing you a NPET 3 cup toothbrush holder.",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.youtube.com/watch?v=Az98Hq7cDDw",
+          "sourceUrl": "https://www.youtube.com/watch?v=Az98Hq7cDDw",
+          "vocSourceType": "YOUTUBE",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.youtube.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_jkcxteu5_6",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_jkcxteu5",
+        "title": "External VOC [WEB|SEARCH_SNIPPET|GENERIC]: 10 Best Toothbrush Holders | The Strategist - New ",
+        "content": "“It has held up fabulously,” she says. “I'd say it's as good as new.” Since the sides are open, the holder doesn't hold in moisture or get too ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://nymag.com/strategist/article/best-toothbrush-holders.html",
+          "sourceUrl": "https://nymag.com/strategist/article/best-toothbrush-holders.html",
+          "vocSourceType": "WEB",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "nymag.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_02ufa8c7_7",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_02ufa8c7",
+        "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Real Luxurious Natural Marble Toothbrush Holder & ",
+        "content": "Q1: Is this marble organizer heavy enough to stay stable on a countertop? A: Yes! · Q2: How does the size compare to other marble holders? Can it fit large ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+          "sourceUrl": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+          "vocSourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.amazon.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_qbsx9oug_8",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_qbsx9oug",
+        "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Marble Toothbrush Holder - Etsy",
+        "content": "4.51.2K \"This toothbrush holder is the cutest thing in my bathroom! I absolutely love it. It's so unique and elevates something in the bathroom that would otherwise be ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.etsy.com/market/marble_toothbrush_holder",
+          "sourceUrl": "https://www.etsy.com/market/marble_toothbrush_holder",
+          "vocSourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.etsy.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_40v7vxo7_9",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_40v7vxo7",
+        "title": "External VOC [SOCIAL|SEARCH_SNIPPET|CATEGORY]: the colors and so many more Amazon bathroom must h",
+        "content": "These little Amazon buys quietly fixed all the annoying things in my bathroom! Follow + comment BATH for links A marble toothbrush ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.instagram.com/p/DbqPXnGkQqe/",
+          "sourceUrl": "https://www.instagram.com/p/DbqPXnGkQqe/",
+          "vocSourceType": "SOCIAL",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush"
+          ],
+          "domain": "www.instagram.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_0x8sbie6_10",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_0x8sbie6",
+        "title": "External VOC [FORUM|SEARCH_SNIPPET|CATEGORY]: White Marble Toothbrush Holder - Identify as Moder",
+        "content": "In stockWith its durable and easy to clean surface, this set is perfect for any bathroom- whether you're looking to add a touch of class to your home or stylize your ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://identifyasmodern.com/products/white-marble-toothbrush-holder",
+          "sourceUrl": "https://identifyasmodern.com/products/white-marble-toothbrush-holder",
+          "vocSourceType": "FORUM",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "identifyasmodern.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_mvu2d8cn_11",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_mvu2d8cn",
+        "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Marble Toothbrush Holder White - Threshold™ : Targ",
+        "content": "A: Hi pekmom - Elevate your sink counter top decor with this marble toothbrush holder. It is one piece that can be rinsed out through the four round slots.",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-153/-/A-17247411?showOnlyQuestions=true",
+          "sourceUrl": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-153/-/A-17247411?showOnlyQuestions=true",
+          "vocSourceType": "REVIEWS",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.target.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_ay99vor5_12",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_ay99vor5",
+        "title": "External VOC [WEB|SEARCH_SNIPPET|CATEGORY]: Marble Toothbrush Holder | Bathroom Accessories & ",
+        "content": "In stock Rating 4.9(23)Tall Glass Storage Jar. £25.00. (66). Marble Toothbrush Holder. 4.9/5. Based on 23 reviews. Design. Poor; Excellent. Quality. Poor; Excellent. Ratings and ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.thewhitecompany.com/uk/Marble-Toothbrush-Holder/p/BAHOO",
+          "sourceUrl": "https://www.thewhitecompany.com/uk/Marble-Toothbrush-Holder/p/BAHOO",
+          "vocSourceType": "WEB",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.thewhitecompany.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_au202yj9_13",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_au202yj9",
+        "title": "External VOC [WEB|SEARCH_SNIPPET|CATEGORY]: MARBLE Toothbrush Holder, Brown - Mette Ditmer",
+        "content": "In stockThe series is very robust quite heavy, the material marble just gets prettier and prettier as time goes on. The toothbrush holder is available in two beautiful ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://metteditmer.com/products/martum01",
+          "sourceUrl": "https://metteditmer.com/products/martum01",
+          "vocSourceType": "WEB",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "metteditmer.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_a8a5s9ic_14",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_a8a5s9ic",
+        "title": "External VOC [WEB|SEARCH_SNIPPET|CATEGORY]: Marquina Toothbrush Holder - Marble Bath Accessori",
+        "content": "In stock Free deliveryStriking forms, defined by precision, are beautifully juxtaposed against the meandering white veins that organically grace the black marble surface of each ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.sferra.com/products/marquina-toothbrush-holder?srsltid=AfmBOorSj0fkSl7--XSusnF9TAhOwCLTnL_aWRD4NmnU2KNO4Xuiyzo-",
+          "sourceUrl": "https://www.sferra.com/products/marquina-toothbrush-holder?srsltid=AfmBOorSj0fkSl7--XSusnF9TAhOwCLTnL_aWRD4NmnU2KNO4Xuiyzo-",
+          "vocSourceType": "WEB",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.sferra.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_af3mcv7l_15",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_af3mcv7l",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|CATEGORY]: Tips for cleaning a toothbrush holder? : r/homemak",
+        "content": "I had been wiping out my old toothbrush holder, but I just upgraded to a much nicer marble toothbrush holder with dividers and a plug on the ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/homemaking/comments/587wy8/tips_for_cleaning_a_toothbrush_holder/",
+          "sourceUrl": "https://www.reddit.com/r/homemaking/comments/587wy8/tips_for_cleaning_a_toothbrush_holder/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_9zn3r3xz_16",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_9zn3r3xz",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|CATEGORY]: This was at my grandmothers house, brass(?) and ma",
+        "content": "WITT this came from my grandmothers house and is brass and marble. We believe it may be a toothbrush holder? Any ideas on what era it's from ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/whatisthisthing/comments/kgmlgp/this_was_at_my_grandmothers_house_brass_and/",
+          "sourceUrl": "https://www.reddit.com/r/whatisthisthing/comments/kgmlgp/this_was_at_my_grandmothers_house_brass_and/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_qmif0rn2_17",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_qmif0rn2",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: Need help cleaning a toothbrush holder : r/Cleanin",
+        "content": "Drop a denture cleaner tablet in there then fill with water and let it site for 30 mins.",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/CleaningTips/comments/1kg1znp/need_help_cleaning_a_toothbrush_holder/",
+          "sourceUrl": "https://www.reddit.com/r/CleaningTips/comments/1kg1znp/need_help_cleaning_a_toothbrush_holder/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_96bksbqx_18",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_96bksbqx",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: Toothbrush holders get nasty at the bottom, so thr",
+        "content": "The residual water clinging to the toothbrush after using it slides down and collects in the bottom of the toothbrush holder, where it sits ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/CleaningTips/comments/eyci2z/toothbrush_holders_get_nasty_at_the_bottom_so/",
+          "sourceUrl": "https://www.reddit.com/r/CleaningTips/comments/eyci2z/toothbrush_holders_get_nasty_at_the_bottom_so/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_1c8m3rw2_19",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_1c8m3rw2",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: How do you decorate your bathroom countertops with",
+        "content": "Can you guys share pictures (preferably your own) so I can get ideas how to make our countertops look more appealing with the toothbrushes ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/HomeDecorating/comments/1d0ophq/how_do_you_decorate_your_bathroom_countertops/",
+          "sourceUrl": "https://www.reddit.com/r/HomeDecorating/comments/1d0ophq/how_do_you_decorate_your_bathroom_countertops/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [
+            "bathroom"
+          ],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_u8n20rrc_20",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_u8n20rrc",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: soap dispensers, soap dish, toothbrush/paste holde",
+        "content": "I love my Muji toothbrush holders. They are simply large, white porcelain rings that are hollow, and, therefore easy to clean. I've always found ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/BuyItForLife/comments/69esn8/request_looking_for_bifl_quality_bathroom_counter/",
+          "sourceUrl": "https://www.reddit.com/r/BuyItForLife/comments/69esn8/request_looking_for_bifl_quality_bathroom_counter/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [
+            "bathroom"
+          ],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_ttnc6uv0_21",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_ttnc6uv0",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|CATEGORY]: Very simple toothbrush holder : r/functionalprint ",
+        "content": "Fits battery powered electric toothbrushes and toothpaste, printed in Ziro Marble PLA. I know it's simple, but I'm still at the Tinkercad stage ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/functionalprint/comments/87wnph/very_simple_toothbrush_holder/",
+          "sourceUrl": "https://www.reddit.com/r/functionalprint/comments/87wnph/very_simple_toothbrush_holder/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "CATEGORY",
+          "matchedTerms": [
+            "marble",
+            "toothbrush holder"
+          ],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_4n5myplx_22",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_4n5myplx",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: If you have one of these in your bathroom, throw i",
+        "content": "I use a toothbrush holder made out of diatomaceous earth! It's meant to absorb water and limit bacteria growth. It still gets a little grimey ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/CleaningTips/comments/1mkipx1/if_you_have_one_of_these_in_your_bathroom_throw/",
+          "sourceUrl": "https://www.reddit.com/r/CleaningTips/comments/1mkipx1/if_you_have_one_of_these_in_your_bathroom_throw/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [
+            "bathroom"
+          ],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_64jzys2y_23",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_64jzys2y",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: A simple, no support Toothbrush Holder : r/BambuLa",
+        "content": "It's also super easy to print, not requiring any supports because the top and bottom print separately and then screw together. I added a ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/BambuLab/comments/1r5njiu/a_simple_no_support_toothbrush_holder/",
+          "sourceUrl": "https://www.reddit.com/r/BambuLab/comments/1r5njiu/a_simple_no_support_toothbrush_holder/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      },
+      {
+        "evidenceId": "evi_extvoc_fc_fc_txt_uc7v3ky3_24",
+        "source": "FIRECRAWL",
+        "providerId": "firecrawl",
+        "transport": "HTTP",
+        "type": "EXTERNAL_VOC",
+        "sourceId": "fc_txt_uc7v3ky3",
+        "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: r/MoldlyInteresting - What actual horror grew in o",
+        "content": "I picked up my toothbrush and saw a black slime on the bottom tip of it. Then I saw this and almost threw up... filled it with boiling water ...",
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "mode": "LIVE",
+        "confidenceScore": 0.7,
+        "metadata": {
+          "url": "https://www.reddit.com/r/MoldlyInteresting/comments/181im75/what_actual_horror_grew_in_our_toothbrush_holder/",
+          "sourceUrl": "https://www.reddit.com/r/MoldlyInteresting/comments/181im75/what_actual_horror_grew_in_our_toothbrush_holder/",
+          "vocSourceType": "REDDIT",
+          "contentKind": "SEARCH_SNIPPET",
+          "author": "[REDACTED]",
+          "publishedAt": null,
+          "capturedAt": "2026-09-11T09:34:52.727Z",
+          "scope": "GENERIC",
+          "matchedTerms": [],
+          "domain": "www.reddit.com",
+          "targetAsin": "B0BFGNSXYL",
+          "query": "marble toothbrush holder"
+        }
+      }
+    ]
+  },
+  "evidences": [
+    {
+      "evidenceId": "evi_kw_marble%20toothbrush%20holder_1789119283112",
+      "source": "XYDC",
+      "providerId": "xydc",
+      "transport": "MCP",
+      "mode": "LIVE",
+      "type": "KEYWORD",
+      "sourceId": "marble toothbrush holder",
+      "title": "Keyword Intelligence: marble toothbrush holder",
+      "content": "Keyword: marble toothbrush holder | Search Volume: 1,432 | ABA Rank: #133,475 | CPC: $0.93 | Competition: 0.59",
+      "capturedAt": "2026-09-11T09:34:43.125Z",
+      "costCredits": 1,
+      "executionTimeMs": 318,
+      "confidenceScore": 0.98
+    },
+    {
+      "evidenceId": "evi_prod_B0DQL19ZVM_1789119283357",
+      "source": "XYDC",
+      "providerId": "xydc",
+      "transport": "MCP",
+      "mode": "LIVE",
+      "type": "MARKET_PRODUCT",
+      "sourceId": "B0DQL19ZVM",
+      "title": "Amazon Product (B0DQL19ZVM)",
+      "content": "ASIN: B0DQL19ZVM | Title: BCS Toothbrush Holder for Bathrooms, 4 Slots Marble Toothbrush and Toothpaste Holder Stand Bathroom Organizer Countertop for Electric Toothbrush, Floss, Razor, Comb - Karibib Ice | Price: $36.99 | Rating: 4.3 (103 reviews)",
+      "capturedAt": "2026-09-11T09:34:43.357Z",
+      "executionTimeMs": 231,
+      "confidenceScore": 0.98
+    },
+    {
+      "evidenceId": "evi_prod_B0BFGNSXYL_1789119283357",
+      "source": "XYDC",
+      "providerId": "xydc",
+      "transport": "MCP",
+      "mode": "LIVE",
+      "type": "MARKET_PRODUCT",
+      "sourceId": "B0BFGNSXYL",
+      "title": "Amazon Product (B0BFGNSXYL)",
+      "content": "ASIN: B0BFGNSXYL | Title: GFWARE Toothbrush Holders for Bathrooms, 5 Slots Bamboo Toothbrush Holder Kids Electric Toothbrush Holder and Toothpaste Holder for Bathroom Countertop Accessories Storage, Marble Toothbrush Organizer | Price: $9.99 | Rating: 4.6 (5,147 reviews)",
+      "capturedAt": "2026-09-11T09:34:43.357Z",
+      "executionTimeMs": 231,
+      "confidenceScore": 0.98
+    },
+    {
+      "evidenceId": "evi_prod_B0CTGTJZBM_1789119283357",
+      "source": "XYDC",
+      "providerId": "xydc",
+      "transport": "MCP",
+      "mode": "LIVE",
+      "type": "MARKET_PRODUCT",
+      "sourceId": "B0CTGTJZBM",
+      "title": "Amazon Product (B0CTGTJZBM)",
+      "content": "ASIN: B0CTGTJZBM | Title: Diatomite Toothbrush Holders Tooth Brush Organizer - Marble White | Water-Absorbent Material, 3 Slots for Electric Toothbrush and Toothpaste, for Bathroom Countertop, Shower, Vanity | Price: $11.99 | Rating: 4.6 (1,053 reviews)",
+      "capturedAt": "2026-09-11T09:34:43.357Z",
+      "executionTimeMs": 231,
+      "confidenceScore": 0.98
+    },
+    {
+      "evidenceId": "ev_trend_1789119283624_nluam",
+      "source": "XYDC",
+      "providerId": "xydc",
+      "transport": "MCP",
+      "type": "TREND",
+      "sourceId": "B0BFGNSXYL",
+      "title": "XYDC 商品趋势多维画像 (B0BFGNSXYL)",
+      "content": "商品 ASIN: B0BFGNSXYL\n类目: Home & Kitchen (大类) > Toothbrush Holders (子类)\nBSR: 1024 -> 834 (变化: -190, -18.55%, 走向: RANK_IMPROVED)\nPRICE: 9.99 -> 9.99 (变化: 0, 0%, 走向: STABLE)\nRATING: 4.6 -> 4.6 (变化: 0, 0%, 走向: STABLE)\nREVIEW_COUNT: 5056 -> 5147 (变化: +91, +1.8%, 走向: REVIEWS_INCREASED)\n数据来源: XYDC Remote Tools get_asin_bsr_trends / get_asin_info_trends (消耗额度: 7 Credits)",
+      "mode": "LIVE",
+      "capturedAt": "2026-09-11T09:34:43.624Z",
+      "metadata": {
+        "asin": "B0BFGNSXYL",
+        "credits": 7,
+        "trendsCount": 4,
+        "categoryTree": [
+          {
+            "categoryId": "1055398",
+            "name": "Home & Kitchen",
+            "root": true
+          },
+          {
+            "categoryId": "13749821",
+            "name": "Toothbrush Holders",
+            "root": false
+          }
+        ]
+      }
+    },
+    {
+      "evidenceId": "ev_rev_1789119283807_h3hh4",
+      "source": "XYDC",
+      "providerId": "xydc",
+      "transport": "MCP",
+      "type": "REVIEW_METRIC",
+      "sourceId": "B0BFGNSXYL",
+      "title": "XYDC 官方商品评价与星级健康度 (B0BFGNSXYL)",
+      "content": "商品 ASIN: B0BFGNSXYL\n公开平均评分: 4.6★\n公开累计评价总数: 5,147\n已分析 Review 文本数: 0 (当前 Provider 未提供单条评论文本)\n数据来源: XYDC Remote Tool get_asin_info (耗费: 1 Credits)",
+      "mode": "LIVE",
+      "capturedAt": "2026-09-11T09:34:43.807Z",
+      "costCredits": 1,
+      "metadata": {
+        "asin": "B0BFGNSXYL",
+        "marketplace": "AMAZON_US",
+        "averageRating": 4.6,
+        "totalReviewCount": 5147,
+        "analyzedReviewCount": null,
+        "supportedDimensions": [
+          "averageRating",
+          "totalReviewCount",
+          "ratingTrend",
+          "reviewCountTrend"
+        ],
+        "unsupportedDimensions": [
+          "painPoints",
+          "praisePoints",
+          "buyerMotivations",
+          "negativeFeedback",
+          "reviewTextExtraction"
+        ]
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_qe7jm6ba_0",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_qe7jm6ba",
+      "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Better Homes & Gardens Faux Marble Toothbrush Hold",
+      "content": "In stock Rating 4.7(233)This is solid and the openings fit a tube of toothpaste or an electric toothbrush. It is nice and looks like marble. Matches the soap holder i got for face soap ...",
+      "capturedAt": "2026-09-11T09:34:52.726Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+        "sourceUrl": "https://www.walmart.com/ip/Better-Homes-Gardens-Faux-Marble-Toothbrush-Holder-White/151633543",
+        "vocSourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.726Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.walmart.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_31e9och9_1",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_31e9och9",
+      "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Modern Marble Toothbrush-Razor Cup + Reviews - CB2",
+      "content": "In stock Rating 4.5(547)On sale. Shop Modern Marble Toothbrush-Razor Cup. Carve out a neat spot in the bath. Honed smooth, marble bath accessories rock a spa vibe in soft white ...",
+      "capturedAt": "2026-09-11T09:34:52.726Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+        "sourceUrl": "https://www.cb2.com/nexus-white-marble-toothbrush-holder/s676666?srsltid=AfmBOop0R4PdV-T-tiuDgb3EtxLr9ZQaCuDauragY0mUJwyCCw0epgXt",
+        "vocSourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.726Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush"
+        ],
+        "domain": "www.cb2.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_glb39v0d_2",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_glb39v0d",
+      "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Marble Toothbrush Holder White - Threshold™ : Targ",
+      "content": "In stock Rating 4.8(171)I loved loved loved this toothbrush holder! The quality was amazing. The only thing I would watch out for is mold. Mine unfortunately did start molding on the ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+        "sourceUrl": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-8482/-/A-17247411",
+        "vocSourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.target.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_whg1bfdk_3",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_whg1bfdk",
+      "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Amazon.com: BCS Toothbrush Holder for Bathrooms, 4",
+      "content": "Free delivery 30-day returns4-Slot Hygienic Design - This marble toothbrush holder features 3 small holes for standard toothbrushes and 1 large hole for toothpaste, razors, ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+        "sourceUrl": "https://www.amazon.com/BCS-Toothbrush-Bathrooms-Toothpaste-Countertop/dp/B0DQL19ZVM",
+        "vocSourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.amazon.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_jruud50h_4",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_jruud50h",
+      "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Creative Home - Curvy Natural Marble Toothbrush Ho",
+      "content": "Free in-store returnsRead page 1 of our customer reviews for more information on the Creative Home Curvy Natural Marble Toothbrush Holder in Champagne Color.",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.homedepot.com/p/reviews/Creative-Home-Curvy-Natural-Marble-Toothbrush-Holder-in-Champagne-Color-74173/313723896/1",
+        "sourceUrl": "https://www.homedepot.com/p/reviews/Creative-Home-Curvy-Natural-Marble-Toothbrush-Holder-in-Champagne-Color-74173/313723896/1",
+        "vocSourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.homedepot.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_62hg0kay_5",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_62hg0kay",
+      "title": "External VOC [YOUTUBE|SEARCH_SNIPPET|GENERIC]: BEST Toothbrush Holder EVER?! NPET Review #gamecha",
+      "content": "her #she #interiordesign In today's TOP Must See Sponsorship vlog video, I'll be showing you a NPET 3 cup toothbrush holder.",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.youtube.com/watch?v=Az98Hq7cDDw",
+        "sourceUrl": "https://www.youtube.com/watch?v=Az98Hq7cDDw",
+        "vocSourceType": "YOUTUBE",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [],
+        "domain": "www.youtube.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_jkcxteu5_6",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_jkcxteu5",
+      "title": "External VOC [WEB|SEARCH_SNIPPET|GENERIC]: 10 Best Toothbrush Holders | The Strategist - New ",
+      "content": "“It has held up fabulously,” she says. “I'd say it's as good as new.” Since the sides are open, the holder doesn't hold in moisture or get too ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://nymag.com/strategist/article/best-toothbrush-holders.html",
+        "sourceUrl": "https://nymag.com/strategist/article/best-toothbrush-holders.html",
+        "vocSourceType": "WEB",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [],
+        "domain": "nymag.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_02ufa8c7_7",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_02ufa8c7",
+      "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Real Luxurious Natural Marble Toothbrush Holder & ",
+      "content": "Q1: Is this marble organizer heavy enough to stay stable on a countertop? A: Yes! · Q2: How does the size compare to other marble holders? Can it fit large ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+        "sourceUrl": "https://www.amazon.com/Square-Marble-Toothbrush-Holder-Organizer/dp/B0F9KZHBYT",
+        "vocSourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.amazon.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_qbsx9oug_8",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_qbsx9oug",
+      "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Marble Toothbrush Holder - Etsy",
+      "content": "4.51.2K \"This toothbrush holder is the cutest thing in my bathroom! I absolutely love it. It's so unique and elevates something in the bathroom that would otherwise be ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.etsy.com/market/marble_toothbrush_holder",
+        "sourceUrl": "https://www.etsy.com/market/marble_toothbrush_holder",
+        "vocSourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.etsy.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_40v7vxo7_9",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_40v7vxo7",
+      "title": "External VOC [SOCIAL|SEARCH_SNIPPET|CATEGORY]: the colors and so many more Amazon bathroom must h",
+      "content": "These little Amazon buys quietly fixed all the annoying things in my bathroom! Follow + comment BATH for links A marble toothbrush ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.instagram.com/p/DbqPXnGkQqe/",
+        "sourceUrl": "https://www.instagram.com/p/DbqPXnGkQqe/",
+        "vocSourceType": "SOCIAL",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush"
+        ],
+        "domain": "www.instagram.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_0x8sbie6_10",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_0x8sbie6",
+      "title": "External VOC [FORUM|SEARCH_SNIPPET|CATEGORY]: White Marble Toothbrush Holder - Identify as Moder",
+      "content": "In stockWith its durable and easy to clean surface, this set is perfect for any bathroom- whether you're looking to add a touch of class to your home or stylize your ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://identifyasmodern.com/products/white-marble-toothbrush-holder",
+        "sourceUrl": "https://identifyasmodern.com/products/white-marble-toothbrush-holder",
+        "vocSourceType": "FORUM",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "identifyasmodern.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_mvu2d8cn_11",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_mvu2d8cn",
+      "title": "External VOC [REVIEWS|SEARCH_SNIPPET|CATEGORY]: Marble Toothbrush Holder White - Threshold™ : Targ",
+      "content": "A: Hi pekmom - Elevate your sink counter top decor with this marble toothbrush holder. It is one piece that can be rinsed out through the four round slots.",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-153/-/A-17247411?showOnlyQuestions=true",
+        "sourceUrl": "https://www.target.com/p/marble-toothbrush-holder-white-threshold-153/-/A-17247411?showOnlyQuestions=true",
+        "vocSourceType": "REVIEWS",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.target.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_ay99vor5_12",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_ay99vor5",
+      "title": "External VOC [WEB|SEARCH_SNIPPET|CATEGORY]: Marble Toothbrush Holder | Bathroom Accessories & ",
+      "content": "In stock Rating 4.9(23)Tall Glass Storage Jar. £25.00. (66). Marble Toothbrush Holder. 4.9/5. Based on 23 reviews. Design. Poor; Excellent. Quality. Poor; Excellent. Ratings and ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.thewhitecompany.com/uk/Marble-Toothbrush-Holder/p/BAHOO",
+        "sourceUrl": "https://www.thewhitecompany.com/uk/Marble-Toothbrush-Holder/p/BAHOO",
+        "vocSourceType": "WEB",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.thewhitecompany.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_au202yj9_13",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_au202yj9",
+      "title": "External VOC [WEB|SEARCH_SNIPPET|CATEGORY]: MARBLE Toothbrush Holder, Brown - Mette Ditmer",
+      "content": "In stockThe series is very robust quite heavy, the material marble just gets prettier and prettier as time goes on. The toothbrush holder is available in two beautiful ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://metteditmer.com/products/martum01",
+        "sourceUrl": "https://metteditmer.com/products/martum01",
+        "vocSourceType": "WEB",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "metteditmer.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_a8a5s9ic_14",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_a8a5s9ic",
+      "title": "External VOC [WEB|SEARCH_SNIPPET|CATEGORY]: Marquina Toothbrush Holder - Marble Bath Accessori",
+      "content": "In stock Free deliveryStriking forms, defined by precision, are beautifully juxtaposed against the meandering white veins that organically grace the black marble surface of each ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.sferra.com/products/marquina-toothbrush-holder?srsltid=AfmBOorSj0fkSl7--XSusnF9TAhOwCLTnL_aWRD4NmnU2KNO4Xuiyzo-",
+        "sourceUrl": "https://www.sferra.com/products/marquina-toothbrush-holder?srsltid=AfmBOorSj0fkSl7--XSusnF9TAhOwCLTnL_aWRD4NmnU2KNO4Xuiyzo-",
+        "vocSourceType": "WEB",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.sferra.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_af3mcv7l_15",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_af3mcv7l",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|CATEGORY]: Tips for cleaning a toothbrush holder? : r/homemak",
+      "content": "I had been wiping out my old toothbrush holder, but I just upgraded to a much nicer marble toothbrush holder with dividers and a plug on the ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/homemaking/comments/587wy8/tips_for_cleaning_a_toothbrush_holder/",
+        "sourceUrl": "https://www.reddit.com/r/homemaking/comments/587wy8/tips_for_cleaning_a_toothbrush_holder/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_9zn3r3xz_16",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_9zn3r3xz",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|CATEGORY]: This was at my grandmothers house, brass(?) and ma",
+      "content": "WITT this came from my grandmothers house and is brass and marble. We believe it may be a toothbrush holder? Any ideas on what era it's from ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/whatisthisthing/comments/kgmlgp/this_was_at_my_grandmothers_house_brass_and/",
+        "sourceUrl": "https://www.reddit.com/r/whatisthisthing/comments/kgmlgp/this_was_at_my_grandmothers_house_brass_and/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_qmif0rn2_17",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_qmif0rn2",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: Need help cleaning a toothbrush holder : r/Cleanin",
+      "content": "Drop a denture cleaner tablet in there then fill with water and let it site for 30 mins.",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/CleaningTips/comments/1kg1znp/need_help_cleaning_a_toothbrush_holder/",
+        "sourceUrl": "https://www.reddit.com/r/CleaningTips/comments/1kg1znp/need_help_cleaning_a_toothbrush_holder/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_96bksbqx_18",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_96bksbqx",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: Toothbrush holders get nasty at the bottom, so thr",
+      "content": "The residual water clinging to the toothbrush after using it slides down and collects in the bottom of the toothbrush holder, where it sits ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/CleaningTips/comments/eyci2z/toothbrush_holders_get_nasty_at_the_bottom_so/",
+        "sourceUrl": "https://www.reddit.com/r/CleaningTips/comments/eyci2z/toothbrush_holders_get_nasty_at_the_bottom_so/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_1c8m3rw2_19",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_1c8m3rw2",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: How do you decorate your bathroom countertops with",
+      "content": "Can you guys share pictures (preferably your own) so I can get ideas how to make our countertops look more appealing with the toothbrushes ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/HomeDecorating/comments/1d0ophq/how_do_you_decorate_your_bathroom_countertops/",
+        "sourceUrl": "https://www.reddit.com/r/HomeDecorating/comments/1d0ophq/how_do_you_decorate_your_bathroom_countertops/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [
+          "bathroom"
+        ],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_u8n20rrc_20",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_u8n20rrc",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: soap dispensers, soap dish, toothbrush/paste holde",
+      "content": "I love my Muji toothbrush holders. They are simply large, white porcelain rings that are hollow, and, therefore easy to clean. I've always found ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/BuyItForLife/comments/69esn8/request_looking_for_bifl_quality_bathroom_counter/",
+        "sourceUrl": "https://www.reddit.com/r/BuyItForLife/comments/69esn8/request_looking_for_bifl_quality_bathroom_counter/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [
+          "bathroom"
+        ],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_ttnc6uv0_21",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_ttnc6uv0",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|CATEGORY]: Very simple toothbrush holder : r/functionalprint ",
+      "content": "Fits battery powered electric toothbrushes and toothpaste, printed in Ziro Marble PLA. I know it's simple, but I'm still at the Tinkercad stage ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/functionalprint/comments/87wnph/very_simple_toothbrush_holder/",
+        "sourceUrl": "https://www.reddit.com/r/functionalprint/comments/87wnph/very_simple_toothbrush_holder/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "CATEGORY",
+        "matchedTerms": [
+          "marble",
+          "toothbrush holder"
+        ],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_4n5myplx_22",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_4n5myplx",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: If you have one of these in your bathroom, throw i",
+      "content": "I use a toothbrush holder made out of diatomaceous earth! It's meant to absorb water and limit bacteria growth. It still gets a little grimey ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/CleaningTips/comments/1mkipx1/if_you_have_one_of_these_in_your_bathroom_throw/",
+        "sourceUrl": "https://www.reddit.com/r/CleaningTips/comments/1mkipx1/if_you_have_one_of_these_in_your_bathroom_throw/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [
+          "bathroom"
+        ],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_64jzys2y_23",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_64jzys2y",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: A simple, no support Toothbrush Holder : r/BambuLa",
+      "content": "It's also super easy to print, not requiring any supports because the top and bottom print separately and then screw together. I added a ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/BambuLab/comments/1r5njiu/a_simple_no_support_toothbrush_holder/",
+        "sourceUrl": "https://www.reddit.com/r/BambuLab/comments/1r5njiu/a_simple_no_support_toothbrush_holder/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    },
+    {
+      "evidenceId": "evi_extvoc_fc_fc_txt_uc7v3ky3_24",
+      "source": "FIRECRAWL",
+      "providerId": "firecrawl",
+      "transport": "HTTP",
+      "type": "EXTERNAL_VOC",
+      "sourceId": "fc_txt_uc7v3ky3",
+      "title": "External VOC [REDDIT|SEARCH_SNIPPET|GENERIC]: r/MoldlyInteresting - What actual horror grew in o",
+      "content": "I picked up my toothbrush and saw a black slime on the bottom tip of it. Then I saw this and almost threw up... filled it with boiling water ...",
+      "capturedAt": "2026-09-11T09:34:52.727Z",
+      "mode": "LIVE",
+      "confidenceScore": 0.7,
+      "metadata": {
+        "url": "https://www.reddit.com/r/MoldlyInteresting/comments/181im75/what_actual_horror_grew_in_our_toothbrush_holder/",
+        "sourceUrl": "https://www.reddit.com/r/MoldlyInteresting/comments/181im75/what_actual_horror_grew_in_our_toothbrush_holder/",
+        "vocSourceType": "REDDIT",
+        "contentKind": "SEARCH_SNIPPET",
+        "author": "[REDACTED]",
+        "publishedAt": null,
+        "capturedAt": "2026-09-11T09:34:52.727Z",
+        "scope": "GENERIC",
+        "matchedTerms": [],
+        "domain": "www.reddit.com",
+        "targetAsin": "B0BFGNSXYL",
+        "query": "marble toothbrush holder"
+      }
+    }
+  ]
+}

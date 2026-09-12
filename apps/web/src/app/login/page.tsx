@@ -21,7 +21,11 @@ export default function LoginPage() {
       const session = await ApiClient.post<AuthSession>('/api/v1/auth/demo-login', {
         role: 'OWNER',
       });
-      ApiClient.setSession(session.token, session.activeWorkspace?.id);
+      ApiClient.setSession(
+        session.token,
+        session.activeWorkspace?.id,
+        session.activeWorkspace?.role,
+      );
       router.push('/app/overview');
     } catch (err: any) {
       setError(err.message || '演示登录失败，请检查服务状态');
@@ -39,7 +43,11 @@ export default function LoginPage() {
         email,
         password,
       });
-      ApiClient.setSession(session.token, session.activeWorkspace?.id);
+      ApiClient.setSession(
+        session.token,
+        session.activeWorkspace?.id,
+        session.activeWorkspace?.role,
+      );
       router.push('/app/overview');
     } catch (err: any) {
       setError(err.message || '登录失败，请检查账号密码');

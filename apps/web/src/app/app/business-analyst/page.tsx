@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../../../lib/api-client';
+import { connectAuthenticatedSse } from '../../../lib/authenticated-sse';
 import {
   BrainCircuit,
   TrendingDown,
@@ -76,6 +77,7 @@ export default function BusinessAnalystPage() {
   const [showTraces, setShowTraces] = useState(true);
   const [sseActive, setSseActive] = useState(false);
   const [sseLogs, setSseLogs] = useState<string[]>([]);
+  const sseCloseRef = useRef<(() => void) | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadWaterfall = async () => {
@@ -92,6 +94,9 @@ export default function BusinessAnalystPage() {
 
   useEffect(() => {
     loadWaterfall();
+    return () => {
+      sseCloseRef.current?.();
+    };
   }, []);
 
   const handleAsk = async () => {
@@ -108,41 +113,43 @@ export default function BusinessAnalystPage() {
     }
   };
 
-  // Live SSE Stream Test
   const handleStartSSE = () => {
+    sseCloseRef.current?.();
     setSseActive(true);
     setSseLogs(['[SSE] 正在连接 /api/v1/agent-tasks/stream...']);
 
-    const eventSource = new EventSource('/api/v1/agent-tasks/stream?taskType=VARIANCE_ATTRIBUTION');
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const line = `[${data.type}] ${data.toolName ? `Tool: ${data.toolName}` : ''} ${data.message || data.name || JSON.stringify(data)}`;
-        setSseLogs((prev) => [...prev, line]);
-        if (data.type === 'TASK_COMPLETE') {
-          setSseLogs((prev) => [...prev, '🏁 [SSE] 执行完毕，连接已关闭。']);
-          eventSource.close();
+    const close = connectAuthenticatedSse(
+      '/api/v1/agent-tasks/stream?taskType=VARIANCE_ATTRIBUTION',
+      {
+        onEvent: (eventName, data, raw) => {
+          const type = data?.type || eventName;
+          const line = `[${type}] ${data?.toolName ? `Tool: ${data.toolName}` : ''} ${data?.message || data?.name || raw}`;
+          setSseLogs((prev) => [...prev, line]);
+          if (type === 'TASK_COMPLETE') {
+            setSseLogs((prev) => [...prev, '🏁 [SSE] 执行完毕，连接已关闭。']);
+            setSseActive(false);
+          }
+        },
+        onError: (err) => {
+          const message =
+            err.status === 401
+              ? '[SSE] 未授权，请重新登录'
+              : `[SSE] 连接失败: ${err.message}`;
+          setSseLogs((prev) => [...prev, message]);
           setSseActive(false);
-        }
-      } catch (err) {
-        setSseLogs((prev) => [...prev, `[RAW] ${event.data}`]);
-      }
-    };
-
-    eventSource.onerror = () => {
-      setSseLogs((prev) => [...prev, '⚠️ [SSE] 演示流结束或连接已终止。']);
-      eventSource.close();
-      setSseActive(false);
-    };
+        },
+      },
+      { terminalEvents: ['TASK_COMPLETE'] },
+    );
+    sseCloseRef.current = close;
   };
 
   const b = waterfall?.breakdown || {
-    advertising: -980,
-    returns: -620,
-    inventory: -510,
-    price: -310,
-    other: 140,
+    advertising: 0,
+    returns: 0,
+    inventory: 0,
+    price: 0,
+    other: 0,
   };
 
   return (

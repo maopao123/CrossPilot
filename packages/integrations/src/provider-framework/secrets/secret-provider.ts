@@ -4,6 +4,9 @@
  * and enforces strict redaction across logs, traces, and error payloads.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 export class SecretProvider {
   private static inMemoryOverrides: Map<string, string> = new Map();
 
@@ -21,10 +24,35 @@ export class SecretProvider {
     this.inMemoryOverrides.clear();
   }
 
+  private static envLoaded = false;
+
+  private static ensureEnvLoaded(): void {
+    if (this.envLoaded) return;
+    this.envLoaded = true;
+    try {
+      if ((process as any).loadEnvFile) {
+        let currentDir = process.cwd();
+        for (let i = 0; i < 5; i++) {
+          const candidate = path.join(currentDir, '.env');
+          if (fs.existsSync(candidate)) {
+            (process as any).loadEnvFile(candidate);
+            break;
+          }
+          const parent = path.dirname(currentDir);
+          if (parent === currentDir) break;
+          currentDir = parent;
+        }
+      }
+    } catch {
+      // .env not present or already loaded
+    }
+  }
+
   /**
    * Safe getter for secret credentials
    */
   static getSecret(key: string, defaultValue?: string): string | undefined {
+    this.ensureEnvLoaded();
     if (this.inMemoryOverrides.has(key)) {
       return this.inMemoryOverrides.get(key);
     }

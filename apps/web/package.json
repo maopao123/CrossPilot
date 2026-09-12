@@ -8,7 +8,7 @@
     "start": "next start -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"Web package verified\""
+    "test": "node --test test/*.cjs"
   },
   "dependencies": {
     "@crosspilot/shared": "workspace:*",

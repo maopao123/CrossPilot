@@ -75,7 +75,32 @@ export class McpClient {
         throw error;
       }
 
-      const rpcRes = (await response.json()) as unknown as McpJsonRpcResponse<T>;
+      const responseText = await response.text();
+      let rpcRes: McpJsonRpcResponse<T>;
+      const trimmed = responseText.trim();
+      if (
+        trimmed.startsWith('event:') ||
+        trimmed.startsWith('data:') ||
+        trimmed.includes('\nevent:') ||
+        trimmed.includes('\ndata:')
+      ) {
+        const lines = trimmed.split('\n');
+        let dataStr = '';
+        for (const line of lines) {
+          const l = line.trim();
+          if (l.startsWith('data:')) {
+            dataStr = l.substring(5).trim();
+            break;
+          }
+        }
+        if (!dataStr) {
+          const match = trimmed.match(/data:\s*(\{[\s\S]*\})/);
+          dataStr = match ? match[1] : trimmed;
+        }
+        rpcRes = JSON.parse(dataStr) as McpJsonRpcResponse<T>;
+      } else {
+        rpcRes = JSON.parse(trimmed) as McpJsonRpcResponse<T>;
+      }
       if (rpcRes.error) {
         const error: ProviderError = {
           code: 'PROVIDER_INVALID_RESPONSE',

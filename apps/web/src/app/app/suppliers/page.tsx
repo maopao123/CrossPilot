@@ -17,10 +17,12 @@ export default function SuppliersPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [isViewer, setIsViewer] = useState(false);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setIsViewer(ApiClient.isViewer());
       const [supData, poData] = await Promise.allSettled([
         ApiClient.get<SupplierInfo[]>('/api/v1/suppliers'),
         ApiClient.get<PurchaseOrderInfo[]>('/api/v1/purchase-orders'),
@@ -45,12 +47,11 @@ export default function SuppliersPage() {
       const itemsToReceive = po.items?.map((item) => ({
         skuId: item.skuId,
         receivedQuantity: item.quantity,
-      })) || [
-        {
-          skuId: 'sku_white_001',
-          receivedQuantity: 500,
-        },
-      ];
+      }));
+      if (!itemsToReceive || itemsToReceive.length === 0) {
+        setActionMsg('❌ 采购单没有可入库明细');
+        return;
+      }
 
       await ApiClient.post(`/api/v1/purchase-orders/${po.id}/receive`, {
         items: itemsToReceive,
@@ -197,13 +198,16 @@ export default function SuppliersPage() {
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>已入库 (库存已增加)</span>
                       </span>
-                    ) : (
+                    ) : po.status === 'SHIPPED' || po.status === 'PARTIALLY_RECEIVED' ? (
                       <button
                         onClick={() => handleReceivePo(po)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded transition text-xs cursor-pointer"
+                        disabled={isViewer}
+                        className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold px-2.5 py-1 rounded transition text-xs cursor-pointer"
                       >
                         入库核收 (增加库存)
                       </button>
+                    ) : (
+                      <span className="text-gray-500">待发货后可入库</span>
                     )}
                   </td>
                 </tr>

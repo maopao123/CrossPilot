@@ -11,6 +11,9 @@ import {
   MarketOverviewSnapshot,
   MarketProduct,
   MarketTrend,
+  ResearchEvidence,
+  VocProductAnalysisResult,
+  ProductReviewHealthResult,
 } from '@crosspilot/shared';
 
 export const MOCK_PROVIDER_ID = 'mock';
@@ -60,6 +63,20 @@ export const MOCK_CAPABILITY_BINDINGS: CapabilityBinding[] = [
   },
   {
     capabilityId: 'market.product.trend',
+    providerId: MOCK_PROVIDER_ID,
+    transport: 'NATIVE',
+    enabled: true,
+    priority: 10,
+  },
+  {
+    capabilityId: 'review.product.health',
+    providerId: MOCK_PROVIDER_ID,
+    transport: 'NATIVE',
+    enabled: true,
+    priority: 10,
+  },
+  {
+    capabilityId: 'voc.product.analyze',
     providerId: MOCK_PROVIDER_ID,
     transport: 'NATIVE',
     enabled: true,
@@ -148,7 +165,56 @@ export class MockMarketProvider implements ProviderAdapter {
             capturedAt: new Date().toISOString(),
           },
         ];
-        data = mockProducts;
+        const mockKeywordMetric: KeywordMetric = {
+          source: 'MOCK',
+          marketplace,
+          keyword,
+          searchVolume: 48500,
+          competition: 0.65,
+          cpc: 1.25,
+          abaRank: 3200,
+          relevance: null,
+          growth: null,
+          topAsins: ['B08XYZ1234', 'B09ABC5678', 'B0C7M8W101'],
+          capturedAt: new Date().toISOString(),
+        };
+        const mockEvidences: ResearchEvidence[] = [
+          {
+            evidenceId: `evi_kw_mock_${Date.now()}`,
+            source: 'MOCK',
+            providerId: 'mock',
+            transport: 'NATIVE',
+            mode: 'MOCK',
+            type: 'KEYWORD',
+            sourceId: keyword,
+            title: `Mock Keyword Intelligence: ${keyword}`,
+            content: `Search Volume: 48,500 | ABA Rank: #3,200 | CPC: $1.25 | Competition: 0.65`,
+            capturedAt: new Date().toISOString(),
+          },
+          ...mockProducts.map((p) => ({
+            evidenceId: `evi_prod_mock_${p.asin}_${Date.now()}`,
+            source: 'MOCK',
+            providerId: 'mock',
+            transport: 'NATIVE',
+            mode: 'MOCK' as const,
+            type: 'MARKET_PRODUCT' as const,
+            sourceId: p.asin,
+            title: `Mock Product: ${p.asin}`,
+            content: `${p.title} | Price: $${p.price} | Rating: ${p.rating} (${p.reviewCount} reviews)`,
+            capturedAt: new Date().toISOString(),
+          })),
+        ];
+        data = {
+          query: { keyword, marketplace },
+          keywordMetric: mockKeywordMetric,
+          products: mockProducts,
+          evidence: mockEvidences,
+          provider: {
+            providerId: 'mock',
+            transport: 'NATIVE',
+            mode: 'MOCK',
+          },
+        };
         break;
       }
 
@@ -267,6 +333,152 @@ export class MockMarketProvider implements ProviderAdapter {
           ],
         };
         data = trend;
+        break;
+      }
+
+      case 'review.product.health': {
+        const asin = input?.asin || 'B0BFGNSXYL';
+        const reviewHealthResult: ProductReviewHealthResult = {
+          asin,
+          marketplace,
+          averageRating: 4.6,
+          totalReviewCount: 5147,
+          analyzedReviewCount: null,
+          ratingDistribution: {
+            '5_star': 78,
+            '4_star': 12,
+            '3_star': 4,
+            '2_star': 2,
+            '1_star': 4,
+          },
+          summary:
+            '当前公开累计评价数：5,147，平均星级：4.6。当前 Provider 未提供单条 Review 文本，因此尚未进行文本级 VOC 分析。',
+          supportedDimensions: [
+            'averageRating',
+            'totalReviewCount',
+            'ratingTrend',
+            'reviewCountTrend',
+          ],
+          unsupportedDimensions: [
+            'painPoints',
+            'praisePoints',
+            'buyerMotivations',
+            'negativeFeedback',
+            'reviewTextExtraction',
+          ],
+          evidenceNotice:
+            '商品评价与口碑指标基于平台公开数据，非物理工程质检结论。当前数据源未提供单条 Review 文本挖掘工具。',
+        };
+        data = reviewHealthResult;
+        break;
+      }
+
+      case 'voc.product.analyze': {
+        const asin = input?.asin || 'B0BFGNSXYL';
+        const vocResult: VocProductAnalysisResult = {
+          asin,
+          marketplace,
+          totalReviewCount: 5147,
+          analyzedReviewCount: 5147,
+          totalReviewsAnalyzed: 5147,
+          averageRating: 4.6,
+          ratingDistribution: {
+            '5_star': 78,
+            '4_star': 12,
+            '3_star': 4,
+            '2_star': 2,
+            '1_star': 4,
+          },
+          painPoints: [
+            {
+              topic: 'Slot size too tight for larger electric toothbrush handles',
+              category: 'PRODUCT_DESIGN',
+              frequency: 45,
+              percentage: 8.7,
+              severity: 'HIGH',
+              quotes: [
+                {
+                  quoteText:
+                    'The hole is slightly too narrow for Philips Sonicare DiamondClean handle, scratches the silicone base.',
+                  reviewDate: '2026-08-15',
+                  rating: 2,
+                  reviewer: 'Amazon Customer',
+                },
+                {
+                  quoteText: 'Fits standard manual brushes fine, but electric heads are tight.',
+                  reviewDate: '2026-07-28',
+                  rating: 3,
+                  reviewer: 'Sarah M.',
+                },
+              ],
+            },
+            {
+              topic: 'Bottom water drainage requires frequent cleaning',
+              category: 'MAINTENANCE',
+              frequency: 31,
+              percentage: 6.0,
+              severity: 'MEDIUM',
+              quotes: [
+                {
+                  quoteText: 'Water pools at the bottom bamboo insert if not dried weekly.',
+                  reviewDate: '2026-08-02',
+                  rating: 3,
+                  reviewer: 'David K.',
+                },
+              ],
+            },
+          ],
+          praisePoints: [
+            {
+              topic: 'Heavy marble resin material prevents tipping over',
+              category: 'BUILD_QUALITY',
+              frequency: 184,
+              percentage: 35.7,
+              quotes: [
+                {
+                  quoteText:
+                    'Very sturdy and heavy enough that it never tips over when taking out toothbrushes.',
+                  reviewDate: '2026-08-20',
+                  rating: 5,
+                  reviewer: 'Jennifer L.',
+                },
+              ],
+            },
+            {
+              topic: 'Elegant aesthetic fits modern bathroom decor',
+              category: 'AESTHETICS',
+              frequency: 142,
+              percentage: 27.6,
+              quotes: [
+                {
+                  quoteText: 'Looks like real marble, matches my countertop vanity perfectly.',
+                  reviewDate: '2026-08-11',
+                  rating: 5,
+                  reviewer: 'Michael P.',
+                },
+              ],
+            },
+          ],
+          buyerMotivations: [
+            {
+              motivation: 'Bathroom countertop organization and clutter reduction',
+              percentage: 42.0,
+            },
+            {
+              motivation: 'Matching modern marble/minimalist bathroom decor',
+              percentage: 31.5,
+            },
+            {
+              motivation: 'Upgrading from plastic cup holders',
+              percentage: 18.2,
+            },
+          ],
+          summary:
+            'Overall strong satisfaction (4.6★) driven by solid weight, elegant faux-marble appearance, and multi-slot utility. Primary customer friction point relates to slot width constraints on wider electric toothbrush models.',
+          evidenceNotice:
+            '买家原声数据基于用户评价观察采样，属于买家主观体验与反馈，非物理工程质检结论。',
+        };
+        data = vocResult;
         break;
       }
 

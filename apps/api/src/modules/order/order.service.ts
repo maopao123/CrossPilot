@@ -85,6 +85,16 @@ export class OrderService {
 
       // 1. Verify and deduct inventory for each item
       for (const item of input.items) {
+        const skuInWorkspace = await tx.sku.findFirst({
+          where: { id: item.skuId, workspaceId },
+        });
+        if (!skuInWorkspace) {
+          throw new NotFoundException({
+            code: ErrorCodes.RESOURCE_NOT_FOUND,
+            message: `SKU '${item.skuId}' not found in this workspace`,
+          });
+        }
+
         const balance = await tx.inventoryBalance.findUnique({
           where: {
             workspaceId_skuId_warehouseType: {
@@ -187,8 +197,8 @@ export class OrderService {
           where: { workspaceId, skuId: item.skuId },
           orderBy: { effectiveDate: 'desc' },
         });
-        const skuRecord = await tx.sku.findUnique({
-          where: { id: item.skuId },
+        const skuRecord = await tx.sku.findFirst({
+          where: { id: item.skuId, workspaceId },
         });
         const unitCost = quote
           ? Number(quote.unitCost)

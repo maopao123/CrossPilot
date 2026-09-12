@@ -8,6 +8,15 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
+try {
+  if (process.loadEnvFile) {
+    const envPath = path.join(__dirname, '..', '.env');
+    if (fs.existsSync(envPath)) {
+      process.loadEnvFile(envPath);
+    }
+  }
+} catch (e) {}
+
 const endpoint = process.env.XYDC_MCP_ENDPOINT;
 const token = process.env.XYDC_MCP_TOKEN;
 
@@ -57,6 +66,7 @@ async function run() {
       },
       timeout: 8000
     }, (res) => {
+      res.setEncoding('utf8');
       let body = '';
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => {
@@ -109,7 +119,7 @@ async function run() {
 }
 
 function generateReport(info) {
-  const docPath = path.join(__dirname, '..', 'docs', 'XYDC_CAPABILITY_MAPPING.md');
+  const docPath = path.join(__dirname, '..', 'docs', '30_modules', 'provider', 'XYDC_CAPABILITY_MAPPING.md');
   const content = `# XYDC (西柚洞察) MCP Capability Mapping & Reality Audit Report
 
 > **Generated At**: ${new Date().toISOString()}  

@@ -18,15 +18,15 @@ import {
 interface Competitor {
   id: string;
   asin: string;
-  brand: string;
+  brand?: string | null;
   title: string;
-  category: string;
-  price: number;
-  rating: number;
-  reviewCount: number;
-  estimatedSales: number;
-  estimatedRevenue: number;
-  bsr: number;
+  category?: string | null;
+  price?: number | null;
+  rating?: number | null;
+  reviewCount?: number | null;
+  estimatedSales?: number | null;
+  estimatedRevenue?: number | null;
+  bsr?: number | null;
 }
 
 interface VocTopic {
@@ -162,23 +162,35 @@ export default function CompetitorAndVocPage() {
                 <th className="py-3 px-4">BSR 排名</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
-              {competitors.map((c) => (
-                <tr key={c.id} className="hover:bg-surface-elevated/40 transition">
-                  <td className="py-3 px-4">
-                    <div className="font-bold text-white">{c.title}</div>
-                    <div className="text-[10px] text-blue-400 font-mono mt-0.5">{c.asin}</div>
-                  </td>
-                  <td className="py-3 px-4 font-semibold text-gray-300">{c.brand}</td>
-                  <td className="py-3 px-4 font-bold text-white">${c.price.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-amber-400 font-semibold">⭐ {c.rating.toFixed(1)}</td>
-                  <td className="py-3 px-4 text-gray-300">{c.reviewCount.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-emerald-400 font-medium">{c.estimatedSales.toLocaleString()} 件</td>
-                  <td className="py-3 px-4 font-bold text-white">${c.estimatedRevenue.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-gray-400">#{c.bsr}</td>
-                </tr>
-              ))}
-            </tbody>
+              <tbody className="divide-y divide-border">
+                {competitors.map((c) => (
+                  <tr key={c.id} className="hover:bg-surface-elevated/40 transition">
+                    <td className="py-3 px-4">
+                      <div className="font-bold text-white">{c.title}</div>
+                      <div className="text-[10px] text-blue-400 font-mono mt-0.5">{c.asin}</div>
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-gray-300">{c.brand || '—'}</td>
+                    <td className="py-3 px-4 font-bold text-white">
+                      {c.price != null ? `$${c.price.toFixed(2)}` : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-amber-400 font-semibold">
+                      {c.rating != null ? `⭐ ${c.rating.toFixed(1)}` : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-gray-300">
+                      {c.reviewCount != null ? c.reviewCount.toLocaleString() : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-emerald-400 font-medium">
+                      {c.estimatedSales != null ? `${c.estimatedSales.toLocaleString()} 件` : '—'}
+                    </td>
+                    <td className="py-3 px-4 font-bold text-white">
+                      {c.estimatedRevenue != null ? `$${c.estimatedRevenue.toLocaleString()}` : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-gray-400">
+                      {c.bsr != null ? `#${c.bsr}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
           </table>
         </div>
       </div>

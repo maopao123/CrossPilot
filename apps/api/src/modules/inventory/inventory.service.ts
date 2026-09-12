@@ -8,29 +8,12 @@ export class InventoryService {
   constructor(private prisma: PrismaService) {}
 
   async listInventory(workspaceId: string): Promise<InventoryBalanceInfo[]> {
-    try {
-      const balances = await this.prisma.inventoryBalance.findMany({
-        where: { workspaceId },
-        include: { sku: true },
-      });
+    const balances = await this.prisma.inventoryBalance.findMany({
+      where: { workspaceId },
+      include: { sku: true },
+    });
 
-      return balances.map((b) => this.mapBalance(b));
-    } catch {
-      return [
-        {
-          id: 'inv_demo_001',
-          workspaceId,
-          skuId: 'sku_white_001',
-          skuCode: 'MTH-WHITE-001',
-          warehouseType: 'FBA',
-          fulfillableQuantity: 450,
-          reservedQuantity: 15,
-          inboundQuantity: 200,
-          unfulfillableQuantity: 2,
-          updatedAt: new Date(),
-        },
-      ];
-    }
+    return balances.map((b) => this.mapBalance(b));
   }
 
   async getSkuInventory(
@@ -57,17 +40,19 @@ export class InventoryService {
     skuId: string,
     options?: { leadTimeDays?: number; targetDaysCover?: number },
   ) {
-    let balance;
-    try {
-      balance = await this.prisma.inventoryBalance.findFirst({
-        where: { workspaceId, skuId },
+    const balance = await this.prisma.inventoryBalance.findFirst({
+      where: { workspaceId, skuId },
+    });
+
+    if (!balance) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: 'Inventory balance not found for SKU',
       });
-    } catch {
-      // Offline fallback
     }
 
-    const fulfillableQuantity = balance ? balance.fulfillableQuantity : 450;
-    const inboundQuantity = balance ? balance.inboundQuantity : 200;
+    const fulfillableQuantity = balance.fulfillableQuantity;
+    const inboundQuantity = balance.inboundQuantity;
 
     // Determine lead time from supplier quote
     let leadTimeDays = options?.leadTimeDays ?? 15;
@@ -84,26 +69,22 @@ export class InventoryService {
     }
 
     // Determine average daily sales (past 30 days)
-    let avgDailySales = 8.5;
-    try {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
-      const recentItems = await this.prisma.orderItem.findMany({
-        where: {
-          workspaceId,
-          skuId,
-          createdAt: { gte: thirtyDaysAgo },
-        },
-      });
+    let avgDailySales = 0;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+    const recentItems = await this.prisma.orderItem.findMany({
+      where: {
+        workspaceId,
+        skuId,
+        createdAt: { gte: thirtyDaysAgo },
+      },
+    });
 
-      if (recentItems.length > 0) {
-        const totalSold = recentItems.reduce(
-          (sum, item) => sum + item.quantity,
-          0,
-        );
-        avgDailySales = Math.round((totalSold / 30) * 10) / 10;
-      }
-    } catch {
-      // Use fallback
+    if (recentItems.length > 0) {
+      const totalSold = recentItems.reduce(
+        (sum, item) => sum + item.quantity,
+        0,
+      );
+      avgDailySales = Math.round((totalSold / 30) * 10) / 10;
     }
 
     const planning = InventoryPlanningService.calculatePlanning({

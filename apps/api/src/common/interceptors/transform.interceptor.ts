@@ -18,13 +18,24 @@ export class TransformInterceptor<T>
     next: CallHandler,
   ): Observable<ApiSuccessResponse<T>> {
     const request = context.switchToHttp().getRequest<Request>();
+    const accept = String(request.headers['accept'] || '');
+    const url = String(request.url || request.path || '');
+    const isSse =
+      accept.includes('text/event-stream') ||
+      url.includes('/events') ||
+      url.endsWith('/stream') ||
+      url.includes('/stream?');
+
+    if (isSse) {
+      return next.handle();
+    }
+
     const requestId =
       (request.headers['x-request-id'] as string) ||
       `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     return next.handle().pipe(
       map((response) => {
-        // If response already matches standard structure, return as-is
         if (
           response &&
           typeof response === 'object' &&
@@ -32,15 +43,6 @@ export class TransformInterceptor<T>
           'requestId' in response
         ) {
           return response;
-        }
-
-        // If response contains data and meta explicitly
-        if (response && typeof response === 'object' && 'data' in response) {
-          return {
-            data: response.data,
-            meta: response.meta || {},
-            requestId,
-          };
         }
 
         return {

@@ -79,6 +79,35 @@ export interface ProviderExecutionContext {
   metadata?: Record<string, any>;
 }
 
+export interface CompositeTraceStep {
+  step: string;
+  toolName: string;
+  durationMs: number;
+  credits: number;
+  success: boolean;
+  itemCount?: number;
+  error?: string;
+}
+
+export interface CompositeTrace {
+  steps: CompositeTraceStep[];
+  totalDurationMs: number;
+  totalCredits: number;
+}
+
+export interface ProviderUsage {
+  provider: string;
+  requests?: number;
+  pagesFetched?: number;
+  creditsUsed?: number | null;
+  providerUnits?: number | null;
+  billingUnit?: string | null;
+  estimatedCost?: number | null;
+  currency?: string | null;
+  unit?: string;
+  quantity?: number | null;
+}
+
 export interface ProviderExecutionResult<T = any> {
   success: boolean;
   data?: T;
@@ -92,6 +121,9 @@ export interface ProviderExecutionResult<T = any> {
   retryCount?: number;
   fallbackUsed?: boolean;
   credits?: number;
+  providerUsage?: ProviderUsage;
+  compositeTrace?: CompositeTrace;
+  metadata?: Record<string, any>;
   capturedAt: string;
 }
 

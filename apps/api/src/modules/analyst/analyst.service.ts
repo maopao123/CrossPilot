@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { VarianceAttributionService, ScenarioGeneratorService } from '@crosspilot/domain';
+import { VarianceAttributionService } from '@crosspilot/domain';
 
 @Injectable()
 export class AnalystService {
@@ -33,20 +33,26 @@ export class AnalystService {
         orderBy: { date: 'asc' },
       });
 
-      let currentProfit = 1840.0;
-      let previousProfit = 4120.0;
+      const tv = Number(waterfall.totalVariance);
+      let currentProfit = 0;
+      let previousProfit = 0;
 
       if (dailyRecords.length >= 14) {
-        // First 7 days vs next 7 days
         const first7 = dailyRecords.slice(0, 7);
         const next7 = dailyRecords.slice(7, 14);
         previousProfit = first7.reduce((acc, r) => acc + Number(r.netProfit), 0);
         currentProfit = next7.reduce((acc, r) => acc + Number(r.netProfit), 0);
+      } else if (dailyRecords.length > 0) {
+        const mid = Math.max(1, Math.floor(dailyRecords.length / 2));
+        previousProfit = dailyRecords
+          .slice(0, mid)
+          .reduce((acc, r) => acc + Number(r.netProfit), 0);
+        currentProfit = dailyRecords
+          .slice(mid)
+          .reduce((acc, r) => acc + Number(r.netProfit), 0);
       } else {
-        // Derive mathematically from totalVariance
-        const tv = Number(waterfall.totalVariance);
-        currentProfit = 1840.0;
-        previousProfit = Number((currentProfit - tv).toFixed(2));
+        currentProfit = 0;
+        previousProfit = Number((-tv).toFixed(2));
       }
 
       const attribution = VarianceAttributionService.attributeVariance({
@@ -86,62 +92,7 @@ export class AnalystService {
       };
     }
 
-    // Fallback to domain deterministic calculation
-    const scenario = ScenarioGeneratorService.generate90Days();
-    const wf = scenario.waterfallWeek11;
-    const attribution = VarianceAttributionService.attributeVariance({
-      previousProfit: wf.week10Profit,
-      currentProfit: wf.week11Profit,
-      advertisingImpact: wf.breakdown.advertising,
-      returnsImpact: wf.breakdown.returns,
-      inventoryImpact: wf.breakdown.inventory,
-      priceImpact: wf.breakdown.price,
-      otherImpact: wf.breakdown.other,
-    });
-
-    return {
-      periodStart: '2026-08-15',
-      periodEnd: '2026-08-28',
-      totalVariance: wf.variance,
-      formulaExplained: wf.formula,
-      breakdown: wf.breakdown,
-      attribution,
-      findings: [
-        {
-          type: 'ADVERTISING',
-          title: 'Broad Search Term Budget Drag',
-          metric: 'Ads Spend',
-          impactAmount: -980.0,
-          direction: 'NEGATIVE',
-          confidence: 0.96,
-          evidence: { searchTerm: 'bathroom organizer', acos: 0.933, spend: 420.0 },
-          recommendation: 'Add "bathroom organizer" to Negative Exact immediately.',
-          priority: 1,
-        },
-        {
-          type: 'RETURNS',
-          title: 'Beige Grey Variant Return Spike',
-          metric: 'Return Loss',
-          impactAmount: -620.0,
-          direction: 'NEGATIVE',
-          confidence: 0.91,
-          evidence: { returnRate: 0.067, defect: 'Slot narrow for Oral-B' },
-          recommendation: 'Update listing specs and add 1.5" diameter guarantee.',
-          priority: 2,
-        },
-        {
-          type: 'INVENTORY',
-          title: 'Green SKU Stockout Margin Loss & Emergency Air Freight',
-          metric: 'Inventory Cost',
-          impactAmount: -510.0,
-          direction: 'NEGATIVE',
-          confidence: 0.88,
-          evidence: { stockoutDays: 4, airFreightCost: 315.0 },
-          recommendation: 'Increase reorder trigger point to 22 days cover.',
-          priority: 3,
-        },
-      ],
-    };
+    return null;
   }
 
   async askAnalyst(question: string, workspaceId: string) {
@@ -150,9 +101,19 @@ export class AnalystService {
     const waterfall = await this.prisma.analysisWaterfall.findFirst({
       where: { session: { workspaceId } },
     });
-    const totalVariance = waterfall ? Number(waterfall.totalVariance) : -2280.0;
-    const previousProfit = waterfall ? Number((1840.0 - totalVariance).toFixed(2)) : 4120.0;
-    const currentProfit = 1840.0;
+    if (!waterfall) {
+      return {
+        question,
+        answer: 'No profit waterfall data is available for this workspace.',
+        toolExecutions: [],
+        waterfallSummary: { totalVariance: 0, formula: 'N/A' },
+        actionPlan: [],
+      };
+    }
+    const computed = await this.getWaterfall(workspaceId);
+    const totalVariance = Number(waterfall.totalVariance);
+    const previousProfit = computed?.attribution?.previousProfit ?? 0;
+    const currentProfit = computed?.attribution?.currentProfit ?? 0;
     const t1Ms = Math.max(15, Date.now() - t1Start);
 
     // 2. Tool 2: Query PPC Ad Metrics
@@ -161,8 +122,8 @@ export class AnalystService {
       where: { campaign: { workspaceId }, acos: { gte: 0.5 } },
       orderBy: { spend: 'desc' },
     });
-    const wasteKeyword = highAcosTerm ? highAcosTerm.searchTerm : 'bathroom organizer';
-    const wasteSpend = highAcosTerm ? Number(highAcosTerm.spend) : 420.0;
+    const wasteKeyword = highAcosTerm ? highAcosTerm.searchTerm : 'N/A';
+    const wasteSpend = highAcosTerm ? Number(highAcosTerm.spend) : 0;
     const t2Ms = Math.max(20, Date.now() - t2Start);
 
     // 3. Tool 3: Query Return Metrics
@@ -172,8 +133,8 @@ export class AnalystService {
       include: { orderItem: { include: { sku: true } } },
       take: 10,
     });
-    const affectedSku = recentReturns[0]?.orderItem?.sku?.skuCode || 'MTH-GREY-001';
-    const returnLoss = recentReturns.reduce((acc, r) => acc + Number(r.refundAmount), 0) || 620.0;
+    const affectedSku = recentReturns[0]?.orderItem?.sku?.skuCode || 'N/A';
+    const returnLoss = recentReturns.reduce((acc, r) => acc + Number(r.refundAmount), 0);
     const t3Ms = Math.max(18, Date.now() - t3Start);
 
     // 4. Tool 4: Query Inventory Stock Risk
@@ -182,16 +143,16 @@ export class AnalystService {
       where: { workspaceId, fulfillableQuantity: { lte: 50 } },
       include: { sku: true },
     });
-    const riskSkuCode = riskBalance?.sku?.skuCode || 'MTH-GREEN-001';
+    const riskSkuCode = riskBalance?.sku?.skuCode || 'N/A';
     const t4Ms = Math.max(16, Date.now() - t4Start);
 
     // 5. Tool 5: Deterministic Variance Decomposition
     const t5Start = Date.now();
-    const adsImpact = waterfall ? Number(waterfall.advertisingImpact) : -980.0;
-    const returnsImpact = waterfall ? Number(waterfall.returnsImpact) : -620.0;
-    const invImpact = waterfall ? Number(waterfall.inventoryImpact) : -510.0;
-    const prImpact = waterfall ? Number(waterfall.priceImpact) : -310.0;
-    const othImpact = waterfall ? Number(waterfall.otherImpact) : 140.0;
+    const adsImpact = Number(waterfall.advertisingImpact);
+    const returnsImpact = Number(waterfall.returnsImpact);
+    const invImpact = Number(waterfall.inventoryImpact);
+    const prImpact = Number(waterfall.priceImpact);
+    const othImpact = Number(waterfall.otherImpact);
 
     const attribution = VarianceAttributionService.attributeVariance({
       previousProfit,
