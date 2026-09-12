@@ -1,8 +1,13 @@
 # CrossPilot V9 全产品能力审计矩阵 (Product Capability Matrix)
 
+> **Current Release:** CrossPilot V9.1  
+> **Release Status:** RELEASE VERIFIED & FROZEN  
+> **REAL / PARTIAL / MISSING 定义不因 Freeze 改写。** Known Gaps 不是 V9.1 Release Blocker。
+>
 > **审计基准**：
 > - 代码库事实：`apps/api`, `apps/web`, `apps/worker`, `packages/*`
-> - 测试基线（Phase 3 重计）：Typecheck 10/10；API 88 tests；Domain 228 tests；Web contracts 29；Evals 9/9；Web Build 23/23。Integrations LIVE review count 按 Phase 2.2 裁决，不刷 5151。
+> - 测试基线（Phase 3 重计，Freeze 未重跑）：Typecheck 10/10；API 88 tests；Domain 228 tests；Web contracts 29；Evals 9/9；Web Build 23/23。Integrations LIVE review count 按 Phase 2.2 裁决，不刷 5151。
+> - 远程验收：`7c81411` @ `http://116.198.230.217:2222`；API 26/26 PASS；Browser Acceptance PASSED。
 > - 状态分级标准：
 >   - **`REAL`**：已真实接通外部系统 / 数据库持久化 / 算法闭环，具备全链路自动化测试与生产路径。
 >   - **`PARTIAL`**：核心骨架已通，部分底层链路真实，但依赖部分静态配置、降级假数据或缺少外部联调。
@@ -64,3 +69,24 @@
 > **客观审计结论**：
 > CrossPilot 经过 Epic 1 (LLM 运行时与 Listing 生成)、Epic 2 (Milvus 真实 RAG) 和 Epic 3 (WF-05 每日运营智能全链路) 的高强度重构，已经消灭了所有纯 MOCK 模块，核心业务系统真实度达到 **63.2% (REAL) + 31.6% (PARTIAL)**。
 > 目前最核心的结构性断裂在于：**核心业务计算与决策极其成熟真实，但“数据输入端”（缺少 Amazon SP-API / Ads 真实店铺数据同步）与“行动输出端”（缺少受控外部执行器）仍处于沙盒隔离状态。**
+
+---
+
+## 3. V9.1 Frozen Known Gaps（不是 Release Blocker）
+
+Freeze **不改变**上表任何模块的 REAL / PARTIAL / MISSING。下列差距继续保留，进入 `post-V9.1 backlog`，禁止当作 V9.1 未完成项去改 tagged baseline：
+
+| Known Gap | 矩阵状态 | Freeze 处置 |
+| :--- | :--- | :--- |
+| Epic 4 / Amazon SP-API | 多模块 Main Gap | SUSPENDED / NOT STARTED |
+| Approval ≠ Execute | Operations Today 不变量 | 保持；批准 ≠ 采购/广告/发布/调价 |
+| WF-03 PARTIAL | Supply / Purchase 无 ERP | 保持 PARTIAL |
+| WF-04 PARTIAL | AI Business Analyst 模版问答 | 保持 PARTIAL |
+| Launch Center MISSING | 模块 9 = **MISSING** | 保持 MISSING |
+| Scheduler MISSING | 不在 19 模块内；无生产 Cron | 保持 MISSING |
+| Creative Mock | `/app/creative` PARTIAL / Mock 图 | 保持 |
+| Reviews / VOC Partial | 模块 3 PARTIAL；模块 13 PARTIAL | 保持 PARTIAL |
+| 独立 Knowledge Base 管理台 MISSING | 模块 17 RAG REAL，无独立台 | 保持：有 RAG、无管理台 |
+| Agent Trace / Eval 独立大屏 MISSING | 模块 19 轨迹 REAL，无独立大屏 | 保持：有落库、无 APM 大屏 |
+
+XYDC：`5147` = fixture snapshot；`5151` = LIVE mutable。NOT PRODUCT BUG。禁止 `5147 → 5151`。

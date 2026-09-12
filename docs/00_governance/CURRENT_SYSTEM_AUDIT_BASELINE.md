@@ -17,28 +17,37 @@
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ Current Release Version: CrossPilot V9                                 │
+│ Current Release:        CrossPilot V9.1                                │
+│ Release Status:         RELEASE VERIFIED & FROZEN                      │
+│ Final Browser Acceptance: PASSED                                       │
+│ Release Decision:       FROZEN                                         │
+│ Tag:                    v9.1.0 → b3d5607                               │
 ├─────────────────────────┬──────────────────────────────────────────────┤
-│ Epic 1                  │ RELEASE VERIFIED & FROZEN (LLM Runtime)      │
-│ Epic 2                  │ RELEASE VERIFIED & FROZEN (Milvus RAG)       │
-│ Epic 3                  │ RELEASE VERIFIED & FROZEN (Daily Operations) │
+│ Epic 1                  │ FROZEN (LLM Runtime)                         │
+│ Epic 2                  │ FROZEN (Milvus RAG)                          │
+│ Epic 3                  │ FROZEN (Daily Operations)                    │
+│ Epic 4                  │ SUSPENDED / NOT STARTED                      │
+│ V9.2                    │ NOT STARTED                                  │
 ├─────────────────────────┼──────────────────────────────────────────────┤
-│ Release Decision        │ READY_WITH_KNOWN_LIMITATIONS                 │
-├─────────────────────────┼──────────────────────────────────────────────┤
-│ Current Active Phase    │ V9.1 Phase 3 UX / Governance Polish          │
-│                         │ COMPLETED / WAITING FOR HUMAN ACCEPTANCE     │
+│ V9.1 主体 commit        │ c4704fd                                      │
+│ Acceptance app SHA      │ 7c81411                                      │
+│ Release docs baseline   │ b3d5607                                      │
 ├─────────────────────────┼──────────────────────────────────────────────┤
 │ V9.1 Phase 1            │ P0/P1 Production Bug Fix — VERIFIED          │
 │ V9.1 Phase 2            │ Stability Fix — VERIFIED                     │
 │ V9.1 Phase 2.1          │ Persistent Idempotency — VERIFIED            │
 │ V9.1 Phase 2.2          │ XYDC 5151 vs 5147 — VERIFIED (not a bug)     │
-│ V9.1 Phase 3            │ UX / Governance Polish — 本阶段完成，待验收   │
-│ V9.1 next               │ Final Browser Acceptance（独立阶段，未开始）  │
+│ V9.1 Phase 3            │ UX / Governance Polish — VERIFIED            │
+│ V9.1 Final Acceptance   │ PASSED                                       │
+│ V9.1 Freeze             │ RELEASE VERIFIED & FROZEN                    │
 ├─────────────────────────┼──────────────────────────────────────────────┤
 │ Next Planned Epic (E4)  │ Real Store Data Foundation & Morning Ops     │
-│ Epic 4 Status           │ SUSPENDED (暂缓推进，不废弃；待真实店铺就绪)    │
+│ Epic 4 Status           │ SUSPENDED / NOT STARTED                      │
 └─────────────────────────┴──────────────────────────────────────────────┘
 ```
+
+权威冻结声明：[`docs/00_governance/V9_1_RELEASE_FREEZE.md`](./V9_1_RELEASE_FREEZE.md)。  
+`Deployed application SHA during final acceptance: 7c81411`。`Release documentation baseline: b3d5607`。两者不得混写。
 
 ---
 
@@ -162,6 +171,10 @@ flowchart TD
 | **WF-04 经营分析师问答为 PARTIAL** | `askAnalyst` 采用模版插值而非动态 LLM 多轮工具调用 | 底层五大工具账目对账和方差归因 100% 真实，问答层简易属于已知演进项。 |
 | **Launch Center 新品中心完全缺失** | 数据库仅有 `LaunchPlan` 占位，无页面与 API | 属于早期草案规划，已在 Post-V9 审查中定性为 `MISSING`，不影响现有功能。 |
 | **Creative 素材工坊工具为 Mock** | 创意生图与切图工具返回固定 Unsplash 图片 | 核心电商与运营主干闭环优先，生图大模型对接已在早期定性为非阻塞项。 |
+| **Scheduler 调度器缺失** | 无生产定时触发器调用 `startDiagnosis` | **MISSING**。不变量仍是 `Scheduler = Trigger, NOT Workflow`。不是 V9.1 Blocker。 |
+| **Reviews / VOC Partial** | 退款流水真实；页面 VOC 痛点卡片硬编码 | 站内买家差评语义分析属于 Known Gap，不是 V9.1 Blocker。 |
+| **独立 Knowledge Base 管理台缺失** | Milvus RAG 真实；Sidebar「架构」不是 KB 管理台 | **MISSING** 独立控制台。不影响 Listing Step 8 检索。 |
+| **Agent Trace / Eval 独立大屏缺失** | 轨迹与评测脚本落库真实；无独立 APM / Eval Dashboard | **MISSING** 可视化大屏。不是 V9.1 Blocker。 |
 
 ---
 
@@ -171,7 +184,7 @@ flowchart TD
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ Monorepo Quality Baseline (2026-09-12 Verified)             │
+│ Monorepo Quality Baseline (Phase 3 recorded; not re-run at Freeze) │
 ├────────────────────────────────────────┬────────────────────┤
 │ TypeScript Typecheck (全 monorepo 10包) │ 10 / 10 PASS       │
 │ API Jest                               │ 13 / 13 suites, 88 tests PASS │
@@ -179,8 +192,17 @@ flowchart TD
 │ Web contract tests                     │ 29 / 29 PASS       │
 │ Evals (run-evals.cjs)                  │ 9 / 9 PASS         │
 │ Next.js Web Production Build           │ 23 / 23 PASS       │
-│ Integrations live review count         │ 5151 vs 5147 — Phase 2.2 TEST_SNAPSHOT_STALE，非 Phase 3 回归 │
-│ Cross-Epic Regression (E1, E2, E3)     │ 0 (frozen algos untouched this phase) │
+│ Integrations live review count         │ 5151 vs 5147 — Phase 2.2 TEST_SNAPSHOT_STALE │
+│ Cross-Epic Regression (E1, E2, E3)     │ 0 (frozen algos untouched in V9.1 hotfixes) │
+├────────────────────────────────────────┼────────────────────┤
+│ Remote Runtime                         │ 116.198.230.217    │
+│ Web                                    │ :2222              │
+│ Acceptance application SHA             │ 7c81411            │
+│ Health                                 │ 200                │
+│ PostgreSQL / Redis / Milvus            │ UP                 │
+│ Remote API Contract                    │ 26 / 26 PASS       │
+│ Browser Acceptance                     │ PASSED             │
+│ 本机 pnpm -r test                      │ NOT RUN            │
 └────────────────────────────────────────┴────────────────────┘
 ```
 
@@ -378,7 +400,7 @@ Phase 3 源码重计（2026-09-12，扫 `*.controller.ts` 的 `@Get/@Post/@Put/@
 
 ---
 
-## 13. V9.1 Fix State（Phase 3 回写）
+## 13. V9.1 Fix State（Release Freeze 回写）
 
 ### 已解决
 
@@ -415,9 +437,27 @@ NOT V9.1 REGRESSION
 不要把 live review count 固定成 5151
 ```
 
-### 下一独立阶段（未开始）
+### Browser Acceptance 热修（已重验）
 
 ```text
-CrossPilot V9.1 Final Browser Acceptance
-Epic 4 = SUSPENDED
+BA-001 bcrypt.default.compare runtime failure
+→ FIXED / RE-VERIFIED / NO REMAINING BLOCKER
+
+BA-002 Scenario SKU code incorrectly persisted as activeSkuId
+→ FIXED / RE-VERIFIED / NO REMAINING BLOCKER
 ```
+
+### 冻结后状态
+
+```text
+CrossPilot V9.1
+RELEASE VERIFIED & FROZEN
+
+Epic 4
+SUSPENDED / NOT STARTED
+
+V9.2
+NOT STARTED
+```
+
+新工作进入 `post-V9.1 backlog` 或未来明确批准的新版本。禁止改 `v9.1.0` / `b3d5607` 基线来顺手修 P3、改色、加功能、做 Epic 4 / Scheduler / Launch Center / Amazon。

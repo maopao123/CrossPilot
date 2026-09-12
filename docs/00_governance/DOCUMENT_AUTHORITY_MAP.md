@@ -29,6 +29,7 @@ flowchart TD
         direction TB
         L1_1["HANDOFF.md (交接与版本基线)"]
         L1_2["docs/00_governance/CURRENT_SYSTEM_AUDIT_BASELINE.md (审查唯一入口)"]
+        L1_2b["docs/00_governance/V9_1_RELEASE_FREEZE.md (V9.1 冻结声明)"]
         L1_3["docs/00_governance/V9_PRODUCT_CAPABILITY_MATRIX.md (全能力矩阵)"]
         L1_4["docs/00_governance/POST_V9_PRODUCT_REVIEW.md (架构与瓶颈审查)"]
         L1_5["docs/10_release/epic3/EPIC3_RELEASE_VERIFICATION_REPORT.md (发布验收报告)"]
@@ -92,14 +93,16 @@ flowchart TD
 | 文档路径 | 核心权威内容 | 效力说明与覆盖边界 |
 | :--- | :--- | :--- |
 | **`E:\AiSecondBrain\HANDOFF.md`** | 部署交接、当前工作区基准、38/38 测试基线、Epic 冻结状态 | **全局最高交接权威**。记录已验证事实，覆盖所有旧状态。 |
-| **`docs/00_governance/CURRENT_SYSTEM_AUDIT_BASELINE.md`** | V9 现行架构、路由、API 矩阵、不变量、V9.1 审查入口 | **全局最高审计入口**。所有 AI 与开发者审查必须首读。 |
-| **`docs/00_governance/V9_PRODUCT_CAPABILITY_MATRIX.md`** | 19 个产品模块的 5 级真实度判定、代码事实与主差距 | **全功能能力真相源**。严禁因页面存在而判定模块完成。 |
+| **`docs/00_governance/CURRENT_SYSTEM_AUDIT_BASELINE.md`** | V9.1 现行架构、路由、API 矩阵、不变量、冻结状态 | **全局最高审计入口**。所有 AI 与开发者审查必须首读。 |
+| **`docs/00_governance/V9_1_RELEASE_FREEZE.md`** | V9.1 tag / SHA / 验收事实 / Known Gaps / 冻结声明 | **V9.1 发布冻结真相源**。`v9.1.0` → `b3d5607`；部署验收 SHA `7c81411`。 |
+| **`docs/00_governance/V9_1_FINAL_BROWSER_ACCEPTANCE_REPORT.md`** | 远程 API 26/26、浏览器路径、BA-001/002 | **V9.1 最终验收报告**。PASSED / READY TO FREEZE，已被 Freeze 收口。 |
+| **`docs/00_governance/V9_PRODUCT_CAPABILITY_MATRIX.md`** | 19 个产品模块的 5 级真实度判定、代码事实与主差距 | **全功能能力真相源**。严禁因页面存在而判定模块完成。REAL/PARTIAL/MISSING 不因 Freeze 改写。 |
 | **`docs/00_governance/POST_V9_PRODUCT_REVIEW.md`** | Post-V9 架构审查、WF-01~05 成熟度、飞轮断裂分析、Next Epic 论证 | **产品演进决策真相源**。确立 Epic 4 暂缓与 V9.1 稳定化。 |
 | **`docs/00_governance/V9_1_PHASE1_P0_P1_FIX_REPORT.md`** | V9.1 Phase 1 P0/P1 | Phase 1 已验证。 |
 | **`docs/00_governance/V9_1_PHASE2_STABILITY_FIX_REPORT.md`** | V9.1 Phase 2 稳定性 | Phase 2 已验证。 |
 | **`docs/00_governance/V9_1_PHASE2_1_IDEMPOTENCY_HARDENING_REPORT.md`** | WF-05 持久化幂等 | Phase 2.1 已验证。 |
 | **`docs/00_governance/V9_1_PHASE2_2_XYDC_REVIEW_COUNT_ADJUDICATION.md`** | 5147 fixture vs 5151 LIVE | 非产品 Bug；禁止改 Provider / 禁止把期待改成 5151。 |
-| **`docs/00_governance/V9_1_PHASE3_UX_GOVERNANCE_POLISH_REPORT.md`** | V9.1 Phase 3 UX / Governance | **当前阶段完成报告**。待人工验收。不宣布 V9.1 RELEASED。 |
+| **`docs/00_governance/V9_1_PHASE3_UX_GOVERNANCE_POLISH_REPORT.md`** | V9.1 Phase 3 UX / Governance | Phase 3 已验证。被 `V9_1_RELEASE_FREEZE.md` 收口为 FROZEN。 |
 | **`docs/10_release/epic3/EPIC3_RELEASE_VERIFICATION_REPORT.md`** | Epic 3 最终验收、300 测试与 D1~D10 金标基线、发布决策 | **Epic 3 发布真相源**。确立 `READY_WITH_KNOWN_LIMITATIONS`。 |
 | **`docs/10_release/epic3/EPIC3_ARCHITECTURE.md`** | WF-05 9 步 DAG 全景、确定性与 LLM 职责边界、时效性降级契约 | **WF-05 架构真相源**。规定纯代码数学与 LLM 边界。 |
 | **`docs/10_release/epic3/EPIC3_RELEASE_CHECKLIST.md`** | 17 项生产就绪核查表、无外部变更证明、OCC 并发控制 | **发布就绪事实**。全部 PASS 或合理论证。 |

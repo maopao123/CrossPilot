@@ -1,3 +1,24 @@
+# CURRENT COMMAND STATUS — DO NOT RE-EXECUTE THE BODY
+
+```text
+CrossPilot V9.1
+RELEASE VERIFIED & FROZEN
+
+Epic 4
+SUSPENDED / NOT STARTED
+
+V9.2
+NOT STARTED
+```
+
+权威声明：`docs/00_governance/V9_1_RELEASE_FREEZE.md`  
+Tag：`v9.1.0` → `b3d5607`  
+验收部署 SHA：`7c81411`
+
+下方正文是已完成的 Final Browser Acceptance 指令，仅作历史。等待人工决定下一产品阶段。
+
+---
+
 你正在对 CrossPilot V9.1 做最终发布前验收。
 
 当前正式状态：
