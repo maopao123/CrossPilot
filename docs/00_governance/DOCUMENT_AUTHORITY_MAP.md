@@ -57,6 +57,11 @@ flowchart TD
         L2_12["docs/30_modules/listing/LISTING_V2_MAPPING.md (Listing V2 字段映射)"]
         L2_13["docs/10_release/epic3/EPIC3_DEMO_SCRIPT.md (演示步骤指南)"]
         L2_14["docs/30_modules/listing/UI_LOCALIZATION_AUDIT.md (文案本地化规范)"]
+        L2_15["docs/00_governance/CrossPilot_V9.2_Architecture_Specification.md"]
+        L2_16["docs/00_governance/CrossPilot_V9.2_Implementation_Specification.md"]
+        L2_17["docs/00_governance/V92_PHASE1_IMPLEMENTATION_PLAN.md"]
+        L2_18["docs/00_governance/V92_PHASE1_IMPLEMENTATION_EVIDENCE.md"]
+        L2_19["docs/00_governance/V92_PHASE2_5_IMPLEMENTATION_EVIDENCE.md"]
     end
 
     subgraph L3["LEVEL 3 — HISTORICAL DESIGN / IMPLEMENTATION (历史演进与推演记录)"]

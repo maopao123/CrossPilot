@@ -75,6 +75,11 @@ model Workspace {
   evalDatasets             EvalDataset[]
   commerceAccounts         CommerceAccount[]
   syncRuns                 SyncRun[]
+  playbooks                Playbook[]
+  playbookRuns             PlaybookRun[]
+  commerceFacts            CommerceFact[]
+  evidenceItems            EvidenceItem[]
+  businessRecommendations  BusinessRecommendation[]
 
   defaultMarketplace       Marketplace?               @relation(fields: [defaultMarketplaceId], references: [id])
 
@@ -1353,4 +1358,112 @@ model SyncRun {
   @@index([accountId])
   @@index([startedAt])
   @@map("sync_runs")
+}
+
+// ==========================================
+// V9.2 Phase 1 — Playbook Framework (additive)
+// Execution state lives on PlaybookRun, never on Playbook.
+// ==========================================
+
+model Playbook {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  version     String
+  status      String   @default("REGISTERED")
+  inputSchema Json     @map("input_schema")
+  outputSchema Json    @map("output_schema")
+  definition  Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  runs        PlaybookRun[]
+
+  @@unique([workspaceId, name, version])
+  @@index([workspaceId])
+  @@map("playbooks")
+}
+
+model PlaybookRun {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  playbookId  String   @map("playbook_id")
+  runId       String   @unique @map("run_id")
+  status      String   @default("CREATED")
+  input       Json
+  output      Json?
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  playbook    Playbook  @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([playbookId])
+  @@map("playbook_runs")
+}
+
+// ==========================================
+// V9.2 Phase 2–5 — Fact / Evidence / Recommendation
+// ==========================================
+
+model CommerceFact {
+  id              String   @id @default(uuid())
+  workspaceId     String   @map("workspace_id")
+  factType        String   @map("fact_type")
+  metric          String
+  valueJson       Json     @map("value_json")
+  sourceProvider  String   @map("source_provider")
+  sourceReference String   @map("source_reference")
+  observedAt      DateTime @map("observed_at")
+  playbookRunId   String?  @map("playbook_run_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  workspace       Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  evidence        EvidenceItem[]
+
+  @@index([workspaceId])
+  @@index([playbookRunId])
+  @@map("commerce_facts")
+}
+
+model EvidenceItem {
+  id            String   @id @default(uuid())
+  workspaceId   String   @map("workspace_id")
+  factId        String   @map("fact_id")
+  sourceType    String   @map("source_type")
+  sourceId      String   @map("source_id")
+  quote         String   @db.Text
+  confidence    Decimal  @db.Decimal(5, 4)
+  playbookRunId String?  @map("playbook_run_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  fact          CommerceFact  @relation(fields: [factId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([factId])
+  @@map("evidence_items")
+}
+
+model BusinessRecommendation {
+  id                   String   @id @default(uuid())
+  workspaceId          String   @map("workspace_id")
+  decision             String
+  reason               String   @db.Text
+  confidence           Decimal  @db.Decimal(5, 4)
+  evidenceIds          Json     @map("evidence_ids")
+  status               String   @default("GENERATED")
+  playbookRunId        String?  @map("playbook_run_id")
+  executionDispatched  Boolean  @default(false) @map("execution_dispatched")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([status])
+  @@map("business_recommendations")
 }

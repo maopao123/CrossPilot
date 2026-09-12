@@ -13,18 +13,18 @@ CrossPilot V9.1
 RELEASE VERIFIED & FROZEN
 
 Epic 4
-CODE COMPLETE (read-only store foundation) — not tagged, not deployed
+CODE COMPLETE (read-only store foundation) — local 85f5b94, not pushed, not deployed
 
-V9.2
-NOT STARTED
+V9.2 Phases 1–5
+CODE COMPLETE — not pushed, not deployed
+Playbook + Fact/Evidence + Amazon Research Playbook + VOC + Recommendation Center
+No Amazon Write / no auto dispatch / WF-05 unchanged
 
 Live code (cloud):
 e457d5a   post-V9.1 visual system (frontend only)
-Local uncommitted:
-Epic 4 Amazon Provider + commerce APIs (see EPIC4_IMPLEMENTATION_EVIDENCE.md)
 ```
 
-**下一产品阶段等人工拍板。** 不要自动开 Epic 4、V9.2、Scheduler、Launch Center、Amazon SP-API，也不要为了刷绿把 XYDC `5147` 改成 `5151`。
+**不要自动开 Phase 2 / Scheduler / Launch Center，也不要为了刷绿把 XYDC `5147` 改成 `5151`。** 证据：`00_governance/V92_PHASE1_IMPLEMENTATION_EVIDENCE.md`。
 
 Windows 本机 **只做开发**。不要在本机起 Postgres / API / Web / 浏览器验收。真实运行时是云机。
 

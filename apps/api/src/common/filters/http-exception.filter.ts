@@ -9,6 +9,24 @@ import { Request, Response } from 'express';
 import { ApiErrorResponse, ErrorCodes } from '@crosspilot/shared';
 import { ZodError } from 'zod';
 
+const PLAYBOOK_HTTP_STATUS: Record<string, number> = {
+  PLAYBOOK_NOT_FOUND: HttpStatus.NOT_FOUND,
+  PLAYBOOK_RUN_NOT_FOUND: HttpStatus.NOT_FOUND,
+  PLAYBOOK_VERSION_CONFLICT: HttpStatus.CONFLICT,
+  PLAYBOOK_VERSION_INVALID: HttpStatus.BAD_REQUEST,
+  PLAYBOOK_SCHEMA_INVALID: HttpStatus.BAD_REQUEST,
+  PLAYBOOK_DISABLED: HttpStatus.BAD_REQUEST,
+  PLAYBOOK_INPUT_INVALID: HttpStatus.BAD_REQUEST,
+  PLAYBOOK_RUN_INVALID_STATE: HttpStatus.CONFLICT,
+  PLAYBOOK_OUTPUT_INVALID: HttpStatus.BAD_REQUEST,
+  PLAYBOOK_KIND_UNSUPPORTED: HttpStatus.BAD_REQUEST,
+  FACT_NOT_FOUND: HttpStatus.NOT_FOUND,
+  EVIDENCE_NOT_FOUND: HttpStatus.NOT_FOUND,
+  RECOMMENDATION_NOT_FOUND: HttpStatus.NOT_FOUND,
+  RECOMMENDATION_EVIDENCE_REQUIRED: HttpStatus.BAD_REQUEST,
+  RECOMMENDATION_INVALID_STATE: HttpStatus.CONFLICT,
+};
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
@@ -95,6 +113,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = exception.message;
       } else if (errCode === 'SYNC_FAILED' || errCode === 'PROVIDER_UNAVAILABLE') {
         status = HttpStatus.BAD_GATEWAY;
+        code = errCode;
+        message = exception.message;
+      } else if (typeof errCode === 'string' && PLAYBOOK_HTTP_STATUS[errCode]) {
+        status = PLAYBOOK_HTTP_STATUS[errCode];
         code = errCode;
         message = exception.message;
       } else if (process.env.NODE_ENV === 'production') {

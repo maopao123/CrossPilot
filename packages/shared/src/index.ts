@@ -10,4 +10,6 @@ export * from './dto/commerce.dto.js';
 export * from './contracts/research-contracts.js';
 export * from './contracts/knowledge-contracts.js';
 export * from './contracts/operation-contracts.js';
+export * from './contracts/playbook-contracts.js';
+export * from './contracts/intelligence-contracts.js';
 

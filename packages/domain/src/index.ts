@@ -25,6 +25,8 @@ export * from './listing/listing-workflow-dag.service.js';
 export * from './knowledge/index.js';
 export * from './research/index.js';
 export * from './operations/index.js';
+export * from './playbook/index.js';
+export * from './intelligence/index.js';
 
 export const DOMAIN_CONSTANTS = {
   DEFAULT_CURRENCY: 'USD',
