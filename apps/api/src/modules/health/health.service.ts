@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { RedisService, MilvusVectorStore } from '@crosspilot/integrations';
+import { RedisService, MilvusVectorStore, SecretProvider } from '@crosspilot/integrations';
 import {
   HealthCheckResponse,
   AiHealthResponse,
@@ -66,7 +66,13 @@ export class HealthService {
   async checkAi(): Promise<AiHealthResponse> {
     const provider = process.env.LLM_PROVIDER || 'aliyun-dashscope';
     const model = process.env.LLM_MODEL || ModelRouter.llmRouter.heavyReasoning;
-    const hasKey = Boolean(process.env.LLM_API_KEY && process.env.LLM_API_KEY !== 'mock-key-for-development');
+    // 与实际 LLM Provider 的解析链保持一致（.env 经 SecretProvider 加载），
+    // 避免「健康检查读 process.env，真实调用读 .env」两边结论不一致
+    const apiKey =
+      SecretProvider.getSecret('LLM_API_KEY') ||
+      SecretProvider.getSecret('DASHSCOPE_API_KEY') ||
+      SecretProvider.getSecret('EMBEDDING_API_KEY');
+    const hasKey = Boolean(apiKey && apiKey !== 'mock-key-for-development');
 
     return {
       status: hasKey ? 'up' : 'degraded',
