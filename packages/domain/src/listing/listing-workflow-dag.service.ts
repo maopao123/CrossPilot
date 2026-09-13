@@ -25,6 +25,7 @@ import { ClaimRepairService } from './claim-repair.service.js';
 import { SurfaceClaimExtractorService } from './surface-claim-extractor.service.js';
 import { KnowledgeRetrievalService } from '../knowledge/knowledge-retrieval.service.js';
 import { KnowledgeRetrievalResult, ModelRouter } from '@crosspilot/shared';
+import { enforceMarketplaceListingLimits } from './listing-structure-limits.js';
 
 export interface WorkflowDagStepTrace {
   stepNumber: number;
@@ -550,6 +551,14 @@ export class ListingWorkflowDagService {
 
     // Step 10: structured_output_validation
     const s10 = Date.now();
+    const limited = enforceMarketplaceListingLimits(
+      { title, bulletPoints, description, searchTerms },
+      profile,
+    );
+    title = limited.title;
+    bulletPoints = limited.bulletPoints;
+    description = limited.description;
+    searchTerms = limited.searchTerms;
     const isValidStructure =
       title.length > 10 &&
       title.length <= profile.title.maxLength &&

@@ -51,4 +51,35 @@ describe('ListingWorkflowDagService & Policy Profiles (V2)', () => {
     expect(profile.searchTerms.maxLength).toBe(250);
     expect(profile.forbiddenPatterns).toContain('fda approved');
   });
+
+  it('clamps oversized template titles instead of throwing WF-02 structure validation', async () => {
+    const longName =
+      '2 Pack Shoe Organizer for Closet, Clear Foldable Shoe Storage Containers Adjustable Dividers Fits 16 Pairs,Shoe Storage Bins Baskets Boxes with Reinforced Handles Beige';
+    const result = await ListingWorkflowDagService.executeWorkflowDag({
+      skuCode: 'SHOE-ORG-001',
+      productName: longName,
+      brand: 'HOMEFORTE',
+      features: [
+        {
+          id: 'spec-dim',
+          name: 'Dimensions / Capacity',
+          value: '16.9" × 8.45" × 11.8" (Each Unit) / 16.9" × 16.9" × 11.8" (Combined)',
+          isCore: true,
+        },
+        {
+          id: 'spec-mat',
+          name: 'Material',
+          value: 'Fabric / Breathable Linen & Reinforced Sturdy PP Board / Color: Beige-yellow',
+          isCore: true,
+        },
+      ],
+      forceTemplateFallback: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.listingDraft.title.length).toBeGreaterThan(10);
+    expect(result.listingDraft.title.length).toBeLessThanOrEqual(200);
+    expect(result.listingDraft.title).toMatch(/HOMEFORTE|Shoe Organizer/i);
+    expect(result.listingDraft.bulletPoints).toHaveLength(5);
+  });
 });
