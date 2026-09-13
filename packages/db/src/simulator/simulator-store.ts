@@ -136,7 +136,13 @@ export class SimulatorStore {
     const shopifyAccount = { id: shopifyBound.accountId };
 
     let campaign = await this.prisma.campaign.findFirst({
-      where: { workspaceId, name: { startsWith: 'SIM-' } },
+      where: {
+        workspaceId,
+        OR: [
+          { name: { startsWith: 'SIM - ' } },
+          { name: { startsWith: 'SIM-' } },
+        ],
+      },
     });
     if (!campaign) {
       campaign = await this.prisma.campaign.create({
@@ -410,9 +416,25 @@ export class SimulatorStore {
         where: { workspaceId, reviewerName: { startsWith: SIM_REVIEWER_PREFIX } },
       }),
       this.prisma.adMetricDaily.deleteMany({
-        where: { campaign: { workspaceId, name: { startsWith: 'SIM-' } } },
+        where: {
+          campaign: {
+            workspaceId,
+            OR: [
+              { name: { startsWith: 'SIM - ' } },
+              { name: { startsWith: 'SIM-' } },
+            ],
+          },
+        },
       }),
-      this.prisma.campaign.deleteMany({ where: { workspaceId, name: { startsWith: 'SIM-' } } }),
+      this.prisma.campaign.deleteMany({
+        where: {
+          workspaceId,
+          OR: [
+            { name: { startsWith: 'SIM - ' } },
+            { name: { startsWith: 'SIM-' } },
+          ],
+        },
+      }),
       this.prisma.channelDailyMetric.deleteMany({ where: { workspaceId } }),
       this.prisma.simulationEvent.deleteMany({ where: { workspaceId } }),
       this.prisma.simulationState.deleteMany({ where: { workspaceId } }),

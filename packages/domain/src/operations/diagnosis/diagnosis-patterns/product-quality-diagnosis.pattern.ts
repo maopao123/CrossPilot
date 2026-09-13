@@ -90,12 +90,16 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
     const returnDeltaPct = ret?.returnRate?.deltaPct ?? 0;
     const returnCostDelta = ret?.returnCost?.delta ?? 0;
     const topReason = ret?.topReturnReasons?.[0]?.reason ?? 'Defective / Not as described';
-    const topReasonPct = ret?.topReturnReasons?.[0]?.percentage ?? 0.40;
+    const normalizePercent = (val: number | undefined, defaultVal: number): number => {
+      if (val === undefined || val === null) return defaultVal;
+      return val <= 1.0 ? val * 100 : val;
+    };
+    const topReasonPct = normalizePercent(ret?.topReturnReasons?.[0]?.percentage, 40);
 
     const overallRating = rev?.overallRating ?? 5.0;
     const negRatio = rev?.negativeReviewRatio ?? 0;
     const topPainPoint = rev?.topPainPoints?.[0]?.topicName ?? 'Product sizing or defect';
-    const topPainPointPct = rev?.topPainPoints?.[0]?.percentage ?? 0.35;
+    const topPainPointPct = normalizePercent(rev?.topPainPoints?.[0]?.percentage, 35);
 
     const isReturnSpike = curReturnRate >= 0.05 && (returnDeltaPct >= 0.40 || curReturnRate >= baseReturnRate * 1.4);
     const isRatingDrop = overallRating < 4.3 || negRatio >= 0.20;
@@ -122,7 +126,7 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'RETURN_RATE_SPIKE').map((s) => s.signalId),
-        description: `退货率从 ${(baseReturnRate * 100).toFixed(1)}% 飙升 ${(returnDeltaPct * 100).toFixed(1)}% 至 ${(curReturnRate * 100).toFixed(1)}%（退款成本 +$${returnCostDelta.toFixed(2)}）。首要退货原因："${topReason}"（占退货 ${(topReasonPct * 100).toFixed(0)}%）。`,
+        description: `退货率从 ${(baseReturnRate * 100).toFixed(1)}% 飙升 ${(returnDeltaPct * 100).toFixed(1)}% 至 ${(curReturnRate * 100).toFixed(1)}%（退款成本 +$${returnCostDelta.toFixed(2)}）。首要退货原因："${topReason}"（占退货 ${topReasonPct.toFixed(0)}%）。`,
       };
 
       secondaryDrivers.push({
@@ -133,7 +137,7 @@ export class ProductQualityIssuePattern implements IDiagnosisPattern {
         direction: 'DOWN',
         causalStrength: 'STRONG',
         relatedSignalIds: targetSignals.filter((s) => s.code === 'RATING_DETERIORATION').map((s) => s.signalId),
-        description: `买家评分降至 ${overallRating.toFixed(1)}★，差评占比 ${(negRatio * 100).toFixed(1)}%。首要投诉聚类："${topPainPoint}"（占投诉 ${(topPainPointPct * 100).toFixed(0)}%）。`,
+        description: `买家评分降至 ${overallRating.toFixed(1)}★，差评占比 ${(negRatio * 100).toFixed(1)}%。首要投诉聚类："${topPainPoint}"（占投诉 ${topPainPointPct.toFixed(0)}%）。`,
       });
 
       summary = `退货率飙升与评论恶化同时出现，相互印证实物产品缺陷或尺寸不匹配。买家常在评论中提及 "${topPainPoint}"、退货时选择 "${topReason}"。`;

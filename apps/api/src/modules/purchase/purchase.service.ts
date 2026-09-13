@@ -235,28 +235,42 @@ export class PurchaseService {
 
       this.assertPoTransition(po.status as PurchaseOrderStatus, 'RECEIVED');
 
-      // Validate each received item belongs to this PO and check over-receipt
+      // Aggregate quantities by skuId first to prevent duplicate processing / over-receipt bugs
+      const aggregatedItems = new Map<string, number>();
       for (const recItem of input.items) {
-        const poItem = po.items?.find((i) => i.skuId === recItem.skuId);
-        if (!poItem) {
+        if (!recItem.skuId) {
           throw new BadRequestException({
             code: ErrorCodes.VALIDATION_ERROR,
-            message: `SKU '${recItem.skuId}' does not belong to purchase order '${po.poNumber}'`,
+            message: 'skuId is required for received item',
           });
         }
-
         if (recItem.receivedQuantity <= 0) {
           throw new BadRequestException({
             code: ErrorCodes.VALIDATION_ERROR,
             message: `Received quantity must be greater than 0`,
           });
         }
+        aggregatedItems.set(
+          recItem.skuId,
+          (aggregatedItems.get(recItem.skuId) || 0) + recItem.receivedQuantity,
+        );
+      }
 
-        const totalReceived = poItem.receivedQuantity + recItem.receivedQuantity;
+      // Validate each received item belongs to this PO and check over-receipt
+      for (const [skuId, recQuantity] of aggregatedItems.entries()) {
+        const poItem = po.items?.find((i) => i.skuId === skuId);
+        if (!poItem) {
+          throw new BadRequestException({
+            code: ErrorCodes.VALIDATION_ERROR,
+            message: `SKU '${skuId}' does not belong to purchase order '${po.poNumber}'`,
+          });
+        }
+
+        const totalReceived = poItem.receivedQuantity + recQuantity;
         if (totalReceived > poItem.quantity) {
           throw new BadRequestException({
             code: ErrorCodes.VALIDATION_ERROR,
-            message: `Over-receipt rejected: cannot receive ${recItem.receivedQuantity} units. Ordered: ${poItem.quantity}, previously received: ${poItem.receivedQuantity}, remaining allowed: ${poItem.quantity - poItem.receivedQuantity}`,
+            message: `Over-receipt rejected: cannot receive ${recQuantity} units. Ordered: ${poItem.quantity}, previously received: ${poItem.receivedQuantity}, remaining allowed: ${poItem.quantity - poItem.receivedQuantity}`,
           });
         }
 
@@ -265,7 +279,7 @@ export class PurchaseService {
           where: {
             workspaceId_skuId_warehouseType: {
               workspaceId,
-              skuId: recItem.skuId,
+              skuId,
               warehouseType: 'FBA',
             },
           },
@@ -280,14 +294,14 @@ export class PurchaseService {
 
         const newBalance = InventoryMovementService.calculateReceiptInbound(
           currentBalance,
-          recItem.receivedQuantity,
+          recQuantity,
         );
 
         await tx.inventoryBalance.upsert({
           where: {
             workspaceId_skuId_warehouseType: {
               workspaceId,
-              skuId: recItem.skuId,
+              skuId,
               warehouseType: 'FBA',
             },
           },
@@ -297,7 +311,7 @@ export class PurchaseService {
           },
           create: {
             workspaceId,
-            skuId: recItem.skuId,
+            skuId,
             warehouseType: 'FBA',
             fulfillableQuantity: newBalance.fulfillableQuantity,
             inboundQuantity: newBalance.inboundQuantity,

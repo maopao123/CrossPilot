@@ -37,19 +37,32 @@ export class AnalystService {
       let currentProfit = 0;
       let previousProfit = 0;
 
-      if (dailyRecords.length >= 14) {
-        const first7 = dailyRecords.slice(0, 7);
-        const next7 = dailyRecords.slice(7, 14);
-        previousProfit = first7.reduce((acc, r) => acc + Number(r.netProfit), 0);
-        currentProfit = next7.reduce((acc, r) => acc + Number(r.netProfit), 0);
-      } else if (dailyRecords.length > 0) {
-        const mid = Math.max(1, Math.floor(dailyRecords.length / 2));
-        previousProfit = dailyRecords
+      // Group records by calendar date (YYYY-MM-DD) summing netProfit across all SKUs
+      const dateMap = new Map<string, number>();
+      for (const r of dailyRecords) {
+        const dStr =
+          r.date instanceof Date
+            ? r.date.toISOString().slice(0, 10)
+            : String(r.date).slice(0, 10);
+        dateMap.set(dStr, (dateMap.get(dStr) || 0) + Number(r.netProfit));
+      }
+      const sortedDates = Array.from(dateMap.keys()).sort();
+
+      if (sortedDates.length >= 14) {
+        // First 7 distinct days = previous period (e.g. Week 10)
+        // Next 7 distinct days = current period (e.g. Week 11)
+        const first7Dates = sortedDates.slice(0, 7);
+        const next7Dates = sortedDates.slice(7, 14);
+        previousProfit = first7Dates.reduce((acc, d) => acc + (dateMap.get(d) || 0), 0);
+        currentProfit = next7Dates.reduce((acc, d) => acc + (dateMap.get(d) || 0), 0);
+      } else if (sortedDates.length > 0) {
+        const mid = Math.max(1, Math.floor(sortedDates.length / 2));
+        previousProfit = sortedDates
           .slice(0, mid)
-          .reduce((acc, r) => acc + Number(r.netProfit), 0);
-        currentProfit = dailyRecords
+          .reduce((acc, d) => acc + (dateMap.get(d) || 0), 0);
+        currentProfit = sortedDates
           .slice(mid)
-          .reduce((acc, r) => acc + Number(r.netProfit), 0);
+          .reduce((acc, d) => acc + (dateMap.get(d) || 0), 0);
       } else {
         currentProfit = 0;
         previousProfit = Number((-tv).toFixed(2));

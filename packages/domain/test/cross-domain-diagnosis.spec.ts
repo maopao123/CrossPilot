@@ -36,7 +36,7 @@ import {
 } from '../src/operations/index.js';
 
 // Helper to build mock Sku360BusinessContext
-function buildMockContext(overrides?: Partial<Sku360BusinessContext>): Sku360BusinessContext {
+export function buildMockContext(overrides?: Partial<Sku360BusinessContext>): Sku360BusinessContext {
   const defaultContext: Sku360BusinessContext = {
     identity: {
       workspaceId: 'ws_demo',
@@ -181,7 +181,7 @@ function buildMockContext(overrides?: Partial<Sku360BusinessContext>): Sku360Bus
   return { ...defaultContext, ...overrides };
 }
 
-function buildMockSignal(overrides?: Partial<BusinessSignal>): BusinessSignal {
+export function buildMockSignal(overrides?: Partial<BusinessSignal>): BusinessSignal {
   return {
     signalId: 'SIG-R-PROF-01-ws-sku-20260308_20260314',
     workspaceId: 'ws_demo',

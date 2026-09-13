@@ -25,32 +25,36 @@ import { ToolDefinition, ToolExecutionContext } from '../contracts/tool.types.js
 const MAX_TOOL_RESULT_BYTES = 4096; // Guard LLM context window against bloated outputs
 
 let sharedService: DailyOperationWorkflowService | null = null;
-let lastKnownTaskId: string = '';
-let lastKnownActionId: string = '';
+const lastKnownByWorkspace = new Map<string, { taskId: string; actionId: string }>();
 
 async function ensureValidTaskAndAction(service: DailyOperationWorkflowService, workspaceId: string): Promise<{ taskId: string; actionId: string }> {
-  if (lastKnownTaskId) {
-    const existing = await service.getWorkflowState(lastKnownTaskId);
+  const ws = workspaceId || 'default';
+  const cached = lastKnownByWorkspace.get(ws);
+  if (cached?.taskId) {
+    const existing = await service.getWorkflowState(cached.taskId);
     if (existing) {
       const proposed = existing.recommendedActions?.find((a: any) => a.status === 'PROPOSED');
       if (proposed) {
-        return { taskId: lastKnownTaskId, actionId: proposed.actionId };
+        return { taskId: cached.taskId, actionId: proposed.actionId };
       }
     }
   }
 
   const run = await service.execute({
-    workspaceId: workspaceId || 'default',
+    workspaceId: ws,
     marketplaceId: 'AMAZON_US',
     mode: 'SKU',
     skuId: 'MTH-WHITE-001',
     dateRange: { from: '2026-08-15', to: '2026-08-22' },
   });
 
-  lastKnownTaskId = run.taskId;
   const proposedAction = run.actions?.find((a: any) => a.status === 'PROPOSED') || run.actions?.[0];
-  lastKnownActionId = proposedAction?.actionId || 'ACT-default-001';
-  return { taskId: lastKnownTaskId, actionId: lastKnownActionId };
+  const item = {
+    taskId: run.taskId,
+    actionId: proposedAction?.actionId || 'ACT-default-001',
+  };
+  lastKnownByWorkspace.set(ws, item);
+  return item;
 }
 
 export function getDailyOperationWorkflowService(): DailyOperationWorkflowService {
@@ -139,7 +143,7 @@ export const RunDailyOperationDiagnosisTool: ToolDefinition = {
   },
   execute: async (input: any, ctx: ToolExecutionContext) => {
     const service = getDailyOperationWorkflowService();
-    const effectiveWorkspaceId = ctx.workspaceId || input.workspaceId || 'default';
+    const effectiveWorkspaceId = ctx.workspaceId || 'default';
 
     const workflowInput = {
       workspaceId: effectiveWorkspaceId,
@@ -153,10 +157,11 @@ export const RunDailyOperationDiagnosisTool: ToolDefinition = {
     };
 
     const result = await service.execute(workflowInput);
-    lastKnownTaskId = result.taskId;
-    if (result.actions && result.actions.length > 0) {
-      lastKnownActionId = result.actions[0].actionId;
-    }
+    const firstActionId = result.actions?.[0]?.actionId || 'ACT-default-001';
+    lastKnownByWorkspace.set(effectiveWorkspaceId, {
+      taskId: result.taskId,
+      actionId: firstActionId,
+    });
 
     // Build concise, LLM-safe summary output (avoiding context explosion)
     const topActions = (result.actions || [])
@@ -266,7 +271,7 @@ export const GetDailyOperationStatusTool: ToolDefinition = {
     }
 
     // Workspace Isolation Check
-    if (ctx.workspaceId && ctx.workspaceId !== 'default' && state.workspaceId !== ctx.workspaceId) {
+    if (ctx.workspaceId && state.workspaceId !== ctx.workspaceId) {
       throw new Error(`Access denied: Task does not belong to workspace '${ctx.workspaceId}'.`);
     }
 
@@ -290,7 +295,7 @@ export const GetDailyOperationStatusTool: ToolDefinition = {
       status: state.status,
       currentStep: state.currentStep,
       checkpointVersion: state.checkpointVersion,
-      totalActions: state.recommendedActions.length,
+      totalActions: state.recommendedActions?.length ?? 0,
       approvalSummary: {
         pendingCount: state.approvalState.pendingActionIds.length,
         approvedCount: state.approvalState.approvedActionIds.length,
@@ -374,7 +379,7 @@ export const ApproveOperationActionTool: ToolDefinition = {
       throw new Error(`Workflow task '${targetTaskId}' not found.`);
     }
 
-    if (ctx.workspaceId && ctx.workspaceId !== 'default' && state.workspaceId !== ctx.workspaceId) {
+    if (ctx.workspaceId && state.workspaceId !== ctx.workspaceId) {
       throw new Error(`Access denied: Task does not belong to workspace '${ctx.workspaceId}'.`);
     }
 
@@ -466,7 +471,7 @@ export const RejectOperationActionTool: ToolDefinition = {
       throw new Error(`Workflow task '${targetTaskId}' not found.`);
     }
 
-    if (ctx.workspaceId && ctx.workspaceId !== 'default' && state.workspaceId !== ctx.workspaceId) {
+    if (ctx.workspaceId && state.workspaceId !== ctx.workspaceId) {
       throw new Error(`Access denied: Task does not belong to workspace '${ctx.workspaceId}'.`);
     }
 
@@ -558,7 +563,7 @@ export const DismissOperationActionTool: ToolDefinition = {
       throw new Error(`Workflow task '${targetTaskId}' not found.`);
     }
 
-    if (ctx.workspaceId && ctx.workspaceId !== 'default' && state.workspaceId !== ctx.workspaceId) {
+    if (ctx.workspaceId && state.workspaceId !== ctx.workspaceId) {
       throw new Error(`Access denied: Task does not belong to workspace '${ctx.workspaceId}'.`);
     }
 

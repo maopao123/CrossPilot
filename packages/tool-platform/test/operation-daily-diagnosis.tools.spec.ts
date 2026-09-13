@@ -151,4 +151,41 @@ describe('Epic 3 Phase 7: Operation Daily Diagnosis Tools', () => {
     const action = updatedState?.recommendedActions.find((a) => a.actionId === actionId);
     expect(action?.status).toBe('APPROVED');
   });
+
+  it('S9 Regression: ensures workspace isolation even with default workspace and prevents latest leakage', async () => {
+    // 1. Run task in workspace A
+    const runResA = await executor.execute(
+      'operation.daily.diagnosis.run',
+      {
+        marketplaceId: 'AMAZON_US',
+        mode: 'SKU',
+        skuId: 'MTH-WHITE-001',
+        dateRange: { from: '2026-03-08', to: '2026-03-14' },
+      },
+      { workspaceId: 'workspace_A', source: 'AGENT' }
+    );
+    expect(runResA.success).toBe(true);
+    const taskIdA = runResA.data.taskId;
+
+    // 2. Querying with 'default' workspace should be DENIED access to workspace_A's task
+    const defaultCtx: ToolExecutionContext = { workspaceId: 'default', source: 'AGENT' };
+    const denyDefault = await executor.execute(
+      'operation.daily.diagnosis.status',
+      { taskId: taskIdA },
+      defaultCtx
+    );
+    expect(denyDefault.success).toBe(false);
+    expect(denyDefault.error?.message).toContain('Access denied');
+
+    // 3. Workspace B using 'latest' must not receive Workspace A's taskId
+    const ctxB: ToolExecutionContext = { workspaceId: 'workspace_B', source: 'AGENT' };
+    const resB = await executor.execute(
+      'operation.daily.diagnosis.status',
+      { taskId: 'latest' },
+      ctxB
+    );
+    expect(resB.success).toBe(true);
+    expect(resB.data.taskId).not.toBe(taskIdA);
+  });
 });
+

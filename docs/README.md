@@ -71,6 +71,8 @@ docs/
 │   │   └── EPIC1_2_FINAL_SURFACE_GROUNDING_REPORT.md
 │   ├── epic2/                         # Epic 2: Milvus 真实 RAG 知识库
 │   │   └── EPIC2_REAL_MILVUS_RAG_REPORT.md
+│   ├── closed-loop/                   # Closed-loop Operations Layer 需求（Epic A-D，2026-09-13）
+│   │   └── CLOSED_LOOP_OPERATIONS_LAYER_PRD.md
 │   └── epic3/                         # Epic 3: WF-05 每日运营智能规范
 │       ├── SKU360_CONTEXT_MATRIX.md
 │       ├── DIAGNOSIS_PATTERN_MATRIX.md

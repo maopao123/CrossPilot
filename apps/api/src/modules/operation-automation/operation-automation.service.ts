@@ -240,11 +240,38 @@ export class OperationAutomationService {
       isApproved: true,
     });
 
+    if (actionResult.status !== 'SUCCEEDED') {
+      run.steps.push({
+        stepNumber: 5,
+        name: 'RPA 自动提交 Seller Central',
+        runtime: 'RPA',
+        status: 'FAILED',
+        summary: `RPA 执行失败：${actionResult.status}。${actionResult.error || ''}`,
+        details: actionResult.data,
+      });
+
+      run.steps.push({
+        stepNumber: 6,
+        name: '发布后回传与 Feed 确认',
+        runtime: 'TOOL',
+        status: 'FAILED',
+        summary: '前序 RPA 执行失败，跳过发布后确认与库存同步',
+      });
+
+      run.status = 'FAILED';
+      run.result = {
+        skuCode: run.skuCode,
+        error: actionResult.error || 'RPA execution failed',
+      };
+      run.updatedAt = new Date().toISOString();
+      return run;
+    }
+
     run.steps.push({
       stepNumber: 5,
       name: 'RPA 自动提交 Seller Central',
       runtime: 'RPA',
-      status: actionResult.status === 'SUCCEEDED' ? 'COMPLETED' : 'FAILED',
+      status: 'COMPLETED',
       summary: `RPA 执行：${actionResult.status}。任务 ID：${actionResult.data?.jobId}`,
       details: actionResult.data,
     });

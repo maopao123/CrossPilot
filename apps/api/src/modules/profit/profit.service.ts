@@ -103,7 +103,41 @@ export class ProfitService {
     const dateKey = new Date(returnDate.toISOString().slice(0, 10));
 
     return await this.prisma.$transaction(async (tx) => {
-      // 0. Check idempotency: a return for this order item in this workspace must not already exist
+      // 0. Validate orderItem and sku belong to the workspace
+      const orderItem = await tx.orderItem.findFirst({
+        where: {
+          id: input.orderItemId,
+          workspaceId,
+        },
+      });
+      if (!orderItem) {
+        throw new NotFoundException({
+          code: ErrorCodes.RESOURCE_NOT_FOUND,
+          message: `Order item '${input.orderItemId}' not found in workspace`,
+        });
+      }
+
+      const sku = await tx.sku.findFirst({
+        where: {
+          id: input.skuId,
+          workspaceId,
+        },
+      });
+      if (!sku) {
+        throw new NotFoundException({
+          code: ErrorCodes.RESOURCE_NOT_FOUND,
+          message: `SKU '${input.skuId}' not found in workspace`,
+        });
+      }
+
+      if (orderItem.skuId !== input.skuId) {
+        throw new BadRequestException({
+          code: ErrorCodes.VALIDATION_ERROR,
+          message: `Order item '${input.orderItemId}' does not match SKU '${input.skuId}'`,
+        });
+      }
+
+      // 0.1 Check idempotency: a return for this order item in this workspace must not already exist
       const existingReturn = await tx.returnRecord.findFirst({
         where: {
           workspaceId,

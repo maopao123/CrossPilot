@@ -126,8 +126,22 @@ describe('ToolPlatform Core Unit Tests', () => {
 
       expect(result.success).toBe(true);
       expect(result.data.imageUrl).toBeDefined();
-      expect(result.data.dimensions).toEqual({ width: 2000, height: 2000 });
+      expect(result.data.dimensions).toEqual({ width: 1024, height: 1024 });
       expect(result.cost?.amount).toBe(0.04);
+    });
+
+    it('should map aspectRatio 16:9 to 1280x720 dimensions for CreativeImageGenerateTool', async () => {
+      const result = await executor.execute(
+        'creative.image.generate',
+        {
+          prompt: 'Carrara marble toothbrush holder wide banner',
+          aspectRatio: '16:9',
+        },
+        { workspaceId: 'ws_test' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.dimensions).toEqual({ width: 1280, height: 720 });
     });
 
     it('should execute OperationKeywordCombineTool and return matrix keywords', async () => {

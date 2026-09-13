@@ -23,6 +23,12 @@ const STYLE_PROMPT_SUFFIX: Record<string, string> = {
     'real home bathroom vanity scene, natural window light, lifestyle product photography, shallow depth of field',
 };
 
+const ASPECT_RATIO_CONFIG: Record<string, { size: string; dimensions: { width: number; height: number } }> = {
+  '1:1': { size: '1024*1024', dimensions: { width: 1024, height: 1024 } },
+  '4:3': { size: '1024*768', dimensions: { width: 1024, height: 768 } },
+  '16:9': { size: '1280*720', dimensions: { width: 1280, height: 720 } },
+};
+
 const SCENE_PROMPT: Record<string, string> = {
   modern_bathroom: 'high-end modern bathroom vanity with marble countertop',
   morning_sunlight: 'bright bathroom countertop with soft morning sunlight and gentle mist',
@@ -80,9 +86,9 @@ export const CreativeImageGenerateTool: ToolDefinition = {
         type: 'select',
         defaultValue: '1:1',
         options: [
-          { label: '1:1 (2000x2000 亚马逊主图)', value: '1:1' },
-          { label: '4:3 (常见辅图)', value: '4:3' },
-          { label: '16:9 (横版宽幅/A+)', value: '16:9' },
+          { label: '1:1 (1024x1024 亚马逊主图)', value: '1:1' },
+          { label: '4:3 (1024x768 常见辅图)', value: '4:3' },
+          { label: '16:9 (1280x720 横版宽幅/A+)', value: '16:9' },
         ],
       },
     },
@@ -91,14 +97,14 @@ export const CreativeImageGenerateTool: ToolDefinition = {
   execute: async (input) => {
     const style = input.style || 'studio_white';
     const fullPrompt = `${input.prompt}, ${STYLE_PROMPT_SUFFIX[style] || STYLE_PROMPT_SUFFIX.studio_white}`;
-    const result = await imageProvider.generateImage(fullPrompt, { timeoutMs: 290000 });
-    const dimensions =
-      input.aspectRatio === '16:9' ? { width: 1920, height: 1080 } : { width: 2000, height: 2000 };
+    const aspect = input.aspectRatio || '1:1';
+    const config = ASPECT_RATIO_CONFIG[aspect] || ASPECT_RATIO_CONFIG['1:1'];
+    const result = await imageProvider.generateImage(fullPrompt, { size: config.size, timeoutMs: 290000 });
     return {
       imageUrl: result.imageUrl,
       style,
-      aspectRatio: input.aspectRatio || '1:1',
-      dimensions,
+      aspectRatio: aspect,
+      dimensions: config.dimensions,
       model: result.model,
       taskId: result.taskId,
       promptUsed: fullPrompt,

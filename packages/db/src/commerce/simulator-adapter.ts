@@ -162,7 +162,13 @@ export class SimulatorAdapter implements CommerceAdapter {
     const bound = await this.bind(ctx);
     if (bound.channel !== 'amazon') return [];
     const campaign = await this.prisma.campaign.findFirst({
-      where: { workspaceId: ctx.workspaceId, name: { startsWith: 'SIM-' } },
+      where: {
+        workspaceId: ctx.workspaceId,
+        OR: [
+          { name: { startsWith: 'SIM - ' } },
+          { name: { startsWith: 'SIM-' } },
+        ],
+      },
     });
     if (!campaign) return [];
     const metrics = await this.prisma.adMetricDaily.findMany({

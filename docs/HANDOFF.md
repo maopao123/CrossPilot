@@ -79,6 +79,21 @@ health 200  postgres/redis/milvus up
 /api/v1/health/ai UP (qwen3.8-max + qwen-image-3.0-pro + MinIO)
 ```
 
+**新增（2026-09-13）：**
+- 需求文档：`docs/20_epics/closed-loop/CLOSED_LOOP_OPERATIONS_LAYER_PRD.md` —— Closed-loop Operations Layer（Epic A Outcome Tracking → B Incident & Alert → C Experiment → D Autopilot），DRAFT 待确认；用户已明确 Epic A 优先，可授权开工。
+- Bug 审计与 P0 修复：`docs/00_governance/V10_FULL_PRODUCT_BUG_AUDIT_20260913.md` —— 全项目 122 项（严重 10 / 中 36 / 低 76）。**严重级 10 项（S1~S10）已全部修复并通过门禁验证**：
+  - S1 (RPA 失败标记与防伪造发布): `operation-automation.service.ts`
+  - S2 (createReturn 租户与 SKU 隔离校验): `profit.service.ts`
+  - S3 (createQuote 供应商与 SKU 租户校验): `supplier.service.ts`
+  - S4 (receivePurchaseOrder 按 skuId 预聚合防重复加库存): `purchase.service.ts`
+  - S5 (Analyst 瀑布周对比按自然日聚合多 SKU): `analyst.service.ts`
+  - S6 (VOC/退货百分比单位归一化防 100x 虚高): `product-quality-diagnosis.pattern.ts`
+  - S7 (竞品非降价场景误诊评分优势修复): `competitor-diagnosis.pattern.ts`
+  - S8 (Simulator campaign 名前缀兼容 `'SIM - '` 与 `'SIM-'`): `simulator-store.ts` & `simulator-adapter.ts`
+  - S9 (operation-daily-diagnosis 租户隔离加固与防止 input.workspaceId 注入): `operation-daily-diagnosis.tools.ts`
+  - S10 (Creative 图像映射实际尺寸真实元数据返回): `creative-studio.tools.ts`
+  - 门禁全绿：typecheck 10/10 PASS，domain tests 275/275 PASS，tool-platform 20/20 PASS，golden benchmark evals 9/9 PASS，web tests 34/34 PASS，web build 23/23 PASS；新增 `apps/api/test/v10-audit-p0.spec.ts` 与 `packages/domain/test/v10-p0-audit-fixes.spec.ts` 回归用例。
+
 **下一任：** Epic 3 已完成。用户说「做 Epic 4 / Shopify」→ 按 `V10_NEXT_AGENT_HANDOFF.md` 做 Shopify read Adapter；在那之前**不要主动开 Epic 4**。
 **不要**顺手开 Shopify / Amazon Write / Action Write / 切 `STORE_SKU360_SOURCE=prisma`。  
 **不要为了刷绿把 XYDC `5147` 改成 `5151`。不要 retag / force-push `v9.1.0`。**  

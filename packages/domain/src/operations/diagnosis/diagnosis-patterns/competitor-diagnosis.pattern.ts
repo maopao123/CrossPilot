@@ -138,7 +138,7 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
       }
 
       summary = `主要竞品降价形成价格逆风。竞品当前售价 $${compPrice.toFixed(2)}，我方为 $${ourPrice.toFixed(2)}。`;
-    } else {
+    } else if (isRatingAdvantage) {
       rootCauseCode = 'COMPETITOR_RATING_ADVANTAGE';
       title = `竞品质量优势：${primaryComp.asin || primaryComp.competitorId} 评分 ${compRating.toFixed(1)}★`;
 
@@ -154,6 +154,22 @@ export class CompetitorPressurePattern implements IDiagnosisPattern {
       };
 
       summary = `竞品评分优势正在自然搜索排位中形成社会认同优势。`;
+    } else {
+      rootCauseCode = 'COMPETITOR_PRESSURE_GENERAL';
+      title = `竞品常规动态：${primaryComp.asin || primaryComp.competitorId}`;
+
+      primaryDriver = {
+        domain: 'COMPETITOR',
+        metric: 'competitorPrice',
+        impactAmount: priceDelta,
+        contributionRatio: 1.0,
+        direction: 'STABLE',
+        causalStrength: 'INDICATIVE',
+        relatedSignalIds: targetSignals.map((s) => s.signalId),
+        description: `主要竞品（${primaryComp.asin || primaryComp.competitorId}）当前售价 $${compPrice.toFixed(2)}（变动 ${(priceDeltaPct * 100).toFixed(1)}%），评分 ${compRating.toFixed(1)}★，未检测到显著降价或大幅评分优势。`,
+      };
+
+      summary = `竞品处于常规监测状态，尚未构成重大价格战或评分倾轧冲击。`;
     }
 
     // 2. Evidence Gate & Unknowns

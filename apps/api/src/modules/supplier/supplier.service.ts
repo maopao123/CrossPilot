@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateSupplierInput,
   CreateSupplierQuoteInput,
+  ErrorCodes,
   SupplierInfo,
   SupplierSkuQuoteInfo,
 } from '@crosspilot/shared';
@@ -78,6 +79,26 @@ export class SupplierService {
     workspaceId: string,
     input: CreateSupplierQuoteInput,
   ): Promise<SupplierSkuQuoteInfo> {
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id: input.supplierId, workspaceId },
+    });
+    if (!supplier) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: 'Supplier not found in this workspace',
+      });
+    }
+
+    const sku = await this.prisma.sku.findFirst({
+      where: { id: input.skuId, workspaceId },
+    });
+    if (!sku) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: `SKU '${input.skuId}' not found in this workspace`,
+      });
+    }
+
     const quote = await this.prisma.supplierSkuQuote.create({
       data: {
         workspaceId,
