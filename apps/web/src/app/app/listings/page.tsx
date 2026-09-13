@@ -770,7 +770,7 @@ Want tips on stacking or arranging multiple units?`);
         rufusQa: rufusItems,
         marketplace,
         modelName,
-        forceRefreshVisual: true,
+        forceRefreshVisual: false,
         productSpecs: {
           productName: productName.trim() || undefined,
           brand: productBrand.trim() || undefined,
@@ -822,11 +822,11 @@ Want tips on stacking or arranging multiple units?`);
           setActionError(err?.message || '14 步 DAG 编排生成失败');
         },
       });
-      loadListing();
     } catch (err: any) {
       setActionError(err?.message || '14 步 DAG 编排生成失败');
     } finally {
       setGenerating(false);
+      loadListing();
     }
   };
 

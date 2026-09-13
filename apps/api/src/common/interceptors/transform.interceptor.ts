@@ -24,6 +24,7 @@ export class TransformInterceptor<T>
     const isSse =
       accept.includes('text/event-stream') ||
       url.includes('/events') ||
+      url.includes('/generate/stream') ||
       url.endsWith('/stream') ||
       url.includes('/stream?');
 

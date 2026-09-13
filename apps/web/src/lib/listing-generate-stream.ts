@@ -8,6 +8,15 @@ export interface ListingGenerateStepEvent {
   summary: string;
 }
 
+export function unwrapListingGeneratePayload(parsed: any): any {
+  if (parsed && typeof parsed === 'object' && parsed.data && typeof parsed.data === 'object') {
+    if (parsed.data.generatedListing || parsed.data.stepTraces || parsed.data.versionId) {
+      return parsed.data;
+    }
+  }
+  return parsed;
+}
+
 export async function streamListingGenerate(
   payload: Record<string, unknown>,
   handlers: {
@@ -63,18 +72,22 @@ export async function streamListingGenerate(
     } catch {
       // keep raw
     }
+    if (eventName === 'hello' || eventName === 'ping') {
+      return;
+    }
     if (eventName === 'step') {
-      handlers.onStep?.(parsed);
+      handlers.onStep?.(unwrapListingGeneratePayload(parsed));
       return;
     }
     if (eventName === 'result') {
       sawResult = true;
-      handlers.onResult?.(parsed);
+      handlers.onResult?.(unwrapListingGeneratePayload(parsed));
       return;
     }
     if (eventName === 'error') {
-      handlers.onError?.(parsed);
-      throw new Error(parsed?.message || 'Listing generation failed');
+      const err = unwrapListingGeneratePayload(parsed);
+      handlers.onError?.(err);
+      throw new Error(err?.message || parsed?.message || 'Listing generation failed');
     }
   };
 

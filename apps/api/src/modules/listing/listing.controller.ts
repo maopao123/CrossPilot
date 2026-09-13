@@ -70,19 +70,29 @@ export class ListingController {
       };
     },
     @Req() req: Request,
-    @Res() res: Response,
+    @Res({ passthrough: false }) res: Response,
   ) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders?.();
+    res.socket?.setNoDelay?.(true);
 
     const writeEvent = (event: string, data: unknown) => {
       if (req.destroyed || res.writableEnded) return;
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-      (res as any).flush?.();
+      if (typeof (res as any).flush === 'function') {
+        (res as any).flush();
+      }
     };
+
+    // Comment + padding forces the first TCP packet out; otherwise Node holds
+    // tiny SSE frames until the 90s LLM step finishes.
+    res.write(':\n\n');
+    res.write(`:${' '.repeat(4096)}\n\n`);
+    writeEvent('hello', { ok: true, totalSteps: 14 });
 
     try {
       const result = await this.listingService.generateListing(body.skuId, workspaceId, {
