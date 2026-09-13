@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { PlatformLlmRuntime } from '@crosspilot/ai';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   ComplianceJudgeService,
@@ -239,6 +240,175 @@ export class ListingService {
       deduplicatedCount: normalized.deduplicatedCount,
       keywords: normalized.keywords,
     };
+  }
+
+  /**
+   * AI Rufus Q&A Extraction: extracts structured Q&A pairs from raw unstructured text.
+   * Leverages LLM with automatic deduplication, plus high-availability heuristic fallback.
+   */
+  async extractRufusQa(content: string, defaultSource: 'MANUAL' | 'QA' | 'VOC' = 'QA') {
+    if (!content || !content.trim()) {
+      return {
+        totalExtracted: 0,
+        deduplicatedCount: 0,
+        extractor: 'NONE',
+        items: [],
+      };
+    }
+
+    const trimmed = content.trim();
+
+    // 1. Attempt LLM extraction first
+    try {
+      const runtime = PlatformLlmRuntime.getInstance();
+      const systemPrompt = `You are a professional Amazon Rufus and E-Commerce Q&A Extraction Specialist.
+Your task is to extract structured buyer questions and verified factual answers from unstructured text (copied from Amazon product pages, Rufus conversations, or Customer Q&A).
+
+Rules:
+1. Identify all genuine buyer questions (ending with '?') and their corresponding factual answers.
+2. Filter out UI noise, section labels (e.g. "Customer question", "Top question", "Community answers"), and conversational follow-ups without an answer (e.g. "Want tips on...").
+3. Semantic Deduplication: If the same or highly similar question appears multiple times, merge them into ONE single best entry with the most accurate, detailed, and clear answer.
+4. Set source to "${defaultSource}".
+5. Output format: JSON ONLY, strictly following:
+{
+  "items": [
+    {
+      "question": "Clear question ending with ?",
+      "answer": "Accurate factual answer.",
+      "source": "${defaultSource}"
+    }
+  ]
+}`;
+
+      const userPrompt = `Here is the raw text to extract:\n\n${trimmed}`;
+
+      const llmResult = await runtime.generateText({
+        model: 'qwen-plus',
+        systemPrompt,
+        userPrompt,
+        temperature: 0.1,
+        maxTokens: 3000,
+        timeoutMs: 35000,
+        retryPolicy: { maxAttempts: 1, backoffMs: 500 },
+      }, { traceId: `trace-rufus-extract-${Date.now()}` });
+
+      let parsedItems: any[] = [];
+      try {
+        const rawJson = typeof llmResult.output === 'object' && llmResult.output !== null
+          ? llmResult.output
+          : JSON.parse(llmResult.rawText.replace(/```json\n?|\n?```/g, '').trim());
+        
+        parsedItems = Array.isArray(rawJson) ? rawJson : rawJson.items || [];
+      } catch (jsonErr) {
+        // Fall back to heuristic
+      }
+
+      if (parsedItems && parsedItems.length > 0) {
+        const validated = parsedItems
+          .filter((item: any) => item && item.question && item.answer)
+          .map((item: any, idx: number) => ({
+            id: `rufus-ai-${Date.now()}-${idx + 1}`,
+            question: String(item.question).trim(),
+            answer: String(item.answer).trim(),
+            source: item.source || defaultSource,
+          }));
+
+        if (validated.length > 0) {
+          return {
+            totalExtracted: validated.length,
+            deduplicatedCount: validated.length,
+            extractor: 'LLM',
+            model: llmResult.model,
+            items: validated,
+          };
+        }
+      }
+    } catch (llmErr) {
+      console.warn('[ListingService] LLM Rufus extract failed or timed out, falling back to heuristic parser:', (llmErr as any)?.message);
+    }
+
+    // 2. High-availability Heuristic Fallback
+    const heuristicItems = this.heuristicExtractRufusQa(trimmed, defaultSource);
+    return {
+      totalExtracted: heuristicItems.length,
+      deduplicatedCount: heuristicItems.length,
+      extractor: 'HEURISTIC_PARSER',
+      items: heuristicItems,
+    };
+  }
+
+  /**
+   * Deterministic heuristic parser for Amazon Customer Q&A / Rufus text blocks.
+   */
+  private heuristicExtractRufusQa(rawText: string, defaultSource: 'MANUAL' | 'QA' | 'VOC' = 'QA'): RufusQaItem[] {
+    if (!rawText || !rawText.trim()) return [];
+
+    const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const qRegex = /^((is|how|can|does|do|what|where|why|which|will|would|are|could|weight|capacity)\b|\b.*\?$|\b.*\？$)/i;
+    const ignoreRegex = /^(customer question|seller question|buyer question|q&a|rufus question|top question|community answers?)$/i;
+
+    const pairs: { question: string; answer: string }[] = [];
+    let currentQ: string | null = null;
+    let currentA: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (ignoreRegex.test(line)) {
+        continue;
+      }
+
+      const isQuestion = qRegex.test(line) && (line.endsWith('?') || line.endsWith('？') || line.length < 90);
+
+      if (isQuestion) {
+        if (currentQ && currentA.length > 0) {
+          pairs.push({
+            question: currentQ,
+            answer: currentA.join(' ').trim(),
+          });
+        }
+        currentQ = line;
+        currentA = [];
+      } else {
+        if (currentQ) {
+          currentA.push(line);
+        }
+      }
+    }
+
+    if (currentQ && currentA.length > 0) {
+      pairs.push({
+        question: currentQ,
+        answer: currentA.join(' ').trim(),
+      });
+    }
+
+    // Normalize and deduplicate questions
+    const dedupeMap = new Map<string, { question: string; answer: string }>();
+    for (const pair of pairs) {
+      const key = pair.question.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      if (!dedupeMap.has(key)) {
+        dedupeMap.set(key, pair);
+      } else {
+        const existing = dedupeMap.get(key)!;
+        if (pair.answer.length > existing.answer.length) {
+          dedupeMap.set(key, pair);
+        }
+      }
+    }
+
+    const results: RufusQaItem[] = [];
+    let idx = 1;
+    for (const item of dedupeMap.values()) {
+      results.push({
+        id: `rufus-ext-${Date.now()}-${idx++}`,
+        question: item.question,
+        answer: item.answer,
+        source: defaultSource,
+      });
+    }
+
+    return results;
   }
 
   /**

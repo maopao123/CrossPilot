@@ -64,6 +64,14 @@ export class ListingController {
     return this.listingService.extractAndNormalizeKeywords(content, sourceType);
   }
 
+  @Post('rufus-extract')
+  extractRufusQa(
+    @Body('content') content: string,
+    @Body('defaultSource') defaultSource?: 'MANUAL' | 'QA' | 'VOC',
+  ) {
+    return this.listingService.extractRufusQa(content, defaultSource);
+  }
+
   @Get('creative-brief/:versionId')
   getCreativeBrief(
     @Param('versionId') versionId: string,

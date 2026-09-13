@@ -32,6 +32,7 @@ import {
   Plus,
   Trash2,
   Upload,
+  Loader2,
 } from 'lucide-react';
 
 interface VisualFact {
@@ -178,6 +179,9 @@ export default function ListingStudioPage() {
   const [newRufusQuestion, setNewRufusQuestion] = useState('');
   const [newRufusAnswer, setNewRufusAnswer] = useState('');
   const [newRufusSource, setNewRufusSource] = useState<'MANUAL' | 'VOC' | 'QA'>('MANUAL');
+  const [rufusRawText, setRufusRawText] = useState('');
+  const [extractingRufus, setExtractingRufus] = useState(false);
+  const [rufusExtractSuccessMsg, setRufusExtractSuccessMsg] = useState<string | null>(null);
 
   const handleLoadFileBoxPresets = () => {
     setImageUrls([
@@ -477,6 +481,83 @@ export default function ListingStudioPage() {
 
   const handleClearRufusItems = () => {
     setRufusItems([]);
+  };
+
+  const handleExtractRufus = async () => {
+    if (!rufusRawText.trim()) return;
+    try {
+      setExtractingRufus(true);
+      setRufusExtractSuccessMsg(null);
+      const res = await ApiClient.post<any>('/api/v1/listings/rufus-extract', {
+        content: rufusRawText.trim(),
+        defaultSource: 'QA',
+      });
+      if (res.items && res.items.length > 0) {
+        setRufusItems((prev) => {
+          const existingKeys = new Set(prev.map((p) => p.question.toLowerCase().replace(/[^a-z0-9]/g, '')));
+          const newItems = res.items.filter((item: any) => {
+            const k = item.question.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return !existingKeys.has(k);
+          });
+          return [...newItems, ...prev];
+        });
+        setRufusExtractSuccessMsg(`成功调用 ${res.extractor === 'LLM' ? '大语言模型' : '智能解析器'} 抽取并去重 ${res.items.length} 组问答，已同步加入下方意图库！`);
+      } else {
+        alert('未从输入文本中解析出有效的 Q&A 问答对，请检查文本格式是否包含问句');
+      }
+    } catch (err: any) {
+      console.error('抽取 Rufus 问答失败:', err);
+      alert('抽取 Rufus 问答失败: ' + (err?.message || '未知错误'));
+    } finally {
+      setExtractingRufus(false);
+    }
+  };
+
+  const handleLoadShoeOrganizerRufusDemo = () => {
+    setRufusRawText(`Is it easy to assemble?
+Yes, the  2 Pack Shoe Organizer is easy to assemble. Customers consistently mention that assembly is straightforward and quick, with one noting it's "extremely easy to put together."
+How do I use the dividers?
+The  2 Pack Shoe Organizer has adjustable dividers that you can move to customize the compartment sizes based on your shoes or storage needs. Simply slide the dividers to create larger slots for bulky shoes or smaller slots for delicate footwear. This flexibility also allows you to use the organizer for other items like clothing or toys if needed.
+Is the lid removable?
+The  2 Pack Shoe Organizer has a transparent lid with a two-way zipper—it's not removable, but the zipper allows you to fully open it for easy access. Customers mention you can also let the cover hang freely if you prefer not to zip it closed.
+Can I stack multiple units?
+Yes, you can stack the  2 Pack Shoe Organizer units on top of each other. Customers report stacking them successfully, and one mentions: "Mine will be placed one on top of another." The modular design means the two units in each pack can also connect to form a larger organizer, making it flexible for your storage needs.
+Can I use it sideways?
+Yes, the  2 Pack Shoe Organizer can be used sideways. Customers report that it works well when placed horizontally, especially when it's full of shoes for stability. One customer mentions: "I use mine sideways. It should work" when properly weighted with footwear. However, it may collapse if used sideways with only one or two pairs inside, so it's best when fully or mostly loaded.
+Does it have a handle?
+Yes, the  2 Pack Shoe Organizer has reinforced handles on both sides for easy transport and carrying. These wrap-around handles provide better load-bearing compared to standard stitched handles, making it convenient to move the organizer around your closet or home.
+Is the lid removable?
+No, the lid on the  2 Pack Shoe Organizer is not removable. It features a transparent cover with a two-way zipper that you can open and close for access and dust protection. However, based on customer feedback, you can let the zipper cover hang freely if you prefer not to zip it closed. One customer mentions you could cut off the plastic cover if you'd like a completely open design.
+Can it store boots?
+Yes, the  2 Pack Shoe Organizer can store boots. Customers report that you can use it for boots by adjusting the dividers to create larger compartments that accommodate boot heights and widths. One customer specifically mentions: "you can also use it for boots by adjusting the..." dividers to fit different footwear sizes.
+The adjustable dividers give you flexibility to customize the slots for various shoe types, including taller boots.
+Customer question
+How many pairs total fit?
+The  2 Pack Shoe Organizer is designed to hold 16 pairs total (8 pairs per unit). However, customers note that the actual capacity depends on shoe type and size—the slim compartments work best for women's and children's shoes, and each slot typically holds one shoe per side. Larger men's shoes or bulky footwear may take up more space, so you might fit fewer pairs if you have bigger sizes.
+Does it fit under beds?
+Yes, the  2 Pack Shoe Organizer fits under beds. Customers specifically mention it fits perfectly in 15-inch spaces and slides easily under benches and beds. With dimensions of 16.9"L × 8.45"W × 11.8" for each unit, it's designed to fit most standard under-bed storage spaces.
+Reviews suggest it's an ideal solution for maximizing under-bed storage while keeping shoes organized and dust-free.
+How much weight can it hold?
+The product page for the  2 Pack Shoe Organizer doesn't specify an exact weight capacity. However, customers report that the organizer is sturdy and stable when filled with shoes—one reviewer mentions it doesn't collapse even when placed sideways with multiple pairs inside. The reinforced wrap-around handles and PP board support are designed for better load-bearing than standard stitched handles.
+For the most precise weight limit, I'd recommend contacting their 24/7 customer service team directly through the product page.
+Can I stack multiple units?
+Yes, you can stack multiple units of the  2 Pack Shoe Organizer. Customers report that the units are fairly stable when stacked as long as the bottom units are full of shoes for support. One reviewer mentions they will place one unit on top of another without issues.
+However, reviewers also note that if a unit is only partially filled with just one or two pairs, it won't sit as stably on top of another unit. The design allows the two modular units to connect and form one larger organizer, so you have flexibility in how you arrange them.
+How much weight can it hold?
+The product page for the  2 Pack Shoe Organizer doesn't specify an exact weight capacity. However, customers report that the organizer is sturdy and stable when filled with shoes—one reviewer mentions it doesn't collapse even when placed sideways with multiple pairs inside. The reinforced wrap-around handles and PP board support are designed for better load-bearing than standard stitched handles.
+For the most precise weight limit, I'd recommend contacting their 24/7 customer service team directly through the product page.
+Weight capacity details?
+The product page for the  2 Pack Shoe Organizer doesn't list a specific weight capacity. However, the product is designed with wrap-around handles and PP board support for stronger load-bearing compared to standard stitched handles.
+Customers report that the organizer is sturdy when filled with shoes—reviewers mention it doesn't collapse even when used sideways or stacked, especially when full. For a precise weight limit, contact the 24/7 customer service team through the product page.
+Does it fit men's shoes?
+The  2 Pack Shoe Organizer can fit men's shoes, but with some limitations. The compartments are slim and work best for women's and children's shoes—customers mention that larger men's dress shoes or sneakers may be tight.
+One reviewer noted: "My closet looks much better. Just buy more if you are storing sneakers or mens dress shoes." This means you may fit fewer pairs overall if you have men's larger sizes, as each slot might accommodate only one shoe per side instead of two.
+For bulkier men's footwear, you might want to consider purchasing additional units or looking at a larger organizer.
+Does it fit men's shoes?
+The  2 Pack Shoe Organizer can fit men's shoes, but with some limitations. The compartments are slim and work best for women's and children's shoes—customers mention that larger men's dress shoes or sneakers may be tight.
+One reviewer noted: "My closet looks much better. Just buy more if you are storing sneakers or mens dress shoes." This means you may fit fewer pairs overall if you have men's larger sizes, as each slot might accommodate only one shoe per side instead of two.
+For bulkier men's footwear, you might want to consider purchasing additional units or looking at a larger organizer.
+Want tips on stacking or arranging multiple units?`);
   };
 
   // Upgraded WF-02 14-Step DAG Generation Action
@@ -1348,6 +1429,72 @@ export default function ListingStudioPage() {
                     意图引导 • 非事实源
                   </span>
                 </div>
+              </div>
+
+              {/* Batch AI Rufus Q&A Extraction from Raw Text */}
+              <div className="bg-surface-elevated/70 border border-blue-500/30 rounded-xl p-4 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-4 h-4 text-blue-400" />
+                    <span className="text-xs font-bold text-foreground">
+                      批量智能粘贴与 AI 模型提取 Rufus 问答 (大段连续文本一键抽取)
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleLoadShoeOrganizerRufusDemo}
+                      className="text-[11px] text-blue-400 hover:text-blue-300 font-medium px-2.5 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition cursor-pointer"
+                    >
+                      📋 载入靴子/收纳盒真实 Q&A 测试文本
+                    </button>
+                    {rufusRawText && (
+                      <button
+                        onClick={() => setRufusRawText('')}
+                        className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 transition cursor-pointer"
+                      >
+                        清空文本
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <textarea
+                  rows={6}
+                  value={rufusRawText}
+                  onChange={(e) => setRufusRawText(e.target.value)}
+                  placeholder="在此直接粘贴从亚马逊前台、买家 Q&A 或 Rufus 智能助理复制的整段无格式文本（支持数十行连续 Q&A 提问与回答）。系统将调用大模型自动清洗干扰行、识别问答对、深度语义去重并生成结构化条目..."
+                  className="w-full bg-surface border border-border rounded-lg p-3 text-xs text-foreground focus:outline-none focus:border-blue-500 leading-relaxed font-mono"
+                />
+
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">
+                    💡 支持连续多段提问与长回答混排，AI 模型将自动归纳清洗，并智能去重合并。
+                  </span>
+                  <button
+                    onClick={handleExtractRufus}
+                    disabled={extractingRufus || !rufusRawText.trim()}
+                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-lg transition shadow-md cursor-pointer"
+                  >
+                    {extractingRufus ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>AI 大模型智能提取并去重中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>🤖 调用模型智能提取问答</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {rufusExtractSuccessMsg && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs px-3 py-2 rounded-lg flex items-center justify-between">
+                    <span>✓ {rufusExtractSuccessMsg}</span>
+                    <button onClick={() => setRufusExtractSuccessMsg(null)} className="text-muted-foreground hover:text-foreground text-xs">✕</button>
+                  </div>
+                )}
               </div>
 
               {/* Add Rufus Question Form */}

@@ -42,7 +42,7 @@ export interface RufusQaItem {
   id: string;
   question: string;
   answer: string;
-  source?: 'MANUAL' | 'TXT' | 'EXCEL';
+  source?: 'MANUAL' | 'TXT' | 'EXCEL' | 'QA' | 'VOC' | string;
   mappedFactIds?: string[];
 }
 
