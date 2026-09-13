@@ -58,6 +58,11 @@ Epic 3 Amazon read Adapter
 SHIPPED  6c4d169
 docs/00_governance/V10_EPIC3_AMAZON_READ_ADAPTER_REPORT.md
 
+Market Research & XYDC Live Integration:
+LIVE DEPLOYED ee9c777
+XYDC MCP token, Firecrawl API key deployed to server .env
+Dynamic market snapshot & keyword-tailored product opportunities active
+
 Tool Platform 28 Tools Audit & Hardening
 SHIPPED  1e97585
 28/28 Tools Production Verified 100% PASS
