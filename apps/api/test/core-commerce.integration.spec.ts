@@ -54,6 +54,11 @@ describe('Milestone 1: Core Commerce Integration & AC Verification', () => {
       },
       orderItem: {
         findMany: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'item_001',
+          workspaceId: mockWorkspaceId,
+          skuId: mockSkuId,
+        }),
       },
       inventoryBalance: {
         findUnique: jest.fn(),
