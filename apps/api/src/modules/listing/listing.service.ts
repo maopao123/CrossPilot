@@ -25,6 +25,14 @@ export interface GenerateListingOptions {
   marketplace?: string;
   modelName?: string;
   forceRefreshVisual?: boolean;
+  productSpecs?: {
+    productName?: string;
+    brand?: string;
+    dimensions?: string;
+    material?: string;
+    weight?: string;
+    featuresText?: string;
+  };
 }
 
 @Injectable()
@@ -474,20 +482,57 @@ Rules:
       visualFacts = vfRes.visualFacts;
     }
 
+    // Dynamically resolve product name, brand, and features from productSpecs if provided
+    const productName = options.productSpecs?.productName?.trim() || sku.product.name;
+    const brand = options.productSpecs?.brand?.trim() || sku.product.brand;
+
+    let features: Array<{ id: string; name: string; value: string; isCore?: boolean }> = sku.product.features.map((f: any) => ({
+      id: f.id,
+      name: f.name,
+      value: f.value,
+      isCore: f.isCore,
+    }));
+
+    if (options.productSpecs) {
+      const specs = options.productSpecs;
+      const customFeatures: Array<{ id: string; name: string; value: string; isCore?: boolean }> = [];
+      if (specs.material?.trim()) {
+        customFeatures.push({ id: 'spec-mat', name: 'Material', value: specs.material.trim(), isCore: true });
+      }
+      if (specs.dimensions?.trim()) {
+        customFeatures.push({ id: 'spec-dim', name: 'Dimensions / Capacity', value: specs.dimensions.trim(), isCore: true });
+      }
+      if (specs.weight?.trim()) {
+        customFeatures.push({ id: 'spec-wt', name: 'Weight / Load Capacity', value: specs.weight.trim(), isCore: true });
+      }
+      if (specs.featuresText?.trim()) {
+        const lines = specs.featuresText
+          .split(/\r?\n/)
+          .map((l) => l.trim().replace(/^[-•*0-9.]+\s*/, ''))
+          .filter(Boolean);
+        lines.forEach((line, idx) => {
+          customFeatures.push({
+            id: `spec-feat-${idx + 1}`,
+            name: `Key Feature ${idx + 1}`,
+            value: line,
+            isCore: idx < 3,
+          });
+        });
+      }
+      if (customFeatures.length > 0) {
+        features = customFeatures;
+      }
+    }
+
     // Execute 14-step DAG
     const dagResult = await ListingWorkflowDagService.executeWorkflowDag({
       skuCode: sku.skuCode,
-      productName: sku.product.name,
-      brand: sku.product.brand,
+      productName,
+      brand,
       variantName: sku.variantName,
-      features: sku.product.features.map((f: any) => ({
-        id: f.id,
-        name: f.name,
-        value: f.value,
-        isCore: f.isCore,
-      })),
+      features,
       skuWeightKg: sku.weightKg ? Number(sku.weightKg) : undefined,
-      productBrief: sku.product.productBrief || undefined,
+      productBrief: options.productSpecs?.featuresText || sku.product.productBrief || undefined,
       visualFacts,
       images: options.images,
       keywords: options.keywords,

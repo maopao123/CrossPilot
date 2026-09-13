@@ -25,6 +25,14 @@ export class ListingController {
     @Body('marketplace') marketplace?: string,
     @Body('modelName') modelName?: string,
     @Body('forceRefreshVisual') forceRefreshVisual?: boolean,
+    @Body('productSpecs') productSpecs?: {
+      productName?: string;
+      brand?: string;
+      dimensions?: string;
+      material?: string;
+      weight?: string;
+      featuresText?: string;
+    },
   ) {
     return this.listingService.generateListing(skuId, workspaceId, {
       customDirectives,
@@ -34,6 +42,7 @@ export class ListingController {
       marketplace,
       modelName,
       forceRefreshVisual,
+      productSpecs,
     });
   }
 

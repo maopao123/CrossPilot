@@ -121,20 +121,28 @@ export class ListingWorkflowDagService {
 
     // Step 2: load_product_facts
     const s2 = Date.now();
+    const isShoeOrganizer =
+      input.productName.toLowerCase().includes('shoe') ||
+      input.productName.toLowerCase().includes('boot') ||
+      input.productName.includes('鞋') ||
+      input.productName.includes('靴');
+
     const isFileBox =
-      input.productName.toLowerCase().includes('file') ||
-      input.productName.toLowerCase().includes('box') ||
-      input.productName.toLowerCase().includes('storage') ||
-      input.productName.includes('文件') ||
-      input.skuCode.toLowerCase().includes('file');
+      !isShoeOrganizer && (
+        input.productName.toLowerCase().includes('file') ||
+        input.productName.toLowerCase().includes('box') ||
+        input.productName.toLowerCase().includes('storage') ||
+        input.productName.includes('文件') ||
+        input.skuCode.toLowerCase().includes('file')
+      );
 
     const features = input.features || [];
     const materialFact = features.find((f) => f.name.toLowerCase().includes('material'))?.value ||
-      (isFileBox ? 'Premium Linen Fabric & High-Density MDF' : 'Natural Marble Stone');
-    const slotFact = features.find((f) => f.name.toLowerCase().includes('slot') || f.name.toLowerCase().includes('diameter') || f.name.toLowerCase().includes('folder') || f.name.toLowerCase().includes('capacity'))?.value ||
-      (isFileBox ? 'Letter & Legal Size Dual Compatible' : '1.5"');
-    const weightFact = features.find((f) => f.name.toLowerCase().includes('weight'))?.value ||
-      (input.skuWeightKg ? `${(input.skuWeightKg * 2.20462).toFixed(2)} lbs` : (isFileBox ? '35 lbs Load Capacity' : '3.57 lbs'));
+      (isShoeOrganizer ? 'Breathable Linen Fabric & Reinforced PP Board' : isFileBox ? 'Premium Linen Fabric & High-Density MDF' : 'Natural Marble Stone');
+    const slotFact = features.find((f) => f.name.toLowerCase().includes('slot') || f.name.toLowerCase().includes('dimension') || f.name.toLowerCase().includes('diameter') || f.name.toLowerCase().includes('folder') || f.name.toLowerCase().includes('capacity'))?.value ||
+      (isShoeOrganizer ? '16.9"L × 8.45"W × 11.8"H (Holds 16 Pairs)' : isFileBox ? 'Letter & Legal Size Dual Compatible' : '1.5"');
+    const weightFact = features.find((f) => f.name.toLowerCase().includes('weight') || f.name.toLowerCase().includes('load'))?.value ||
+      (input.skuWeightKg ? `${(input.skuWeightKg * 2.20462).toFixed(2)} lbs` : (isShoeOrganizer ? '2.1 lbs / High Load Support' : isFileBox ? '35 lbs Load Capacity' : '3.57 lbs'));
     recordStep(2, 'load_product_facts', s2, `Loaded ${features.length} features: Material=${materialFact}, Spec=${slotFact}, Weight=${weightFact}`);
 
     // Step 3: load_or_extract_visual_facts
@@ -149,7 +157,13 @@ export class ListingWorkflowDagService {
 
     // Step 4: load_voc
     const s4 = Date.now();
-    const vocHighlights = isFileBox
+    const vocHighlights = isShoeOrganizer
+      ? [
+          'Buyers complain shoe organizers collapse when stacked or used sideways -> Solved by reinforced wrap-around handles and sturdy PP board support',
+          'Buyers complain fixed slots cannot accommodate tall boots or high heels -> Solved by modular adjustable dividers for custom compartment sizes',
+          'Buyers complain under-bed storage collects dust or gets scratched -> Solved by 15-inch low-profile fit with transparent dual-zipper dust lid',
+        ]
+      : isFileBox
       ? [
           'Buyers complain flimsy fabric boxes collapse when stacked -> Solved by 35 lbs high-density MDF reinforced frame',
           'Buyers complain hanging folders get stuck or fall off rims -> Solved by smooth custom-fitted PVC glide tracks for Letter & Legal',
@@ -649,12 +663,13 @@ export class ListingWorkflowDagService {
     const unusedHighPriority: string[] = [];
 
     rawKeywords.forEach((kw) => {
-      const target = kw.normalizedKeyword.toLowerCase();
+      const target = (kw.normalizedKeyword || kw.keyword || '').toLowerCase().trim();
+      if (!target) return;
       if (fullText.includes(target) || target.split(' ').every((word) => fullText.includes(word))) {
-        usedKeywords.push(kw.keyword);
+        usedKeywords.push(kw.keyword || target);
       } else {
         if ((kw.priority && kw.priority <= 2) || (kw.volume && kw.volume > 5000)) {
-          unusedHighPriority.push(kw.keyword);
+          unusedHighPriority.push(kw.keyword || target);
         }
       }
     });

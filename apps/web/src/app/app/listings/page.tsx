@@ -33,6 +33,7 @@ import {
   Trash2,
   Upload,
   Loader2,
+  Package,
 } from 'lucide-react';
 
 interface VisualFact {
@@ -114,8 +115,18 @@ export default function ListingStudioPage() {
   const [activeVersion, setActiveVersion] = useState<ListingVersion | null>(null);
   const [comparingVersion, setComparingVersion] = useState<ListingVersion | null>(null);
 
-  // Active Main Tab: 'editor' | 'visual' | 'keywords' | 'rufus' | 'briefs' | 'dag'
-  const [activeTab, setActiveTab] = useState<'editor' | 'visual' | 'keywords' | 'rufus' | 'briefs' | 'dag'>('editor');
+  // Active Main Tab: 'editor' | 'specs' | 'visual' | 'keywords' | 'rufus' | 'briefs' | 'dag'
+  const [activeTab, setActiveTab] = useState<'editor' | 'specs' | 'visual' | 'keywords' | 'rufus' | 'briefs' | 'dag'>('editor');
+
+  // Product Information & Specifications state (第一步：信息获取核心事实)
+  const [productName, setProductName] = useState('2 Pack Under Bed Shoe Organizer with Clear Lid & Adjustable Dividers');
+  const [productBrand, setProductBrand] = useState('HOMEFORTE');
+  const [productDimensions, setProductDimensions] = useState('16.9"L × 8.45"W × 11.8"H (Each Unit)');
+  const [productWeight, setProductWeight] = useState('2.1 lbs / High load-bearing PP board for stacking & sideways use');
+  const [productMaterial, setProductMaterial] = useState('Breathable Linen Fabric + Reinforced Sturdy PP Board');
+  const [productFeaturesText, setProductFeaturesText] = useState(
+    `• Holds up to 16 pairs of shoes (8 pairs per unit), slim slots ideal for women's, children's and men's footwear\n• Modular adjustable dividers allow creating larger compartments to accommodate boots or heels\n• Transparent dust-proof lid with smooth two-way zipper for quick visibility and protection\n• Low-profile design fits under beds (15-inch clearance), closets, and sideways placement\n• Reinforced wrap-around handles on both sides for easy slide and transport\n• Foldable collapsible design for quick 3-second setup and space-saving storage`
+  );
 
   // Interactive generation states
   const [generating, setGenerating] = useState(false);
@@ -183,7 +194,43 @@ export default function ListingStudioPage() {
   const [extractingRufus, setExtractingRufus] = useState(false);
   const [rufusExtractSuccessMsg, setRufusExtractSuccessMsg] = useState<string | null>(null);
 
+  const handleLoadShoeOrganizerPresets = () => {
+    setProductName('2 Pack Under Bed Shoe Organizer with Clear Lid & Adjustable Dividers');
+    setProductBrand('HOMEFORTE');
+    setProductDimensions('16.9"L × 8.45"W × 11.8"H (Each Unit)');
+    setProductWeight('2.1 lbs / High load-bearing PP board for stacking & sideways use');
+    setProductMaterial('Breathable Linen Fabric + Reinforced Sturdy PP Board');
+    setProductFeaturesText(
+      `• Holds up to 16 pairs of shoes (8 pairs per unit), slim slots ideal for women's, children's and men's footwear\n• Modular adjustable dividers allow creating larger compartments to accommodate boots or heels\n• Transparent dust-proof lid with smooth two-way zipper for quick visibility and protection\n• Low-profile design fits under beds (15-inch clearance), closets, and sideways placement\n• Reinforced wrap-around handles on both sides for easy slide and transport\n• Foldable collapsible design for quick 3-second setup and space-saving storage`
+    );
+    setImageUrls([
+      'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80',
+    ]);
+    setKwInput(
+      `keyword,search_volume,priority\nshoe organizer,85200,1\nunder bed shoe storage,46500,1\nshoe storage organizer with clear lid,28400,1\ncloset shoe container with dividers,19200,2\nboots storage organizer container,14800,2\nfoldable underbed shoe box,11200,3`
+    );
+  };
+
+  const handleClearProductSpecs = () => {
+    setProductName('');
+    setProductBrand('');
+    setProductDimensions('');
+    setProductWeight('');
+    setProductMaterial('');
+    setProductFeaturesText('');
+  };
+
   const handleLoadFileBoxPresets = () => {
+    setProductName('Decorative Linen File Storage Box with Lid');
+    setProductBrand('HOMEFORTE');
+    setProductDimensions('15.0"L × 12.2"W × 10.8"H (Letter & Legal Compatible)');
+    setProductWeight('3.2 lbs / Supports Up to 35 lbs');
+    setProductMaterial('Premium Linen Fabric & High-Density Solid MDF Panels');
+    setProductFeaturesText(
+      `• Dual compatible built-in smooth PVC glide rails for Letter and Legal size hanging file folders\n• High-density solid MDF panels and reinforced bottom plate support up to 35 lbs without sagging\n• Upgraded rigid stackable lid protects documents from dust and allows multi-tier stacking\n• Modern linen fabric finish blends with office, home workspace, and living room aesthetics\n• Folds flat in 3 seconds for space-saving compact storage when not in use`
+    );
     setImageUrls([
       'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80',
@@ -215,6 +262,14 @@ export default function ListingStudioPage() {
   };
 
   const handleLoadToothbrushPresets = () => {
+    setProductName('Natural Marble Toothbrush Holder & Bathroom Vanity Organizer');
+    setProductBrand('STONE&HAVEN');
+    setProductDimensions('4.7"L × 3.1"W × 4.1"H (1.5" Wide Dual Slots)');
+    setProductWeight('3.57 lbs (Heavy Solid Natural Stone Base)');
+    setProductMaterial('100% Genuine Handcrafted Natural Polished Marble Stone');
+    setProductFeaturesText(
+      `• 1.5-inch extra-wide universal dual slots fit standard manual and bulky electric toothbrush handles\n• Substantial 3.57 lbs heavy stone construction prevents tipping over or sliding when removing brushes\n• Cushioned non-slip EVA bottom pads protect delicate vanity counters from moisture and scratches\n• Hand-carved from solid marble blocks with unique organic veining for luxurious bathroom décor\n• Waterproof sealed non-porous surface resists water stains and cleans easily with a damp cloth`
+    );
     setImageUrls([
       'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1620626011761-996317b8d101?w=800&auto=format&fit=crop&q=80',
@@ -575,6 +630,14 @@ Want tips on stacking or arranging multiple units?`);
         marketplace,
         modelName,
         forceRefreshVisual: true,
+        productSpecs: {
+          productName: productName.trim() || undefined,
+          brand: productBrand.trim() || undefined,
+          dimensions: productDimensions.trim() || undefined,
+          material: productMaterial.trim() || undefined,
+          weight: productWeight.trim() || undefined,
+          featuresText: productFeaturesText.trim() || undefined,
+        },
       });
 
       setEditableTitle(res.generatedListing.title);
@@ -725,13 +788,11 @@ Want tips on stacking or arranging multiple units?`);
           <div className="flex flex-wrap items-center space-x-2 text-xs text-muted-foreground">
             <span className="font-semibold text-foreground">当前产品事实依据:</span>
             <span className="text-foreground font-medium">
-              {selectedSku?.productName || listing?.productName || '当前 SKU'}
+              {productName || selectedSku?.productName || listing?.productName || '当前产品'}
             </span>
             <span className="text-gray-400">•</span>
             <span className="text-foreground">
-              {visualFacts.length > 0
-                ? visualFacts.slice(0, 2).map((f) => f.value).join(' / ')
-                : '自定义输入产品事实与特征'}
+              {productMaterial || (visualFacts.length > 0 ? visualFacts[0].value : '自定义产品规格')}
             </span>
             <span className="text-gray-400">•</span>
             <span className="text-emerald-500 font-medium">Claim 事实映射率: 100.0%</span>
@@ -806,7 +867,19 @@ Want tips on stacking or arranging multiple units?`);
           }`}
         >
           <FileEdit className="w-4 h-4" />
-          <span>01 Listing 正文与版本</span>
+          <span>01 Listing 正文与版本 (输出)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('specs')}
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'specs'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          <span>02 产品信息与规格 (输入)</span>
         </button>
 
         <button
@@ -818,7 +891,7 @@ Want tips on stacking or arranging multiple units?`);
           }`}
         >
           <ImageIcon className="w-4 h-4" />
-          <span>02 产品图片与 Visual Facts ({visualFacts.length})</span>
+          <span>03 产品图片与事实 (输入) ({imageUrls.length})</span>
         </button>
 
         <button
@@ -830,7 +903,7 @@ Want tips on stacking or arranging multiple units?`);
           }`}
         >
           <Search className="w-4 h-4" />
-          <span>03 多源关键词库 ({parsedKeywords.length || 6})</span>
+          <span>04 多源关键词库 (输入) ({parsedKeywords.length || 6})</span>
         </button>
 
         <button
@@ -842,7 +915,7 @@ Want tips on stacking or arranging multiple units?`);
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>04 Rufus 问答意图上下文 ({rufusItems.length})</span>
+          <span>05 Rufus 问答意图 (输入) ({rufusItems.length})</span>
         </button>
 
         <button
@@ -854,7 +927,7 @@ Want tips on stacking or arranging multiple units?`);
           }`}
         >
           <Layers className="w-4 h-4" />
-          <span>05 素材指示 (Image Briefs & A+)</span>
+          <span>06 素材指示与 A+ (输出)</span>
         </button>
 
         <button
@@ -866,7 +939,7 @@ Want tips on stacking or arranging multiple units?`);
           }`}
         >
           <Clock className="w-4 h-4" />
-          <span>06 14 步 DAG 轨迹 ({stepTraces.length || 14})</span>
+          <span>07 14 步 DAG 轨迹 (监控) ({stepTraces.length || 14})</span>
         </button>
       </div>
 
@@ -1026,6 +1099,192 @@ Want tips on stacking or arranging multiple units?`);
           )}
 
           {/* TAB 2: Multimodal Images & Visual Facts */}
+          {/* TAB 2: Product Specifications & Information Input */}
+          {activeTab === 'specs' && (
+            <div className="bg-surface border border-border rounded-xl p-5 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-3">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <Package className="w-5 h-5 text-blue-400" />
+                    <h3 className="text-sm font-bold text-foreground">
+                      📦 产品基础信息与物理规格描述 (Product Specifications)
+                    </h3>
+                    <span className="text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-medium">
+                      第一步：信息获取核心输入
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    在此直接录入或粘贴新产品的品名、品牌、长宽高尺寸、重量、材质与核心功能描述。这些参数将作为 14 步 DAG
+                    编排与大模型撰写的唯一事实真源 (Ground Truth)，严格约束 AI 绝不编造虚假参数。
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleLoadShoeOrganizerPresets}
+                    className="border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    title="一键载入鞋收纳盒 (Shoe Organizer) 真实物理规格与功能描述"
+                  >
+                    📋 载入鞋收纳盒规格模板
+                  </button>
+                  <button
+                    onClick={handleLoadFileBoxPresets}
+                    className="border border-border bg-surface-elevated hover:bg-surface text-muted-foreground hover:text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    title="一键载入文件收纳箱 (File Box) 示例规格"
+                  >
+                    📋 载入文件箱规格
+                  </button>
+                  <button
+                    onClick={handleLoadToothbrushPresets}
+                    className="border border-border bg-surface-elevated hover:bg-surface text-muted-foreground hover:text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    title="一键载入大理石牙刷架示例规格"
+                  >
+                    📋 载入牙刷架规格
+                  </button>
+                  <button
+                    onClick={handleClearProductSpecs}
+                    className="flex items-center space-x-1 border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    title="清空当前所有产品信息与规格"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>清空规格</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-4">
+                {/* Row 1: Product Name & Brand */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>产品品名 (Product Name / Title Baseline) <span className="text-rose-400">*</span></span>
+                      <span className="text-[11px] text-muted-foreground">英文核心品名或主打品类名</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={productName}
+                      onChange={(e) => setProductName(e.target.value)}
+                      placeholder="例如：2 Pack Under Bed Shoe Organizer with Clear Lid & Adjustable Dividers"
+                      className="w-full bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>品牌名称 (Brand) <span className="text-rose-400">*</span></span>
+                      <span className="text-[11px] text-muted-foreground">出海品牌</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={productBrand}
+                      onChange={(e) => setProductBrand(e.target.value)}
+                      placeholder="例如：HOMEFORTE"
+                      className="w-full bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2: Dimensions, Weight, Material */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>规格尺寸 (Dimensions: L x W x H)</span>
+                      <span className="text-[11px] text-muted-foreground">长宽高 / 容量</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={productDimensions}
+                      onChange={(e) => setProductDimensions(e.target.value)}
+                      placeholder='例如：16.9"L × 8.45"W × 11.8"H (Each Unit)'
+                      className="w-full bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>重量与承重能力 (Weight & Capacity)</span>
+                      <span className="text-[11px] text-muted-foreground">净重 / 承重</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={productWeight}
+                      onChange={(e) => setProductWeight(e.target.value)}
+                      placeholder="例如：2.1 lbs / High load-bearing PP board for stacking & sideways use"
+                      className="w-full bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>主要材质构成 (Material)</span>
+                      <span className="text-[11px] text-muted-foreground">材质面料 / 板材</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={productMaterial}
+                      onChange={(e) => setProductMaterial(e.target.value)}
+                      placeholder="例如：Breathable Linen Fabric + Reinforced Sturdy PP Board"
+                      className="w-full bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 3: Key Features & Product Description */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                    <span>产品核心功能与卖点描述 (Key Features & Highlights)</span>
+                    <span className="text-[11px] text-muted-foreground">支持自由粘贴大段描述或每行一条特性</span>
+                  </label>
+                  <textarea
+                    rows={6}
+                    value={productFeaturesText}
+                    onChange={(e) => setProductFeaturesText(e.target.value)}
+                    placeholder={`请输入或粘贴产品的详细功能、规格与卖点描述，例如：
+• Holds up to 16 pairs of shoes (8 pairs per unit), slim slots ideal for women's and children's shoes
+• Modular adjustable dividers allow creating larger compartments to accommodate boots or heels
+• Transparent dust-proof lid with smooth two-way zipper for quick visibility and protection
+• Low-profile design fits under beds (15-inch clearance), closets, and sideways placement
+• Reinforced wrap-around handles on both sides for easy slide and transport
+• Foldable collapsible design for quick 3-second setup and space-saving storage`}
+                    className="w-full bg-surface-elevated border border-border rounded-lg p-3 text-xs text-foreground font-mono focus:outline-none focus:border-blue-500 leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              {/* Status & Next Step Card */}
+              <div className="bg-surface-elevated/80 border border-border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2 text-xs font-semibold text-foreground">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>产品事实规格已就绪</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    品名：<strong className="text-foreground">{productName || '未填写'}</strong> | 材质：
+                    <strong className="text-foreground">{productMaterial || '未填写'}</strong> | 尺寸：
+                    <strong className="text-foreground">{productDimensions || '未填写'}</strong> | 重量/承重：
+                    <strong className="text-foreground">{productWeight || '未填写'}</strong>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveTab('visual')}
+                    className="flex items-center space-x-1 bg-surface border border-border hover:bg-surface-elevated text-foreground text-xs font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                  >
+                    <span>下一步：03 产品图片与事实</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={handleGenerateDag}
+                    disabled={generating}
+                    className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg transition cursor-pointer"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
+                    <span>{generating ? '14 步 DAG 编排中...' : '直接生成 14 步 Listing'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'visual' && (
             <div className="bg-surface border border-border rounded-xl p-5 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-3">

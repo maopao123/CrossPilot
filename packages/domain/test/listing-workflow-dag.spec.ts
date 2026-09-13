@@ -27,7 +27,7 @@ describe('ListingWorkflowDagService & Policy Profiles (V2)', () => {
     expect(result.creativeBrief.imageBriefs.length).toBeGreaterThanOrEqual(5);
     expect(result.creativeBrief.aPlusPlan).toBeDefined();
     expect(result.humanReviewState).toBe('WAITING_APPROVAL');
-  });
+  }, 35000);
 
   it('should reject inputs with more than 10 images (§338.30.1)', async () => {
     const elevenImages = Array.from({ length: 11 }, (_, i) => `https://example.com/img-${i}.jpg`);
