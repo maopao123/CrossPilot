@@ -131,12 +131,13 @@ export default function ToolCenterPage() {
         source: 'TOOL_CENTER',
       });
 
+      const isSuccess = data?.success !== false && !data?.error;
       setExecutionResult(data);
       setExecutionHistory((prev) => [
         {
           id: `hist_${Date.now()}`,
           toolName: selectedTool.name,
-          status: 'SUCCESS',
+          status: isSuccess ? 'SUCCESS' : 'FAILED',
           durationMs: data.durationMs || 120,
           cost: `$${(selectedTool.costEstimate?.amount || 0).toFixed(2)}`,
           time: new Date().toLocaleTimeString(),
@@ -437,22 +438,45 @@ export default function ToolCenterPage() {
           </div>
 
           {/* Execution Result Card */}
-          {executionResult && (
-            <div className="bg-surface border border-border rounded-xl p-6 space-y-4 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-bold text-white">执行成功</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    200 OK
-                  </span>
+          {executionResult && (() => {
+            const isFailed = executionResult.status === 'FAILED' || executionResult.success === false || !!executionResult.error;
+            return (
+              <div className="bg-surface border border-border rounded-xl p-6 space-y-4 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div className="flex items-center space-x-2">
+                    {isFailed ? (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-rose-400" />
+                        <span className="text-sm font-bold text-rose-400">执行失败</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                          {executionResult.error?.code || 'FAILED'}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span className="text-sm font-bold text-white">执行成功</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          200 OK
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-4 text-xs text-gray-400">
+                    <span>耗时: <strong className="text-white font-mono">{executionResult.durationMs || 120} ms</strong></span>
+                    {executionResult.traceId && (
+                      <span>Trace ID: <strong className="text-white font-mono">{executionResult.traceId}</strong></span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex items-center space-x-4 text-xs text-gray-400">
-                  <span>耗时: <strong className="text-white font-mono">{executionResult.durationMs || 120} ms</strong></span>
-                  <span>Trace ID: <strong className="text-white font-mono">{executionResult.traceId}</strong></span>
-                </div>
-              </div>
+                {isFailed && (
+                  <div className="p-4 bg-rose-500/10 rounded-lg border border-rose-500/20 text-xs text-rose-300 space-y-1">
+                    <div className="font-semibold">错误信息</div>
+                    <p>{typeof executionResult.error === 'string' ? executionResult.error : executionResult.error?.message || '未知执行错误'}</p>
+                  </div>
+                )}
 
               {/* Visual preview if creative image */}
               {executionResult.data?.imageUrl && (
@@ -512,7 +536,8 @@ export default function ToolCenterPage() {
                 </pre>
               </div>
             </div>
-          )}
+            );
+          })()}
           </>
           )}
         </div>

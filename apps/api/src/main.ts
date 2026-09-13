@@ -26,7 +26,16 @@ async function bootstrap() {
   );
 
   const port = Number(process.env.PORT || process.env.API_PORT) || 3001;
-  await app.listen(port);
+  const server = await app.listen(port);
+
+  // Prevent connection termination on long AI / Tool generation calls (5 min)
+  if (server && typeof (server as any).setTimeout === 'function') {
+    (server as any).setTimeout(300000);
+    (server as any).headersTimeout = 305000;
+    (server as any).requestTimeout = 300000;
+    (server as any).keepAliveTimeout = 65000;
+  }
+
   logger.log(`🚀 CrossPilot NestJS API running on: http://localhost:${port}`);
   logger.log(`🔍 Health Check available at: http://localhost:${port}/api/v1/health`);
 }

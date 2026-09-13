@@ -8,6 +8,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  experimental: {
+    proxyTimeout: 300000,
+  },
   async rewrites() {
     const apiTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
     const minioTarget = process.env.MINIO_INTERNAL_URL || 'http://127.0.0.1:9002';
