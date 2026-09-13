@@ -145,5 +145,47 @@ describe('ToolPlatform Core Unit Tests', () => {
       expect(result.data.searchTermsField).toBeDefined();
       expect(result.data.compliantWith250Bytes).toBe(true);
     });
+
+    it('should gracefully coerce string inputs for array, number, and object types', async () => {
+      const complianceResult = await executor.execute(
+        'compliance.listing.check',
+        {
+          title: 'Test Title',
+          bulletPoints: 'Bullet 1\nBullet 2', // string textarea representation
+        },
+        { workspaceId: 'ws_test' },
+      );
+      expect(complianceResult.success).toBe(true);
+
+      const financeResult = await executor.execute(
+        'finance.profit.calculate',
+        {
+          revenue: '29.99' as any, // numeric string
+          cogs: '5.80' as any,
+        },
+        { workspaceId: 'ws_test' },
+      );
+      expect(financeResult.success).toBe(true);
+      expect(financeResult.data.revenue).toBe(29.99);
+    });
+
+    it('should successfully execute all 28 registered tools with their default form data', async () => {
+      const allTools = registry.getAll();
+      expect(allTools.length).toBe(28);
+
+      for (const tool of allTools) {
+        const defaultInput: Record<string, any> = {};
+        if (tool.inputSchema?.properties) {
+          for (const [k, v] of Object.entries(tool.inputSchema.properties)) {
+            if (v.defaultValue !== undefined) {
+              defaultInput[k] = v.defaultValue;
+            }
+          }
+        }
+
+        const res = await executor.execute(tool.id, defaultInput, { workspaceId: 'default' });
+        expect(res.success).toBe(true);
+      }
+    });
   });
 });

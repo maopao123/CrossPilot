@@ -18,6 +18,7 @@ export const FinanceProfitCalculateTool: ToolDefinition = {
         label: '销售收入 ($)',
         type: 'number',
         required: true,
+        defaultValue: 29.99,
         placeholder: '例如: 29.99',
       },
       cogs: {
@@ -25,6 +26,7 @@ export const FinanceProfitCalculateTool: ToolDefinition = {
         label: '商品采购成本 COGS ($)',
         type: 'number',
         required: true,
+        defaultValue: 5.80,
         placeholder: '例如: 5.80',
       },
       referralFeeRate: {
@@ -59,7 +61,7 @@ export const FinanceProfitCalculateTool: ToolDefinition = {
     required: ['revenue', 'cogs'],
   },
   execute: (input) => {
-    const quantity = input.quantity !== undefined ? Number(input.quantity) : 1;
+    const quantity = Math.max(1, input.quantity !== undefined ? Number(input.quantity) || 1 : 1);
     const unitPrice = Number(input.revenue) / quantity;
     const unitCost = Number(input.cogs) / quantity;
 

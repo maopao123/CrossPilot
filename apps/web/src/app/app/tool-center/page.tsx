@@ -31,6 +31,7 @@ import {
   Eye,
   Camera,
   RefreshCw,
+  Video,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -199,6 +200,13 @@ export default function ToolCenterPage() {
     return null;
   }, []);
 
+  const extractVideoUrl = useCallback((result: any): string | null => {
+    if (!result) return null;
+    const target = result.data || result.output || result;
+    if (typeof target.videoUrl === 'string') return target.videoUrl;
+    return null;
+  }, []);
+
   const handleCopyUrl = (url: string) => {
     const fullUrl = url.startsWith('http')
       ? url
@@ -263,8 +271,31 @@ export default function ToolCenterPage() {
     setExecutionResult(null);
 
     try {
+      const processedInput = { ...formData };
+      if (selectedTool.inputSchema?.properties) {
+        for (const [k, p] of Object.entries(selectedTool.inputSchema.properties)) {
+          const raw = processedInput[k];
+          if (p.type === 'array' && typeof raw === 'string') {
+            try {
+              const parsed = JSON.parse(raw);
+              processedInput[k] = Array.isArray(parsed)
+                ? parsed
+                : raw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+            } catch {
+              processedInput[k] = raw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+            }
+          } else if (p.type === 'object' && typeof raw === 'string') {
+            try {
+              processedInput[k] = JSON.parse(raw);
+            } catch {
+              // let executor handle validation
+            }
+          }
+        }
+      }
+
       const data = await ApiClient.post<any>(`/api/v1/tools/${selectedTool.id}/execute`, {
-        input: formData,
+        input: processedInput,
         source: 'TOOL_CENTER',
       });
 
@@ -506,7 +537,7 @@ export default function ToolCenterPage() {
 
                       {prop.type === 'select' && prop.options ? (
                         <select
-                          value={val}
+                          value={val !== undefined ? val : ''}
                           onChange={(e) => handleInputChange(fieldKey, e.target.value)}
                           className="w-full bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                         >
@@ -519,15 +550,23 @@ export default function ToolCenterPage() {
                       ) : prop.type === 'textarea' || prop.type === 'array' ? (
                         <textarea
                           rows={3}
-                          value={val}
+                          value={Array.isArray(val) ? val.join('\n') : (typeof val === 'object' && val !== null ? JSON.stringify(val, null, 2) : val !== undefined ? val : '')}
                           onChange={(e) => handleInputChange(fieldKey, e.target.value)}
-                          placeholder={prop.placeholder}
+                          placeholder={prop.placeholder || (prop.type === 'array' ? '每行输入一项' : '')}
+                          className="w-full bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                      ) : prop.type === 'object' ? (
+                        <textarea
+                          rows={4}
+                          value={typeof val === 'object' && val !== null ? JSON.stringify(val, null, 2) : val !== undefined ? val : ''}
+                          onChange={(e) => handleInputChange(fieldKey, e.target.value)}
+                          placeholder={prop.placeholder || 'JSON 格式'}
                           className="w-full bg-surface-elevated border border-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
                         />
                       ) : (
                         <input
                           type={prop.type === 'number' ? 'number' : 'text'}
-                          value={val}
+                          value={val !== undefined ? val : ''}
                           onChange={(e) =>
                             handleInputChange(
                               fieldKey,
@@ -635,6 +674,7 @@ export default function ToolCenterPage() {
           {executionResult && (() => {
             const isFailed = executionResult.status === 'FAILED' || executionResult.success === false || !!executionResult.error;
             const imageUrl = extractImageUrl(executionResult);
+            const videoUrl = extractVideoUrl(executionResult);
             const data = executionResult.data || executionResult.output || executionResult;
 
             return (
@@ -835,6 +875,66 @@ export default function ToolCenterPage() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Video Showcase & Real-Time Preview */}
+                {videoUrl && (
+                  <div className="p-5 bg-surface-elevated rounded-xl border border-border space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center space-x-2">
+                        <Video className="w-4 h-4 text-purple-400" />
+                        <span className="text-sm font-semibold text-white">生成视频素材实时播放预览</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          1080P MP4
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleCopyUrl(videoUrl)}
+                          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-xs text-gray-300 hover:text-white hover:border-gray-600 transition cursor-pointer"
+                          title="复制视频访问链接"
+                        >
+                          {copiedUrl === videoUrl ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-400">已复制</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>复制链接</span>
+                            </>
+                          )}
+                        </button>
+
+                        <a
+                          href={videoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-xs text-gray-300 hover:text-white hover:border-gray-600 transition cursor-pointer"
+                          title="在新标签页打开视频"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>新标签打开</span>
+                        </a>
+
+                        <a
+                          href={videoUrl}
+                          download={`crosspilot-video-${Date.now()}.mp4`}
+                          className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-xs text-gray-300 hover:text-white hover:border-gray-600 transition cursor-pointer"
+                          title="下载视频"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>下载</span>
+                        </a>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl overflow-hidden border border-border/80 bg-neutral-950/70 max-w-2xl mx-auto shadow-inner">
+                      <video src={videoUrl} controls className="w-full h-auto max-h-[420px] object-contain" autoPlay muted loop />
                     </div>
                   </div>
                 )}

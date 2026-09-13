@@ -18,6 +18,7 @@ export const AdvertisingSearchTermAnalyzeTool: ToolDefinition = {
         label: '买家搜索词 (Search Term)',
         type: 'string',
         required: true,
+        defaultValue: 'cheap plastic toothbrush holder',
         placeholder: '例如: bathroom organizer',
       },
       impressions: {
@@ -25,6 +26,7 @@ export const AdvertisingSearchTermAnalyzeTool: ToolDefinition = {
         label: '曝光量 (Impressions)',
         type: 'number',
         required: true,
+        defaultValue: 4500,
         placeholder: '例如: 4500',
       },
       clicks: {
@@ -32,6 +34,7 @@ export const AdvertisingSearchTermAnalyzeTool: ToolDefinition = {
         label: '点击量 (Clicks)',
         type: 'number',
         required: true,
+        defaultValue: 180,
         placeholder: '例如: 180',
       },
       spend: {
@@ -39,6 +42,7 @@ export const AdvertisingSearchTermAnalyzeTool: ToolDefinition = {
         label: '花费 ($)',
         type: 'number',
         required: true,
+        defaultValue: 120.00,
         placeholder: '例如: 420.00',
       },
       orders: {
@@ -46,6 +50,7 @@ export const AdvertisingSearchTermAnalyzeTool: ToolDefinition = {
         label: '订单量 (Orders)',
         type: 'number',
         required: true,
+        defaultValue: 1,
         placeholder: '例如: 2',
       },
       sales: {
@@ -53,6 +58,7 @@ export const AdvertisingSearchTermAnalyzeTool: ToolDefinition = {
         label: '销售额 ($)',
         type: 'number',
         required: true,
+        defaultValue: 29.99,
         placeholder: '例如: 450.00',
       },
     },

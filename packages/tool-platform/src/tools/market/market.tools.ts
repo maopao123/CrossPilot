@@ -84,6 +84,7 @@ export const MarketProductSearchTool: ToolDefinition<MarketProductSearchInput, M
         label: '核心关键词',
         type: 'string',
         required: true,
+        defaultValue: 'wireless earbuds',
         placeholder: '例如: wireless earbuds, yoga mat...',
       },
       category: {
@@ -199,6 +200,7 @@ export const MarketProductDetailTool: ToolDefinition<MarketProductDetailInput, M
         label: '标准商品 ASIN',
         type: 'string',
         required: true,
+        defaultValue: 'B0BFGNSXYL',
         placeholder: '例如: B0CX123456',
       },
       marketplace: {
@@ -278,6 +280,7 @@ export const MarketOverviewTool: ToolDefinition<MarketOverviewInput, MarketOverv
         label: '市场调研主题词',
         type: 'string',
         required: true,
+        defaultValue: 'ergonomic office chair',
         placeholder: '例如: ergonomic office chair',
       },
       category: {
@@ -367,6 +370,7 @@ export const MarketKeywordSearchTool: ToolDefinition<MarketKeywordSearchInput, M
         label: '种子关键词',
         type: 'string',
         required: true,
+        defaultValue: 'wireless earbuds',
         placeholder: '例如: yoga mat non slip',
       },
       marketplace: {
@@ -454,6 +458,7 @@ export const MarketProductTrendTool: ToolDefinition<MarketProductTrendInput, Mar
         label: '商品 ASIN',
         type: 'string',
         required: true,
+        defaultValue: 'B0BFGNSXYL',
         placeholder: '例如: B0CX123456',
       },
       metric: {
@@ -574,6 +579,7 @@ export const ReviewProductHealthTool: ToolDefinition<
         label: '商品 ASIN',
         type: 'string',
         required: true,
+        defaultValue: 'B0BFGNSXYL',
         placeholder: '例如: B0BFGNSXYL',
       },
       marketplace: {
@@ -661,6 +667,7 @@ export const VocProductAnalyzeTool: ToolDefinition<
         label: '商品 ASIN',
         type: 'string',
         required: true,
+        defaultValue: 'B0BFGNSXYL',
         placeholder: '例如: B0BFGNSXYL',
       },
       marketplace: {

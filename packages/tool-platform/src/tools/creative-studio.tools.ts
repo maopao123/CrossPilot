@@ -60,6 +60,7 @@ export const CreativeImageGenerateTool: ToolDefinition = {
         label: '创意提示词 (Prompt)',
         type: 'textarea',
         required: true,
+        defaultValue: 'Natural white Carrara marble toothbrush holder, clean bathroom vanity, soft studio lighting, high resolution',
         placeholder: '例如: Natural white Carrara marble toothbrush holder, clean bathroom vanity...',
       },
       style: {
@@ -123,6 +124,7 @@ export const CreativeImageLifestyleTool: ToolDefinition = {
         label: '商品名称',
         type: 'string',
         required: true,
+        defaultValue: 'POLEGAS 天然大理石牙刷架',
         placeholder: '例如: POLEGAS 天然大理石牙刷架',
       },
       sceneType: {
@@ -186,6 +188,7 @@ export const CreativeBackgroundReplaceTool: ToolDefinition = {
         label: '原始图片 URL',
         type: 'string',
         required: true,
+        defaultValue: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&auto=format&fit=crop&q=80',
         placeholder: 'https://...',
       },
       targetBackground: {
@@ -237,6 +240,7 @@ export const CreativeInfographicGenerateTool: ToolDefinition = {
         label: '产品主标题',
         type: 'string',
         required: true,
+        defaultValue: 'POLEGAS 天然大理石牙刷架',
         placeholder: 'POLEGAS 天然大理石牙刷架',
       },
       slotDiameterInch: {
@@ -284,6 +288,7 @@ export const CreativeImageResizeTool: ToolDefinition = {
         label: '源素材 URL',
         type: 'string',
         required: true,
+        defaultValue: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&auto=format&fit=crop&q=80',
         placeholder: 'https://...',
       },
     },
@@ -318,6 +323,7 @@ export const CreativeVideoGenerateTool: ToolDefinition = {
         label: '产品标题',
         type: 'string',
         required: true,
+        defaultValue: 'POLEGAS 天然大理石牙刷架',
       },
       durationSec: {
         name: 'durationSec',

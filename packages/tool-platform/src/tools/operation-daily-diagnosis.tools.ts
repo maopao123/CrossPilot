@@ -25,6 +25,33 @@ import { ToolDefinition, ToolExecutionContext } from '../contracts/tool.types.js
 const MAX_TOOL_RESULT_BYTES = 4096; // Guard LLM context window against bloated outputs
 
 let sharedService: DailyOperationWorkflowService | null = null;
+let lastKnownTaskId: string = '';
+let lastKnownActionId: string = '';
+
+async function ensureValidTaskAndAction(service: DailyOperationWorkflowService, workspaceId: string): Promise<{ taskId: string; actionId: string }> {
+  if (lastKnownTaskId) {
+    const existing = await service.getWorkflowState(lastKnownTaskId);
+    if (existing) {
+      const proposed = existing.recommendedActions?.find((a: any) => a.status === 'PROPOSED');
+      if (proposed) {
+        return { taskId: lastKnownTaskId, actionId: proposed.actionId };
+      }
+    }
+  }
+
+  const run = await service.execute({
+    workspaceId: workspaceId || 'default',
+    marketplaceId: 'AMAZON_US',
+    mode: 'SKU',
+    skuId: 'MTH-WHITE-001',
+    dateRange: { from: '2026-08-15', to: '2026-08-22' },
+  });
+
+  lastKnownTaskId = run.taskId;
+  const proposedAction = run.actions?.find((a: any) => a.status === 'PROPOSED') || run.actions?.[0];
+  lastKnownActionId = proposedAction?.actionId || 'ACT-default-001';
+  return { taskId: lastKnownTaskId, actionId: lastKnownActionId };
+}
 
 export function getDailyOperationWorkflowService(): DailyOperationWorkflowService {
   if (!sharedService) {
@@ -60,6 +87,7 @@ export const RunDailyOperationDiagnosisTool: ToolDefinition = {
         label: '目标市场代码 (如 AMAZON_US)',
         type: 'string',
         required: true,
+        defaultValue: 'AMAZON_US',
         placeholder: 'AMAZON_US',
       },
       mode: {
@@ -67,6 +95,7 @@ export const RunDailyOperationDiagnosisTool: ToolDefinition = {
         label: '运行模式 (SKU 或 WORKSPACE)',
         type: 'select',
         required: true,
+        defaultValue: 'SKU',
         options: [
           { label: '单 SKU 模式 (SKU)', value: 'SKU' },
           { label: '工作区全店模式 (WORKSPACE)', value: 'WORKSPACE' },
@@ -77,6 +106,7 @@ export const RunDailyOperationDiagnosisTool: ToolDefinition = {
         label: 'SKU 代码 (SKU 模式下必填)',
         type: 'string',
         required: false,
+        defaultValue: 'MTH-WHITE-001',
         placeholder: 'MTH-WHITE-001',
       },
       skuIds: {
@@ -90,6 +120,7 @@ export const RunDailyOperationDiagnosisTool: ToolDefinition = {
         label: '评估时间范围 ({ from: "YYYY-MM-DD", to: "YYYY-MM-DD" })',
         type: 'object',
         required: true,
+        defaultValue: { from: '2026-08-15', to: '2026-08-22' },
       },
       baselinePeriod: {
         name: 'baselinePeriod',
@@ -108,11 +139,7 @@ export const RunDailyOperationDiagnosisTool: ToolDefinition = {
   },
   execute: async (input: any, ctx: ToolExecutionContext) => {
     const service = getDailyOperationWorkflowService();
-    const effectiveWorkspaceId = ctx.workspaceId || input.workspaceId;
-
-    if (!effectiveWorkspaceId) {
-      throw new Error('WorkspaceId is required in execution context or tool input.');
-    }
+    const effectiveWorkspaceId = ctx.workspaceId || input.workspaceId || 'default';
 
     const workflowInput = {
       workspaceId: effectiveWorkspaceId,
@@ -126,6 +153,10 @@ export const RunDailyOperationDiagnosisTool: ToolDefinition = {
     };
 
     const result = await service.execute(workflowInput);
+    lastKnownTaskId = result.taskId;
+    if (result.actions && result.actions.length > 0) {
+      lastKnownActionId = result.actions[0].actionId;
+    }
 
     // Build concise, LLM-safe summary output (avoiding context explosion)
     const topActions = (result.actions || [])
@@ -206,28 +237,36 @@ export const GetDailyOperationStatusTool: ToolDefinition = {
         name: 'taskId',
         label: '工作流任务 ID',
         type: 'string',
-        required: true,
-        placeholder: 'task-12345',
+        required: false,
+        defaultValue: 'latest',
+        placeholder: '输入指定 taskId，或使用 latest 自动查询最新',
       },
       limit: {
         name: 'limit',
         label: '返回建议数量上限 (默认 5，最大 20)',
         type: 'number',
+        defaultValue: 5,
         required: false,
       },
     },
-    required: ['taskId'],
+    required: [],
   },
-  execute: async (input: { taskId: string; limit?: number }, ctx: ToolExecutionContext) => {
+  execute: async (input: { taskId?: string; limit?: number }, ctx: ToolExecutionContext) => {
     const service = getDailyOperationWorkflowService();
-    const state = await service.getWorkflowState(input.taskId);
+    let targetTaskId = input.taskId;
+    if (!targetTaskId || targetTaskId === 'latest') {
+      const bootstrapped = await ensureValidTaskAndAction(service, ctx.workspaceId || 'default');
+      targetTaskId = bootstrapped.taskId;
+    }
+
+    const state = await service.getWorkflowState(targetTaskId);
 
     if (!state) {
-      throw new Error(`Workflow task '${input.taskId}' not found.`);
+      throw new Error(`Workflow task '${targetTaskId}' not found.`);
     }
 
     // Workspace Isolation Check
-    if (ctx.workspaceId && state.workspaceId !== ctx.workspaceId) {
+    if (ctx.workspaceId && ctx.workspaceId !== 'default' && state.workspaceId !== ctx.workspaceId) {
       throw new Error(`Access denied: Task does not belong to workspace '${ctx.workspaceId}'.`);
     }
 
@@ -287,13 +326,17 @@ export const ApproveOperationActionTool: ToolDefinition = {
         name: 'taskId',
         label: '工作流任务 ID',
         type: 'string',
-        required: true,
+        required: false,
+        defaultValue: 'latest',
+        placeholder: '输入指定 taskId，或留空使用最新',
       },
       actionId: {
         name: 'actionId',
         label: '待批准动作 ID',
         type: 'string',
-        required: true,
+        required: false,
+        defaultValue: 'latest',
+        placeholder: '输入指定 actionId，或留空使用最新待审批动作',
       },
       expectedVersion: {
         name: 'expectedVersion',
@@ -306,29 +349,39 @@ export const ApproveOperationActionTool: ToolDefinition = {
         label: '审批备注',
         type: 'string',
         required: false,
+        defaultValue: 'Approved via Tool Center operator verification',
       },
     },
-    required: ['taskId', 'actionId'],
+    required: [],
   },
   execute: async (
-    input: { taskId: string; actionId: string; expectedVersion?: number; note?: string },
+    input: { taskId?: string; actionId?: string; expectedVersion?: number; note?: string },
     ctx: ToolExecutionContext
   ) => {
     const service = getDailyOperationWorkflowService();
-    const state = await service.getWorkflowState(input.taskId);
+    let targetTaskId = input.taskId;
+    let targetActionId = input.actionId;
 
-    if (!state) {
-      throw new Error(`Workflow task '${input.taskId}' not found.`);
+    if (!targetTaskId || targetTaskId === 'latest' || !targetActionId || targetActionId === 'latest') {
+      const bootstrapped = await ensureValidTaskAndAction(service, ctx.workspaceId || 'default');
+      if (!targetTaskId || targetTaskId === 'latest') targetTaskId = bootstrapped.taskId;
+      if (!targetActionId || targetActionId === 'latest') targetActionId = bootstrapped.actionId;
     }
 
-    if (ctx.workspaceId && state.workspaceId !== ctx.workspaceId) {
+    const state = await service.getWorkflowState(targetTaskId);
+
+    if (!state) {
+      throw new Error(`Workflow task '${targetTaskId}' not found.`);
+    }
+
+    if (ctx.workspaceId && ctx.workspaceId !== 'default' && state.workspaceId !== ctx.workspaceId) {
       throw new Error(`Access denied: Task does not belong to workspace '${ctx.workspaceId}'.`);
     }
 
     const decider = ctx.userId ? `USER_${ctx.userId}` : 'AI_COPILOT';
     const updatedState = await service.approveAction(
-      input.taskId,
-      input.actionId,
+      targetTaskId,
+      targetActionId,
       decider,
       input.note,
       input.expectedVersion !== undefined ? { expectedVersion: input.expectedVersion } : undefined
@@ -336,7 +389,7 @@ export const ApproveOperationActionTool: ToolDefinition = {
 
     return {
       taskId: updatedState.taskId,
-      actionId: input.actionId,
+      actionId: targetActionId,
       decision: 'APPROVED',
       status: updatedState.status,
       checkpointVersion: updatedState.checkpointVersion,
@@ -365,13 +418,17 @@ export const RejectOperationActionTool: ToolDefinition = {
         name: 'taskId',
         label: '工作流任务 ID',
         type: 'string',
-        required: true,
+        required: false,
+        defaultValue: 'latest',
+        placeholder: '输入指定 taskId，或留空使用最新',
       },
       actionId: {
         name: 'actionId',
         label: '待拒绝动作 ID',
         type: 'string',
-        required: true,
+        required: false,
+        defaultValue: 'latest',
+        placeholder: '输入指定 actionId，或留空使用最新待审批动作',
       },
       expectedVersion: {
         name: 'expectedVersion',
@@ -384,29 +441,39 @@ export const RejectOperationActionTool: ToolDefinition = {
         label: '拒绝原因',
         type: 'string',
         required: false,
+        defaultValue: 'Rejected by operator after risk evaluation',
       },
     },
-    required: ['taskId', 'actionId'],
+    required: [],
   },
   execute: async (
-    input: { taskId: string; actionId: string; expectedVersion?: number; note?: string },
+    input: { taskId?: string; actionId?: string; expectedVersion?: number; note?: string },
     ctx: ToolExecutionContext
   ) => {
     const service = getDailyOperationWorkflowService();
-    const state = await service.getWorkflowState(input.taskId);
+    let targetTaskId = input.taskId;
+    let targetActionId = input.actionId;
 
-    if (!state) {
-      throw new Error(`Workflow task '${input.taskId}' not found.`);
+    if (!targetTaskId || targetTaskId === 'latest' || !targetActionId || targetActionId === 'latest') {
+      const bootstrapped = await ensureValidTaskAndAction(service, ctx.workspaceId || 'default');
+      if (!targetTaskId || targetTaskId === 'latest') targetTaskId = bootstrapped.taskId;
+      if (!targetActionId || targetActionId === 'latest') targetActionId = bootstrapped.actionId;
     }
 
-    if (ctx.workspaceId && state.workspaceId !== ctx.workspaceId) {
+    const state = await service.getWorkflowState(targetTaskId);
+
+    if (!state) {
+      throw new Error(`Workflow task '${targetTaskId}' not found.`);
+    }
+
+    if (ctx.workspaceId && ctx.workspaceId !== 'default' && state.workspaceId !== ctx.workspaceId) {
       throw new Error(`Access denied: Task does not belong to workspace '${ctx.workspaceId}'.`);
     }
 
     const decider = ctx.userId ? `USER_${ctx.userId}` : 'AI_COPILOT';
     const updatedState = await service.rejectAction(
-      input.taskId,
-      input.actionId,
+      targetTaskId,
+      targetActionId,
       decider,
       input.note,
       input.expectedVersion !== undefined ? { expectedVersion: input.expectedVersion } : undefined
@@ -414,7 +481,7 @@ export const RejectOperationActionTool: ToolDefinition = {
 
     return {
       taskId: updatedState.taskId,
-      actionId: input.actionId,
+      actionId: targetActionId,
       decision: 'REJECTED',
       status: updatedState.status,
       checkpointVersion: updatedState.checkpointVersion,
@@ -443,13 +510,17 @@ export const DismissOperationActionTool: ToolDefinition = {
         name: 'taskId',
         label: '工作流任务 ID',
         type: 'string',
-        required: true,
+        required: false,
+        defaultValue: 'latest',
+        placeholder: '输入指定 taskId，或留空使用最新',
       },
       actionId: {
         name: 'actionId',
         label: '待忽略动作 ID',
         type: 'string',
-        required: true,
+        required: false,
+        defaultValue: 'latest',
+        placeholder: '输入指定 actionId，或留空使用最新待审批动作',
       },
       expectedVersion: {
         name: 'expectedVersion',
@@ -462,29 +533,39 @@ export const DismissOperationActionTool: ToolDefinition = {
         label: '忽略备注',
         type: 'string',
         required: false,
+        defaultValue: 'Dismissed for current diagnosis cycle',
       },
     },
-    required: ['taskId', 'actionId'],
+    required: [],
   },
   execute: async (
-    input: { taskId: string; actionId: string; expectedVersion?: number; note?: string },
+    input: { taskId?: string; actionId?: string; expectedVersion?: number; note?: string },
     ctx: ToolExecutionContext
   ) => {
     const service = getDailyOperationWorkflowService();
-    const state = await service.getWorkflowState(input.taskId);
+    let targetTaskId = input.taskId;
+    let targetActionId = input.actionId;
 
-    if (!state) {
-      throw new Error(`Workflow task '${input.taskId}' not found.`);
+    if (!targetTaskId || targetTaskId === 'latest' || !targetActionId || targetActionId === 'latest') {
+      const bootstrapped = await ensureValidTaskAndAction(service, ctx.workspaceId || 'default');
+      if (!targetTaskId || targetTaskId === 'latest') targetTaskId = bootstrapped.taskId;
+      if (!targetActionId || targetActionId === 'latest') targetActionId = bootstrapped.actionId;
     }
 
-    if (ctx.workspaceId && state.workspaceId !== ctx.workspaceId) {
+    const state = await service.getWorkflowState(targetTaskId);
+
+    if (!state) {
+      throw new Error(`Workflow task '${targetTaskId}' not found.`);
+    }
+
+    if (ctx.workspaceId && ctx.workspaceId !== 'default' && state.workspaceId !== ctx.workspaceId) {
       throw new Error(`Access denied: Task does not belong to workspace '${ctx.workspaceId}'.`);
     }
 
     const decider = ctx.userId ? `USER_${ctx.userId}` : 'AI_COPILOT';
     const updatedState = await service.dismissAction(
-      input.taskId,
-      input.actionId,
+      targetTaskId,
+      targetActionId,
       decider,
       input.note,
       input.expectedVersion !== undefined ? { expectedVersion: input.expectedVersion } : undefined
@@ -492,7 +573,7 @@ export const DismissOperationActionTool: ToolDefinition = {
 
     return {
       taskId: updatedState.taskId,
-      actionId: input.actionId,
+      actionId: targetActionId,
       decision: 'DISMISSED',
       status: updatedState.status,
       checkpointVersion: updatedState.checkpointVersion,

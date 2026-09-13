@@ -1,0 +1,1022 @@
+{
+  "taskId": "task-wf05-1789275418575-0h13l",
+  "workflowRunId": "run-1789275418575",
+  "workspaceId": "default",
+  "marketplaceId": "AMAZON_US",
+  "mode": "SKU",
+  "skuIds": [
+    "MTH-WHITE-001"
+  ],
+  "dateRange": {
+    "from": "2026-08-15",
+    "to": "2026-08-22"
+  },
+  "contexts": {
+    "MTH-WHITE-001": {
+      "identity": {
+        "workspaceId": "default",
+        "marketplaceId": "AMAZON_US",
+        "productId": "prod_mth_001",
+        "skuId": "sku_white_001",
+        "skuCode": "MTH-WHITE-001",
+        "asin": "B0BFGNSXYL",
+        "productName": "天然大理石牙刷架",
+        "brand": "POLEGAS",
+        "category": "Home & Kitchen",
+        "status": "ACTIVE"
+      },
+      "currentPeriod": {
+        "from": "2026-08-15",
+        "to": "2026-08-22",
+        "daysCount": 8
+      },
+      "baselinePeriod": {
+        "from": "2026-08-07",
+        "to": "2026-08-14",
+        "daysCount": 8
+      },
+      "sales": {
+        "ordersCount": {
+          "current": 140,
+          "baseline": 166,
+          "delta": -26,
+          "deltaPct": -0.1566
+        },
+        "unitsSold": {
+          "current": 140,
+          "baseline": 166,
+          "delta": -26,
+          "deltaPct": -0.1566
+        },
+        "revenue": {
+          "current": 3976.6,
+          "baseline": 4795.34,
+          "delta": -818.74,
+          "deltaPct": -0.1707
+        },
+        "averageSellingPrice": {
+          "current": 28.4,
+          "baseline": 28.89,
+          "delta": -0.49,
+          "deltaPct": -0.017
+        },
+        "sessions": {
+          "current": 1680,
+          "baseline": 1992,
+          "delta": -312,
+          "deltaPct": -0.1566
+        },
+        "pageViews": {
+          "current": 2520,
+          "baseline": 2988,
+          "delta": -468,
+          "deltaPct": -0.1566
+        },
+        "conversionRate": {
+          "current": 0.0833,
+          "baseline": 0.0833,
+          "delta": 0,
+          "deltaPct": 0
+        },
+        "availability": "AVAILABLE",
+        "asOf": "2026-08-22"
+      },
+      "advertising": {
+        "spend": {
+          "current": 759.32,
+          "baseline": 1115.97,
+          "delta": -356.65,
+          "deltaPct": -0.3196
+        },
+        "sales": {
+          "current": 3976.6,
+          "baseline": 4795.34,
+          "delta": -818.74,
+          "deltaPct": -0.1707
+        },
+        "orders": {
+          "current": 140,
+          "baseline": 166,
+          "delta": -26,
+          "deltaPct": -0.1566
+        },
+        "clicks": {
+          "current": 1260,
+          "baseline": 1494,
+          "delta": -234,
+          "deltaPct": -0.1566
+        },
+        "impressions": {
+          "current": 56700,
+          "baseline": 67230,
+          "delta": -10530,
+          "deltaPct": -0.1566
+        },
+        "acos": {
+          "current": 0.1909,
+          "baseline": 0.2327,
+          "delta": -0.0418,
+          "deltaPct": -0.1796
+        },
+        "roas": {
+          "current": 5.24,
+          "baseline": 4.3,
+          "delta": 0.94,
+          "deltaPct": 0.2186
+        },
+        "ctr": {
+          "current": 0.0222,
+          "baseline": 0.0222,
+          "delta": 0,
+          "deltaPct": 0
+        },
+        "cvr": {
+          "current": 0.1111,
+          "baseline": 0.1111,
+          "delta": 0,
+          "deltaPct": 0
+        },
+        "targetAcos": 0.3,
+        "searchTerms": [
+          {
+            "searchTerm": "marble toothbrush holder",
+            "impressions": 8400,
+            "clicks": 310,
+            "spend": 215,
+            "orders": 24,
+            "sales": 719.76,
+            "acos": 0.2987,
+            "cvr": 0.0774,
+            "ctr": 0.0369
+          }
+        ],
+        "availability": "AVAILABLE",
+        "asOf": "2026-08-22"
+      },
+      "inventory": {
+        "fulfillableQuantity": 0,
+        "inboundQuantity": 0,
+        "reservedQuantity": 24,
+        "avgDailySales": 17.5,
+        "daysCover": 0,
+        "leadTimeDays": 15,
+        "safetyStockDays": 7,
+        "reorderPoint": 386,
+        "inventoryHealth": "OUT_OF_STOCK",
+        "recommendedQuantity": 911,
+        "baseline": {
+          "fulfillableQuantity": 0,
+          "daysCover": 0,
+          "avgDailySales": 17.5
+        },
+        "availability": "AVAILABLE",
+        "asOf": "2026-08-22"
+      },
+      "reviews": {
+        "overallRating": 4.6,
+        "totalReviews": 5147,
+        "recentReviewCount": 65,
+        "negativeReviewCount": 2,
+        "negativeReviewRatio": 0.0308,
+        "baseline": {
+          "overallRating": 4.6,
+          "totalReviews": 5082
+        },
+        "topPainPoints": [],
+        "topPositiveThemes": [],
+        "availability": "AVAILABLE",
+        "asOf": "2026-08-22"
+      },
+      "returns": {
+        "returnCount": {
+          "current": 4,
+          "baseline": 4,
+          "delta": 0,
+          "deltaPct": 0
+        },
+        "deliveredUnits": {
+          "current": 140,
+          "baseline": 140,
+          "delta": 0,
+          "deltaPct": 0
+        },
+        "returnRate": {
+          "current": 0.0286,
+          "baseline": 0.0286,
+          "delta": 0,
+          "deltaPct": 0
+        },
+        "returnCost": {
+          "current": 119.96,
+          "baseline": 119.96,
+          "delta": 0,
+          "deltaPct": 0
+        },
+        "topReturnReasons": [],
+        "availability": "AVAILABLE",
+        "asOf": "2026-08-22"
+      },
+      "competitors": {
+        "items": [
+          {
+            "competitorId": "COMP-001",
+            "asin": "B09XYZ1234",
+            "name": "HBLife Resin Heavyweight Toothbrush Stand",
+            "relationType": "DIRECT_BENCHMARK",
+            "isPrimary": true,
+            "currentPrice": 22.49,
+            "baselinePrice": 25.99,
+            "priceDelta": -3.5,
+            "priceDeltaPct": -0.1347,
+            "currentRating": 4.5,
+            "baselineRating": 4.4,
+            "ratingDelta": 0.1,
+            "reviewCount": 3200
+          },
+          {
+            "competitorId": "COMP-002",
+            "asin": "B08ABCD567",
+            "name": "Generic Ceramic Toothbrush Cup",
+            "relationType": "INDIRECT_BENCHMARK",
+            "isPrimary": false,
+            "currentPrice": 16.99,
+            "baselinePrice": 16.99,
+            "priceDelta": 0,
+            "priceDeltaPct": 0,
+            "currentRating": 4.2,
+            "baselineRating": 4.2,
+            "ratingDelta": 0,
+            "reviewCount": 850
+          }
+        ],
+        "primaryCompetitor": {
+          "competitorId": "COMP-001",
+          "asin": "B09XYZ1234",
+          "name": "HBLife Resin Heavyweight Toothbrush Stand",
+          "relationType": "DIRECT_BENCHMARK",
+          "isPrimary": true,
+          "currentPrice": 22.49,
+          "baselinePrice": 25.99,
+          "priceDelta": -3.5,
+          "priceDeltaPct": -0.1347,
+          "currentRating": 4.5,
+          "baselineRating": 4.4,
+          "ratingDelta": 0.1,
+          "reviewCount": 3200
+        },
+        "availability": "AVAILABLE",
+        "asOf": "2026-08-22"
+      },
+      "profit": {
+        "revenue": {
+          "current": 3976.6,
+          "baseline": 4795.34,
+          "delta": -818.74,
+          "deltaPct": -0.1707
+        },
+        "cogs": {
+          "current": 910,
+          "baseline": 1079,
+          "delta": -169,
+          "deltaPct": -0.1566
+        },
+        "amazonFees": {
+          "current": 596.48,
+          "baseline": 719.31,
+          "delta": -122.83,
+          "deltaPct": -0.1708
+        },
+        "fbaFee": {
+          "current": 756,
+          "baseline": 896.4,
+          "delta": -140.4,
+          "deltaPct": -0.1566
+        },
+        "adsCost": {
+          "current": 759.32,
+          "baseline": 1115.97,
+          "delta": -356.65,
+          "deltaPct": -0.3196
+        },
+        "returnLoss": {
+          "current": 51.28,
+          "baseline": 53.98,
+          "delta": -2.7,
+          "deltaPct": -0.05
+        },
+        "otherCosts": {
+          "current": 0,
+          "baseline": 0,
+          "delta": 0,
+          "deltaPct": 0
+        },
+        "netProfit": {
+          "current": 903.52,
+          "baseline": 930.68,
+          "delta": -27.16,
+          "deltaPct": -0.0292
+        },
+        "netMargin": {
+          "current": 0.2272,
+          "baseline": 0.1941,
+          "delta": 0.0331,
+          "deltaPct": 0.1705
+        },
+        "waterfallAttribution": {
+          "totalVariance": -2280,
+          "advertisingImpact": -980,
+          "returnsImpact": -620,
+          "inventoryImpact": -510,
+          "priceImpact": -310,
+          "otherImpact": 140,
+          "isExactMatch": true,
+          "residual": 0,
+          "formulaString": "-2280 = -980 -620 -510 -310 +140"
+        },
+        "availability": "AVAILABLE",
+        "asOf": "2026-08-22"
+      },
+      "availability": {
+        "sales": "AVAILABLE",
+        "advertising": "AVAILABLE",
+        "inventory": "AVAILABLE",
+        "reviews": "AVAILABLE",
+        "returns": "AVAILABLE",
+        "competitors": "AVAILABLE",
+        "profit": "AVAILABLE",
+        "overall": "AVAILABLE"
+      },
+      "freshness": {
+        "sales": {
+          "asOf": "2026-08-22",
+          "sourceTimestamp": "2026-08-22",
+          "status": "STALE"
+        },
+        "advertising": {
+          "asOf": "2026-08-22",
+          "sourceTimestamp": "2026-08-22",
+          "status": "STALE"
+        },
+        "inventory": {
+          "asOf": "2026-08-22",
+          "sourceTimestamp": "2026-08-22",
+          "status": "STALE"
+        },
+        "reviews": {
+          "asOf": "2026-08-22",
+          "sourceTimestamp": "2026-08-22",
+          "status": "STALE"
+        },
+        "returns": {
+          "asOf": "2026-08-22",
+          "sourceTimestamp": "2026-08-22",
+          "status": "STALE"
+        },
+        "competitors": {
+          "asOf": "2026-08-22",
+          "sourceTimestamp": "2026-08-22",
+          "status": "STALE"
+        },
+        "profit": {
+          "asOf": "2026-08-22",
+          "sourceTimestamp": "2026-08-22",
+          "status": "STALE"
+        },
+        "overall": "STALE",
+        "loadedAt": "2026-09-13T04:56:58.593Z"
+      },
+      "evidence": [
+        {
+          "evidenceId": "EVI-SALES-MTH-WHITE-001-2026-08-15",
+          "category": "DATABASE",
+          "title": "销售与订单指标",
+          "content": "已加载 140 笔订单、140 件销量、收入 $3976.60（SKU MTH-WHITE-001）。",
+          "source": "ScenarioGeneratorService.orders",
+          "capturedAt": "2026-09-13T04:56:58.594Z",
+          "metadata": {
+            "domain": "SALES",
+            "skuCode": "MTH-WHITE-001",
+            "currentUnits": 140,
+            "baselineUnits": 166
+          }
+        },
+        {
+          "evidenceId": "EVI-SKU360-ASSEMBLY-sku_white_001-2026-08-15",
+          "category": "CALCULATED_METRIC",
+          "title": "Sku360 跨域事实组装",
+          "content": "已组装 SKU MTH-WHITE-001 在 2026-08-15 至 2026-08-22 的 7 个运营域。净利润 $903.52，利润率 22.7%，可售天数 0 天。",
+          "source": "Sku360ContextLoader",
+          "capturedAt": "2026-09-13T04:56:58.593Z",
+          "metadata": {
+            "workspaceId": "default",
+            "skuId": "sku_white_001",
+            "period": "2026-08-15..2026-08-22",
+            "availability": "AVAILABLE",
+            "freshness": "STALE"
+          }
+        }
+      ],
+      "loadedAt": "2026-09-13T04:56:58.593Z"
+    }
+  },
+  "signals": [
+    {
+      "signalId": "SIG-R-INV-02-default-sku_white_001-20260815_20260822",
+      "workspaceId": "default",
+      "skuId": "sku_white_001",
+      "asin": "B0BFGNSXYL",
+      "domain": "INVENTORY",
+      "code": "OUT_OF_STOCK",
+      "metric": "fulfillableQuantity",
+      "currentValue": 0,
+      "thresholdValue": 0,
+      "severity": "CRITICAL",
+      "direction": "DOWN",
+      "detectedBy": "RULE",
+      "ruleId": "R-INV-02",
+      "title": "已断货（可售库存 0 件）",
+      "description": "可售库存已完全耗尽（0 件），销售停滞，自然搜索排名受损。",
+      "evidence": [
+        {
+          "evidenceId": "EV-SIG-R-INV-02-default-sku_white_001-20260815_20260822-01",
+          "category": "DATABASE",
+          "title": "可售库存断货",
+          "content": "可售库存已降至 0 件。在途库存：0 件。预计每日损失收入：$524.82。",
+          "source": "inventory_snapshot",
+          "capturedAt": "2026-09-13T04:56:58.598Z",
+          "metadata": {
+            "fulfillable": 0,
+            "inbound": 0,
+            "velocity": 17.5,
+            "leadTime": 15
+          }
+        }
+      ],
+      "detectedAt": "2026-09-13T04:56:58.598Z"
+    },
+    {
+      "signalId": "SIG-R-COMP-01-default-sku_white_001-20260815_20260822-COMP-001",
+      "workspaceId": "default",
+      "skuId": "sku_white_001",
+      "asin": "B0BFGNSXYL",
+      "domain": "COMPETITOR",
+      "code": "COMPETITOR_PRICE_DROP",
+      "metric": "competitorPrice",
+      "currentValue": 22.49,
+      "baselineValue": 25.99,
+      "changePct": -0.1347,
+      "thresholdValue": 0.1,
+      "severity": "WARNING",
+      "direction": "DOWN",
+      "detectedBy": "RULE",
+      "ruleId": "R-COMP-01",
+      "title": "竞品降价：HBLife Resin Heavyweight Toothbrush Stand（-13.5%）",
+      "description": "主要竞品降价 13.5% 至 $22.49，建议评估价格弹性与优惠券跟进策略。",
+      "evidence": [
+        {
+          "evidenceId": "EV-SIG-R-COMP-01-default-sku_white_001-20260815_20260822-COMP-001-01",
+          "category": "EXTERNAL_DATA",
+          "title": "竞品降价压制：HBLife Resin Heavyweight Toothbrush Stand",
+          "content": "竞品 HBLife Resin Heavyweight Toothbrush Stand（B09XYZ1234）将价格从 $25.99 降至 $22.49（-13.5%），超过 10% 的降价阈值。",
+          "source": "competitor_crawler",
+          "sourceId": "COMP-001",
+          "capturedAt": "2026-09-13T04:56:58.598Z",
+          "metadata": {
+            "competitorId": "COMP-001",
+            "asin": "B09XYZ1234",
+            "currentPrice": 22.49,
+            "baselinePrice": 25.99,
+            "dropPct": 0.1347,
+            "threshold": 0.1
+          }
+        }
+      ],
+      "detectedAt": "2026-09-13T04:56:58.598Z"
+    }
+  ],
+  "diagnoses": [
+    {
+      "diagnosisId": "DIAG-INV-sku_white_001-20260822",
+      "workspaceId": "default",
+      "skuId": "sku_white_001",
+      "asin": "B0BFGNSXYL",
+      "title": "正在断货：在库可售数量为零",
+      "summary": "SKU 已完全断货，可售数量为 0。17.5 件/天的活跃买家需求无法满足。",
+      "primaryDriver": {
+        "domain": "INVENTORY",
+        "metric": "fulfillableQuantity",
+        "impactAmount": -497,
+        "impactType": "ESTIMATED",
+        "contributionRatio": 1,
+        "direction": "DOWN",
+        "causalStrength": "STRONG",
+        "relatedSignalIds": [
+          "SIG-R-INV-02-default-sku_white_001-20260815_20260822"
+        ],
+        "description": "可售库存已耗尽（0 件）。日需求 17.5 件/天正在流失（约 $497.00/天的收入泄漏）。"
+      },
+      "secondaryDrivers": [],
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "evidenceId": "EV-INV-DIAG-sku_white_001",
+          "category": "CALCULATED_METRIC",
+          "title": "库存覆盖与补货周期对比",
+          "content": "可售：0，在途：0，日均销量：17.5，覆盖天数：0.0 天，交期：15 天，安全库存：7 天。",
+          "source": "InventoryPlanningService",
+          "sourceId": "calculateDaysCover",
+          "capturedAt": "2026-09-13T04:56:58.603Z",
+          "metadata": {
+            "fulfillable": 0,
+            "inbound": 0,
+            "avgSales": 17.5,
+            "daysCover": 0,
+            "leadTime": 15,
+            "reorderPoint": 386
+          }
+        }
+      ],
+      "affectedDomains": [
+        "INVENTORY"
+      ],
+      "affectedSkus": [
+        "sku_white_001"
+      ],
+      "gateStatus": "SUPPORTED",
+      "targetSignalIds": [
+        "SIG-R-INV-02-default-sku_white_001-20260815_20260822"
+      ],
+      "rootCauseCode": "INVENTORY_STOCKOUT_ACTIVE",
+      "calculatedAt": "2026-09-13T04:56:58.603Z"
+    },
+    {
+      "diagnosisId": "DIAG-COMP-sku_white_001-20260822",
+      "workspaceId": "default",
+      "skuId": "sku_white_001",
+      "asin": "B0BFGNSXYL",
+      "title": "竞品降价压制：B09XYZ1234 降价 13.5%",
+      "summary": "主要竞品降价形成价格逆风。竞品当前售价 $22.49，我方为 $28.40。",
+      "primaryDriver": {
+        "domain": "COMPETITOR",
+        "metric": "competitorPrice",
+        "impactAmount": -3.5,
+        "contributionRatio": 0.7,
+        "direction": "DOWN",
+        "causalStrength": "INDICATIVE",
+        "relatedSignalIds": [
+          "SIG-R-COMP-01-default-sku_white_001-20260815_20260822-COMP-001"
+        ],
+        "description": "主要竞品（B09XYZ1234）将价格从 $25.99 降至 $22.49（-13.5%），相对我方 $28.40 的均价形成 $5.91 的价格劣势。"
+      },
+      "secondaryDrivers": [
+        {
+          "domain": "SALES",
+          "metric": "ordersCount",
+          "impactAmount": 0,
+          "contributionRatio": 0.3,
+          "direction": "DOWN",
+          "causalStrength": "INDICATIVE",
+          "description": "竞品降价同期，我方 listing 订单下降 15.7%。"
+        }
+      ],
+      "confidence": 0.68,
+      "evidence": [
+        {
+          "evidenceId": "EV-COMP-DIAG-sku_white_001",
+          "category": "EXTERNAL_DATA",
+          "title": "竞品基准遥测",
+          "content": "竞品 B09XYZ1234：价格 $22.49（变动：$-3.50，-13.5%），评分：4.5★。我方均价：$28.40。",
+          "source": "CompetitorTracker",
+          "sourceId": "B09XYZ1234",
+          "capturedAt": "2026-09-13T04:56:58.603Z",
+          "metadata": {
+            "asin": "B09XYZ1234",
+            "competitorPrice": 22.49,
+            "baselinePrice": 25.99,
+            "priceDelta": -3.5,
+            "priceDeltaPct": -0.1347,
+            "ourPrice": 28.4,
+            "isStale": true
+          }
+        }
+      ],
+      "affectedDomains": [
+        "COMPETITOR",
+        "SALES"
+      ],
+      "affectedSkus": [
+        "sku_white_001"
+      ],
+      "gateStatus": "PARTIALLY_SUPPORTED",
+      "targetSignalIds": [
+        "SIG-R-COMP-01-default-sku_white_001-20260815_20260822-COMP-001"
+      ],
+      "rootCauseCode": "COMPETITOR_PRICE_UNDERCUT",
+      "unknowns": [
+        "竞品基准数据已过期（STALE，> 48 小时）；价格与库存状态可能已变化。"
+      ],
+      "calculatedAt": "2026-09-13T04:56:58.603Z"
+    }
+  ],
+  "recommendedActions": [
+    {
+      "actionId": "ACT-default-sku_white_001-prepare-replenishment-active-stockout",
+      "workspaceId": "default",
+      "skuId": "sku_white_001",
+      "asin": "B0BFGNSXYL",
+      "sourceSignalIds": [
+        "SIG-R-INV-02-default-sku_white_001-20260815_20260822"
+      ],
+      "sourceDiagnosisIds": [
+        "DIAG-INV-sku_white_001-20260822"
+      ],
+      "category": "INVENTORY",
+      "actionType": "PREPARE_REPLENISHMENT",
+      "priority": "P1",
+      "riskLevel": "HIGH",
+      "executionMode": "APPROVAL_REQUIRED",
+      "status": "APPROVED",
+      "title": "准备补货订单（911 件）以恢复断货",
+      "reason": "可售库存已完全耗尽（0 件），17.5 件/天的需求正在流失。确定性补货测算建议下单 911 件。",
+      "evidence": [
+        {
+          "evidenceId": "EV-ACT-INV-sku_white_001",
+          "category": "CALCULATED_METRIC",
+          "title": "确定性库存补货参数",
+          "content": "可售：0，在途：0，日均销量：17.5/天，覆盖：0.0 天，交期：15 天，补货点：386，建议补货量：911。",
+          "source": "InventoryPlanningService",
+          "sourceId": "calculatePlanning",
+          "capturedAt": "2026-09-13T04:56:58.606Z"
+        }
+      ],
+      "expectedImpact": "补货有望挽回约 $497.00/天的未满足买家需求损失。",
+      "impactAmount": -497,
+      "impactType": "ESTIMATED",
+      "recommendationGateStatus": "READY",
+      "targetEntity": "PurchaseOrder",
+      "payload": {
+        "recommendedQuantity": 911,
+        "reorderPoint": 386,
+        "avgDailySales": 17.5,
+        "unitCost": 20,
+        "daysCover": 0,
+        "leadTimeDays": 15
+      },
+      "createdAt": "2026-09-13T04:56:58.606Z"
+    },
+    {
+      "actionId": "ACT-default-sku_white_001-investigate-stockout-supply-chain",
+      "workspaceId": "default",
+      "skuId": "sku_white_001",
+      "asin": "B0BFGNSXYL",
+      "sourceSignalIds": [
+        "SIG-R-INV-02-default-sku_white_001-20260815_20260822"
+      ],
+      "sourceDiagnosisIds": [
+        "DIAG-INV-sku_white_001-20260822"
+      ],
+      "category": "INVESTIGATION",
+      "actionType": "INVESTIGATE_STOCKOUT",
+      "priority": "P1",
+      "riskLevel": "LOW",
+      "executionMode": "ADVISORY",
+      "status": "REJECTED",
+      "title": "核查在途货件与加急补货时效",
+      "reason": "当前正在断货，需核查在途 0 件并确认供应商加急空运/海运选项。",
+      "evidence": [
+        {
+          "evidenceId": "EV-ACT-INV-sku_white_001",
+          "category": "CALCULATED_METRIC",
+          "title": "确定性库存补货参数",
+          "content": "可售：0，在途：0，日均销量：17.5/天，覆盖：0.0 天，交期：15 天，补货点：386，建议补货量：911。",
+          "source": "InventoryPlanningService",
+          "sourceId": "calculatePlanning",
+          "capturedAt": "2026-09-13T04:56:58.606Z"
+        }
+      ],
+      "expectedImpact": "尽量缩短活跃断货期，降低 BSR 与自然排名下滑幅度。",
+      "impactType": "QUALITATIVE",
+      "recommendationGateStatus": "READY",
+      "targetEntity": "InboundShipment",
+      "payload": {
+        "inboundQuantity": 0,
+        "fulfillableQuantity": 0
+      },
+      "createdAt": "2026-09-13T04:56:58.606Z"
+    },
+    {
+      "actionId": "ACT-default-sku_white_001-refresh-competitor-data-B09XYZ1234",
+      "workspaceId": "default",
+      "skuId": "sku_white_001",
+      "asin": "B0BFGNSXYL",
+      "sourceSignalIds": [
+        "SIG-R-COMP-01-default-sku_white_001-20260815_20260822-COMP-001"
+      ],
+      "sourceDiagnosisIds": [
+        "DIAG-COMP-sku_white_001-20260822"
+      ],
+      "category": "INVESTIGATION",
+      "actionType": "REFRESH_COMPETITOR_DATA",
+      "priority": "P3",
+      "riskLevel": "LOW",
+      "executionMode": "ADVISORY",
+      "status": "DISMISSED",
+      "title": "重新定价前先刷新竞品 ASIN 价格遥测",
+      "reason": "检测到竞品价格异常，但抓取数据已过期（> 7 天）。考虑调价前请先重新核实竞品当前价格。",
+      "evidence": [
+        {
+          "evidenceId": "EV-ACT-COMP-sku_white_001",
+          "category": "EXTERNAL_DATA",
+          "title": "竞品价格遥测",
+          "content": "目标竞品 ASIN：B09XYZ1234，竞品价格：$22.49，我方价格：$28.40，新鲜度：STALE。",
+          "source": "CompetitorActionPolicy",
+          "sourceId": "analyzeCompetitors",
+          "capturedAt": "2026-09-13T04:56:58.606Z"
+        }
+      ],
+      "expectedImpact": "确保定价决策基于准确、实时的市场基准。",
+      "impactType": "QUALITATIVE",
+      "recommendationGateStatus": "NEEDS_REVIEW",
+      "targetEntity": "CompetitorSnapshot",
+      "targetId": "B09XYZ1234",
+      "payload": {
+        "asin": "B09XYZ1234",
+        "staleAsOf": "2026-08-22"
+      },
+      "createdAt": "2026-09-13T04:56:58.606Z"
+    }
+  ],
+  "approvalState": {
+    "pendingActionIds": [],
+    "approvedActionIds": [
+      "ACT-default-sku_white_001-prepare-replenishment-active-stockout"
+    ],
+    "rejectedActionIds": [
+      "ACT-default-sku_white_001-investigate-stockout-supply-chain"
+    ],
+    "dismissedActionIds": [
+      "ACT-default-sku_white_001-refresh-competitor-data-B09XYZ1234"
+    ],
+    "decisions": [
+      {
+        "actionId": "ACT-default-sku_white_001-prepare-replenishment-active-stockout",
+        "decision": "APPROVED",
+        "decidedBy": "AI_COPILOT",
+        "note": "Approved via Tool Center operator verification",
+        "decidedAt": "2026-09-13T04:56:58.617Z"
+      },
+      {
+        "actionId": "ACT-default-sku_white_001-investigate-stockout-supply-chain",
+        "decision": "REJECTED",
+        "decidedBy": "AI_COPILOT",
+        "note": "Rejected by operator after risk evaluation",
+        "decidedAt": "2026-09-13T04:56:58.620Z"
+      },
+      {
+        "actionId": "ACT-default-sku_white_001-refresh-competitor-data-B09XYZ1234",
+        "decision": "DISMISSED",
+        "decidedBy": "AI_COPILOT",
+        "note": "Dismissed for current diagnosis cycle",
+        "decidedAt": "2026-09-13T04:56:58.624Z"
+      }
+    ]
+  },
+  "currentStep": "APPROVAL_GATE",
+  "completedSteps": [
+    "VALIDATE_INPUT",
+    "RESOLVE_SKUS",
+    "LOAD_CONTEXT",
+    "DETECT_SIGNALS",
+    "DIAGNOSE",
+    "RECOMMEND",
+    "AGGREGATE",
+    "APPROVAL_GATE",
+    "FINALIZE"
+  ],
+  "stepTraces": [
+    {
+      "step": "VALIDATE_INPUT",
+      "status": "COMPLETED",
+      "startedAt": "2026-09-13T04:56:58.584Z",
+      "completedAt": "2026-09-13T04:56:58.585Z",
+      "durationMs": 0,
+      "outputSummary": "Input validated successfully for mode: SKU"
+    },
+    {
+      "step": "RESOLVE_SKUS",
+      "status": "COMPLETED",
+      "startedAt": "2026-09-13T04:56:58.591Z",
+      "completedAt": "2026-09-13T04:56:58.591Z",
+      "durationMs": 0,
+      "outputSummary": "Resolved 1 active SKU(s): MTH-WHITE-001"
+    },
+    {
+      "step": "LOAD_CONTEXT",
+      "status": "COMPLETED",
+      "startedAt": "2026-09-13T04:56:58.592Z",
+      "completedAt": "2026-09-13T04:56:58.595Z",
+      "durationMs": 3,
+      "outputSummary": "Successfully loaded 1/1 SKU context(s) (0 failed)."
+    },
+    {
+      "step": "DETECT_SIGNALS",
+      "status": "COMPLETED",
+      "startedAt": "2026-09-13T04:56:58.597Z",
+      "completedAt": "2026-09-13T04:56:58.600Z",
+      "durationMs": 3,
+      "outputSummary": "Detected 2 total operational anomaly signal(s) across all SKUs."
+    },
+    {
+      "step": "DIAGNOSE",
+      "status": "COMPLETED",
+      "startedAt": "2026-09-13T04:56:58.602Z",
+      "completedAt": "2026-09-13T04:56:58.603Z",
+      "durationMs": 1,
+      "outputSummary": "Generated 2 causal diagnosis result(s)."
+    },
+    {
+      "step": "RECOMMEND",
+      "status": "COMPLETED",
+      "startedAt": "2026-09-13T04:56:58.605Z",
+      "completedAt": "2026-09-13T04:56:58.607Z",
+      "durationMs": 2,
+      "outputSummary": "Generated 3 initial proposed action(s)."
+    },
+    {
+      "step": "AGGREGATE",
+      "status": "COMPLETED",
+      "startedAt": "2026-09-13T04:56:58.609Z",
+      "completedAt": "2026-09-13T04:56:58.609Z",
+      "durationMs": 0,
+      "outputSummary": "Aggregated Today's Action List: 3 actions. Health Status: CRITICAL."
+    }
+  ],
+  "errors": [],
+  "warnings": [],
+  "status": "COMPLETED",
+  "checkpointVersion": 12,
+  "checkpointedAt": "2026-09-13T04:56:58.624Z",
+  "workflowVersion": "WF05_V1",
+  "startedAt": "2026-09-13T04:56:58.575Z",
+  "updatedAt": "2026-09-13T04:56:58.624Z",
+  "summary": {
+    "healthStatus": "CRITICAL",
+    "totalSkuCount": 1,
+    "evaluatedSkuCount": 1,
+    "failedSkuCount": 0,
+    "affectedSkuCount": 1,
+    "criticalSignalCount": 1,
+    "warningSignalCount": 1,
+    "p1ActionCount": 2,
+    "p2ActionCount": 0,
+    "p3ActionCount": 1,
+    "advisoryCount": 2,
+    "approvalRequiredCount": 1,
+    "topRisks": [
+      {
+        "skuId": "sku_white_001",
+        "domain": "INVENTORY",
+        "title": "已断货（可售库存 0 件）",
+        "severity": "CRITICAL",
+        "financialExposure": 0
+      },
+      {
+        "skuId": "sku_white_001",
+        "domain": "COMPETITOR",
+        "title": "竞品降价：HBLife Resin Heavyweight Toothbrush Stand（-13.5%）",
+        "severity": "WARNING",
+        "financialExposure": 22.49
+      }
+    ],
+    "actions": [
+      {
+        "actionId": "ACT-default-sku_white_001-prepare-replenishment-active-stockout",
+        "workspaceId": "default",
+        "skuId": "sku_white_001",
+        "asin": "B0BFGNSXYL",
+        "sourceSignalIds": [
+          "SIG-R-INV-02-default-sku_white_001-20260815_20260822"
+        ],
+        "sourceDiagnosisIds": [
+          "DIAG-INV-sku_white_001-20260822"
+        ],
+        "category": "INVENTORY",
+        "actionType": "PREPARE_REPLENISHMENT",
+        "priority": "P1",
+        "riskLevel": "HIGH",
+        "executionMode": "APPROVAL_REQUIRED",
+        "status": "PROPOSED",
+        "title": "准备补货订单（911 件）以恢复断货",
+        "reason": "可售库存已完全耗尽（0 件），17.5 件/天的需求正在流失。确定性补货测算建议下单 911 件。",
+        "evidence": [
+          {
+            "evidenceId": "EV-ACT-INV-sku_white_001",
+            "category": "CALCULATED_METRIC",
+            "title": "确定性库存补货参数",
+            "content": "可售：0，在途：0，日均销量：17.5/天，覆盖：0.0 天，交期：15 天，补货点：386，建议补货量：911。",
+            "source": "InventoryPlanningService",
+            "sourceId": "calculatePlanning",
+            "capturedAt": "2026-09-13T04:56:58.606Z"
+          }
+        ],
+        "expectedImpact": "补货有望挽回约 $497.00/天的未满足买家需求损失。",
+        "impactAmount": -497,
+        "impactType": "ESTIMATED",
+        "recommendationGateStatus": "READY",
+        "targetEntity": "PurchaseOrder",
+        "payload": {
+          "recommendedQuantity": 911,
+          "reorderPoint": 386,
+          "avgDailySales": 17.5,
+          "unitCost": 20,
+          "daysCover": 0,
+          "leadTimeDays": 15
+        },
+        "createdAt": "2026-09-13T04:56:58.606Z"
+      },
+      {
+        "actionId": "ACT-default-sku_white_001-investigate-stockout-supply-chain",
+        "workspaceId": "default",
+        "skuId": "sku_white_001",
+        "asin": "B0BFGNSXYL",
+        "sourceSignalIds": [
+          "SIG-R-INV-02-default-sku_white_001-20260815_20260822"
+        ],
+        "sourceDiagnosisIds": [
+          "DIAG-INV-sku_white_001-20260822"
+        ],
+        "category": "INVESTIGATION",
+        "actionType": "INVESTIGATE_STOCKOUT",
+        "priority": "P1",
+        "riskLevel": "LOW",
+        "executionMode": "ADVISORY",
+        "status": "PROPOSED",
+        "title": "核查在途货件与加急补货时效",
+        "reason": "当前正在断货，需核查在途 0 件并确认供应商加急空运/海运选项。",
+        "evidence": [
+          {
+            "evidenceId": "EV-ACT-INV-sku_white_001",
+            "category": "CALCULATED_METRIC",
+            "title": "确定性库存补货参数",
+            "content": "可售：0，在途：0，日均销量：17.5/天，覆盖：0.0 天，交期：15 天，补货点：386，建议补货量：911。",
+            "source": "InventoryPlanningService",
+            "sourceId": "calculatePlanning",
+            "capturedAt": "2026-09-13T04:56:58.606Z"
+          }
+        ],
+        "expectedImpact": "尽量缩短活跃断货期，降低 BSR 与自然排名下滑幅度。",
+        "impactType": "QUALITATIVE",
+        "recommendationGateStatus": "READY",
+        "targetEntity": "InboundShipment",
+        "payload": {
+          "inboundQuantity": 0,
+          "fulfillableQuantity": 0
+        },
+        "createdAt": "2026-09-13T04:56:58.606Z"
+      },
+      {
+        "actionId": "ACT-default-sku_white_001-refresh-competitor-data-B09XYZ1234",
+        "workspaceId": "default",
+        "skuId": "sku_white_001",
+        "asin": "B0BFGNSXYL",
+        "sourceSignalIds": [
+          "SIG-R-COMP-01-default-sku_white_001-20260815_20260822-COMP-001"
+        ],
+        "sourceDiagnosisIds": [
+          "DIAG-COMP-sku_white_001-20260822"
+        ],
+        "category": "INVESTIGATION",
+        "actionType": "REFRESH_COMPETITOR_DATA",
+        "priority": "P3",
+        "riskLevel": "LOW",
+        "executionMode": "ADVISORY",
+        "status": "PROPOSED",
+        "title": "重新定价前先刷新竞品 ASIN 价格遥测",
+        "reason": "检测到竞品价格异常，但抓取数据已过期（> 7 天）。考虑调价前请先重新核实竞品当前价格。",
+        "evidence": [
+          {
+            "evidenceId": "EV-ACT-COMP-sku_white_001",
+            "category": "EXTERNAL_DATA",
+            "title": "竞品价格遥测",
+            "content": "目标竞品 ASIN：B09XYZ1234，竞品价格：$22.49，我方价格：$28.40，新鲜度：STALE。",
+            "source": "CompetitorActionPolicy",
+            "sourceId": "analyzeCompetitors",
+            "capturedAt": "2026-09-13T04:56:58.606Z"
+          }
+        ],
+        "expectedImpact": "确保定价决策基于准确、实时的市场基准。",
+        "impactType": "QUALITATIVE",
+        "recommendationGateStatus": "NEEDS_REVIEW",
+        "targetEntity": "CompetitorSnapshot",
+        "targetId": "B09XYZ1234",
+        "payload": {
+          "asin": "B09XYZ1234",
+          "staleAsOf": "2026-08-22"
+        },
+        "createdAt": "2026-09-13T04:56:58.606Z"
+      }
+    ],
+    "noActionRequired": false
+  },
+  "completedAt": "2026-09-13T04:56:58.624Z"
+}

@@ -149,13 +149,60 @@ export class ToolExecutor {
       const val = input[key];
       if (val === undefined || val === null) continue;
 
-      if (prop.type === 'number' && typeof val !== 'number') {
-        const parsed = Number(val);
-        if (isNaN(parsed)) {
-          return `Field '${key}' must be a valid number. Received: ${typeof val}`;
+      if (prop.type === 'number') {
+        if (typeof val !== 'number') {
+          const parsed = Number(val);
+          if (isNaN(parsed)) {
+            return `Field '${key}' must be a valid number. Received: ${typeof val}`;
+          }
+          input[key] = parsed;
         }
-      } else if (prop.type === 'array' && !Array.isArray(val)) {
-        return `Field '${key}' must be an array.`;
+      } else if (prop.type === 'array') {
+        if (!Array.isArray(val)) {
+          if (typeof val === 'string') {
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) {
+                input[key] = parsed;
+              } else {
+                input[key] = val
+                  .split(/\r?\n/)
+                  .map((s: string) => s.trim())
+                  .filter(Boolean);
+              }
+            } catch {
+              input[key] = val
+                .split(/\r?\n/)
+                .map((s: string) => s.trim())
+                .filter(Boolean);
+            }
+          } else {
+            return `Field '${key}' must be an array.`;
+          }
+        }
+      } else if (prop.type === 'object') {
+        if (typeof val === 'string') {
+          try {
+            const parsed = JSON.parse(val);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              input[key] = parsed;
+            } else {
+              return `Field '${key}' must be a valid JSON object.`;
+            }
+          } catch {
+            return `Field '${key}' must be a valid JSON object string.`;
+          }
+        } else if (typeof val !== 'object' || val === null || Array.isArray(val)) {
+          return `Field '${key}' must be an object.`;
+        }
+      } else if (prop.type === 'boolean') {
+        if (typeof val !== 'boolean') {
+          if (val === 'true' || val === 1 || val === '1') {
+            input[key] = true;
+          } else if (val === 'false' || val === 0 || val === '0') {
+            input[key] = false;
+          }
+        }
       }
     }
 

@@ -18,6 +18,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
         label: '商品 ID',
         type: 'string',
         required: true,
+        defaultValue: 'prod-marble-001',
         placeholder: '例如: prod-marble-001',
       },
       images: {
@@ -25,6 +26,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
         label: '产品图片列表 (最多 10 张)',
         type: 'textarea',
         required: true,
+        defaultValue: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800',
         placeholder: '输入图片 URL 列表，换行或逗号分隔',
       },
       forceRefresh: {

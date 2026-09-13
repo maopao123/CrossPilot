@@ -18,6 +18,7 @@ export const InventoryReplenishmentCalculateTool: ToolDefinition = {
         label: '商品 SKU 编码',
         type: 'string',
         required: true,
+        defaultValue: 'MTH-GREEN-001',
         placeholder: '例如: MTH-GREEN-001',
       },
       availableStock: {
@@ -25,6 +26,7 @@ export const InventoryReplenishmentCalculateTool: ToolDefinition = {
         label: 'FBA 可售库存 (Units)',
         type: 'number',
         required: true,
+        defaultValue: 420,
         placeholder: '例如: 420',
       },
       inTransitStock: {
@@ -39,6 +41,7 @@ export const InventoryReplenishmentCalculateTool: ToolDefinition = {
         label: '日均消耗速度 (Units/Day)',
         type: 'number',
         required: true,
+        defaultValue: 35,
         placeholder: '例如: 35',
       },
       leadTimeDays: {

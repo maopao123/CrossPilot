@@ -18,6 +18,7 @@ export const OperationBidAdjustTool: ToolDefinition = {
         label: '广告活动 ID / 名称',
         type: 'string',
         required: true,
+        defaultValue: 'CAMP-MARBLE-SP',
         placeholder: '例如: CAMP-MARBLE-SP',
       },
       currentBid: {
@@ -25,6 +26,7 @@ export const OperationBidAdjustTool: ToolDefinition = {
         label: '当前默认出价 ($)',
         type: 'number',
         required: true,
+        defaultValue: 1.50,
         placeholder: '例如: 1.50',
       },
       targetAcos: {
@@ -32,6 +34,7 @@ export const OperationBidAdjustTool: ToolDefinition = {
         label: '目标 ACOS (小数)',
         type: 'number',
         required: true,
+        defaultValue: 0.25,
         placeholder: '例如: 0.25 (即 25%)',
       },
       currentAcos: {
@@ -39,15 +42,16 @@ export const OperationBidAdjustTool: ToolDefinition = {
         label: '当前实际 ACOS (小数)',
         type: 'number',
         required: true,
+        defaultValue: 0.42,
         placeholder: '例如: 0.42 (即 42%)',
       },
     },
     required: ['campaignId', 'currentBid', 'targetAcos', 'currentAcos'],
   },
   execute: (input) => {
-    const currentBid = Number(input.currentBid);
-    const targetAcos = Number(input.targetAcos);
-    const currentAcos = Number(input.currentAcos);
+    const currentBid = Math.max(0.02, Number(input.currentBid) || 0.02);
+    const targetAcos = Number(input.targetAcos) || 0.25;
+    const currentAcos = Number(input.currentAcos) || 0;
 
     let action: 'REDUCE_BID' | 'INCREASE_BID' | 'MAINTAIN' = 'MAINTAIN';
     let deltaPercent = 0;
@@ -63,7 +67,8 @@ export const OperationBidAdjustTool: ToolDefinition = {
       reason = `Actual ACOS (${(currentAcos * 100).toFixed(1)}%) is well below target ${(targetAcos * 100).toFixed(0)}%. Raising bid by 15% to capture impression share.`;
     }
 
-    const recommendedBid = Math.round(currentBid * (1 + deltaPercent / 100) * 100) / 100;
+    const calculated = Math.round(currentBid * (1 + deltaPercent / 100) * 100) / 100;
+    const recommendedBid = Math.max(0.02, calculated);
 
     return {
       campaignId: input.campaignId,

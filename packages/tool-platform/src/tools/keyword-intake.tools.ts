@@ -18,6 +18,7 @@ export const KeywordFileExtractTool: ToolDefinition = {
         label: '文件内容 (文本或 CSV 内容)',
         type: 'textarea',
         required: true,
+        defaultValue: 'marble toothbrush holder\nelectric toothbrush stand\nbathroom countertop caddy',
         placeholder: '粘贴 TXT 或 CSV/Excel 导出内容...',
       },
       sourceType: {
@@ -129,6 +130,8 @@ export const KeywordNormalizeTool: ToolDefinition = {
         label: '待清洗关键词列表 (JSON 或 文本)',
         type: 'textarea',
         required: true,
+        defaultValue: 'marble toothbrush holder\nMARBLE TOOTHBRUSH HOLDER\nelectric toothbrush stand!!\nbathroom countertop caddy',
+        placeholder: '每行输入一个关键词，或以换行分隔',
       },
     },
     required: ['keywords'],

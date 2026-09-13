@@ -17,6 +17,7 @@ export const OperationKeywordCombineTool: ToolDefinition = {
         label: '核心词根 (逗号分隔)',
         type: 'string',
         required: true,
+        defaultValue: 'toothbrush holder, toothbrush stand, electric caddy',
         placeholder: 'toothbrush holder, toothbrush stand, electric caddy',
       },
       modifiers: {
@@ -24,6 +25,7 @@ export const OperationKeywordCombineTool: ToolDefinition = {
         label: '修饰词与特性 (逗号分隔)',
         type: 'string',
         required: true,
+        defaultValue: 'marble, heavy stone, wide slot, non slip, modern luxury',
         placeholder: 'marble, heavy stone, wide slot, non slip, modern luxury',
       },
     },
