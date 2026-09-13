@@ -108,17 +108,23 @@ async function main() {
   const imgData: any = imgRes.data;
   check(
     'creative.image.generate success',
-    imgRes.success === true && typeof imgData?.imageUrl === 'string' && imgData.imageUrl.startsWith('https://'),
-    `model=${imgData?.model} taskId=${imgData?.taskId} duration=${Date.now() - imgStart}ms`,
+    imgRes.success === true &&
+      typeof imgData?.imageUrl === 'string' &&
+      (imgData.imageUrl.startsWith('http') || imgData.imageUrl.startsWith('/assets')),
+    `model=${imgData?.model} taskId=${imgData?.taskId} url=${imgData?.imageUrl} duration=${Date.now() - imgStart}ms`,
   );
   if (!imgRes.success) {
     console.log('      error:', JSON.stringify(imgRes.error));
   }
 
   if (imgData?.imageUrl) {
-    const head = await fetch(imgData.imageUrl);
+    const targetUrl = imgData.imageUrl.startsWith('/')
+      ? `http://127.0.0.1:2222${imgData.imageUrl}`
+      : imgData.imageUrl;
+    const head = await fetch(targetUrl);
     check('generated image downloadable', head.ok, `HTTP ${head.status} ${head.headers.get('content-type')}`);
   }
+
 
   console.log('\n=== Summary ===');
   console.log(failures === 0 ? 'ALL E2E CHECKS PASSED' : `${failures} CHECK(S) FAILED`);
