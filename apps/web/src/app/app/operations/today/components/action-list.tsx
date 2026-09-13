@@ -24,6 +24,7 @@ import {
   DollarSign,
   Search,
 } from 'lucide-react';
+import { ActionOutcomeBadges } from './action-outcome-badge';
 
 interface ActionListProps {
   actions: RecommendedAction[];
@@ -304,6 +305,8 @@ export function ActionList({
                     </span>
                     {getRiskBadge(action.riskLevel)}
                     {getStatusBadge(action.status)}
+                    {/* V10 Epic A 执行结果徽标：actionId 为 WF-05 建议 ID，通常无对应 Outcome，组件静默降级不展示 */}
+                    <ActionOutcomeBadges actionId={action.actionId} />
                   </div>
 
                   {/* Title & Reason */}

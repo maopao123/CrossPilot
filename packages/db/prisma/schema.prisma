@@ -83,6 +83,7 @@ model Workspace {
   businessRecommendations  BusinessRecommendation[]
   plannedActions           PlannedAction[]
   actionExecutions         ActionExecution[]
+  actionOutcomes           ActionOutcome[]
   simulationState          SimulationState?
   simulationEvents         SimulationEvent[]
   channelDailyMetrics      ChannelDailyMetric[]
@@ -1543,6 +1544,7 @@ model PlannedAction {
   workspace        Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   recommendation   BusinessRecommendation? @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
   executions       ActionExecution[]
+  outcomes         ActionOutcome[]
 
   @@index([workspaceId])
   @@index([recommendationId])
@@ -1568,6 +1570,46 @@ model ActionExecution {
   @@index([workspaceId])
   @@index([actionId])
   @@map("action_executions")
+}
+
+// ==========================================
+// V10 Epic A — Outcome Tracking（additive）
+// Action 执行后 7/14/30 天观察窗的 Before/After 指标对比与确定性判定。
+// 时间基准：workspace 有 simulation_states 行时「今天」= sim_date，否则宿主机当天。
+// ==========================================
+
+model ActionOutcome {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  actionId         String    @map("action_id")
+  storeId          String?   @map("store_id")
+  targetType       String    @map("target_type")
+  targetId         String    @map("target_id")
+
+  baselineStart    DateTime  @map("baseline_start") @db.Date
+  baselineEnd      DateTime  @map("baseline_end") @db.Date
+  observeStart     DateTime  @map("observe_start") @db.Date
+  observeEnd       DateTime  @map("observe_end") @db.Date
+
+  windowDays       Int       @map("window_days")
+  metricsBefore    Json      @map("metrics_before")
+  metricsAfter     Json?     @map("metrics_after")
+  delta            Json?
+
+  status           String    @default("OBSERVING")
+  evaluationReason String?   @map("evaluation_reason") @db.Text
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  evaluatedAt      DateTime? @map("evaluated_at")
+
+  workspace        Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  action           PlannedAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@unique([actionId, windowDays])
+  @@index([workspaceId, status])
+  @@index([observeEnd])
+  @@map("action_outcomes")
 }
 
 // ==========================================

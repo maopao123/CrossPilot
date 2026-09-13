@@ -2,6 +2,7 @@ export * from './operations-header';
 export * from './business-health-summary';
 export * from './workflow-progress-banner';
 export * from './action-list';
+export * from './action-outcome-badge';
 export * from './action-detail-drawer';
 export * from './approval-confirmation-modal';
 export * from './occ-conflict-modal';

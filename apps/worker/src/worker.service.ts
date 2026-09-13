@@ -7,8 +7,10 @@ import {
   processAgentTaskJob,
 } from './processors/agent-task.processor.js';
 import { runSimulatorTick } from './processors/simulator-tick.processor.js';
+import { runOutcomeEvaluation } from './processors/outcome-evaluator.processor.js';
 
 const SIMULATOR_QUEUE_NAME = 'crosspilot-simulator-tick';
+const OUTCOME_QUEUE_NAME = 'crosspilot-outcome-evaluator';
 
 export class WorkerService {
   private worker: Worker<AgentTaskJobData> | null = null;
@@ -17,6 +19,10 @@ export class WorkerService {
   private simulatorQueue: Queue | null = null;
   private simulatorRedis: Redis | null = null;
   private simulatorPrisma: PrismaClient | null = null;
+  private outcomeWorker: Worker | null = null;
+  private outcomeQueue: Queue | null = null;
+  private outcomeRedis: Redis | null = null;
+  private outcomePrisma: PrismaClient | null = null;
   private redisService: RedisService;
   private isRunning = false;
 
@@ -40,6 +46,9 @@ export class WorkerService {
       // Scheduler is independent of the legacy agent-task queue: start it
       // first so a failure in the main Worker setup cannot starve it.
       await this.startSimulatorScheduler();
+
+      // V10 Epic A：Outcome Tracking 评估器，与 simulator 调度互不影响。
+      await this.startOutcomeScheduler();
 
       // BullMQ requires maxRetriesPerRequest: null. RedisService uses 1 for
       // API health checks, so the agent-task worker gets its own connection.
@@ -129,6 +138,55 @@ export class WorkerService {
     }
   }
 
+  /**
+   * V10 Epic A — Outcome evaluator scheduler: a BullMQ repeatable job scans
+   * every workspace for due OBSERVING outcomes (observe_end <= today, where
+   * today = sim_date when a SimulationState exists) and evaluates them.
+   * Interval via OUTCOME_EVAL_INTERVAL_MINUTES (default 30). Never crashes
+   * the worker — failures degrade to warn logs.
+   */
+  private async startOutcomeScheduler(): Promise<void> {
+    try {
+      const intervalMinutes =
+        Number.parseInt(process.env.OUTCOME_EVAL_INTERVAL_MINUTES ?? '', 10) || 30;
+
+      this.outcomePrisma = new PrismaClient();
+      const prisma = this.outcomePrisma;
+
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      this.outcomeRedis = new Redis(redisUrl, { maxRetriesPerRequest: null });
+
+      this.outcomeQueue = new Queue(OUTCOME_QUEUE_NAME, {
+        connection: this.outcomeRedis as any,
+      });
+      await this.outcomeQueue.add(
+        'outcome-evaluator',
+        {},
+        {
+          jobId: 'outcome-evaluator',
+          repeat: { every: intervalMinutes * 60 * 1000 },
+          removeOnComplete: true,
+          removeOnFail: 100,
+        },
+      );
+
+      this.outcomeWorker = new Worker(
+        OUTCOME_QUEUE_NAME,
+        async () => runOutcomeEvaluation(prisma),
+        { connection: this.outcomeRedis as any },
+      );
+      this.outcomeWorker.on('failed', (job: Job | undefined, err: Error) => {
+        console.warn(`⚠️ Outcome evaluator job ${job?.id} failed:`, err.message);
+      });
+
+      console.log(
+        `📊 Outcome evaluator enabled: sweep every ${intervalMinutes} minute(s).`,
+      );
+    } catch (err: any) {
+      console.warn('⚠️ Outcome evaluator initialization warning:', err.message);
+    }
+  }
+
   public async stop(): Promise<void> {
     console.log('🛑 Shutting down CrossPilot Worker...');
     if (this.worker) {
@@ -154,6 +212,22 @@ export class WorkerService {
     if (this.simulatorPrisma) {
       await this.simulatorPrisma.$disconnect();
       this.simulatorPrisma = null;
+    }
+    if (this.outcomeWorker) {
+      await this.outcomeWorker.close();
+      this.outcomeWorker = null;
+    }
+    if (this.outcomeQueue) {
+      await this.outcomeQueue.close();
+      this.outcomeQueue = null;
+    }
+    if (this.outcomeRedis) {
+      await this.outcomeRedis.quit();
+      this.outcomeRedis = null;
+    }
+    if (this.outcomePrisma) {
+      await this.outcomePrisma.$disconnect();
+      this.outcomePrisma = null;
     }
     await this.redisService.disconnect();
     this.isRunning = false;

@@ -15,4 +15,5 @@ export * from './contracts/playbook-contracts.js';
 export * from './contracts/intelligence-contracts.js';
 export * from './contracts/operations-today-contracts.js';
 export * from './contracts/action-layer-contracts.js';
+export * from './contracts/outcome-tracking-contracts.js';
 

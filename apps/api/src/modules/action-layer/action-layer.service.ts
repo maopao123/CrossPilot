@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
@@ -20,6 +21,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { AdvertisingService } from '../advertising/advertising.service.js';
+import { OutcomeTrackingService } from '../outcome-tracking/outcome-tracking.service.js';
 
 function asObject(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -36,6 +38,7 @@ export class ActionLayerService {
     private readonly prisma: PrismaService,
     private readonly intel: IntelligenceService,
     private readonly advertising: AdvertisingService,
+    @Optional() private readonly outcomeTracking?: OutcomeTrackingService,
   ) {}
 
   list(workspaceId: string, recommendationId?: string) {
@@ -181,8 +184,9 @@ export class ActionLayerService {
         parameters: asObject(row.parameters),
       });
 
+      let successExecution: { timestamp?: Date } | null = null;
       for (const attempt of outcome.attempts) {
-        await this.appendHistory(
+        const record = await this.appendHistory(
           workspaceId,
           id,
           userId || 'owner',
@@ -194,6 +198,7 @@ export class ActionLayerService {
           attempt.attempt,
           attempt.result.success ? undefined : attempt.result.message,
         );
+        if (attempt.result.success) successExecution = record;
       }
 
       const updated = await this.prisma.plannedAction.update({
@@ -203,6 +208,17 @@ export class ActionLayerService {
           lastMessage: String(outcome.output.message || outcome.error || outcome.status),
         },
       });
+
+      // V10 Epic A：执行成功即创建 7/14/30 天观察窗 ActionOutcome（T0 = 执行时刻所在日）。
+      // 创建失败只打日志，绝不影响 execute 主流程。
+      if (outcome.status === 'SUCCESS') {
+        await this.outcomeTracking?.createForExecution(
+          workspaceId,
+          { id: row.id, target: asObject(row.target) },
+          successExecution?.timestamp ?? new Date(),
+        );
+      }
+
       return this.toAction(updated);
     });
   }
@@ -265,7 +281,7 @@ export class ActionLayerService {
     attempt: number,
     error?: string,
   ) {
-    await this.prisma.actionExecution.create({
+    return this.prisma.actionExecution.create({
       data: {
         workspaceId,
         actionId,

@@ -2,10 +2,14 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
 import { ActionLayerService } from './action-layer.service.js';
+import { OutcomeTrackingService } from '../outcome-tracking/outcome-tracking.service.js';
 
 @Controller('actions')
 export class ActionLayerController {
-  constructor(private readonly actions: ActionLayerService) {}
+  constructor(
+    private readonly actions: ActionLayerService,
+    private readonly outcomeTracking: OutcomeTrackingService,
+  ) {}
 
   @Get()
   list(
@@ -13,6 +17,11 @@ export class ActionLayerController {
     @Query('recommendationId') recommendationId?: string,
   ) {
     return this.actions.list(workspaceId, recommendationId);
+  }
+
+  @Get(':id/outcomes')
+  outcomes(@CurrentWorkspace() workspaceId: string, @Param('id') id: string) {
+    return this.outcomeTracking.forAction(workspaceId, id);
   }
 
   @Get(':id/history')

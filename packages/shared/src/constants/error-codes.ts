@@ -63,6 +63,9 @@ export const ErrorCodes = {
   ACTION_RISK_BLOCKED: 'ACTION_RISK_BLOCKED',
   ACTION_PLANNER_UNSUPPORTED: 'ACTION_PLANNER_UNSUPPORTED',
   ACTION_EXECUTION_FAILED: 'ACTION_EXECUTION_FAILED',
+
+  // V10 Epic A — Outcome Tracking
+  OUTCOME_NOT_FOUND: 'OUTCOME_NOT_FOUND',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

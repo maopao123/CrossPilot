@@ -93,6 +93,7 @@ health 200  postgres/redis/milvus up
   - S9 (operation-daily-diagnosis 租户隔离加固与防止 input.workspaceId 注入): `operation-daily-diagnosis.tools.ts`
   - S10 (Creative 图像映射实际尺寸真实元数据返回): `creative-studio.tools.ts`
   - 门禁全绿：typecheck 10/10 PASS，domain tests 275/275 PASS，tool-platform 20/20 PASS，golden benchmark evals 9/9 PASS，web tests 34/34 PASS，web build 23/23 PASS；新增 `apps/api/test/v10-audit-p0.spec.ts` 与 `packages/domain/test/v10-p0-audit-fixes.spec.ts` 回归用例。
+- **Epic A Outcome Tracking 已实现（本机，未部署，2026-09-13）**：`action_outcomes` 表 + `outcome-tracking` 模块（GET /outcomes、/outcomes/summary、/actions/:id/outcomes、POST /outcomes/:id/reevaluate）+ `outcome-evaluator` worker job（时间基准 sim_date 优先）+ Operations Today Action 卡片结果徽标。判定规则 v1 确定性（阈值 5%）；Simulator 无 profit_daily → 相关维度 INCONCLUSIVE（诚实数据，不伪造 0）。验证：domain 316/316、api 175/175、typecheck 全绿。**migration `20260914100000_v10_outcome_tracking` 待云库 apply**；部署需 prisma migrate deploy + 全量 build + pm2 reload api/worker。
 
 **下一任：** Epic 3 已完成。用户说「做 Epic 4 / Shopify」→ 按 `V10_NEXT_AGENT_HANDOFF.md` 做 Shopify read Adapter；在那之前**不要主动开 Epic 4**。
 **不要**顺手开 Shopify / Amazon Write / Action Write / 切 `STORE_SKU360_SOURCE=prisma`。  
@@ -368,6 +369,7 @@ V9.3 Action      SHIPPED mock only
 V10 Epic 1       SHIPPED  Store + ChannelIdentity
 V10 Epic 2       SHIPPED  Ports + SimulatorAdapter
 V10 Epic 3       SHIPPED  Amazon read Adapter 6c4d169 + 复查修复 71d405f
+Closed-loop A    IMPLEMENTED (local)  Outcome Tracking；migration 20260914100000 待云库 apply，未部署
 Next             Epic 4 Shopify read Adapter — 等用户授权（见 V10_NEXT_AGENT_HANDOFF.md）
 health           200   /health/ai degraded
 Do not start Amazon Write / Action Write / WF-05 切源 / Epic 4 未授权自启

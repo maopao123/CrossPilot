@@ -5,6 +5,7 @@ import type { OperationsRecommendationView, PlannedActionRecord } from '@crosspi
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/ui/page-header';
 import { getStatusLabel } from '@/constants/ui-labels';
+import { ActionOutcomeBadges } from '../components/action-outcome-badge';
 
 function pillTone(status: string): 'warning' | 'success' | 'accent' | 'neutral' | 'danger' {
   if (status === 'WAITING_APPROVAL' || status === 'GENERATED' || status === 'CREATED' || status === 'EXECUTING') {
@@ -151,6 +152,7 @@ function ActionSummary({ action }: { action: PlannedActionRecord }) {
       <StatusPill tone={pillTone(action.status)}>{getStatusLabel(action.status)}</StatusPill>
       <span>{action.lastMessage || action.actionType}</span>
       <span>风险 {getStatusLabel(action.riskLevel)}</span>
+      {action.status === 'SUCCESS' ? <ActionOutcomeBadges actionId={action.id} /> : null}
     </div>
   );
 }

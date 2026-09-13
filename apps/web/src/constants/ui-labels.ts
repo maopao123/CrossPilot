@@ -61,6 +61,14 @@ export const STATUS_LABELS: Record<string, string> = {
   ENABLED: '投放中',
   ARCHIVED_CAMP: '已归档',
 
+  // V10 Epic A — Outcome Tracking 状态（执行结果徽标）
+  OBSERVING: '观察中',
+  POSITIVE: '正向结果',
+  NEGATIVE: '负向结果',
+  NEUTRAL: '无显著变化',
+  INCONCLUSIVE: '数据不足',
+  EXPIRED: '已过期',
+
   // Listing 生成引擎降级状态
   TEMPLATE_FALLBACK: '模板降级',
   LEGACY_TEMPLATE: '传统模板',
