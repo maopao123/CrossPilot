@@ -38,6 +38,13 @@ export interface GenerateListingOptions {
     weight?: string;
     featuresText?: string;
   };
+  onStep?: (trace: {
+    stepNumber: number;
+    stepName: string;
+    status: string;
+    latencyMs: number;
+    summary: string;
+  }) => void;
 }
 
 @Injectable()
@@ -108,6 +115,22 @@ export class ListingService {
         keywordCoverage: v.keywordCoverageJson ? JSON.parse(v.keywordCoverageJson) : null,
         claims: v.claimsJson ? JSON.parse(v.claimsJson) : [],
         knowledgeEvidence: v.knowledgeEvidenceJson ? JSON.parse(v.knowledgeEvidenceJson) : [],
+        stepTraces: (() => {
+          try {
+            const parsed = v.keywordCoverageJson ? JSON.parse(v.keywordCoverageJson) : null;
+            return Array.isArray(parsed?.stepTraces) ? parsed.stepTraces : [];
+          } catch {
+            return [];
+          }
+        })(),
+        studioInput: (() => {
+          try {
+            const parsed = v.keywordCoverageJson ? JSON.parse(v.keywordCoverageJson) : null;
+            return parsed?.studioInput || null;
+          } catch {
+            return null;
+          }
+        })(),
         marketplace: v.marketplace || 'AMAZON_US',
         generationSource: v.generationSource,
         generationMode: v.generationSource?.includes('TEMPLATE')
@@ -627,6 +650,7 @@ Rules:
       marketplace: options.marketplace || 'AMAZON_US',
       customDirectives: options.customDirectives,
       modelName: options.modelName,
+      onStep: options.onStep,
     });
 
     // Ensure Listing record exists
@@ -664,7 +688,19 @@ Rules:
         imageBriefsJson: JSON.stringify(dagResult.listingDraft.imageBriefs || []),
         aPlusPlanJson: JSON.stringify(dagResult.listingDraft.aPlusPlan || null),
         rufusCoverageJson: JSON.stringify(dagResult.listingDraft.rufusCoverage || []),
-        keywordCoverageJson: JSON.stringify(dagResult.keywordCoverage),
+        keywordCoverageJson: JSON.stringify({
+          ...dagResult.keywordCoverage,
+          stepTraces: dagResult.stepTraces,
+          studioInput: {
+            productSpecs: options.productSpecs || null,
+            images: options.images || [],
+            keywords: options.keywords || [],
+            rufusQa: options.rufusQa || [],
+            customDirectives: options.customDirectives || '',
+            marketplace: options.marketplace || 'AMAZON_US',
+            modelName: options.modelName || 'AUTO',
+          },
+        }),
         claimsJson: JSON.stringify(dagResult.listingDraft.claims),
         knowledgeEvidenceJson: JSON.stringify(dagResult.listingDraft.knowledgeEvidence || []),
         marketplace: dagResult.listingDraft.marketplace,

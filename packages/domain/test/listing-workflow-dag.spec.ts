@@ -82,4 +82,24 @@ describe('ListingWorkflowDagService & Policy Profiles (V2)', () => {
     expect(result.listingDraft.title).toMatch(/HOMEFORTE|Shoe Organizer/i);
     expect(result.listingDraft.bulletPoints).toHaveLength(5);
   });
+
+  it('emits RUNNING then COMPLETED for each DAG step via onStep', async () => {
+    const events: Array<{ stepNumber: number; status: string }> = [];
+    const result = await ListingWorkflowDagService.executeWorkflowDag({
+      skuCode: 'SHOE-ORG-001',
+      productName: '2 Pack Shoe Organizer',
+      brand: 'HOMEFORTE',
+      features: [{ id: 'spec-mat', name: 'Material', value: 'Fabric', isCore: true }],
+      forceTemplateFallback: true,
+      onStep: (trace) => {
+        events.push({ stepNumber: trace.stepNumber, status: trace.status });
+      },
+    });
+
+    expect(result.stepTraces).toHaveLength(14);
+    expect(events.filter((e) => e.status === 'RUNNING')).toHaveLength(14);
+    expect(events.filter((e) => e.status === 'COMPLETED')).toHaveLength(14);
+    expect(events[0]).toEqual({ stepNumber: 1, status: 'RUNNING' });
+    expect(events[1]).toEqual({ stepNumber: 1, status: 'COMPLETED' });
+  });
 });

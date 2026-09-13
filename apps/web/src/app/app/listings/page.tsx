@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { ModelRouter } from '@crosspilot/shared';
 import { ApiClient } from '../../../lib/api-client';
+import { streamListingGenerate } from '../../../lib/listing-generate-stream';
 import { getStatusLabel, getSeverityLabel } from '../../../constants/ui-labels';
 import { useBusinessContext } from '../../../components/business-context-provider';
 import {
@@ -55,6 +56,14 @@ interface ImageBrief {
   copy?: string[];
 }
 
+interface StepTrace {
+  stepNumber: number;
+  stepName: string;
+  status: string;
+  latencyMs: number;
+  summary: string;
+}
+
 interface ListingVersion {
   id: string;
   versionNumber: number;
@@ -68,6 +77,23 @@ interface ListingVersion {
   keywordCoverage?: any;
   claims?: Array<{ claim: string; factIds: string[] }>;
   knowledgeEvidence?: any[];
+  stepTraces?: StepTrace[];
+  studioInput?: {
+    productSpecs?: {
+      productName?: string;
+      brand?: string;
+      dimensions?: string;
+      material?: string;
+      weight?: string;
+      featuresText?: string;
+    } | null;
+    images?: string[];
+    keywords?: any[];
+    rufusQa?: any[];
+    customDirectives?: string;
+    marketplace?: string;
+    modelName?: string;
+  } | null;
   marketplace?: string;
   locale?: string;
   generationSource: string;
@@ -98,14 +124,6 @@ interface SkuListing {
   versions: ListingVersion[];
 }
 
-interface StepTrace {
-  stepNumber: number;
-  stepName: string;
-  status: string;
-  latencyMs: number;
-  summary: string;
-}
-
 export default function ListingStudioPage() {
   const { skus, skuId, selectedSku, marketplaceId, switchSku } = useBusinessContext();
   const [skuCode, setSkuCode] = useState(selectedSku?.skuCode || '');
@@ -116,20 +134,18 @@ export default function ListingStudioPage() {
   const [comparingVersion, setComparingVersion] = useState<ListingVersion | null>(null);
 
   // Active Main Tab: 'editor' | 'specs' | 'visual' | 'keywords' | 'rufus' | 'briefs' | 'dag'
-  const [activeTab, setActiveTab] = useState<'editor' | 'specs' | 'visual' | 'keywords' | 'rufus' | 'briefs' | 'dag'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'specs' | 'visual' | 'keywords' | 'rufus' | 'briefs' | 'dag'>('specs');
 
   // Product Information & Specifications state (第一步：信息获取核心事实)
   const [rawSpecsInput, setRawSpecsInput] = useState('');
   const [extractingSpecs, setExtractingSpecs] = useState(false);
   const [specsExtractSuccessMsg, setSpecsExtractSuccessMsg] = useState<string | null>(null);
-  const [productName, setProductName] = useState('2 Pack Under Bed Shoe Organizer with Clear Lid & Adjustable Dividers');
-  const [productBrand, setProductBrand] = useState('HOMEFORTE');
-  const [productDimensions, setProductDimensions] = useState('16.9"L × 8.45"W × 11.8"H (Each Unit)');
-  const [productWeight, setProductWeight] = useState('2.1 lbs / High load-bearing PP board for stacking & sideways use');
-  const [productMaterial, setProductMaterial] = useState('Breathable Linen Fabric + Reinforced Sturdy PP Board');
-  const [productFeaturesText, setProductFeaturesText] = useState(
-    `• Holds up to 16 pairs of shoes (8 pairs per unit), slim slots ideal for women's, children's and men's footwear\n• Modular adjustable dividers allow creating larger compartments to accommodate boots or heels\n• Transparent dust-proof lid with smooth two-way zipper for quick visibility and protection\n• Low-profile design fits under beds (15-inch clearance), closets, and sideways placement\n• Reinforced wrap-around handles on both sides for easy slide and transport\n• Foldable collapsible design for quick 3-second setup and space-saving storage`
-  );
+  const [productName, setProductName] = useState('');
+  const [productBrand, setProductBrand] = useState('');
+  const [productDimensions, setProductDimensions] = useState('');
+  const [productWeight, setProductWeight] = useState('');
+  const [productMaterial, setProductMaterial] = useState('');
+  const [productFeaturesText, setProductFeaturesText] = useState('');
 
   // Interactive generation states
   const [generating, setGenerating] = useState(false);
@@ -150,11 +166,7 @@ export default function ListingStudioPage() {
   const [editableSearchTerms, setEditableSearchTerms] = useState('');
 
   // Multimodal visual facts state (Max 10 images)
-  const [imageUrls, setImageUrls] = useState<string[]>([
-    'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80',
-  ]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [visualFacts, setVisualFacts] = useState<VisualFact[]>([]);
   const [extractingVisual, setExtractingVisual] = useState(false);
@@ -162,34 +174,13 @@ export default function ListingStudioPage() {
   const [newFactType, setNewFactType] = useState('VISIBLE_FEATURE');
 
   // Keyword Library Intake state
-  const [kwInput, setKwInput] = useState(
-    `keyword,search_volume,priority\nfile box,48500,1\ndecorative file organizer box with lid,24200,1\nlinen file storage organizer box,18500,1\ncollapsible document storage box with handles,14200,2\nletter legal hanging file folder box,11800,2\noffice desktop file organizer,8900,3`
-  );
+  const [kwInput, setKwInput] = useState('');
   const [kwSourceType, setKwSourceType] = useState<'MANUAL' | 'TXT' | 'EXCEL'>('EXCEL');
   const [parsedKeywords, setParsedKeywords] = useState<any[]>([]);
   const [parsingKeywords, setParsingKeywords] = useState(false);
 
   // Rufus Q&A state
-  const [rufusItems, setRufusItems] = useState([
-    {
-      id: 'rufus-fb-01',
-      question: '这个文件箱能同时装 Letter 和 Legal 尺寸的悬挂文件夹吗？',
-      answer: '可以，箱体内置可调节金属顺滑滑轨，既适配标准 Letter 尺寸也兼容 Legal 大规格悬挂文件夹。',
-      source: 'MANUAL',
-    },
-    {
-      id: 'rufus-fb-02',
-      question: '文件箱承重和堆叠表现如何？装满文件后叠放会压塌吗？',
-      answer: '采用加厚高密度实心纤维板与高质感亚麻面料，单箱承重可达 35 磅，加配硬质实心顶盖，支持多层平稳叠放绝不变形。',
-      source: 'VOC',
-    },
-    {
-      id: 'rufus-fb-03',
-      question: '不使用时如何收纳？折叠复杂吗？',
-      answer: '底部采用一体式折叠底板设计，3 秒即可完全压平折叠存放于抽屉或柜底，节省 90% 存放空间。',
-      source: 'QA',
-    },
-  ]);
+  const [rufusItems, setRufusItems] = useState<Array<{ id: string; question: string; answer: string; source: string }>>([]);
   const [newRufusQuestion, setNewRufusQuestion] = useState('');
   const [newRufusAnswer, setNewRufusAnswer] = useState('');
   const [newRufusSource, setNewRufusSource] = useState<'MANUAL' | 'VOC' | 'QA'>('MANUAL');
@@ -351,19 +342,6 @@ AFTER-SALES SUPPORT: Encounter assembly or usage issues? Our 24/7 customer servi
   useEffect(() => {
     if (selectedSku?.skuCode) {
       setSkuCode(selectedSku.skuCode);
-      if (
-        selectedSku.skuCode.includes('SHOE') ||
-        (selectedSku.productName && selectedSku.productName.toLowerCase().includes('shoe'))
-      ) {
-        handleLoadShoeOrganizerPresets();
-      } else if (
-        selectedSku.skuCode.includes('FILE') ||
-        (selectedSku.productName && selectedSku.productName.toLowerCase().includes('file'))
-      ) {
-        handleLoadFileBoxPresets();
-      } else if (selectedSku.skuCode.includes('MTH')) {
-        handleLoadToothbrushPresets();
-      }
     }
     if (marketplaceId) setMarketplace(marketplaceId);
   }, [selectedSku, marketplaceId]);
@@ -382,7 +360,22 @@ AFTER-SALES SUPPORT: Encounter assembly or usage issues? Our 24/7 customer servi
       const resolvedSkuId = targetSku?.id;
 
       if (resolvedSkuId) {
-        const res = await ApiClient.get<SkuListing>(`/api/v1/listings/sku/${resolvedSkuId}`);
+        let res: SkuListing | null = null;
+        try {
+          res = await ApiClient.get<SkuListing>(`/api/v1/listings/sku/${resolvedSkuId}`);
+        } catch {
+          res = {
+            id: '',
+            skuId: resolvedSkuId,
+            skuCode: targetSku?.skuCode || skuCode,
+            productId: targetSku?.productId || '',
+            productName: targetSku?.productName || '',
+            brand: '',
+            status: 'DRAFT',
+            currentVersionId: null,
+            versions: [],
+          };
+        }
         setListing(res);
         if (res.visualFacts && res.visualFacts.length > 0) {
           setVisualFacts(res.visualFacts);
@@ -402,8 +395,90 @@ AFTER-SALES SUPPORT: Encounter assembly or usage issues? Our 24/7 customer servi
               violations: top.complianceCheck.ruleHits,
             });
           }
+          if (Array.isArray(top.stepTraces) && top.stepTraces.length > 0) {
+            setStepTraces(top.stepTraces);
+          }
+          const snapshot = top.studioInput;
+          if (snapshot?.productSpecs) {
+            setProductName(snapshot.productSpecs.productName || '');
+            setProductBrand(snapshot.productSpecs.brand || '');
+            setProductDimensions(snapshot.productSpecs.dimensions || '');
+            setProductMaterial(snapshot.productSpecs.material || '');
+            setProductWeight(snapshot.productSpecs.weight || '');
+            setProductFeaturesText(snapshot.productSpecs.featuresText || '');
+          }
+          if (snapshot?.images && snapshot.images.length > 0) {
+            setImageUrls(snapshot.images);
+          }
+          if (snapshot?.keywords && snapshot.keywords.length > 0) {
+            setParsedKeywords(snapshot.keywords);
+            setKwInput(snapshot.keywords.map((k: any) => k.keyword).filter(Boolean).join('\n'));
+          }
+          if (snapshot?.rufusQa && snapshot.rufusQa.length > 0) {
+            setRufusItems(snapshot.rufusQa);
+          }
+          if (typeof snapshot?.customDirectives === 'string') {
+            setCustomDirectives(snapshot.customDirectives);
+          }
+          if (snapshot?.marketplace) setMarketplace(snapshot.marketplace);
+          if (snapshot?.modelName) setModelName(snapshot.modelName);
+          if (!snapshot) {
+            try {
+              const raw = localStorage.getItem(`crosspilot.listing.studio.${resolvedSkuId}`);
+              if (raw) {
+                const local = JSON.parse(raw);
+                if (local?.productSpecs) {
+                  setProductName(local.productSpecs.productName || '');
+                  setProductBrand(local.productSpecs.brand || '');
+                  setProductDimensions(local.productSpecs.dimensions || '');
+                  setProductMaterial(local.productSpecs.material || '');
+                  setProductWeight(local.productSpecs.weight || '');
+                  setProductFeaturesText(local.productSpecs.featuresText || '');
+                }
+                if (local?.images?.length) setImageUrls(local.images);
+                if (local?.keywords?.length) {
+                  setParsedKeywords(local.keywords);
+                  setKwInput(local.keywords.map((k: any) => k.keyword).filter(Boolean).join('\n'));
+                }
+                if (local?.rufusQa?.length) setRufusItems(local.rufusQa);
+                if (typeof local?.customDirectives === 'string') setCustomDirectives(local.customDirectives);
+              }
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTab('editor');
           if (res.versions.length > 1) {
             setComparingVersion(res.versions[1]);
+          }
+        } else {
+          setActiveTab('specs');
+          setEditableTitle('');
+          setEditableBullets([]);
+          setEditableDescription('');
+          setEditableSearchTerms('');
+          setStepTraces([]);
+          try {
+            const raw = localStorage.getItem(`crosspilot.listing.studio.${resolvedSkuId}`);
+            if (raw) {
+              const local = JSON.parse(raw);
+              if (local?.productSpecs) {
+                setProductName(local.productSpecs.productName || '');
+                setProductBrand(local.productSpecs.brand || '');
+                setProductDimensions(local.productSpecs.dimensions || '');
+                setProductMaterial(local.productSpecs.material || '');
+                setProductWeight(local.productSpecs.weight || '');
+                setProductFeaturesText(local.productSpecs.featuresText || '');
+              }
+              if (local?.images?.length) setImageUrls(local.images);
+              if (local?.keywords?.length) {
+                setParsedKeywords(local.keywords);
+                setKwInput(local.keywords.map((k: any) => k.keyword).filter(Boolean).join('\n'));
+              }
+              if (local?.rufusQa?.length) setRufusItems(local.rufusQa);
+            }
+          } catch {
+            // ignore
           }
         }
       }
@@ -677,10 +752,17 @@ Want tips on stacking or arranging multiple units?`);
   // Upgraded WF-02 14-Step DAG Generation Action
   const handleGenerateDag = async () => {
     if (!listing || ApiClient.isViewer()) return;
+    if (!productName.trim()) {
+      setActionError('请先在「输入 → 01 产品规格」填写品名，再生成。');
+      setActiveTab('specs');
+      return;
+    }
     try {
       setGenerating(true);
       setActionError(null);
-      const res = await ApiClient.post<any>('/api/v1/listings/generate', {
+      setActiveTab('dag');
+      setStepTraces([]);
+      const payload = {
         skuId: listing.skuId,
         customDirectives: customDirectives.trim() ? customDirectives.trim() : undefined,
         images: imageUrls,
@@ -697,17 +779,49 @@ Want tips on stacking or arranging multiple units?`);
           weight: productWeight.trim() || undefined,
           featuresText: productFeaturesText.trim() || undefined,
         },
-      });
+      };
 
-      setEditableTitle(res.generatedListing.title);
-      setEditableBullets(res.generatedListing.bulletPoints);
-      setEditableDescription(res.generatedListing.description || '');
-      setEditableSearchTerms(res.generatedListing.searchTerms || '');
-      setComplianceResult(res.compliance);
-      if (res.stepTraces) {
-        setStepTraces(res.stepTraces);
-      }
-      // Reload listing versions
+      await streamListingGenerate(payload, {
+        onStep: (step) => {
+          setStepTraces((prev) => {
+            const next = prev.filter((item) => item.stepNumber !== step.stepNumber);
+            next.push(step);
+            next.sort((a, b) => a.stepNumber - b.stepNumber);
+            return next;
+          });
+        },
+        onResult: (res) => {
+          if (res?.generatedListing) {
+            setEditableTitle(res.generatedListing.title);
+            setEditableBullets(res.generatedListing.bulletPoints);
+            setEditableDescription(res.generatedListing.description || '');
+            setEditableSearchTerms(res.generatedListing.searchTerms || '');
+          }
+          if (res?.compliance) setComplianceResult(res.compliance);
+          if (Array.isArray(res?.stepTraces) && res.stepTraces.length > 0) {
+            setStepTraces(res.stepTraces);
+          }
+          try {
+            localStorage.setItem(
+              `crosspilot.listing.studio.${listing.skuId}`,
+              JSON.stringify({
+                productSpecs: payload.productSpecs,
+                images: imageUrls,
+                keywords: parsedKeywords,
+                rufusQa: rufusItems,
+                customDirectives,
+                marketplace,
+                modelName,
+              }),
+            );
+          } catch {
+            // ignore quota
+          }
+        },
+        onError: (err) => {
+          setActionError(err?.message || '14 步 DAG 编排生成失败');
+        },
+      });
       loadListing();
     } catch (err: any) {
       setActionError(err?.message || '14 步 DAG 编排生成失败');
@@ -779,7 +893,7 @@ Want tips on stacking or arranging multiple units?`);
             <p className="text-xs text-rose-400 mt-2">{actionError}</p>
           )}
           <p className="text-sm text-muted-foreground mt-1">
-            基于产品事实生成 Listing，并做合规检查。人工批准后才会进入发布流水线。
+            先在「输入」填规格、图片、关键词和 Rufus 问答，再生成。上次成功结果会保留，不会再用示例数据覆盖。
           </p>
         </div>
 
@@ -916,90 +1030,100 @@ Want tips on stacking or arranging multiple units?`);
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-border space-x-6 text-xs font-semibold overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('editor')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'editor'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FileEdit className="w-4 h-4" />
-          <span>01 Listing 正文与版本 (输出)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('specs')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'specs'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Package className="w-4 h-4" />
-          <span>02 产品信息与规格 (输入)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('visual')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'visual'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <ImageIcon className="w-4 h-4" />
-          <span>03 产品图片与事实 (输入) ({imageUrls.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('keywords')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'keywords'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Search className="w-4 h-4" />
-          <span>04 多源关键词库 (输入) ({parsedKeywords.length || 6})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('rufus')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'rufus'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span>05 Rufus 问答意图 (输入) ({rufusItems.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('briefs')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'briefs'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>06 素材指示与 A+ (输出)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('dag')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'dag'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          <span>07 14 步 DAG 轨迹 (监控) ({stepTraces.length || 14})</span>
-        </button>
+      <div className="space-y-2">
+        <div className="rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-[11px] text-muted-foreground">
+          <span className="font-semibold text-foreground">怎么用：</span>
+          {' '}1. 在「输入」填规格 / 图片 / 关键词 / Rufus　2. 点「生成 Listing」　3. 生成时自动跳到 DAG 看每一步　4. 完成后到「输出」改标题和五点描述
+        </div>
+        <div className="flex border-b border-border overflow-x-auto">
+          <div className="flex items-center pr-4 mr-2 border-r border-border">
+            <span className="text-[10px] font-bold tracking-wider text-blue-400 px-1">输入</span>
+          </div>
+          <div className="flex space-x-5 text-xs font-semibold">
+            <button
+              onClick={() => setActiveTab('specs')}
+              className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'specs'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              <span>01 产品规格</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('visual')}
+              className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'visual'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span>02 产品图片 ({imageUrls.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('keywords')}
+              className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'keywords'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Search className="w-4 h-4" />
+              <span>03 关键词 ({parsedKeywords.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('rufus')}
+              className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'rufus'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>04 Rufus ({rufusItems.length})</span>
+            </button>
+          </div>
+          <div className="flex items-center px-4 mx-2 border-l border-r border-border">
+            <span className="text-[10px] font-bold tracking-wider text-emerald-400 px-1">输出</span>
+          </div>
+          <div className="flex space-x-5 text-xs font-semibold">
+            <button
+              onClick={() => setActiveTab('editor')}
+              className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'editor'
+                  ? 'border-emerald-500 text-emerald-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <FileEdit className="w-4 h-4" />
+              <span>05 Listing 正文</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('briefs')}
+              className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'briefs'
+                  ? 'border-emerald-500 text-emerald-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>06 素材与 A+</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('dag')}
+              className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'dag'
+                  ? 'border-emerald-500 text-emerald-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>07 DAG 轨迹 ({stepTraces.filter((s) => s.status === 'COMPLETED').length}/14)</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Main Studio Grid */}
@@ -2048,15 +2172,23 @@ Want tips on stacking or arranging multiple units?`);
                     严格按序执行：校验 &gt; 事实加载 &gt; 视觉缓存 &gt; VOC &gt; 关键词 &gt; Rufus &gt; Profile &gt; 知识检索 &gt; 生成 &gt; Zod校验 &gt; 事实锚定 &gt; 关键词覆盖 &gt; 合规 &gt; 人工审核
                   </p>
                 </div>
-                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-bold">
-                  DAG 状态: 成功
+                <span className={`text-xs px-2 py-1 rounded font-bold ${
+                  generating
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : stepTraces.some((s) => s.status === 'COMPLETED')
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : 'bg-surface-elevated text-muted-foreground'
+                }`}>
+                  DAG 状态: {generating ? '生成中' : stepTraces.some((s) => s.status === 'COMPLETED') ? '成功' : '未运行'}
                 </span>
               </div>
 
               <div className="space-y-2">
                 {stepTraces.length === 0 ? (
                   <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
-                    暂未运行 DAG。请点击顶部「生成 Listing (14 步 DAG)」启动 14 步编排流水线，实时查看每个步骤的执行耗时与落盘摘要。
+                    {generating
+                      ? '正在启动 14 步编排，步骤会一条条出现。'
+                      : '暂无上次 DAG 记录。填完输入后点击「生成 Listing」，这里会实时打出每一步。'}
                   </div>
                 ) : (
                   stepTraces.map((step) => (
@@ -2065,16 +2197,26 @@ Want tips on stacking or arranging multiple units?`);
                       className="p-2.5 rounded-lg border border-border bg-surface-elevated flex items-center justify-between text-xs"
                     >
                       <div className="flex items-center space-x-2.5">
-                        <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-mono font-bold text-[10px]">
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono font-bold text-[10px] ${
+                          step.status === 'RUNNING'
+                            ? 'bg-amber-500/20 text-amber-400'
+                            : 'bg-blue-500/20 text-blue-400'
+                        }`}>
                           {step.stepNumber}
                         </span>
                         <span className="font-semibold text-foreground font-mono">{step.stepName}</span>
                         <span className="text-muted-foreground">• {step.summary}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="text-muted-foreground font-mono">{step.latencyMs}ms</span>
-                        <span className="bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.5 rounded text-[10px]">
-                          {getStatusLabel(step.status)}
+                        <span className="text-muted-foreground font-mono">
+                          {step.status === 'RUNNING' ? '...' : `${step.latencyMs}ms`}
+                        </span>
+                        <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                          step.status === 'RUNNING'
+                            ? 'bg-amber-500/20 text-amber-400'
+                            : 'bg-emerald-500/20 text-emerald-400'
+                        }`}>
+                          {step.status === 'RUNNING' ? '进行中' : getStatusLabel(step.status)}
                         </span>
                       </div>
                     </div>

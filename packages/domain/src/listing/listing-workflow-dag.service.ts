@@ -30,7 +30,7 @@ import { enforceMarketplaceListingLimits } from './listing-structure-limits.js';
 export interface WorkflowDagStepTrace {
   stepNumber: number;
   stepName: string;
-  status: 'COMPLETED' | 'FAILED' | 'SKIPPED';
+  status: 'COMPLETED' | 'FAILED' | 'SKIPPED' | 'RUNNING';
   latencyMs: number;
   summary: string;
   payloadSnippet?: Record<string, unknown>;
@@ -57,6 +57,7 @@ export interface WorkflowInputPayload {
   skipClaimRepair?: boolean;
   knowledgeRetrievalService?: KnowledgeRetrievalService;
   forceDegradedKnowledge?: boolean;
+  onStep?: (trace: WorkflowDagStepTrace) => void;
 }
 
 export interface WorkflowDagExecutionResult {
@@ -93,6 +94,25 @@ export class ListingWorkflowDagService {
     const startTime = Date.now();
     const traces: WorkflowDagStepTrace[] = [];
 
+    const notifyStep = (trace: WorkflowDagStepTrace) => {
+      try {
+        input.onStep?.(trace);
+      } catch {
+        // Listener failures must not abort WF-02.
+      }
+    };
+
+    const beginStep = (stepNum: number, stepName: string) => {
+      notifyStep({
+        stepNumber: stepNum,
+        stepName,
+        status: 'RUNNING',
+        latencyMs: 0,
+        summary: '进行中',
+      });
+      return Date.now();
+    };
+
     const recordStep = (
       stepNum: number,
       stepName: string,
@@ -100,18 +120,20 @@ export class ListingWorkflowDagService {
       summary: string,
       payloadSnippet?: Record<string, unknown>,
     ) => {
-      traces.push({
+      const trace: WorkflowDagStepTrace = {
         stepNumber: stepNum,
         stepName,
         status: 'COMPLETED',
         latencyMs: Date.now() - start,
         summary,
         payloadSnippet,
-      });
+      };
+      traces.push(trace);
+      notifyStep(trace);
     };
 
     // Step 1: validate_input
-    const s1 = Date.now();
+    const s1 = beginStep(1, 'validate_input');
     if (!input.skuCode || !input.productName) {
       throw new Error('WF-02 Validation Error: skuCode and productName are required');
     }
@@ -121,7 +143,7 @@ export class ListingWorkflowDagService {
     recordStep(1, 'validate_input', s1, `Input validated for SKU ${input.skuCode}, images count: ${input.images?.length || 0}`);
 
     // Step 2: load_product_facts
-    const s2 = Date.now();
+    const s2 = beginStep(2, 'load_product_facts');
     const isShoeOrganizer =
       input.productName.toLowerCase().includes('shoe') ||
       input.productName.toLowerCase().includes('boot') ||
@@ -147,7 +169,7 @@ export class ListingWorkflowDagService {
     recordStep(2, 'load_product_facts', s2, `Loaded ${features.length} features: Material=${materialFact}, Spec=${slotFact}, Weight=${weightFact}`);
 
     // Step 3: load_or_extract_visual_facts
-    const s3 = Date.now();
+    const s3 = beginStep(3, 'load_or_extract_visual_facts');
     const visualFacts: VisualFact[] = input.visualFacts || [];
     // Enforce guardrail: images can never prove internal/chemical materials or certifications without text fact
     const validVisualFacts = visualFacts.filter((vf) => {
@@ -157,7 +179,7 @@ export class ListingWorkflowDagService {
     recordStep(3, 'load_or_extract_visual_facts', s3, `Visual facts ready: ${validVisualFacts.length} items (cache hit/validated)`);
 
     // Step 4: load_voc
-    const s4 = Date.now();
+    const s4 = beginStep(4, 'load_voc');
     const vocHighlights = isShoeOrganizer
       ? [
           'Buyers complain shoe organizers collapse when stacked or used sideways -> Solved by reinforced wrap-around handles and sturdy PP board support',
@@ -178,7 +200,7 @@ export class ListingWorkflowDagService {
     recordStep(4, 'load_voc', s4, `Loaded ${vocHighlights.length} VOC pain-point & praise vectors`);
 
     // Step 5: load_keywords
-    const s5 = Date.now();
+    const s5 = beginStep(5, 'load_keywords');
     const defaultKeywords = isFileBox
       ? [
           { keyword: 'file box', normalizedKeyword: 'file box', source: 'SEARCH_TERM', priority: 1, volume: 48500 },
@@ -196,7 +218,7 @@ export class ListingWorkflowDagService {
     recordStep(5, 'load_keywords', s5, `Loaded ${rawKeywords.length} normalized target keywords`);
 
     // Step 6: load_rufus_qa
-    const s6 = Date.now();
+    const s6 = beginStep(6, 'load_rufus_qa');
     const defaultRufusQa = isFileBox
       ? [
           {
@@ -230,13 +252,13 @@ export class ListingWorkflowDagService {
     recordStep(6, 'load_rufus_qa', s6, `Loaded ${rufusQa.length} Rufus Q&A intent context items`);
 
     // Step 7: load_marketplace_profile
-    const s7 = Date.now();
+    const s7 = beginStep(7, 'load_marketplace_profile');
     const marketplaceCode = input.marketplace || 'AMAZON_US';
     const profile: MarketplacePolicyProfile = getMarketplacePolicyProfile(marketplaceCode);
     recordStep(7, 'load_marketplace_profile', s7, `Profile loaded for ${profile.marketplace} (${profile.locale}), Title max: ${profile.title.maxLength} chars`);
 
     // Step 8: retrieve_listing_knowledge (Real Milvus 3-Layer RAG Architecture)
-    const s8 = Date.now();
+    const s8 = beginStep(8, 'retrieve_listing_knowledge');
     const retrievalService: KnowledgeRetrievalService =
       input.knowledgeRetrievalService || new KnowledgeRetrievalService();
 
@@ -276,7 +298,7 @@ export class ListingWorkflowDagService {
     );
 
     // Step 9: generate_listing (Upgraded to PlatformLlmRuntime with structured output)
-    const s9 = Date.now();
+    const s9 = beginStep(9, 'generate_listing');
     const runtime = input.llmRuntime || PlatformLlmRuntime.getInstance();
 
     let generationMode: 'AI' | 'TEMPLATE_FALLBACK' | 'LEGACY_TEMPLATE' = 'AI';
@@ -550,7 +572,7 @@ export class ListingWorkflowDagService {
     }
 
     // Step 10: structured_output_validation
-    const s10 = Date.now();
+    const s10 = beginStep(10, 'structured_output_validation');
     const limited = enforceMarketplaceListingLimits(
       { title, bulletPoints, description, searchTerms },
       profile,
@@ -570,7 +592,7 @@ export class ListingWorkflowDagService {
     recordStep(10, 'structured_output_validation', s10, `Zod/Contract validation passed: Title (${title.length} chars <= ${profile.title.maxLength})`);
 
     // Step 11: claim_level_entailment_grounding (Epic 1.1 + Epic 1.2 Surface Coverage)
-    const s11 = Date.now();
+    const s11 = beginStep(11, 'product_fact_grounding');
 
     // 11.1 Declared claims evaluation
     const rawClaimsToEvaluate =
@@ -666,7 +688,7 @@ export class ListingWorkflowDagService {
     );
 
     // Step 12: keyword_coverage_check
-    const s12 = Date.now();
+    const s12 = beginStep(12, 'keyword_coverage_check');
     const fullText = `${title} ${bulletPoints.join(' ')} ${searchTerms}`.toLowerCase();
     const usedKeywords: string[] = [];
     const unusedHighPriority: string[] = [];
@@ -686,7 +708,7 @@ export class ListingWorkflowDagService {
     recordStep(12, 'keyword_coverage_check', s12, `Keyword Coverage: ${(kwCoverageRate * 100).toFixed(1)}% (${usedKeywords.length}/${rawKeywords.length}), Unused High-Priority: ${unusedHighPriority.length}`);
 
     // Step 13: compliance
-    const s13 = Date.now();
+    const s13 = beginStep(13, 'compliance');
     const complianceResult = ComplianceJudgeService.evaluateListing({
       title,
       bulletPoints,
@@ -695,7 +717,7 @@ export class ListingWorkflowDagService {
     recordStep(13, 'compliance', s13, `Amazon Policy Judge: ${complianceResult.status} (Violations: ${complianceResult.violations.length}, Passed: ${complianceResult.passedRulesCount}/${complianceResult.totalRulesEvaluated})`);
 
     // Step 14: human_review & persist_version
-    const s14 = Date.now();
+    const s14 = beginStep(14, 'human_review');
 
     const defaultRufusCoverage = rufusQa.map((q) => ({
       questionId: q.id,
