@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ModelRouter } from '@crosspilot/shared';
 import {
   ScenarioGeneratorService,
   CORE_BUSINESS_EVENTS,
@@ -394,7 +395,7 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
         productId: product.id,
         status: 'COMPLETED',
         reviewCount: 180,
-        modelName: 'gpt-4o',
+        modelName: ModelRouter.llmRouter.heavyReasoning,
         promptVersion: 'v2.1',
       },
     });
@@ -536,7 +537,7 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
         riskLevel: 'LOW',
         ruleHitsJson: JSON.stringify([]),
         evidenceSummary: '符合 Amazon 商品详情页规范与 FTC 石材披露要求。',
-        modelName: 'gpt-4o',
+        modelName: ModelRouter.llmRouter.heavyReasoning,
       },
     });
 

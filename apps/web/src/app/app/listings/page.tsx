@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { ModelRouter } from '@crosspilot/shared';
 import { ApiClient } from '../../../lib/api-client';
 import { getStatusLabel, getSeverityLabel } from '../../../constants/ui-labels';
 import { useBusinessContext } from '../../../components/business-context-provider';
@@ -392,9 +393,12 @@ export default function ListingStudioPage() {
               className="bg-transparent font-semibold text-foreground focus:outline-none cursor-pointer"
             >
               <option value="AUTO" className="bg-surface text-foreground">AUTO (智能路由 - 推荐)</option>
-              <option value="Claude-3.5-Sonnet" className="bg-surface text-foreground">Claude 3.5 Sonnet</option>
-              <option value="GPT-4o" className="bg-surface text-foreground">GPT-4o (Vision)</option>
-              <option value="Gemini-1.5-Pro" className="bg-surface text-foreground">Gemini 1.5 Pro</option>
+              <option value={ModelRouter.llmRouter.heavyReasoning} className="bg-surface text-foreground">
+                {ModelRouter.llmRouter.heavyReasoning} (深度推理)
+              </option>
+              <option value={ModelRouter.llmRouter.fastTask} className="bg-surface text-foreground">
+                {ModelRouter.llmRouter.fastTask} (快速任务)
+              </option>
             </select>
           </div>
 
@@ -605,7 +609,7 @@ export default function ListingStudioPage() {
                   <span className="text-border">|</span>
                   <span className="text-muted-foreground font-semibold">模型:</span>
                   <span className="font-mono text-[11px] text-foreground bg-surface px-1.5 py-0.5 rounded border border-border">
-                    {activeVersion.modelUsed || activeVersion.complianceCheck?.modelName || 'deepseek-chat'}
+                    {activeVersion.modelUsed || activeVersion.complianceCheck?.modelName || ModelRouter.llmRouter.heavyReasoning}
                   </span>
 
                   <span className="text-border">|</span>

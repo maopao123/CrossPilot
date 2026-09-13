@@ -4,6 +4,7 @@ import { RedisService, MilvusVectorStore } from '@crosspilot/integrations';
 import {
   HealthCheckResponse,
   AiHealthResponse,
+  ModelRouter,
   ServiceHealthItem,
   ServiceHealthStatus,
 } from '@crosspilot/shared';
@@ -63,8 +64,8 @@ export class HealthService {
   }
 
   async checkAi(): Promise<AiHealthResponse> {
-    const provider = process.env.LLM_PROVIDER || 'openai';
-    const model = process.env.LLM_MODEL || 'gpt-4o-mini';
+    const provider = process.env.LLM_PROVIDER || 'aliyun-dashscope';
+    const model = process.env.LLM_MODEL || ModelRouter.llmRouter.heavyReasoning;
     const hasKey = Boolean(process.env.LLM_API_KEY && process.env.LLM_API_KEY !== 'mock-key-for-development');
 
     return {

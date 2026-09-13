@@ -1,13 +1,56 @@
+import { DashScopeImageProvider } from '@crosspilot/ai';
+import { ModelRouter } from '@crosspilot/shared';
 import { ToolDefinition } from '../contracts/tool.types.js';
+
+/**
+ * 真实图像生成走 DashScope native 异步任务（qwen-image-3.0-pro）。
+ * 单测通过 setCreativeImageProvider() 注入 stub，避免真实网络调用。
+ */
+let imageProvider = new DashScopeImageProvider();
+
+export function setCreativeImageProvider(
+  provider: Pick<DashScopeImageProvider, 'generateImage' | 'editImage'>,
+): void {
+  imageProvider = provider as DashScopeImageProvider;
+}
+
+const STYLE_PROMPT_SUFFIX: Record<string, string> = {
+  studio_white:
+    'pure RGB(255,255,255) seamless background, professional amazon main image product photography, soft studio lighting, high resolution',
+  luxury_minimalist:
+    'luxury minimalist nordic style, clean composition, warm neutral tones, editorial product photography',
+  home_lifestyle:
+    'real home bathroom vanity scene, natural window light, lifestyle product photography, shallow depth of field',
+};
+
+const SCENE_PROMPT: Record<string, string> = {
+  modern_bathroom: 'high-end modern bathroom vanity with marble countertop',
+  morning_sunlight: 'bright bathroom countertop with soft morning sunlight and gentle mist',
+  luxury_hotel: 'luxury hotel suite marble dressing area',
+};
+
+const LIGHTING_PROMPT: Record<string, string> = {
+  soft_natural: 'soft natural side light',
+  warm_ambient: 'warm ambient spotlight',
+};
+
+const BACKGROUND_REPLACE_PROMPT: Record<string, string> = {
+  pure_white_rgb255:
+    'Remove the original background and place the product on a seamless pure white RGB(255,255,255) background, keep the product unchanged, add a subtle natural shadow, amazon main image compliant',
+  carrara_marble:
+    'Remove the original background and place the product on a natural Carrara marble texture countertop, keep the product unchanged, add a realistic soft shadow and reflection',
+  nordic_oak:
+    'Remove the original background and place the product on a light nordic oak wood surface, keep the product unchanged, add a realistic soft shadow',
+};
 
 export const CreativeImageGenerateTool: ToolDefinition = {
   id: 'creative.image.generate',
   name: '电商高转化商品图生成器',
   description: '基于商品卖点、场景提示词与风格预设，生成高分辨率亚马逊主图与附图素材。',
   category: 'CREATIVE',
-  version: '1.0.0',
+  version: '2.0.0',
   tags: ['creative', 'ai-image', 'amazon', 'rendering'],
-  timeoutMs: 15000,
+  timeoutMs: 300000,
   costEstimate: { amount: 0.04, unit: 'USD' },
   inputSchema: {
     type: 'object',
@@ -44,17 +87,20 @@ export const CreativeImageGenerateTool: ToolDefinition = {
     },
     required: ['prompt'],
   },
-  execute: (input) => {
-    const seed = Math.floor(Math.random() * 1000000);
-    const dimensions = input.aspectRatio === '16:9' ? { width: 1920, height: 1080 } : { width: 2000, height: 2000 };
+  execute: async (input) => {
+    const style = input.style || 'studio_white';
+    const fullPrompt = `${input.prompt}, ${STYLE_PROMPT_SUFFIX[style] || STYLE_PROMPT_SUFFIX.studio_white}`;
+    const result = await imageProvider.generateImage(fullPrompt, { timeoutMs: 290000 });
+    const dimensions =
+      input.aspectRatio === '16:9' ? { width: 1920, height: 1080 } : { width: 2000, height: 2000 };
     return {
-      imageUrl: `https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&auto=format&fit=crop&q=80&sig=${seed}`,
-      style: input.style || 'studio_white',
+      imageUrl: result.imageUrl,
+      style,
       aspectRatio: input.aspectRatio || '1:1',
       dimensions,
-      seed,
-      model: 'Flux-Dev-eCommerce-v2',
-      promptUsed: input.prompt,
+      model: result.model,
+      taskId: result.taskId,
+      promptUsed: fullPrompt,
       generatedAt: new Date().toISOString(),
     };
   },
@@ -65,9 +111,9 @@ export const CreativeImageLifestyleTool: ToolDefinition = {
   name: '白底转真实生活家居场景图生成器',
   description: '将商品主体无缝融合进高端卫浴洗手台、大理石台面及自然光照家居场景，增强买家代入感与转化率。',
   category: 'CREATIVE',
-  version: '1.0.0',
+  version: '2.0.0',
   tags: ['creative', 'lifestyle', 'in-situ', 'composite'],
-  timeoutMs: 15000,
+  timeoutMs: 300000,
   costEstimate: { amount: 0.05, unit: 'USD' },
   inputSchema: {
     type: 'object',
@@ -103,12 +149,21 @@ export const CreativeImageLifestyleTool: ToolDefinition = {
     },
     required: ['productName'],
   },
-  execute: (input) => {
+  execute: async (input) => {
+    const sceneType = input.sceneType || 'modern_bathroom';
+    const lighting = input.lighting || 'soft_natural';
+    const fullPrompt =
+      `${input.productName}, placed in a ${SCENE_PROMPT[sceneType] || SCENE_PROMPT.modern_bathroom}, ` +
+      `${LIGHTING_PROMPT[lighting] || LIGHTING_PROMPT.soft_natural}, rule of thirds composition, ` +
+      'product in foreground, subtle bokeh background, photorealistic lifestyle product photography';
+    const result = await imageProvider.generateImage(fullPrompt, { timeoutMs: 290000 });
     return {
-      lifestyleImageUrl: `https://images.unsplash.com/photo-1620626011761-996317b8d101?w=1200&auto=format&fit=crop&q=80`,
-      sceneType: input.sceneType || 'modern_bathroom',
-      lighting: input.lighting || 'soft_natural',
+      lifestyleImageUrl: result.imageUrl,
+      sceneType,
+      lighting,
       composition: 'Rule of thirds, product in foreground right, subtle bokeh background',
+      model: result.model,
+      taskId: result.taskId,
       renderedAt: new Date().toISOString(),
     };
   },
@@ -119,9 +174,9 @@ export const CreativeBackgroundReplaceTool: ToolDefinition = {
   name: '智能去背与背景替换工具',
   description: '一键剥离拍摄杂乱背景，并自动补充自然投影与倒影，可替换为纯白、大理石台面或轻木纹纹理。',
   category: 'CREATIVE',
-  version: '1.0.0',
+  version: '2.0.0',
   tags: ['creative', 'remove-bg', 'background', 'photo-editing'],
-  timeoutMs: 10000,
+  timeoutMs: 300000,
   costEstimate: { amount: 0.02, unit: 'USD' },
   inputSchema: {
     type: 'object',
@@ -147,12 +202,19 @@ export const CreativeBackgroundReplaceTool: ToolDefinition = {
     },
     required: ['sourceImageUrl'],
   },
-  execute: (input) => {
+  execute: async (input) => {
+    const targetBackground = input.targetBackground || 'pure_white_rgb255';
+    const result = await imageProvider.editImage(
+      input.sourceImageUrl,
+      BACKGROUND_REPLACE_PROMPT[targetBackground] || BACKGROUND_REPLACE_PROMPT.pure_white_rgb255,
+      { timeoutMs: 290000 },
+    );
     return {
-      processedImageUrl: input.sourceImageUrl,
-      backgroundApplied: input.targetBackground || 'pure_white_rgb255',
-      subjectBoundingBox: { x: 100, y: 120, width: 1780, height: 1760 },
-      amazonMainImageCompliant: input.targetBackground === 'pure_white_rgb255',
+      processedImageUrl: result.imageUrl,
+      backgroundApplied: targetBackground,
+      amazonMainImageCompliant: targetBackground === 'pure_white_rgb255',
+      model: result.model,
+      taskId: result.taskId,
       processedAt: new Date().toISOString(),
     };
   },
@@ -278,6 +340,9 @@ export const CreativeVideoGenerateTool: ToolDefinition = {
         { timestamp: '00:04-00:09', scene: 'Close up on 1.5" slot sliding Oral-B electric toothbrush smoothly' },
         { timestamp: '00:09-00:15', scene: 'Full modern vanity display with non-slip base stability test' },
       ],
+      // 透明标注：视频模型已在 ModelRouter 配置但未接入（分钟级异步任务需改造异步架构），当前返回演示素材
+      mock: true,
+      model: ModelRouter.videoRouter.textToVideo,
       generatedAt: new Date().toISOString(),
     };
   },

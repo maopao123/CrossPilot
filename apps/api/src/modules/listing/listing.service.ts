@@ -14,7 +14,7 @@ import {
   KeywordFileExtractTool,
   KeywordNormalizeTool,
 } from '@crosspilot/tool-platform';
-import { ErrorCodes } from '@crosspilot/shared';
+import { ErrorCodes, ModelRouter } from '@crosspilot/shared';
 
 export interface GenerateListingOptions {
   customDirectives?: string;
@@ -101,7 +101,7 @@ export class ListingService {
             ? 'LEGACY_TEMPLATE'
             : 'TEMPLATE_FALLBACK'
           : 'AI',
-        modelUsed: v.complianceChecks[0]?.modelName || 'deepseek-chat',
+        modelUsed: v.complianceChecks[0]?.modelName || ModelRouter.llmRouter.heavyReasoning,
         promptVersion: v.complianceChecks[0]?.promptVersion || 'listing.generate.v1',
         createdAt: v.createdAt,
         complianceCheck: v.complianceChecks[0]

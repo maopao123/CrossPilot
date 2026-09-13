@@ -1,4 +1,5 @@
 import { SecretProvider } from '@crosspilot/integrations';
+import { ModelRouter, ALIYUN_COMPAT_BASE_URL } from '@crosspilot/shared';
 import {
   LlmError,
   LlmProvider,
@@ -24,8 +25,33 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     return (
       this.config.apiKey ||
       SecretProvider.getSecret('LLM_API_KEY') ||
+      SecretProvider.getSecret('DASHSCOPE_API_KEY') ||
+      // 同厂商单 Key 场景：Embedding Key 与 LLM Key 相同，作为兜底
+      SecretProvider.getSecret('EMBEDDING_API_KEY') ||
       SecretProvider.getSecret('DEEPSEEK_API_KEY') ||
       SecretProvider.getSecret('OPENAI_API_KEY')
+    );
+  }
+
+  /**
+   * 是否为「纯 DeepSeek」环境：存在 DeepSeek Key 且没有任何 Aliyun/LLM 通用 Key。
+   * 混合遗留环境（.env 同时有 DEEPSEEK_BASE_URL 与 DashScope Key）必须以 Key 的厂商为准，
+   * 否则会出现「DashScope Key 发到 api.deepseek.com」的 401。
+   */
+  private isDeepSeekOnlyEnv(): boolean {
+    return Boolean(
+      SecretProvider.getSecret('DEEPSEEK_API_KEY') &&
+        !SecretProvider.getSecret('LLM_API_KEY') &&
+        !SecretProvider.getSecret('DASHSCOPE_API_KEY') &&
+        !SecretProvider.getSecret('EMBEDDING_API_KEY'),
+    );
+  }
+
+  private hasAliyunKey(): boolean {
+    return Boolean(
+      SecretProvider.getSecret('LLM_API_KEY') ||
+        SecretProvider.getSecret('DASHSCOPE_API_KEY') ||
+        SecretProvider.getSecret('EMBEDDING_API_KEY'),
     );
   }
 
@@ -33,10 +59,19 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     const customUrl =
       this.config.baseUrl ||
       SecretProvider.getSecret('LLM_BASE_URL') ||
-      SecretProvider.getSecret('DEEPSEEK_BASE_URL');
+      SecretProvider.getSecret('DASHSCOPE_BASE_URL');
     if (customUrl) return customUrl.replace(/\/+$/, '');
 
-    // Default inference based on available key
+    // DeepSeek 专属配置仅在 DeepSeek Key 实际生效时采用
+    if (this.isDeepSeekOnlyEnv()) {
+      return (
+        SecretProvider.getSecret('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com'
+      ).replace(/\/+$/, '');
+    }
+
+    if (this.hasAliyunKey()) {
+      return ALIYUN_COMPAT_BASE_URL;
+    }
     if (SecretProvider.getSecret('DEEPSEEK_API_KEY')) {
       return 'https://api.deepseek.com';
     }
@@ -44,19 +79,23 @@ export class OpenAiCompatibleProvider implements LlmProvider {
   }
 
   private resolveModel(requestedModel?: string): string {
-    if (requestedModel && requestedModel.trim()) return requestedModel.trim();
+    const requested = requestedModel?.trim();
+    // 'AUTO' 是前端路由占位值（见 apps/web listings 页模型选择器），视为未指定
+    if (requested && requested !== 'AUTO') return requested;
     if (this.config.defaultModel) return this.config.defaultModel;
 
-    const envModel =
-      SecretProvider.getSecret('LLM_MODEL') ||
-      SecretProvider.getSecret('DEEPSEEK_MODEL');
-    if (envModel) return envModel;
+    const llmModel = SecretProvider.getSecret('LLM_MODEL');
+    if (llmModel) return llmModel;
 
-    // Default to deepseek-chat if deepseek is configured, otherwise gpt-4o-mini
-    if (this.resolveBaseUrl().includes('deepseek')) {
+    // DeepSeek 专属模型配置仅在 DeepSeek Key 实际生效时采用
+    if (this.isDeepSeekOnlyEnv()) {
+      const deepseekModel = SecretProvider.getSecret('DEEPSEEK_MODEL');
+      if (deepseekModel) return deepseekModel;
       return 'deepseek-chat';
     }
-    return 'gpt-4o-mini';
+
+    // Fallback to unified model router (qwen3.8-max)
+    return ModelRouter.llmRouter.heavyReasoning;
   }
 
   async generateText<TOutput = any>(
@@ -69,7 +108,8 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     if (!apiKey) {
       throw {
         code: 'LLM_AUTH_ERROR',
-        message: 'No LLM API key configured. Provide LLM_API_KEY, DEEPSEEK_API_KEY, or OPENAI_API_KEY.',
+        message:
+          'No LLM API key configured. Provide LLM_API_KEY, DASHSCOPE_API_KEY, EMBEDDING_API_KEY, DEEPSEEK_API_KEY, or OPENAI_API_KEY.',
         retryable: false,
       } as LlmError;
     }

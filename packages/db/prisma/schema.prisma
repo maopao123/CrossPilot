@@ -410,7 +410,7 @@ model VocAnalysisRun {
   productId     String     @map("product_id")
   status        String     @default("COMPLETED")
   reviewCount   Int        @map("review_count")
-  modelName     String     @default("gpt-4o") @map("model_name")
+  modelName     String     @default("qwen3.8-max") @map("model_name")
   promptVersion String     @default("v1.0") @map("prompt_version")
   startedAt     DateTime   @default(now()) @map("started_at")
   completedAt   DateTime?  @map("completed_at")
@@ -653,7 +653,7 @@ model ListingComplianceCheck {
   ruleHitsJson      String                      @map("rule_hits_json") @db.Text
   evidenceSummary   String                      @map("evidence_summary") @db.Text
   suggestedRevision String?                     @map("suggested_revision") @db.Text
-  modelName         String                      @default("gpt-4o") @map("model_name")
+  modelName         String                      @default("qwen3.8-max") @map("model_name")
   promptVersion     String                      @default("v1.0") @map("prompt_version")
   createdAt         DateTime                    @default(now()) @map("created_at")
 

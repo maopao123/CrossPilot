@@ -356,6 +356,9 @@ importers:
 
   packages/tool-platform:
     dependencies:
+      '@crosspilot/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@crosspilot/domain':
         specifier: workspace:*
         version: link:../domain

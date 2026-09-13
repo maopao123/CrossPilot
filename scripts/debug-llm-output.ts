@@ -1,12 +1,16 @@
 import { OpenAiCompatibleProvider, ListingPromptBuilder, ListingOutputStructuredSchema } from '../packages/ai/src/index.js';
 import { SecretProvider } from '../packages/integrations/src/index.js';
+import { ModelRouter, ALIYUN_COMPAT_BASE_URL } from '../packages/shared/src/index.js';
 
 async function test() {
-  const apiKey = SecretProvider.getSecret('DEEPSEEK_API_KEY');
+  const apiKey =
+    SecretProvider.getSecret('LLM_API_KEY') ||
+    SecretProvider.getSecret('DASHSCOPE_API_KEY') ||
+    SecretProvider.getSecret('EMBEDDING_API_KEY');
   const provider = new OpenAiCompatibleProvider({
     apiKey,
-    baseUrl: 'https://api.deepseek.com',
-    defaultModel: 'deepseek-chat',
+    baseUrl: ALIYUN_COMPAT_BASE_URL,
+    defaultModel: ModelRouter.llmRouter.heavyReasoning,
   });
 
   const prompt = ListingPromptBuilder.buildPrompt({
@@ -47,14 +51,14 @@ async function test() {
     },
   });
 
-  console.log('Sending request to DeepSeek...');
+  console.log(`Sending request to DashScope (${ModelRouter.llmRouter.heavyReasoning})...`);
   const res = await provider.generateText({
     systemPrompt: prompt.systemPrompt,
     userPrompt: prompt.userPrompt,
     outputSchema: ListingOutputStructuredSchema,
   }, { traceId: 'debug-trace-1' });
 
-  console.log('Raw output received from DeepSeek:');
+  console.log('Raw output received from DashScope:');
   console.log(res.rawText);
 
   const parsed = ListingOutputStructuredSchema.safeParse(res.output);

@@ -3,13 +3,30 @@ import {
   ToolExecutor,
   ToolRegistry,
   FinanceProfitCalculateTool,
+  setCreativeImageProvider,
 } from '../src/index.js';
+
+const stubImageBackend = {
+  generateImage: async () => ({
+    imageUrl: 'https://stub.example.com/generated.png',
+    taskId: 'task_stub',
+    model: 'stub-image-model',
+    finishedAt: new Date().toISOString(),
+  }),
+  editImage: async () => ({
+    imageUrl: 'https://stub.example.com/edited.png',
+    taskId: 'task_stub_edit',
+    model: 'stub-image-model',
+    finishedAt: new Date().toISOString(),
+  }),
+};
 
 describe('ToolPlatform Core Unit Tests', () => {
   let registry: ToolRegistry;
   let executor: ToolExecutor;
 
   beforeEach(() => {
+    setCreativeImageProvider(stubImageBackend);
     registry = createDefaultToolRegistry();
     executor = new ToolExecutor(registry);
   });

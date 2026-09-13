@@ -1,8 +1,8 @@
 /**
- * Live E2E Verification Script: Real DeepSeek LLM Runtime + Listing Generation
+ * Live E2E Verification Script: Real Aliyun DashScope LLM Runtime + Listing Generation
  *
  * Runs the 14-step WF-02 Listing Generation DAG with:
- * 1. Real OpenAI-Compatible Provider connected to DeepSeek Chat (api.deepseek.com)
+ * 1. Real OpenAI-Compatible Provider connected to DashScope (compatible-mode, qwen3.8-max)
  * 2. Real ListingPromptBuilder (listing.generate.v1)
  * 3. Zod Schema Validation & Structured Output
  * 4. Factual Grounding Evaluation against verified Product Facts
@@ -12,33 +12,37 @@
 import { ListingWorkflowDagService } from '../packages/domain/src/listing/listing-workflow-dag.service.js';
 import { PlatformLlmRuntime, OpenAiCompatibleProvider } from '../packages/ai/src/index.js';
 import { SecretProvider } from '../packages/integrations/src/index.js';
+import { ModelRouter, ALIYUN_COMPAT_BASE_URL } from '../packages/shared/src/index.js';
 
 async function main() {
   console.log('================================================================');
   console.log('CrossPilot V9 Epic 1: Live LLM Listing Generation Verification');
   console.log('================================================================\n');
 
-  // Verify API Key
-  const apiKey = SecretProvider.getSecret('DEEPSEEK_API_KEY');
+  // Verify API Key (Aliyun DashScope: LLM_API_KEY / DASHSCOPE_API_KEY / EMBEDDING_API_KEY 同厂商共用)
+  const apiKey =
+    SecretProvider.getSecret('LLM_API_KEY') ||
+    SecretProvider.getSecret('DASHSCOPE_API_KEY') ||
+    SecretProvider.getSecret('EMBEDDING_API_KEY');
   if (!apiKey) {
-    console.error('❌ DEEPSEEK_API_KEY not found in environment or .env');
+    console.error('❌ No DashScope key found. Set LLM_API_KEY / DASHSCOPE_API_KEY / EMBEDDING_API_KEY in .env');
     process.exit(1);
   }
-  console.log(`✅ Loaded DEEPSEEK_API_KEY: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`);
+  console.log(`✅ Loaded DashScope API key: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`);
 
-  // Initialize Real Runtime with DeepSeek
-  const deepseekProvider = new OpenAiCompatibleProvider({
+  // Initialize Real Runtime with Aliyun DashScope (qwen3.8-max)
+  const dashscopeProvider = new OpenAiCompatibleProvider({
     apiKey,
-    baseUrl: 'https://api.deepseek.com',
-    defaultModel: 'deepseek-chat',
+    baseUrl: ALIYUN_COMPAT_BASE_URL,
+    defaultModel: ModelRouter.llmRouter.heavyReasoning,
     timeoutMs: 45000,
   });
 
   const runtime = new PlatformLlmRuntime({
-    provider: deepseekProvider,
+    provider: dashscopeProvider,
   });
 
-  console.log('✅ Initialized PlatformLlmRuntime with OpenAiCompatibleProvider (deepseek-chat)');
+  console.log(`✅ Initialized PlatformLlmRuntime with OpenAiCompatibleProvider (${ModelRouter.llmRouter.heavyReasoning})`);
 
   // Execute 14-Step DAG with Real Verified Product Facts for B0BFGNSXYL
   console.log('\n--- Executing 14-Step Workflow DAG with Real LLM ---');

@@ -12,6 +12,7 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
+    "@crosspilot/ai": "workspace:*",
     "@crosspilot/domain": "workspace:*",
     "@crosspilot/integrations": "workspace:*",
     "@crosspilot/shared": "workspace:*"

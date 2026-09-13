@@ -1,8 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { setCreativeImageProvider } from '@crosspilot/tool-platform';
 import { PrismaService } from '../src/modules/prisma/prisma.service.js';
 import { ToolCenterService } from '../src/modules/tool-center/tool-center.service.js';
 import { CreativeService } from '../src/modules/creative/creative.service.js';
 import { OperationAutomationService } from '../src/modules/operation-automation/operation-automation.service.js';
+
+const stubImageBackend = {
+  generateImage: async () => ({
+    imageUrl: 'https://stub.example.com/generated.png',
+    taskId: 'task_stub',
+    model: 'stub-image-model',
+    finishedAt: new Date().toISOString(),
+  }),
+  editImage: async () => ({
+    imageUrl: 'https://stub.example.com/edited.png',
+    taskId: 'task_stub_edit',
+    model: 'stub-image-model',
+    finishedAt: new Date().toISOString(),
+  }),
+};
 
 describe('V9 Incremental Upgrade Integration Tests', () => {
   let toolCenterService: ToolCenterService;
@@ -11,6 +27,7 @@ describe('V9 Incremental Upgrade Integration Tests', () => {
   let prisma: any;
 
   beforeEach(async () => {
+    setCreativeImageProvider(stubImageBackend);
     prisma = {
       sku: {
         findFirst: jest.fn().mockResolvedValue({

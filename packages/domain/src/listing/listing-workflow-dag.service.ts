@@ -24,7 +24,7 @@ import { ClaimGroundingService } from './claim-grounding.service.js';
 import { ClaimRepairService } from './claim-repair.service.js';
 import { SurfaceClaimExtractorService } from './surface-claim-extractor.service.js';
 import { KnowledgeRetrievalService } from '../knowledge/knowledge-retrieval.service.js';
-import { KnowledgeRetrievalResult } from '@crosspilot/shared';
+import { KnowledgeRetrievalResult, ModelRouter } from '@crosspilot/shared';
 
 export interface WorkflowDagStepTrace {
   stepNumber: number;
@@ -227,7 +227,7 @@ export class ListingWorkflowDagService {
 
     let generationMode: 'AI' | 'TEMPLATE_FALLBACK' | 'LEGACY_TEMPLATE' = 'AI';
     let generationSource = 'AI';
-    let modelUsed = input.modelName || 'AUTO (Router: deepseek-chat / gpt-4o)';
+    let modelUsed = input.modelName || `AUTO (Router: ${ModelRouter.llmRouter.heavyReasoning})`;
     let promptVersion: string = LISTING_GENERATE_PROMPT_VERSION;
     let llmUsage: any = undefined;
     let llmTrace: any = undefined;
