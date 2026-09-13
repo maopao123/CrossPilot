@@ -82,16 +82,15 @@ export class ListingController {
 
     const writeEvent = (event: string, data: unknown) => {
       if (req.destroyed || res.writableEnded) return;
-      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      // Pad past Node's 16KB socket highWaterMark so each frame is flushed
+      // immediately instead of sitting until generateListing() ends.
+      const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n:${' '.repeat(16384)}\n\n`;
+      res.write(frame);
       if (typeof (res as any).flush === 'function') {
         (res as any).flush();
       }
     };
 
-    // Comment + padding forces the first TCP packet out; otherwise Node holds
-    // tiny SSE frames until the 90s LLM step finishes.
-    res.write(':\n\n');
-    res.write(`:${' '.repeat(4096)}\n\n`);
     writeEvent('hello', { ok: true, totalSteps: 14 });
 
     try {

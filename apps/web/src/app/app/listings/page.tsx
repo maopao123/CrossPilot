@@ -782,6 +782,21 @@ Want tips on stacking or arranging multiple units?`);
       };
 
       await streamListingGenerate(payload, {
+        onHello: () => {
+          setStepTraces((prev) =>
+            prev.length > 0
+              ? prev
+              : [
+                  {
+                    stepNumber: 0,
+                    stepName: 'stream_connected',
+                    status: 'RUNNING',
+                    latencyMs: 0,
+                    summary: '已连接，正在逐步输出 DAG',
+                  },
+                ],
+          );
+        },
         onStep: (step) => {
           setStepTraces((prev) => {
             const next = prev.filter((item) => item.stepNumber !== step.stepNumber);
@@ -826,7 +841,23 @@ Want tips on stacking or arranging multiple units?`);
       setActionError(err?.message || '14 步 DAG 编排生成失败');
     } finally {
       setGenerating(false);
-      loadListing();
+      try {
+        const latest = await ApiClient.get<SkuListing>(`/api/v1/listings/sku/${listing.skuId}`);
+        setListing(latest);
+        if (latest.versions?.[0]) {
+          const top = latest.versions[0];
+          setActiveVersion(top);
+          if (top.title) setEditableTitle(top.title);
+          if (top.bulletPoints?.length) setEditableBullets(top.bulletPoints);
+          if (top.description) setEditableDescription(top.description);
+          if (top.searchTerms) setEditableSearchTerms(top.searchTerms);
+          if (Array.isArray(top.stepTraces) && top.stepTraces.length > 0) {
+            setStepTraces(top.stepTraces);
+          }
+        }
+      } catch {
+        // stream payload already applied when the result event arrived
+      }
     }
   };
 

@@ -20,6 +20,7 @@ export function unwrapListingGeneratePayload(parsed: any): any {
 export async function streamListingGenerate(
   payload: Record<string, unknown>,
   handlers: {
+    onHello?: () => void;
     onStep?: (step: ListingGenerateStepEvent) => void;
     onResult?: (result: any) => void;
     onError?: (err: { message: string; code?: string }) => void;
@@ -72,7 +73,11 @@ export async function streamListingGenerate(
     } catch {
       // keep raw
     }
-    if (eventName === 'hello' || eventName === 'ping') {
+    if (eventName === 'hello') {
+      handlers.onHello?.();
+      return;
+    }
+    if (eventName === 'ping') {
       return;
     }
     if (eventName === 'step') {
