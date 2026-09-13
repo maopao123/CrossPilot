@@ -58,10 +58,14 @@ Epic 3 Amazon read Adapter
 SHIPPED  6c4d169
 docs/00_governance/V10_EPIC3_AMAZON_READ_ADAPTER_REPORT.md
 
+Tool Platform 28 Tools Audit & Hardening
+SHIPPED  1e97585
+28/28 Tools Production Verified 100% PASS
+
 Live:
-http://116.198.230.217:2222
+http://116.198.230.217:2222  (HEAD: 1e97585)
 health 200  postgres/redis/milvus up
-/health/ai degraded（无 LLM key）
+/api/v1/health/ai UP (qwen3.8-max + qwen-image-3.0-pro + MinIO)
 ```
 
 **下一任：** Epic 3 已完成。用户说「做 Epic 4 / Shopify」→ 按 `V10_NEXT_AGENT_HANDOFF.md` 做 Shopify read Adapter；在那之前**不要主动开 Epic 4**。
