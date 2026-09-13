@@ -16,6 +16,11 @@ import {
   KeywordNormalizeTool,
 } from '@crosspilot/tool-platform';
 import { ErrorCodes, ModelRouter } from '@crosspilot/shared';
+import {
+  heuristicExtractProductSpecs,
+  parseJsonObject,
+  parseProductSpecsFromLlm,
+} from './product-specs-extractor.js';
 
 export interface GenerateListingOptions {
   customDirectives?: string;
@@ -248,6 +253,88 @@ export class ListingService {
       deduplicatedCount: normalized.deduplicatedCount,
       keywords: normalized.keywords,
     };
+  }
+
+  /**
+   * Unstructured product spec extraction: LLM first, heuristic fallback.
+   * Used by Listing Tab 02 when the seller pastes a factory sheet / competitor dump.
+   */
+  async extractProductSpecs(rawContent: string) {
+    if (!rawContent || !rawContent.trim()) {
+      throw new BadRequestException({
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: 'Product specs content cannot be empty',
+      });
+    }
+
+    const trimmed = rawContent.trim();
+
+    try {
+      const runtime = PlatformLlmRuntime.getInstance();
+      const systemPrompt = `You are an expert Amazon Catalog & Product Fact Extraction Specialist.
+Your mission is to parse raw, unformatted, messy product descriptions, supplier specification sheets, or competitor listing copy into clean, structured Amazon product specifications.
+
+Extraction Instructions:
+1. "productName": A concise, professional English product baseline title (e.g. "2 Pack Under Bed Shoe Organizer for Closet with Clear Lid & Adjustable Dividers").
+2. "brand": Brand name if explicitly mentioned, or empty string.
+3. "color": Color or color variant (e.g. "Beige-yellow", "Grey"), or empty string.
+4. "material": Primary fabric and structural materials (e.g. "Fabric / Breathable Linen & Reinforced Sturdy PP Board").
+5. "dimensions": Detailed dimensions. If both unit and combined dimensions are mentioned, include both. Prefer the more specific body dimensions (e.g. 16.9" × 8.45" × 11.8") over a generic labeled line when they conflict.
+6. "weight": Net weight or weight capacity if stated.
+7. "capacity": Capacity statement (e.g. "2 Pack / Holds up to 16 pairs of shoes").
+8. "features": An array of 4 to 6 concise functional selling points. Each point MUST highlight a tangible product feature and its practical benefit.
+9. Noise Filtering: Strictly EXCLUDE customer service boilerplate, after-sales lines, or warranty fluff (e.g. "24/7 customer service", "Contact us if you have issues").
+
+Respond ONLY with valid JSON strictly adhering to this schema:
+{
+  "productName": "...",
+  "brand": "...",
+  "color": "...",
+  "material": "...",
+  "dimensions": "...",
+  "weight": "...",
+  "capacity": "...",
+  "features": [
+    "Feature 1: ...",
+    "Feature 2: ..."
+  ]
+}`;
+
+      const llmResult = await runtime.generateText(
+        {
+          model: 'qwen-plus',
+          systemPrompt,
+          userPrompt: `Here is the raw product text to extract:\n\n${trimmed}`,
+          temperature: 0.1,
+          maxTokens: 2500,
+          timeoutMs: 35000,
+          retryPolicy: { maxAttempts: 1, backoffMs: 500 },
+        },
+        { traceId: `trace-specs-extract-${Date.now()}` },
+      );
+
+      let parsed: unknown = null;
+      try {
+        parsed =
+          typeof llmResult.output === 'object' && llmResult.output !== null
+            ? llmResult.output
+            : parseJsonObject(llmResult.rawText || '');
+      } catch {
+        parsed = null;
+      }
+
+      const llmSpecs = parseProductSpecsFromLlm(parsed, llmResult.model);
+      if (llmSpecs) {
+        return llmSpecs;
+      }
+    } catch (llmErr) {
+      console.warn(
+        '[ListingService] LLM Specs extract failed or timed out, falling back to heuristic parser:',
+        (llmErr as { message?: string })?.message,
+      );
+    }
+
+    return heuristicExtractProductSpecs(trimmed);
   }
 
   /**

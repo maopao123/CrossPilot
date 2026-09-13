@@ -119,6 +119,9 @@ export default function ListingStudioPage() {
   const [activeTab, setActiveTab] = useState<'editor' | 'specs' | 'visual' | 'keywords' | 'rufus' | 'briefs' | 'dag'>('editor');
 
   // Product Information & Specifications state (第一步：信息获取核心事实)
+  const [rawSpecsInput, setRawSpecsInput] = useState('');
+  const [extractingSpecs, setExtractingSpecs] = useState(false);
+  const [specsExtractSuccessMsg, setSpecsExtractSuccessMsg] = useState<string | null>(null);
   const [productName, setProductName] = useState('2 Pack Under Bed Shoe Organizer with Clear Lid & Adjustable Dividers');
   const [productBrand, setProductBrand] = useState('HOMEFORTE');
   const [productDimensions, setProductDimensions] = useState('16.9"L × 8.45"W × 11.8"H (Each Unit)');
@@ -193,6 +196,57 @@ export default function ListingStudioPage() {
   const [rufusRawText, setRufusRawText] = useState('');
   const [extractingRufus, setExtractingRufus] = useState(false);
   const [rufusExtractSuccessMsg, setRufusExtractSuccessMsg] = useState<string | null>(null);
+
+  const handleExtractProductSpecs = async () => {
+    if (!rawSpecsInput.trim()) return;
+    try {
+      setExtractingSpecs(true);
+      setSpecsExtractSuccessMsg(null);
+      const res = await ApiClient.post<{
+        extractor?: string;
+        productName?: string;
+        brand?: string;
+        dimensions?: string;
+        material?: string;
+        weight?: string;
+        capacity?: string;
+        features?: string[];
+        featuresText?: string;
+      }>('/api/v1/listings/product-specs-extract', {
+        content: rawSpecsInput.trim(),
+      });
+      if (res) {
+        setProductName(res.productName || '');
+        setProductBrand(res.brand || '');
+        setProductDimensions(res.dimensions || '');
+        setProductMaterial(res.material || '');
+        setProductWeight(res.weight || res.capacity || '');
+        setProductFeaturesText(res.featuresText || '');
+        const featureCount = res.features?.length || 0;
+        setSpecsExtractSuccessMsg(
+          `成功调用 ${res.extractor === 'LLM' ? '大语言模型' : '智能解析器'} 抽取品名、尺寸、材质${featureCount ? `及 ${featureCount} 项核心卖点` : ''}，已自动填充下方规格表单。`,
+        );
+      }
+    } catch (err: any) {
+      console.error('产品规格提取失败:', err);
+      alert('产品规格提取失败: ' + (err?.message || '未知错误'));
+    } finally {
+      setExtractingSpecs(false);
+    }
+  };
+
+  const handleLoadUserShoeRawText = () => {
+    setRawSpecsInput(`Color：Beige-yellow
+Material：Fabric
+Product Dimensions    10"L x 12"W x 5"H
+
+2 Pack Shoe Organizer for Closet, Clear Foldable Shoe Storage Containers Adjustable Dividers Fits 16 Pairs,Shoe Storage Bins Baskets Boxes with Reinforced Handles Beige
+LARGE STORAGE CAPACITY: These collapsible shoe boxes are designed to save space. Two modular units seamlessly connect to form a large storage container, allowing shoes to be stored vertically in compact compartments. This innovative design maximizes space efficiency compared to traditional plastic boxes. Ideal for shoe collectors, large households, or seasonal storage, they keep footwear clean and dust-free. Units can be folded flat when unused for additional space savings.
+CLOSET ORGANIZERS & STORAGE: Features a transparent lid for easy content visibility and dust protection. The durable two-way zipper ensures smooth operation and full access to your items.
+DIMENSIONS & DESIGN: Each shoe rack combines two compact units (16.9"×8.45"×11.8") into a unified large organizer (16.9"×16.9"×11.8"). Sized to fit most cabinets, it includes handles on both sides for effortless transport, solving narrow-space storage challenges while enhancing organization.
+ADJUSTABLE DIVIDERS: Customize compartment sizes to accommodate various footwear types or multi-purpose storage needs. Perfect for decluttering shoes, clothing, toys, and other items.
+AFTER-SALES SUPPORT: Encounter assembly or usage issues? Our 24/7 customer service team is ready to assist you promptly.`);
+  };
 
   const handleLoadShoeOrganizerPresets = () => {
     setProductName('2 Pack Under Bed Shoe Organizer with Clear Lid & Adjustable Dividers');
@@ -1152,6 +1206,72 @@ Want tips on stacking or arranging multiple units?`);
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>清空规格</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-surface-elevated/70 border border-blue-500/30 rounded-xl p-4 space-y-3 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-4 h-4 text-blue-400" />
+                    <span className="text-xs font-bold text-foreground">
+                      批量智能粘贴与 AI 模型提取产品规格（无格式大段文本一键抽取）
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleLoadUserShoeRawText}
+                      className="text-[11px] text-blue-400 hover:text-blue-300 font-medium px-2.5 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition cursor-pointer"
+                    >
+                      📋 载入鞋收纳盒测试长文本
+                    </button>
+                    {rawSpecsInput && (
+                      <button
+                        onClick={() => {
+                          setRawSpecsInput('');
+                          setSpecsExtractSuccessMsg(null);
+                        }}
+                        className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 transition cursor-pointer"
+                      >
+                        清空文本
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <textarea
+                  rows={5}
+                  value={rawSpecsInput}
+                  onChange={(e) => setRawSpecsInput(e.target.value)}
+                  placeholder='支持直接粘贴工厂规格单、1688 参数或竞品详情页原文，例如 Color: Beige-yellow、Material: Fabric、16.9"×8.45"×11.8" 和大段五点描述。系统会调用大模型清洗售后套话，抽取品名、尺寸、材质与核心卖点并填入下方表单。'
+                  className="w-full bg-surface border border-border rounded-lg p-3 text-xs text-foreground font-mono focus:outline-none focus:border-blue-500 leading-relaxed"
+                />
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
+                  <div className="flex-1">
+                    {specsExtractSuccessMsg && (
+                      <p className="text-xs text-emerald-400 font-medium flex items-center space-x-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>{specsExtractSuccessMsg}</span>
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleExtractProductSpecs}
+                    disabled={extractingSpecs || !rawSpecsInput.trim()}
+                    className="flex items-center justify-center space-x-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition cursor-pointer whitespace-nowrap"
+                  >
+                    {extractingSpecs ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>正在调用模型解析规格...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>调用模型智能提取规格</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

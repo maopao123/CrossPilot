@@ -73,6 +73,11 @@ export class ListingController {
     return this.listingService.extractAndNormalizeKeywords(content, sourceType);
   }
 
+  @Post('product-specs-extract')
+  extractProductSpecs(@Body('content') content: string) {
+    return this.listingService.extractProductSpecs(content);
+  }
+
   @Post('rufus-extract')
   extractRufusQa(
     @Body('content') content: string,

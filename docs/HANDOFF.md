@@ -1,6 +1,6 @@
 # CrossPilot 交接
 
-**日期：** 2026-09-12（更新：V10 Epic 3 Amazon read Adapter 已发货）
+**日期：** 2026-09-13（更新：Listing Tab 02 无格式规格文本 LLM 抽取）
 **本文件：** 当前会话结束后的唯一项目交接入口。下一会话先读这里。
 **下一任 AI 执行说明书：** `00_governance/V10_NEXT_AGENT_HANDOFF.md`（换工具后读这份就能继续）。
 **不要把本文件当成 V9.1 Freeze 替代件。** Freeze 真相源仍是 `00_governance/V9_1_RELEASE_FREEZE.md`。
@@ -67,8 +67,14 @@ Tool Platform 28 Tools Audit & Hardening
 SHIPPED  1e97585
 28/28 Tools Production Verified 100% PASS
 
+Listing Tab 02 unstructured spec extract
+SHIPPED  (this commit)
+POST /api/v1/listings/product-specs-extract
+LLM first, heuristic fallback
+Filters after-sales boilerplate; prefers body dimensions over a conflicting labeled 10x12x5 line
+
 Live:
-http://116.198.230.217:2222  (HEAD: 1e97585)
+http://116.198.230.217:2222  (HEAD: 4a685cb at last deploy; specs-extract pending this push)
 health 200  postgres/redis/milvus up
 /api/v1/health/ai UP (qwen3.8-max + qwen-image-3.0-pro + MinIO)
 ```
