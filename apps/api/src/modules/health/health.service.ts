@@ -68,11 +68,14 @@ export class HealthService {
     const model = process.env.LLM_MODEL || ModelRouter.llmRouter.heavyReasoning;
     // 与实际 LLM Provider 的解析链保持一致（.env 经 SecretProvider 加载），
     // 避免「健康检查读 process.env，真实调用读 .env」两边结论不一致
+    const getSecret = (k: string) =>
+      typeof SecretProvider?.getSecret === 'function' ? SecretProvider.getSecret(k) : process.env[k];
     const apiKey =
-      SecretProvider.getSecret('LLM_API_KEY') ||
-      SecretProvider.getSecret('DASHSCOPE_API_KEY') ||
-      SecretProvider.getSecret('EMBEDDING_API_KEY');
+      getSecret('LLM_API_KEY') ||
+      getSecret('DASHSCOPE_API_KEY') ||
+      getSecret('EMBEDDING_API_KEY');
     const hasKey = Boolean(apiKey && apiKey !== 'mock-key-for-development');
+
 
     return {
       status: hasKey ? 'up' : 'degraded',

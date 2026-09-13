@@ -13,7 +13,14 @@ jest.mock('@crosspilot/integrations', () => ({
       message: 'Milvus is healthy',
     }),
   })),
+  SecretProvider: {
+    getSecret: jest.fn().mockReturnValue(undefined),
+  },
+  getObjectStorageService: jest.fn().mockReturnValue({
+    isEnabled: () => false,
+  }),
 }));
+
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { HealthService } from '../src/modules/health/health.service';

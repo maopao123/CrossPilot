@@ -26,6 +26,7 @@
     "test": "node test/provider-framework.test.cjs && node test/amazon-store.test.cjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1131.0",
     "@crosspilot/shared": "workspace:*",
     "@zilliz/milvus2-sdk-node": "^2.4.9",
     "ioredis": "^5.4.2"

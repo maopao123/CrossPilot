@@ -28,6 +28,7 @@ import { IntelligenceModule } from './modules/intelligence/intelligence.module.j
 import { SimulatorModule } from './modules/simulator/simulator.module.js';
 import { OperationsTodayModule } from './modules/operations-today/operations-today.module.js';
 import { ActionLayerModule } from './modules/action-layer/action-layer.module.js';
+import { StorageModule } from './modules/storage/storage.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { WorkspaceGuard } from './common/guards/workspace.guard.js';
 import { ViewerWriteGuard } from './common/guards/viewer-write.guard.js';
@@ -68,6 +69,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     SimulatorModule,
     OperationsTodayModule,
     ActionLayerModule,
+    StorageModule,
   ],
   providers: [
     {

@@ -6,4 +6,5 @@ export * from './rpa/mock-rpa.adapter.js';
 export * from './rpa/yingdao.adapter.js';
 export * from './rpa/rpa.registry.js';
 export * from './provider-framework/index.js';
+export * from './storage/object-storage.service.js';
 

@@ -1,4 +1,4 @@
-import { SecretProvider } from '@crosspilot/integrations';
+import { SecretProvider, getObjectStorageService } from '@crosspilot/integrations';
 import { ModelRouter, ALIYUN_NATIVE_BASE_URL } from '@crosspilot/shared';
 
 export interface DashScopeImageResult {
@@ -72,8 +72,17 @@ export class DashScopeImageProvider {
     prompt: string,
     options: DashScopeImageOptions = {},
   ): Promise<DashScopeImageResult> {
+    const publicBase = (
+      SecretProvider.getSecret('PUBLIC_ASSET_BASE_URL') ||
+      SecretProvider.getSecret('NEXT_PUBLIC_APP_URL') ||
+      'http://116.198.230.217:2222'
+    ).replace(/\/+$/, '');
+    const absoluteSourceUrl = sourceImageUrl.startsWith('/')
+      ? `${publicBase}${sourceImageUrl}`
+      : sourceImageUrl;
+
     const content = [
-      { type: 'image', image: sourceImageUrl },
+      { type: 'image', image: absoluteSourceUrl },
       { type: 'text', text: prompt },
     ];
     return this.runTask({ messages: [{ role: 'user', content }] }, options);
@@ -137,13 +146,30 @@ export class DashScopeImageProvider {
             `DashScope image task ${taskId} succeeded but no image in output: ${JSON.stringify(pollBody?.output).slice(0, 200)}`,
           );
         }
+
+        let finalImageUrl = imagePart.image;
+        const storage = getObjectStorageService();
+        if (storage.isEnabled()) {
+          try {
+            const objectKey = `images/${taskId}.png`;
+            const uploadRes = await storage.uploadFromUrl(objectKey, imagePart.image, 'image/png');
+            finalImageUrl = uploadRes.url;
+          } catch (err: any) {
+            console.warn(
+              `[DashScopeImageProvider] Failed to persist image to storage (using temporary URL):`,
+              err?.message || err,
+            );
+          }
+        }
+
         return {
-          imageUrl: imagePart.image,
+          imageUrl: finalImageUrl,
           taskId,
           model,
           finishedAt: pollBody?.output?.end_time || new Date().toISOString(),
         };
       }
+
 
       if (status === 'FAILED' || pollBody?.code) {
         const msg = pollBody?.output?.message || pollBody?.message || JSON.stringify(pollBody).slice(0, 200);
