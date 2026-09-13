@@ -74,7 +74,7 @@ LLM first, heuristic fallback
 Filters after-sales boilerplate; prefers body dimensions over a conflicting labeled 10x12x5 line
 
 Live:
-http://116.198.230.217:2222  (HEAD: 1ac2a1d pending deploy)
+http://116.198.230.217:2222  (HEAD: 4098cf3)
 health 200  postgres/redis/milvus up
 /api/v1/health/ai UP (qwen3.8-max + qwen-image-3.0-pro + MinIO)
 ```
