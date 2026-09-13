@@ -298,6 +298,11 @@ export default function ListingStudioPage() {
     if (selectedSku?.skuCode) {
       setSkuCode(selectedSku.skuCode);
       if (
+        selectedSku.skuCode.includes('SHOE') ||
+        (selectedSku.productName && selectedSku.productName.toLowerCase().includes('shoe'))
+      ) {
+        handleLoadShoeOrganizerPresets();
+      } else if (
         selectedSku.skuCode.includes('FILE') ||
         (selectedSku.productName && selectedSku.productName.toLowerCase().includes('file'))
       ) {
