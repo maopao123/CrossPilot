@@ -45,21 +45,35 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const requestId = ensureRequestId(request as RequestLike);
 
+    // Ensure all unhandled errors are logged to stderr
+    console.error(`[HttpExceptionFilter Error Caught] [req:${requestId}]`, exception);
+
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: string = ErrorCodes.INTERNAL_SERVER_ERROR;
     let message = 'Internal Server Error';
     let details: Record<string, unknown> | undefined = undefined;
 
-    if (exception instanceof ZodError || (exception as any)?.name === 'ZodError') {
+    const anyEx = exception as any;
+
+    if (
+      anyEx?.type === 'entity.too.large' ||
+      anyEx?.status === 413 ||
+      anyEx?.name === 'PayloadTooLargeError' ||
+      anyEx?.type === 'request.size.invalid'
+    ) {
+      status = HttpStatus.PAYLOAD_TOO_LARGE;
+      code = 'PAYLOAD_TOO_LARGE';
+      message = 'Request payload too large. Please upload smaller images or reduce upload batch size.';
+    } else if (exception instanceof ZodError || anyEx?.name === 'ZodError') {
       status = HttpStatus.BAD_REQUEST;
       code = ErrorCodes.VALIDATION_ERROR;
       message = 'Validation failed';
       details = {
-        validationErrors: (exception as any).issues?.map((i: any) => ({
+        validationErrors: anyEx.issues?.map((i: any) => ({
           path: i.path?.join('.'),
           message: i.message,
           code: i.code,
-        })) || (exception as any).errors,
+        })) || anyEx.errors,
       };
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -126,10 +140,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         status = PLAYBOOK_HTTP_STATUS[errCode];
         code = errCode;
         message = exception.message;
-      } else if (process.env.NODE_ENV === 'production') {
-        message = 'An unexpected internal error occurred';
       } else {
-        message = exception.message;
+        message = exception.message || 'An unexpected internal error occurred';
       }
     }
 

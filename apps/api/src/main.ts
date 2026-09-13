@@ -1,10 +1,16 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { Logger } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const logger = new Logger('CrossPilotBootstrap');
   const app = await NestFactory.create(AppModule);
+
+  // Support large image payloads (e.g. Base64 uploads up to 50MB)
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // Enable CORS
   app.enableCors({

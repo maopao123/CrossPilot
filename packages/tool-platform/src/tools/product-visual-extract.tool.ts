@@ -84,6 +84,14 @@ export const ProductVisualExtractTool: ToolDefinition = {
       };
     }
 
+    const resolveImageId = (img: string | undefined, index: number): string => {
+      if (!img) return `img-${index}`;
+      if (img.startsWith('data:') || img.length > 128) {
+        return `img-upload-${index}`;
+      }
+      return img;
+    };
+
     const isFileBox =
       input.productId.toLowerCase().includes('file') ||
       input.productId.toLowerCase().includes('box') ||
@@ -102,7 +110,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-01`,
             productId: input.productId,
-            imageId: rawImages[0] || 'img-default-1',
+            imageId: resolveImageId(rawImages[0], 1),
             imageUrl: rawImages[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800',
             type: 'COLOR' as VisualFactType,
             value: 'Heather grey textured linen fabric with neat contrast perimeter stitching',
@@ -113,7 +121,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-02`,
             productId: input.productId,
-            imageId: rawImages[0] || 'img-default-1',
+            imageId: resolveImageId(rawImages[0], 1),
             imageUrl: rawImages[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800',
             type: 'SHAPE' as VisualFactType,
             value: 'Collapsible rectangular storage trunk with removable fitted top cover',
@@ -124,7 +132,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-03`,
             productId: input.productId,
-            imageId: rawImages[1] || rawImages[0] || 'img-default-2',
+            imageId: resolveImageId(rawImages[1] || rawImages[0], 2),
             imageUrl: rawImages[1] || rawImages[0] || 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800',
             type: 'COMPONENT' as VisualFactType,
             value: 'Dual riveted chrome metal carrying handles and interior hanging file glide rails',
@@ -135,7 +143,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-04`,
             productId: input.productId,
-            imageId: rawImages[2] || rawImages[0] || 'img-default-3',
+            imageId: resolveImageId(rawImages[2] || rawImages[0], 3),
             imageUrl: rawImages[2] || rawImages[0] || 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800',
             type: 'VISIBLE_FEATURE' as VisualFactType,
             value: 'Reinforced heavy-duty MDF base board insert and exterior label slot window',
@@ -146,7 +154,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-05`,
             productId: input.productId,
-            imageId: rawImages[0] || 'img-default-1',
+            imageId: resolveImageId(rawImages[0], 1),
             imageUrl: rawImages[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800',
             type: 'USAGE_CONTEXT' as VisualFactType,
             value: 'Placed on modern office desktop and cube shelving for organized Letter & Legal document storage',
@@ -158,7 +166,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-01`,
             productId: input.productId,
-            imageId: rawImages[0] || 'img-default-1',
+            imageId: resolveImageId(rawImages[0], 1),
             imageUrl: rawImages[0] || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800',
             type: 'COLOR' as VisualFactType,
             value: 'Natural off-white marble with grey mineral veining',
@@ -169,7 +177,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-02`,
             productId: input.productId,
-            imageId: rawImages[0] || 'img-default-1',
+            imageId: resolveImageId(rawImages[0], 1),
             imageUrl: rawImages[0] || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800',
             type: 'SHAPE' as VisualFactType,
             value: 'Rectangular prism block with rounded ergonomic corners',
@@ -180,7 +188,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-03`,
             productId: input.productId,
-            imageId: rawImages[1] || rawImages[0] || 'img-default-2',
+            imageId: resolveImageId(rawImages[1] || rawImages[0], 2),
             imageUrl: rawImages[1] || rawImages[0] || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800',
             type: 'COMPONENT' as VisualFactType,
             value: '4 top vertical slots: 1 large diameter opening + 3 standard openings',
@@ -191,7 +199,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-04`,
             productId: input.productId,
-            imageId: rawImages[2] || rawImages[0] || 'img-default-3',
+            imageId: resolveImageId(rawImages[2] || rawImages[0], 3),
             imageUrl: rawImages[2] || rawImages[0] || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800',
             type: 'VISIBLE_FEATURE' as VisualFactType,
             value: 'Black cushioned EVA foam non-slip pads affixed to bottom base',
@@ -202,7 +210,7 @@ export const ProductVisualExtractTool: ToolDefinition = {
           {
             id: `vf-${input.productId}-05`,
             productId: input.productId,
-            imageId: rawImages[0] || 'img-default-1',
+            imageId: resolveImageId(rawImages[0], 1),
             imageUrl: rawImages[0] || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800',
             type: 'USAGE_CONTEXT' as VisualFactType,
             value: 'Countertop placement next to modern ceramic bathroom sink and mirror',

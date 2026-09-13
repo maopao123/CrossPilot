@@ -360,10 +360,40 @@ export default function ListingStudioPage() {
     toProcess.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (uploadEvent) => {
-        const result = uploadEvent.target?.result as string;
-        if (result) {
-          setImageUrls((prev) => [...prev, result]);
-        }
+        const rawResult = uploadEvent.target?.result as string;
+        if (!rawResult) return;
+
+        // Smoothly compress large camera photos via Canvas to ~1200px HD
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.85);
+            setImageUrls((prev) => [...prev, compressed]);
+          } else {
+            setImageUrls((prev) => [...prev, rawResult]);
+          }
+        };
+        img.onerror = () => {
+          setImageUrls((prev) => [...prev, rawResult]);
+        };
+        img.src = rawResult;
       };
       reader.readAsDataURL(file);
     });
