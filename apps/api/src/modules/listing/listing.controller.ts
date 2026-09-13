@@ -15,6 +15,49 @@ export class ListingController {
     return this.listingService.getListingBySkuId(skuId, workspaceId);
   }
 
+  @Post('generate/jobs')
+  startGenerateJob(
+    @CurrentWorkspace() workspaceId: string,
+    @Body()
+    body: {
+      skuId: string;
+      customDirectives?: string;
+      images?: string[];
+      keywords?: any[];
+      rufusQa?: any[];
+      marketplace?: string;
+      modelName?: string;
+      forceRefreshVisual?: boolean;
+      productSpecs?: {
+        productName?: string;
+        brand?: string;
+        dimensions?: string;
+        material?: string;
+        weight?: string;
+        featuresText?: string;
+      };
+    },
+  ) {
+    return this.listingService.startGenerateJob(body.skuId, workspaceId, {
+      customDirectives: body.customDirectives,
+      images: body.images,
+      keywords: body.keywords,
+      rufusQa: body.rufusQa,
+      marketplace: body.marketplace,
+      modelName: body.modelName,
+      forceRefreshVisual: body.forceRefreshVisual,
+      productSpecs: body.productSpecs,
+    });
+  }
+
+  @Get('generate/jobs/:jobId')
+  getGenerateJob(
+    @Param('jobId') jobId: string,
+    @CurrentWorkspace() workspaceId: string,
+  ) {
+    return this.listingService.getGenerateJob(jobId, workspaceId);
+  }
+
   @Post('generate')
   generateListing(
     @CurrentWorkspace() workspaceId: string,

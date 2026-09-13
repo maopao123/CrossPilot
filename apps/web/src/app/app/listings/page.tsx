@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { ModelRouter } from '@crosspilot/shared';
 import { ApiClient } from '../../../lib/api-client';
-import { streamListingGenerate } from '../../../lib/listing-generate-stream';
+import { pollListingGenerate } from '../../../lib/listing-generate-stream';
 import { getStatusLabel, getSeverityLabel } from '../../../constants/ui-labels';
 import { useBusinessContext } from '../../../components/business-context-provider';
 import {
@@ -781,21 +781,20 @@ Want tips on stacking or arranging multiple units?`);
         },
       };
 
-      await streamListingGenerate(payload, {
+      await pollListingGenerate(payload, {
         onHello: () => {
-          setStepTraces((prev) =>
-            prev.length > 0
-              ? prev
-              : [
-                  {
-                    stepNumber: 0,
-                    stepName: 'stream_connected',
-                    status: 'RUNNING',
-                    latencyMs: 0,
-                    summary: '已连接，正在逐步输出 DAG',
-                  },
-                ],
-          );
+          setStepTraces([
+            {
+              stepNumber: 0,
+              stepName: 'queued',
+              status: 'RUNNING',
+              latencyMs: 0,
+              summary: '任务已创建，开始 14 步编排',
+            },
+          ]);
+        },
+        onSteps: (steps) => {
+          setStepTraces([...steps].sort((a, b) => a.stepNumber - b.stepNumber));
         },
         onStep: (step) => {
           setStepTraces((prev) => {

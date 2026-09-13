@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PlatformLlmRuntime } from '@crosspilot/ai';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -47,8 +48,28 @@ export interface GenerateListingOptions {
   }) => void;
 }
 
+type GenerateJobStep = {
+  stepNumber: number;
+  stepName: string;
+  status: string;
+  latencyMs: number;
+  summary: string;
+};
+
+type GenerateJob = {
+  id: string;
+  workspaceId: string;
+  status: 'running' | 'completed' | 'failed';
+  steps: GenerateJobStep[];
+  result?: unknown;
+  error?: { message: string; code?: string };
+  updatedAt: number;
+};
+
 @Injectable()
 export class ListingService {
+  private readonly generateJobs = new Map<string, GenerateJob>();
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getListingBySkuId(skuId: string, workspaceId: string) {
@@ -766,6 +787,75 @@ Rules:
       stepTraces: dagResult.stepTraces,
       executionTimeMs: dagResult.executionTimeMs,
       humanReviewState: dagResult.humanReviewState,
+    };
+  }
+
+  startGenerateJob(skuId: string, workspaceId: string, options: GenerateListingOptions) {
+    const jobId = randomUUID();
+    const job: GenerateJob = {
+      id: jobId,
+      workspaceId,
+      status: 'running',
+      steps: [
+        {
+          stepNumber: 0,
+          stepName: 'queued',
+          status: 'RUNNING',
+          latencyMs: 0,
+          summary: '任务已创建，开始 14 步编排',
+        },
+      ],
+      updatedAt: Date.now(),
+    };
+    this.generateJobs.set(jobId, job);
+
+    void this.generateListing(skuId, workspaceId, {
+      ...options,
+      onStep: (step) => {
+        const current = this.generateJobs.get(jobId);
+        if (!current) return;
+        current.steps = current.steps
+          .filter((item) => item.stepNumber !== step.stepNumber)
+          .concat(step)
+          .sort((a, b) => a.stepNumber - b.stepNumber);
+        current.updatedAt = Date.now();
+      },
+    })
+      .then((result) => {
+        const current = this.generateJobs.get(jobId);
+        if (!current) return;
+        current.status = 'completed';
+        current.result = result;
+        current.updatedAt = Date.now();
+      })
+      .catch((err: any) => {
+        const current = this.generateJobs.get(jobId);
+        if (!current) return;
+        current.status = 'failed';
+        current.error = {
+          message: err?.message || 'Listing generation failed',
+          code: err?.response?.code || err?.code,
+        };
+        current.updatedAt = Date.now();
+      });
+
+    return { jobId, status: job.status };
+  }
+
+  getGenerateJob(jobId: string, workspaceId: string) {
+    const job = this.generateJobs.get(jobId);
+    if (!job || job.workspaceId !== workspaceId) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: `Generate job ${jobId} not found`,
+      });
+    }
+    return {
+      jobId: job.id,
+      status: job.status,
+      steps: job.steps,
+      result: job.result || null,
+      error: job.error || null,
     };
   }
 

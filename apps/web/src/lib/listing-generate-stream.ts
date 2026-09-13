@@ -17,6 +17,50 @@ export function unwrapListingGeneratePayload(parsed: any): any {
   return parsed;
 }
 
+export async function pollListingGenerate(
+  payload: Record<string, unknown>,
+  handlers: {
+    onHello?: () => void;
+    onStep?: (step: ListingGenerateStepEvent) => void;
+    onSteps?: (steps: ListingGenerateStepEvent[]) => void;
+    onResult?: (result: any) => void;
+    onError?: (err: { message: string; code?: string }) => void;
+  },
+  intervalMs = 400,
+): Promise<void> {
+  const started = await ApiClient.post<{ jobId: string }>('/api/v1/listings/generate/jobs', payload);
+  if (!started?.jobId) {
+    throw new Error('未能创建生成任务');
+  }
+  handlers.onHello?.();
+
+  for (;;) {
+    const job = await ApiClient.get<{
+      jobId: string;
+      status: 'running' | 'completed' | 'failed';
+      steps?: ListingGenerateStepEvent[];
+      result?: any;
+      error?: { message: string; code?: string } | null;
+    }>(`/api/v1/listings/generate/jobs/${started.jobId}`);
+
+    const steps = Array.isArray(job.steps) ? job.steps : [];
+    handlers.onSteps?.(steps);
+    const latest = steps[steps.length - 1];
+    if (latest) handlers.onStep?.(latest);
+
+    if (job.status === 'completed') {
+      handlers.onResult?.(unwrapListingGeneratePayload(job.result));
+      return;
+    }
+    if (job.status === 'failed') {
+      const err = job.error || { message: 'Listing generation failed' };
+      handlers.onError?.(err);
+      throw new Error(err.message || 'Listing generation failed');
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 export async function streamListingGenerate(
   payload: Record<string, unknown>,
   handlers: {
