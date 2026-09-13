@@ -133,7 +133,10 @@ export class MarketController {
   }
 
   @Get('product-opportunities')
-  getProductOpportunities(@CurrentWorkspace() workspaceId: string) {
-    return this.marketService.getProductOpportunities(workspaceId);
+  getProductOpportunities(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('keyword') keyword?: string,
+  ) {
+    return this.marketService.getProductOpportunities(workspaceId, keyword);
   }
 }

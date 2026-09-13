@@ -326,10 +326,11 @@ export default function MarketResearchPage() {
       const snapUrl = `/api/v1/market-research/snapshot?${queryParams.toString()}`;
       const prodUrl = `/api/v1/market-research/products?${queryParams.toString()}&limit=5`;
       const oppUrl = `/api/v1/market-research/opportunity?${queryParams.toString()}`;
+      const legacyOppUrl = `/api/v1/product-opportunities?${queryParams.toString()}`;
 
       const [snapRes, oppRes, prodRes, oppDecRes] = await Promise.allSettled([
         ApiClient.get<MarketSnapshot>(snapUrl),
-        ApiClient.get<LegacyProductOpportunity[]>('/api/v1/product-opportunities'),
+        ApiClient.get<LegacyProductOpportunity[]>(legacyOppUrl),
         ApiClient.get<SearchProductResponse>(prodUrl),
         ApiClient.get<DomainProductOpportunity>(oppUrl),
       ]);
@@ -1446,7 +1447,7 @@ export default function MarketResearchPage() {
               <span>VOC 沉淀之产品定义机会卡</span>
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              由 180+ 真实买家评论痛点提炼：大理石底座稳定性高赞，但孔径过窄（1.1&quot;）是 31% 退货根因
+              由真实买家原声 (VOC) 与差评痛点提炼，辅助生成针对「{snapshot?.seedKeyword || '当前类目'}」的差异化产品立项机会卡
             </p>
           </div>
           <span className="text-xs bg-purple-500/20 text-purple-300 font-semibold px-2.5 py-1 rounded border border-purple-500/30">
