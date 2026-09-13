@@ -29,6 +29,9 @@ import {
   Check,
   RefreshCw,
   ExternalLink,
+  Plus,
+  Trash2,
+  Upload,
 } from 'lucide-react';
 
 interface VisualFact {
@@ -122,6 +125,9 @@ export default function ListingStudioPage() {
   const [stepTraces, setStepTraces] = useState<StepTrace[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Custom Directives
+  const [customDirectives, setCustomDirectives] = useState('');
+
   // Editable listing fields
   const [editableTitle, setEditableTitle] = useState('');
   const [editableBullets, setEditableBullets] = useState<string[]>([]);
@@ -130,16 +136,19 @@ export default function ListingStudioPage() {
 
   // Multimodal visual facts state (Max 10 images)
   const [imageUrls, setImageUrls] = useState<string[]>([
-    'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1620626011761-996317b8d101?w=800&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80',
   ]);
+  const [newImageUrl, setNewImageUrl] = useState('');
   const [visualFacts, setVisualFacts] = useState<VisualFact[]>([]);
   const [extractingVisual, setExtractingVisual] = useState(false);
+  const [newFactValue, setNewFactValue] = useState('');
+  const [newFactType, setNewFactType] = useState('VISIBLE_FEATURE');
 
   // Keyword Library Intake state
   const [kwInput, setKwInput] = useState(
-    `keyword,search_volume,priority\nmarble toothbrush holder,14500,1\nelectric toothbrush stand,9800,1\nheavy stone bathroom vanity caddy,4200,2\nbathroom organizer counter,3100,3`
+    `keyword,search_volume,priority\nfile box,48500,1\ndecorative file organizer box with lid,24200,1\nlinen file storage organizer box,18500,1\ncollapsible document storage box with handles,14200,2\nletter legal hanging file folder box,11800,2\noffice desktop file organizer,8900,3`
   );
   const [kwSourceType, setKwSourceType] = useState<'MANUAL' | 'TXT' | 'EXCEL'>('EXCEL');
   const [parsedKeywords, setParsedKeywords] = useState<any[]>([]);
@@ -148,21 +157,96 @@ export default function ListingStudioPage() {
   // Rufus Q&A state
   const [rufusItems, setRufusItems] = useState([
     {
-      id: 'rufus-01',
-      question: '这款牙刷架能容纳 Oral-B 和 Sonicare 电动牙刷柄吗？',
-      answer: '可以，加宽至 1.5 英寸的大口径插槽能轻松兼容标准尺寸与加粗电动牙刷手柄。',
-      source: 'TXT',
-    },
-    {
-      id: 'rufus-02',
-      question: '底座重量足够重吗？拿取牙刷时会不会轻易倾倒或移位？',
-      answer: '整件重约 3.57 磅，采用天然原石雕刻并配备底部 EVA 防滑脚垫，平放稳固绝不倾倒。',
+      id: 'rufus-fb-01',
+      question: '这个文件箱能同时装 Letter 和 Legal 尺寸的悬挂文件夹吗？',
+      answer: '可以，箱体内置可调节金属顺滑滑轨，既适配标准 Letter 尺寸也兼容 Legal 大规格悬挂文件夹。',
       source: 'MANUAL',
     },
+    {
+      id: 'rufus-fb-02',
+      question: '文件箱承重和堆叠表现如何？装满文件后叠放会压塌吗？',
+      answer: '采用加厚高密度实心纤维板与高质感亚麻面料，单箱承重可达 35 磅，加配硬质实心顶盖，支持多层平稳叠放绝不变形。',
+      source: 'VOC',
+    },
+    {
+      id: 'rufus-fb-03',
+      question: '不使用时如何收纳？折叠复杂吗？',
+      answer: '底部采用一体式折叠底板设计，3 秒即可完全压平折叠存放于抽屉或柜底，节省 90% 存放空间。',
+      source: 'QA',
+    },
   ]);
+  const [newRufusQuestion, setNewRufusQuestion] = useState('');
+  const [newRufusAnswer, setNewRufusAnswer] = useState('');
+  const [newRufusSource, setNewRufusSource] = useState<'MANUAL' | 'VOC' | 'QA'>('MANUAL');
+
+  const handleLoadFileBoxPresets = () => {
+    setImageUrls([
+      'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80',
+    ]);
+    setKwInput(
+      `keyword,search_volume,priority\nfile box,48500,1\ndecorative file organizer box with lid,24200,1\nlinen file storage organizer box,18500,1\ncollapsible document storage box with handles,14200,2\nletter legal hanging file folder box,11800,2\noffice desktop file organizer,8900,3`
+    );
+    setRufusItems([
+      {
+        id: 'rufus-fb-01',
+        question: '这个文件箱能同时装 Letter 和 Legal 尺寸的悬挂文件夹吗？',
+        answer: '可以，箱体内置可调节金属顺滑滑轨，既适配标准 Letter 尺寸也兼容 Legal 大规格悬挂文件夹。',
+        source: 'MANUAL',
+      },
+      {
+        id: 'rufus-fb-02',
+        question: '文件箱承重和堆叠表现如何？装满文件后叠放会压塌吗？',
+        answer: '采用加厚高密度实心纤维板与高质感亚麻面料，单箱承重可达 35 磅，加配硬质实心顶盖，支持多层平稳叠放绝不变形。',
+        source: 'VOC',
+      },
+      {
+        id: 'rufus-fb-03',
+        question: '不使用时如何收纳？折叠复杂吗？',
+        answer: '底部采用一体式折叠底板设计，3 秒即可完全压平折叠存放于抽屉或柜底，节省 90% 存放空间。',
+        source: 'QA',
+      },
+    ]);
+  };
+
+  const handleLoadToothbrushPresets = () => {
+    setImageUrls([
+      'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1620626011761-996317b8d101?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=800&auto=format&fit=crop&q=80',
+    ]);
+    setKwInput(
+      `keyword,search_volume,priority\nmarble toothbrush holder,14500,1\nelectric toothbrush stand,9800,1\nheavy stone bathroom vanity caddy,4200,2\nbathroom organizer counter,3100,3`
+    );
+    setRufusItems([
+      {
+        id: 'rufus-01',
+        question: '这款牙刷架能容纳 Oral-B 和 Sonicare 电动牙刷柄吗？',
+        answer: '可以，加宽至 1.5 英寸的大口径插槽能轻松兼容标准尺寸与加粗电动牙刷手柄。',
+        source: 'TXT',
+      },
+      {
+        id: 'rufus-02',
+        question: '底座重量足够重吗？拿取牙刷时会不会轻易倾倒或移位？',
+        answer: '整件重约 3.57 磅，采用天然原石雕刻并配备底部 EVA 防滑脚垫，平放稳固绝不倾倒。',
+        source: 'MANUAL',
+      },
+    ]);
+  };
 
   useEffect(() => {
-    if (selectedSku?.skuCode) setSkuCode(selectedSku.skuCode);
+    if (selectedSku?.skuCode) {
+      setSkuCode(selectedSku.skuCode);
+      if (
+        selectedSku.skuCode.includes('FILE') ||
+        (selectedSku.productName && selectedSku.productName.toLowerCase().includes('file'))
+      ) {
+        handleLoadFileBoxPresets();
+      } else if (selectedSku.skuCode.includes('MTH')) {
+        handleLoadToothbrushPresets();
+      }
+    }
     if (marketplaceId) setMarketplace(marketplaceId);
   }, [selectedSku, marketplaceId]);
 
@@ -247,6 +331,65 @@ export default function ListingStudioPage() {
     }
   };
 
+  // Manual Visual Fact Addition
+  const handleAddVisualFact = () => {
+    if (!newFactValue.trim()) return;
+    const newFact: VisualFact = {
+      id: `vf-custom-${Date.now()}`,
+      imageId: imageUrls[0] || 'img-custom',
+      imageUrl: imageUrls[0] || undefined,
+      type: newFactType,
+      value: newFactValue.trim(),
+      confidence: 1.0,
+      status: 'CONFIRMED',
+    };
+    setVisualFacts((prev) => [newFact, ...prev]);
+    setNewFactValue('');
+  };
+
+  // Image Management
+  const handleLocalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const remainingSlots = 10 - imageUrls.length;
+    if (remainingSlots <= 0) {
+      alert('最多只能添加 10 张产品图片');
+      return;
+    }
+    const toProcess = Array.from(files).slice(0, remainingSlots);
+    toProcess.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const result = uploadEvent.target?.result as string;
+        if (result) {
+          setImageUrls((prev) => [...prev, result]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const handleAddImageUrl = () => {
+    const url = newImageUrl.trim();
+    if (!url) return;
+    if (imageUrls.length >= 10) {
+      alert('最多只能添加 10 张产品图片');
+      return;
+    }
+    setImageUrls((prev) => [...prev, url]);
+    setNewImageUrl('');
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setImageUrls((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleClearImages = () => {
+    setImageUrls([]);
+    setVisualFacts([]);
+  };
+
   // Keyword Extract & Normalize Action
   const handleExtractKeywords = async () => {
     try {
@@ -265,6 +408,47 @@ export default function ListingStudioPage() {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      if (content) {
+        setKwInput(content);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleClearKeywords = () => {
+    setKwInput('');
+    setParsedKeywords([]);
+  };
+
+  // Rufus Q&A Management
+  const handleAddRufusItem = () => {
+    if (!newRufusQuestion.trim() || !newRufusAnswer.trim()) return;
+    const newItem = {
+      id: `rufus-${Date.now()}`,
+      question: newRufusQuestion.trim(),
+      answer: newRufusAnswer.trim(),
+      source: newRufusSource,
+    };
+    setRufusItems((prev) => [...prev, newItem]);
+    setNewRufusQuestion('');
+    setNewRufusAnswer('');
+  };
+
+  const handleRemoveRufusItem = (idToRemove: string) => {
+    setRufusItems((prev) => prev.filter((item) => item.id !== idToRemove));
+  };
+
+  const handleClearRufusItems = () => {
+    setRufusItems([]);
+  };
+
   // Upgraded WF-02 14-Step DAG Generation Action
   const handleGenerateDag = async () => {
     if (!listing || ApiClient.isViewer()) return;
@@ -273,13 +457,13 @@ export default function ListingStudioPage() {
       setActionError(null);
       const res = await ApiClient.post<any>('/api/v1/listings/generate', {
         skuId: listing.skuId,
-        customDirectives: 'Ground on VOC hole size 1.5" and 3.57 lbs natural stone base.',
+        customDirectives: customDirectives.trim() ? customDirectives.trim() : undefined,
         images: imageUrls,
         keywords: parsedKeywords.length > 0 ? parsedKeywords : undefined,
         rufusQa: rufusItems,
         marketplace,
         modelName,
-        forceRefreshVisual: false,
+        forceRefreshVisual: true,
       });
 
       setEditableTitle(res.generatedListing.title);
@@ -425,58 +609,86 @@ export default function ListingStudioPage() {
       </div>
 
       {/* Action Toolbar */}
-      <div className="bg-surface border border-border rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
-        <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">当前产品事实依据:</span>
-          <span className="text-foreground">
-            {selectedSku?.productName || listing?.productName || '当前 SKU'}
-          </span>
-          <span className="text-gray-400">•</span>
-          <span>100% 天然石材 / 3.57 磅 / 1.5 英寸插槽</span>
-          <span className="text-gray-400">•</span>
-          <span className="text-emerald-500 font-medium">Claim 事实映射率: 100.0%</span>
+      <div className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+          <div className="flex flex-wrap items-center space-x-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">当前产品事实依据:</span>
+            <span className="text-foreground font-medium">
+              {selectedSku?.productName || listing?.productName || '当前 SKU'}
+            </span>
+            <span className="text-gray-400">•</span>
+            <span className="text-foreground">
+              {visualFacts.length > 0
+                ? visualFacts.slice(0, 2).map((f) => f.value).join(' / ')
+                : '自定义输入产品事实与特征'}
+            </span>
+            <span className="text-gray-400">•</span>
+            <span className="text-emerald-500 font-medium">Claim 事实映射率: 100.0%</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={handleGenerateDag}
+              disabled={generating}
+              className="flex items-center justify-center space-x-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-50 cursor-pointer"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
+              <span>{generating ? '14 步 DAG 编排中...' : '生成 Listing (14 步 DAG)'}</span>
+            </button>
+
+            <button
+              onClick={handleComplianceCheck}
+              disabled={checking}
+              className="flex items-center justify-center space-x-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-xs font-medium text-fg hover:bg-surface-elevated disabled:opacity-50 cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{checking ? '合规审定中...' : '运行合规检查 (Judge)'}</span>
+            </button>
+
+            <button
+              onClick={handleSendToCreative}
+              disabled={sendingCreative}
+              className={`flex items-center justify-center space-x-1.5 rounded-lg px-3.5 py-2 text-xs font-medium cursor-pointer ${
+                creativeSentSuccess
+                  ? 'bg-emerald-700 text-white'
+                  : 'text-fg-muted hover:bg-surface-elevated hover:text-fg'
+              }`}
+              title="将当前 Image Briefs 结构化推送给素材中心进行并发渲染"
+            >
+              {creativeSentSuccess ? <Check className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+              <span>{creativeSentSuccess ? '已推送到素材中心!' : '发送到素材中心'}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={handleGenerateDag}
-            disabled={generating}
-            className="flex items-center justify-center space-x-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-50"
-          >
-            <Sparkles className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
-            <span>{generating ? '14 步 DAG 编排中...' : '生成 Listing (14 步 DAG)'}</span>
-          </button>
-
-          <button
-            onClick={handleComplianceCheck}
-            disabled={checking}
-            className="flex items-center justify-center space-x-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-xs font-medium text-fg hover:bg-surface-elevated disabled:opacity-50"
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{checking ? '合规审定中...' : '运行合规检查 (Judge)'}</span>
-          </button>
-
-          <button
-            onClick={handleSendToCreative}
-            disabled={sendingCreative}
-            className={`flex items-center justify-center space-x-1.5 rounded-lg px-3.5 py-2 text-xs font-medium ${
-              creativeSentSuccess
-                ? 'bg-emerald-700 text-white'
-                : 'text-fg-muted hover:bg-surface-elevated hover:text-fg'
-            }`}
-            title="将当前 Image Briefs 结构化推送给素材中心进行并发渲染"
-          >
-            {creativeSentSuccess ? <Check className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
-            <span>{creativeSentSuccess ? '已推送到素材中心!' : '发送到素材中心'}</span>
-          </button>
+        {/* Custom Directives Input */}
+        <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs">
+          <span className="text-muted-foreground font-semibold whitespace-nowrap">
+            DAG 生成自定义指令 (可选):
+          </span>
+          <input
+            type="text"
+            placeholder="例如：主打大容量可折叠收纳、双尺寸Letter/Legal滑轨兼容、承重35磅，迎合Cosmo居家整理意图..."
+            value={customDirectives}
+            onChange={(e) => setCustomDirectives(e.target.value)}
+            className="flex-1 bg-surface-elevated border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-blue-500"
+          />
+          {customDirectives && (
+            <button
+              onClick={() => setCustomDirectives('')}
+              className="text-muted-foreground hover:text-foreground text-[11px] px-2 py-1 cursor-pointer"
+            >
+              清空指令
+            </button>
+          )}
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-border space-x-6 text-xs font-semibold">
+      <div className="flex border-b border-border space-x-6 text-xs font-semibold overflow-x-auto">
         <button
           onClick={() => setActiveTab('editor')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
             activeTab === 'editor'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -488,7 +700,7 @@ export default function ListingStudioPage() {
 
         <button
           onClick={() => setActiveTab('visual')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
             activeTab === 'visual'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -500,19 +712,19 @@ export default function ListingStudioPage() {
 
         <button
           onClick={() => setActiveTab('keywords')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
             activeTab === 'keywords'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           <Search className="w-4 h-4" />
-          <span>03 多源关键词库 ({parsedKeywords.length || 4})</span>
+          <span>03 多源关键词库 ({parsedKeywords.length || 6})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('rufus')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
             activeTab === 'rufus'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -524,7 +736,7 @@ export default function ListingStudioPage() {
 
         <button
           onClick={() => setActiveTab('briefs')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
             activeTab === 'briefs'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -536,7 +748,7 @@ export default function ListingStudioPage() {
 
         <button
           onClick={() => setActiveTab('dag')}
-          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer ${
+          className={`pb-3 flex items-center space-x-1.5 border-b-2 transition cursor-pointer whitespace-nowrap ${
             activeTab === 'dag'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -695,7 +907,7 @@ export default function ListingStudioPage() {
                     <span>版本对比说明 (v{comparingVersion.versionNumber} vs v{activeVersion?.versionNumber}):</span>
                   </div>
                   <p className="text-muted-foreground">
-                    v{activeVersion?.versionNumber} 严格落实 14 步 DAG 事实锚定，将孔径尺寸严格限定为 <strong>&ldquo;1.5-Inch Universal Slots&rdquo;</strong>，底座增重标明 <strong>3.57 lbs</strong>，消灭买家由于兼容性引发的退货隐患。
+                    v{activeVersion?.versionNumber} 严格落实 14 步 DAG 事实锚定，全面落实产品事实依据与买家搜索意图。
                   </p>
                 </div>
               )}
@@ -705,14 +917,29 @@ export default function ListingStudioPage() {
           {/* TAB 2: Multimodal Images & Visual Facts */}
           {activeTab === 'visual' && (
             <div className="bg-surface border border-border rounded-xl p-5 space-y-5">
-              <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-foreground">产品图片输入 (最多 10 张) 与 Visual Facts</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     首次解析落盘为结构化事实；后续 Listing、A+、素材中心直接读取缓存，严禁重复调用多模态视觉模型。
                   </p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleLoadFileBoxPresets}
+                    className="border border-border bg-surface-elevated hover:bg-surface text-muted-foreground hover:text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    title="一键载入 File Box 示例图"
+                  >
+                    载入 File Box 示例图
+                  </button>
+                  <button
+                    onClick={handleClearImages}
+                    className="flex items-center space-x-1 border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    title="清空当前所有图片与事实"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>清空图片</span>
+                  </button>
                   <button
                     onClick={() => handleExtractVisualFacts(false)}
                     disabled={extractingVisual}
@@ -731,78 +958,203 @@ export default function ListingStudioPage() {
                 </div>
               </div>
 
+              {/* Upload and URL input controls */}
+              <div className="bg-surface-elevated/60 border border-border rounded-lg p-3 space-y-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="输入产品图片网络 URL (如 https://...)"
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddImageUrl();
+                    }}
+                    className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleAddImageUrl}
+                    disabled={!newImageUrl.trim() || imageUrls.length >= 10}
+                    className="flex items-center justify-center space-x-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>添加图片链接</span>
+                  </button>
+                  <label className="flex items-center justify-center space-x-1 border border-border bg-surface hover:bg-surface-elevated text-foreground text-xs font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer">
+                    <Upload className="w-3.5 h-3.5 text-blue-400" />
+                    <span>选择本地图片</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleLocalImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  提示：支持添加最多 10 张产品实拍图、尺寸图、结构图。系统将自动调用视觉事实提取模型（多模态视觉模型）。
+                </p>
+              </div>
+
               {/* Image Previews (Max 10) */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-foreground">已载入图片素材 ({imageUrls.length}/10 张)</label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                  {imageUrls.map((url, idx) => (
-                    <div key={idx} className="relative group rounded-lg overflow-hidden border border-border bg-surface-elevated aspect-square">
-                      <img src={url} alt={`产品图 ${idx + 1}`} className="w-full h-full object-cover" />
-                      <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
-                        #{idx + 1}
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground">
+                    已载入图片素材 ({imageUrls.length}/10 张)
+                  </label>
+                  {imageUrls.length > 0 && (
+                    <span className="text-[11px] text-muted-foreground">
+                      鼠标悬停点击右上角 🗑️ 可删除单张图片
+                    </span>
+                  )}
                 </div>
+
+                {imageUrls.length === 0 ? (
+                  <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
+                    暂未添加图片。请在上方输入图片链接或点击「选择本地图片」上传，也可点击「载入 File Box 示例图」。
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                    {imageUrls.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="relative group rounded-lg overflow-hidden border border-border bg-surface-elevated aspect-square"
+                      >
+                        <img src={url} alt={`产品图 ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                          #{idx + 1}
+                        </div>
+                        <button
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute top-1 right-1 bg-rose-600/80 hover:bg-rose-600 text-white p-1 rounded transition opacity-0 group-hover:opacity-100 cursor-pointer"
+                          title="删除此图片"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Structured Visual Facts List */}
               <div className="space-y-3 pt-3 border-t border-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-foreground">结构化 Visual Facts ({visualFacts.length} 条已提取事实)</label>
+                  <label className="text-xs font-bold text-foreground">
+                    结构化 Visual Facts ({visualFacts.length} 条已提取事实)
+                  </label>
                   <span className="text-[11px] text-amber-500 font-medium">
                     ⚠️ 边界约束：模型仅提取外观可见事实，不可推断内部化学材质与认证
                   </span>
                 </div>
 
-                <div className="space-y-2">
-                  {visualFacts.map((fact) => (
-                    <div
-                      key={fact.id}
-                      className="p-3 rounded-lg border border-border bg-surface-elevated flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-mono font-bold text-[10px]">
-                            {fact.type}
-                          </span>
-                          <span className="text-foreground font-semibold">{fact.value}</span>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground flex items-center space-x-3">
-                          <span>置信度: {(fact.confidence * 100).toFixed(0)}%</span>
-                          <span>•</span>
-                          <span>状态: <strong className={fact.status === 'CONFIRMED' ? 'text-emerald-500' : fact.status === 'REJECTED' ? 'text-rose-500' : 'text-amber-500'}>{getStatusLabel(fact.status)}</strong></span>
-                        </div>
-                      </div>
-
-                      {/* Confirmation actions */}
-                      <div className="flex items-center space-x-1.5 self-end sm:self-center">
-                        <button
-                          onClick={() => handleFactStatusChange(fact.id, 'CONFIRMED')}
-                          className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center space-x-1 cursor-pointer ${
-                            fact.status === 'CONFIRMED'
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-surface border border-border text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          <Check className="w-3 h-3" />
-                          <span>通过确认</span>
-                        </button>
-                        <button
-                          onClick={() => handleFactStatusChange(fact.id, 'REJECTED')}
-                          className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center space-x-1 cursor-pointer ${
-                            fact.status === 'REJECTED'
-                              ? 'bg-rose-600 text-white'
-                              : 'bg-surface border border-border text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          <XCircle className="w-3 h-3" />
-                          <span>驳回</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                {/* Manual Visual Fact Addition */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-surface-elevated/40 border border-border p-2.5 rounded-lg text-xs">
+                  <select
+                    value={newFactType}
+                    onChange={(e) => setNewFactType(e.target.value)}
+                    className="bg-surface border border-border text-xs rounded px-2 py-1 text-foreground"
+                  >
+                    <option value="VISIBLE_FEATURE">可见特征 (VISIBLE_FEATURE)</option>
+                    <option value="COMPONENT">组件/部件 (COMPONENT)</option>
+                    <option value="COLOR">颜色/材质外观 (COLOR)</option>
+                    <option value="SHAPE">外形结构 (SHAPE)</option>
+                    <option value="USAGE_CONTEXT">使用场景 (USAGE_CONTEXT)</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="手动输入视觉事实，如：加厚金属镀铬把手与可折叠加硬底板..."
+                    value={newFactValue}
+                    onChange={(e) => setNewFactValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddVisualFact();
+                    }}
+                    className="flex-1 bg-surface border border-border rounded px-2.5 py-1 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleAddVisualFact}
+                    disabled={!newFactValue.trim()}
+                    className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold px-3 py-1 rounded text-xs transition cursor-pointer flex items-center justify-center space-x-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>添加事实</span>
+                  </button>
                 </div>
+
+                {visualFacts.length === 0 ? (
+                  <div className="border border-dashed border-border rounded-lg p-4 text-center text-xs text-muted-foreground">
+                    暂无结构化事实。可点击右上角「读取或提取事实」，或在上方手动输入事实并添加。
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {visualFacts.map((fact) => (
+                      <div
+                        key={fact.id}
+                        className="p-3 rounded-lg border border-border bg-surface-elevated flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-mono font-bold text-[10px]">
+                              {fact.type}
+                            </span>
+                            <span className="text-foreground font-semibold">{fact.value}</span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground flex items-center space-x-3">
+                            <span>置信度: {(fact.confidence * 100).toFixed(0)}%</span>
+                            <span>•</span>
+                            <span>
+                              状态:{' '}
+                              <strong
+                                className={
+                                  fact.status === 'CONFIRMED'
+                                    ? 'text-emerald-500'
+                                    : fact.status === 'REJECTED'
+                                    ? 'text-rose-500'
+                                    : 'text-amber-500'
+                                }
+                              >
+                                {getStatusLabel(fact.status)}
+                              </strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Confirmation actions */}
+                        <div className="flex items-center space-x-1.5 self-end sm:self-center">
+                          <button
+                            onClick={() => handleFactStatusChange(fact.id, 'CONFIRMED')}
+                            className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center space-x-1 cursor-pointer ${
+                              fact.status === 'CONFIRMED'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-surface border border-border text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>通过确认</span>
+                          </button>
+                          <button
+                            onClick={() => handleFactStatusChange(fact.id, 'REJECTED')}
+                            className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center space-x-1 cursor-pointer ${
+                              fact.status === 'REJECTED'
+                                ? 'bg-rose-600 text-white'
+                                : 'bg-surface border border-border text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <XCircle className="w-3 h-3" />
+                            <span>驳回</span>
+                          </button>
+                          <button
+                            onClick={() => setVisualFacts((prev) => prev.filter((f) => f.id !== fact.id))}
+                            className="p-1 text-muted-foreground hover:text-rose-400 transition cursor-pointer"
+                            title="移除此事实"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -810,14 +1162,28 @@ export default function ListingStudioPage() {
           {/* TAB 3: Keywords Library */}
           {activeTab === 'keywords' && (
             <div className="bg-surface border border-border rounded-xl p-5 space-y-5">
-              <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">多源关键词库 (手动 / TXT / Excel)</h3>
+                  <h3 className="text-sm font-bold text-foreground">多源关键词库 (手动 / TXT / Excel / CSV)</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     支持多列 Excel 自动识别关键词列，自动过滤无关列，统一清洗大小写与特殊符号，按搜索量智能排序。
                   </p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleLoadFileBoxPresets}
+                    className="border border-border bg-surface-elevated hover:bg-surface text-muted-foreground hover:text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    title="一键载入 File Box 推荐词库"
+                  >
+                    载入 File Box 词库模板
+                  </button>
+                  <button
+                    onClick={handleClearKeywords}
+                    className="flex items-center space-x-1 border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>清空词库</span>
+                  </button>
                   <select
                     value={kwSourceType}
                     onChange={(e: any) => setKwSourceType(e.target.value)}
@@ -829,7 +1195,7 @@ export default function ListingStudioPage() {
                   </select>
                   <button
                     onClick={handleExtractKeywords}
-                    disabled={parsingKeywords}
+                    disabled={parsingKeywords || !kwInput.trim()}
                     className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer"
                   >
                     {parsingKeywords ? '解析中...' : '清洗并去重'}
@@ -838,10 +1204,25 @@ export default function ListingStudioPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-foreground">关键词导入源内容 (支持粘贴 CSV/Excel 表格数据)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground">
+                    关键词导入源内容 (支持直接粘贴 CSV/Excel 表格数据或上传本地文件)
+                  </label>
+                  <label className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-xs cursor-pointer font-medium">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>上传本地文件 (.csv, .xlsx, .txt)</span>
+                    <input
+                      type="file"
+                      accept=".csv,.txt,.xlsx,.xls"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
                 <textarea
-                  rows={4}
+                  rows={5}
                   value={kwInput}
+                  placeholder="在此粘贴或输入关键词数据，格式如：&#10;keyword,search_volume,priority&#10;file box,48500,1&#10;linen file storage organizer,24200,1"
                   onChange={(e) => setKwInput(e.target.value)}
                   className="w-full bg-surface-elevated border border-border rounded-lg p-3 text-xs font-mono text-foreground focus:outline-none focus:border-blue-500"
                 />
@@ -850,48 +1231,60 @@ export default function ListingStudioPage() {
               {/* Normalized Keywords Table */}
               <div className="space-y-3 pt-3 border-t border-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-foreground">已清洗与去重关键词 ({parsedKeywords.length} 个)</label>
-                  <span className="text-[11px] text-muted-foreground">优先级：P1 (核心词) &gt; P2 (拓展词) &gt; P3 (长尾词)</span>
+                  <label className="text-xs font-bold text-foreground">
+                    已清洗与去重关键词 ({parsedKeywords.length} 个)
+                  </label>
+                  <span className="text-[11px] text-muted-foreground">
+                    优先级：P1 (核心词) &gt; P2 (拓展词) &gt; P3 (长尾词)
+                  </span>
                 </div>
 
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-surface-elevated border-b border-border text-muted-foreground">
-                      <tr>
-                        <th className="p-2.5">关键词</th>
-                        <th className="p-2.5">归一化词汇</th>
-                        <th className="p-2.5">数据源</th>
-                        <th className="p-2.5">月度搜索量</th>
-                        <th className="p-2.5">优先级</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {(parsedKeywords.length > 0
-                        ? parsedKeywords
-                        : [
-                            { keyword: 'marble toothbrush holder', normalizedKeyword: 'marble toothbrush holder', source: 'EXCEL', volume: 14500, priority: 1 },
-                            { keyword: 'electric toothbrush stand', normalizedKeyword: 'electric toothbrush stand', source: 'EXCEL', volume: 9800, priority: 1 },
-                            { keyword: 'heavy stone bathroom vanity caddy', normalizedKeyword: 'heavy stone bathroom vanity caddy', source: 'MANUAL', volume: 4200, priority: 2 },
-                            { keyword: 'bathroom organizer counter', normalizedKeyword: 'bathroom organizer counter', source: 'TXT', volume: 3100, priority: 3 },
-                          ]
-                      ).map((kw, idx) => (
-                        <tr key={idx} className="hover:bg-surface-elevated/50">
-                          <td className="p-2.5 font-semibold text-foreground">{kw.keyword}</td>
-                          <td className="p-2.5 text-muted-foreground font-mono">{kw.normalizedKeyword}</td>
-                          <td className="p-2.5"><span className="bg-surface border border-border px-1.5 py-0.5 rounded text-[10px]">{kw.source}</span></td>
-                          <td className="p-2.5 text-foreground font-mono">{kw.volume ? kw.volume.toLocaleString() : '-'}</td>
-                          <td className="p-2.5">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              kw.priority === 1 ? 'bg-indigo-500/20 text-indigo-400' : 'bg-surface text-muted-foreground'
-                            }`}>
-                              P{kw.priority || 2}
-                            </span>
-                          </td>
+                {parsedKeywords.length === 0 ? (
+                  <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
+                    暂未解析关键词。请在上方输入词库内容并点击「清洗并去重」，或者点击「载入 File Box 词库模板」。
+                  </div>
+                ) : (
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-surface-elevated border-b border-border text-muted-foreground">
+                        <tr>
+                          <th className="p-2.5">关键词</th>
+                          <th className="p-2.5">归一化词汇</th>
+                          <th className="p-2.5">数据源</th>
+                          <th className="p-2.5">月度搜索量</th>
+                          <th className="p-2.5">优先级</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {parsedKeywords.map((kw, idx) => (
+                          <tr key={idx} className="hover:bg-surface-elevated/50">
+                            <td className="p-2.5 font-semibold text-foreground">{kw.keyword}</td>
+                            <td className="p-2.5 text-muted-foreground font-mono">{kw.normalizedKeyword}</td>
+                            <td className="p-2.5">
+                              <span className="bg-surface border border-border px-1.5 py-0.5 rounded text-[10px]">
+                                {kw.source}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-foreground font-mono">
+                              {kw.volume ? kw.volume.toLocaleString() : '-'}
+                            </td>
+                            <td className="p-2.5">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  kw.priority === 1
+                                    ? 'bg-indigo-500/20 text-indigo-400'
+                                    : 'bg-surface text-muted-foreground'
+                                }`}
+                              >
+                                P{kw.priority || 2}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -899,33 +1292,128 @@ export default function ListingStudioPage() {
           {/* TAB 4: Rufus Q&A */}
           {activeTab === 'rufus' && (
             <div className="bg-surface border border-border rounded-xl p-5 space-y-5">
-              <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-foreground">Rufus 问题与答案 (意图上下文)</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     从买家真实提问提炼意图，引导生成更自然的回应。严禁捏造未经证实的产品事实。
                   </p>
                 </div>
-                <span className="text-xs bg-amber-500/20 text-amber-500 px-2 py-1 rounded font-semibold border border-amber-500/30">
-                  意图引导 • 非事实源
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleLoadFileBoxPresets}
+                    className="border border-border bg-surface-elevated hover:bg-surface text-muted-foreground hover:text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    title="一键载入 File Box 问答示例"
+                  >
+                    载入 File Box 示例问答
+                  </button>
+                  <button
+                    onClick={handleClearRufusItems}
+                    className="flex items-center space-x-1 border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>清空问答</span>
+                  </button>
+                  <span className="text-xs bg-amber-500/20 text-amber-500 px-2 py-1 rounded font-semibold border border-amber-500/30">
+                    意图引导 • 非事实源
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                {rufusItems.map((item, idx) => (
-                  <div key={idx} className="p-3.5 rounded-lg border border-border bg-surface-elevated space-y-2 text-xs">
-                    <div className="flex items-center justify-between font-semibold text-foreground">
-                      <div className="flex items-center space-x-2">
-                        <span className="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded text-[10px] font-mono">Q#{idx + 1}</span>
-                        <span>{item.question}</span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">来源: {item.source}</span>
-                    </div>
-                    <div className="text-muted-foreground pl-6 border-l-2 border-indigo-500/50">
-                      💡 意图回答: {item.answer}
-                    </div>
+              {/* Add Rufus Question Form */}
+              <div className="bg-surface-elevated/60 border border-border rounded-lg p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground flex items-center space-x-1.5">
+                    <Plus className="w-3.5 h-3.5 text-blue-400" />
+                    <span>添加买家意图问答 (Rufus Q&A)</span>
+                  </span>
+                  <div className="flex items-center space-x-2 text-xs">
+                    <span className="text-muted-foreground">来源类别:</span>
+                    <select
+                      value={newRufusSource}
+                      onChange={(e: any) => setNewRufusSource(e.target.value)}
+                      className="bg-surface border border-border text-xs rounded px-2 py-1 text-foreground"
+                    >
+                      <option value="MANUAL">手动沉淀 (MANUAL)</option>
+                      <option value="VOC">买家原声 (VOC)</option>
+                      <option value="QA">Listing 问答 (Q&A)</option>
+                    </select>
                   </div>
-                ))}
+                </div>
+
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="输入买家高频疑问 (Question)，例如：这个文件箱能放下带标签的悬挂文件夹吗？"
+                    value={newRufusQuestion}
+                    onChange={(e) => setNewRufusQuestion(e.target.value)}
+                    className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                  />
+                  <textarea
+                    rows={2}
+                    placeholder="输入官方标准事实解答 (Answer)，例如：可以，内附标准滑轨，完全兼容带凸出索引标签的 Letter 和 Legal 文件夹。"
+                    value={newRufusAnswer}
+                    onChange={(e) => setNewRufusAnswer(e.target.value)}
+                    className="w-full bg-surface border border-border rounded-lg p-2.5 text-xs text-foreground focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleAddRufusItem}
+                    disabled={!newRufusQuestion.trim() || !newRufusAnswer.trim()}
+                    className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>确认添加问答</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Rufus Q&A Card List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground">
+                    当前生效问答意图上下文 ({rufusItems.length} 条)
+                  </label>
+                  <span className="text-[11px] text-muted-foreground">
+                    生成引擎将严格融入买家提问意图并回答
+                  </span>
+                </div>
+
+                {rufusItems.length === 0 ? (
+                  <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
+                    暂无 Rufus 问答。请在上方输入买家疑问与事实解答并添加，或点击「载入 File Box 示例问答」。
+                  </div>
+                ) : (
+                  rufusItems.map((item, idx) => (
+                    <div
+                      key={item.id || idx}
+                      className="p-3.5 rounded-lg border border-border bg-surface-elevated space-y-2 text-xs relative group"
+                    >
+                      <div className="flex items-center justify-between font-semibold text-foreground pr-8">
+                        <div className="flex items-center space-x-2">
+                          <span className="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded text-[10px] font-mono">
+                            Q#{idx + 1}
+                          </span>
+                          <span>{item.question}</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">来源: {item.source}</span>
+                      </div>
+                      <div className="text-muted-foreground pl-6 border-l-2 border-indigo-500/50">
+                        💡 意图回答: {item.answer}
+                      </div>
+
+                      <button
+                        onClick={() => handleRemoveRufusItem(item.id)}
+                        className="absolute top-3 right-3 text-muted-foreground hover:text-rose-400 p-1 transition cursor-pointer"
+                        title="删除该问答"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -953,68 +1441,38 @@ export default function ListingStudioPage() {
               {/* Slot 1~5 Brief Cards */}
               <div className="space-y-3">
                 <label className="text-xs font-bold text-foreground">附图策划 (Image Briefs 槽位 1~5)</label>
-                {(activeVersion?.imageBriefs || [
-                  {
-                    slot: 1,
-                    objective: '高转化亚马逊白底主图',
-                    keyMessage: 'POLEGAS 天然大理石牙刷架标准棚拍白底图',
-                    visualDirection: '纯白背景 (RGB 255,255,255)，85%+画幅占比，展现天然大理石流线纹理与坚固基座。',
-                    copy: [],
-                  },
-                  {
-                    slot: 2,
-                    objective: '孔径尺寸与电动牙刷兼容性保证',
-                    keyMessage: '1.5 英寸超宽孔径，适配普通与电动牙刷柄',
-                    visualDirection: '45度俯视特写，标注 1.5" 直径并附带电动牙刷插入截面示意。',
-                    copy: ['1.5" Wide Slots', 'Fits Slim Electric Handles & Toothpaste'],
-                  },
-                  {
-                    slot: 3,
-                    objective: '3.57 磅超重防倾倒真材实料验证',
-                    keyMessage: '3.57 磅整石雕琢，防滑胶垫绝不倾倒',
-                    visualDirection: '侧向角度展示克重秤重 3.57 lbs 标识与底座 EVA 缓冲垫。',
-                    copy: ['3.57 lbs Substantial Weight', 'Tip-Resistant & Skid-Proof Base'],
-                  },
-                  {
-                    slot: 4,
-                    objective: '轻奢卫浴生活场景代入',
-                    keyMessage: '现代北欧卫浴台面真实生活融入',
-                    visualDirection: '柔和自然采光，置于现代大理石台盆与镜面旁。',
-                    copy: ['Timeless Natural Stone Décor'],
-                  },
-                  {
-                    slot: 5,
-                    objective: '非多孔防水易清洁特性',
-                    keyMessage: '光滑封釉表面，水冲即净不积皂垢',
-                    visualDirection: '水珠从抛光石材表面自然滑落，凸显卫生与防霉。',
-                    copy: ['Easy Rinse Clean', 'Water & Mold Resistant'],
-                  },
-                ]).map((brief, idx) => (
-                  <div key={idx} className="p-3.5 rounded-lg border border-border bg-surface-elevated space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <span className="bg-purple-500/20 text-purple-400 font-bold px-2 py-0.5 rounded font-mono">
-                          槽位 #{brief.slot}
-                        </span>
-                        <span className="font-bold text-foreground">{brief.objective}</span>
-                      </div>
-                      <span className="text-[11px] text-muted-foreground">{brief.keyMessage}</span>
-                    </div>
-                    <p className="text-muted-foreground pl-3 border-l-2 border-purple-500/40">
-                      📸 <strong>视觉指示:</strong> {brief.visualDirection}
-                    </p>
-                    {brief.copy && brief.copy.length > 0 && (
-                      <div className="flex items-center space-x-2 pt-1">
-                        <span className="text-[10px] text-muted-foreground">文案建议:</span>
-                        {brief.copy.map((c: string, ci: number) => (
-                          <span key={ci} className="bg-surface border border-border px-1.5 py-0.5 rounded text-[10px] text-foreground">
-                            &ldquo;{c}&rdquo;
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                {(!activeVersion?.imageBriefs || activeVersion.imageBriefs.length === 0) ? (
+                  <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
+                    暂无生成的附图策划。请点击顶部「生成 Listing (14 步 DAG)」运行流水线后查看。
                   </div>
-                ))}
+                ) : (
+                  activeVersion.imageBriefs.map((brief, idx) => (
+                    <div key={idx} className="p-3.5 rounded-lg border border-border bg-surface-elevated space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="bg-purple-500/20 text-purple-400 font-bold px-2 py-0.5 rounded font-mono">
+                            槽位 #{brief.slot}
+                          </span>
+                          <span className="font-bold text-foreground">{brief.objective}</span>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">{brief.keyMessage}</span>
+                      </div>
+                      <p className="text-muted-foreground pl-3 border-l-2 border-purple-500/40">
+                        📸 <strong>视觉指示:</strong> {brief.visualDirection}
+                      </p>
+                      {brief.copy && brief.copy.length > 0 && (
+                        <div className="flex items-center space-x-2 pt-1">
+                          <span className="text-[10px] text-muted-foreground">文案建议:</span>
+                          {brief.copy.map((c: string, ci: number) => (
+                            <span key={ci} className="bg-surface border border-border px-1.5 py-0.5 rounded text-[10px] text-foreground">
+                              &ldquo;{c}&rdquo;
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -1035,41 +1493,32 @@ export default function ListingStudioPage() {
               </div>
 
               <div className="space-y-2">
-                {(stepTraces.length > 0
-                  ? stepTraces
-                  : [
-                      { stepNumber: 1, stepName: 'validate_input', status: 'COMPLETED', latencyMs: 2, summary: '输入参数校验完成: SKU MTH-WHITE-001, 图片数: 3' },
-                      { stepNumber: 2, stepName: 'load_product_facts', status: 'COMPLETED', latencyMs: 4, summary: '载入 4 项产品核心事实: 天然石材, 1.5" 孔径, 3.57 磅' },
-                      { stepNumber: 3, stepName: 'load_or_extract_visual_facts', status: 'COMPLETED', latencyMs: 3, summary: '视觉事实就绪: 5 项 (缓存命中，跳过视觉模型调用)' },
-                      { stepNumber: 4, stepName: 'load_voc', status: 'COMPLETED', latencyMs: 3, summary: '载入 3 项买家痛点与好评向量' },
-                      { stepNumber: 5, stepName: 'load_keywords', status: 'COMPLETED', latencyMs: 2, summary: '载入 4 项归一化目标关键词' },
-                      { stepNumber: 6, stepName: 'load_rufus_qa', status: 'COMPLETED', latencyMs: 2, summary: '载入 2 项 Rufus 问答意图上下文' },
-                      { stepNumber: 7, stepName: 'load_marketplace_profile', status: 'COMPLETED', latencyMs: 1, summary: '站点规范已加载: AMAZON_US (标题上限 200 字符)' },
-                      { stepNumber: 8, stepName: 'retrieve_listing_knowledge', status: 'COMPLETED', latencyMs: 5, summary: '检索 4 项分层知识库切片 (官方政策 > SEO/COSMO > Rufus)' },
-                      { stepNumber: 9, stepName: 'generate_listing', status: 'COMPLETED', latencyMs: 18, summary: 'Listing 文案生成: 标题, 5点描述, 5个附图策划, 2个 A+ 模块' },
-                      { stepNumber: 10, stepName: 'structured_output_validation', status: 'COMPLETED', latencyMs: 1, summary: 'Zod 结构校验通过: 标题 (128 字符 <= 200)' },
-                      { stepNumber: 11, stepName: 'product_fact_grounding', status: 'COMPLETED', latencyMs: 2, summary: '事实锚定率: 100.0% (4/4 宣称严格映射至已核验 factIds)' },
-                      { stepNumber: 12, stepName: 'keyword_coverage_check', status: 'COMPLETED', latencyMs: 2, summary: '关键词覆盖率: 100.0% (4/4), 未使用高优词: 0' },
-                      { stepNumber: 13, stepName: 'compliance', status: 'COMPLETED', latencyMs: 4, summary: 'Amazon 政策合规判决: PASS (0 项违规, 4/4 规则通过)' },
-                      { stepNumber: 14, stepName: 'human_review', status: 'COMPLETED', latencyMs: 1, summary: '人工把关门禁激活: 状态置为 WAITING_APPROVAL 等待发布审批' },
-                    ]
-                ).map((step) => (
-                  <div key={step.stepNumber} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-surface-elevated text-xs">
-                    <div className="flex items-center space-x-3">
-                      <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-mono font-bold text-[10px]">
-                        {step.stepNumber}
-                      </span>
-                      <span className="font-semibold text-foreground font-mono">{step.stepName}</span>
-                      <span className="text-muted-foreground">• {step.summary}</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-[11px]">
-                      <span className="text-muted-foreground font-mono">{step.latencyMs}ms</span>
-                      <span className="bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.5 rounded text-[10px]">
-                        {getStatusLabel(step.status)}
-                      </span>
-                    </div>
+                {stepTraces.length === 0 ? (
+                  <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
+                    暂未运行 DAG。请点击顶部「生成 Listing (14 步 DAG)」启动 14 步编排流水线，实时查看每个步骤的执行耗时与落盘摘要。
                   </div>
-                ))}
+                ) : (
+                  stepTraces.map((step) => (
+                    <div
+                      key={step.stepNumber}
+                      className="p-2.5 rounded-lg border border-border bg-surface-elevated flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-mono font-bold text-[10px]">
+                          {step.stepNumber}
+                        </span>
+                        <span className="font-semibold text-foreground font-mono">{step.stepName}</span>
+                        <span className="text-muted-foreground">• {step.summary}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="text-muted-foreground font-mono">{step.latencyMs}ms</span>
+                        <span className="bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.5 rounded text-[10px]">
+                          {getStatusLabel(step.status)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

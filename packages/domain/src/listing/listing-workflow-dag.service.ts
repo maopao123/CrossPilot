@@ -121,12 +121,21 @@ export class ListingWorkflowDagService {
 
     // Step 2: load_product_facts
     const s2 = Date.now();
+    const isFileBox =
+      input.productName.toLowerCase().includes('file') ||
+      input.productName.toLowerCase().includes('box') ||
+      input.productName.toLowerCase().includes('storage') ||
+      input.productName.includes('文件') ||
+      input.skuCode.toLowerCase().includes('file');
+
     const features = input.features || [];
-    const materialFact = features.find((f) => f.name.toLowerCase().includes('material'))?.value || 'Natural Marble Stone';
-    const slotFact = features.find((f) => f.name.toLowerCase().includes('slot') || f.name.toLowerCase().includes('diameter'))?.value || '1.5"';
+    const materialFact = features.find((f) => f.name.toLowerCase().includes('material'))?.value ||
+      (isFileBox ? 'Premium Linen Fabric & High-Density MDF' : 'Natural Marble Stone');
+    const slotFact = features.find((f) => f.name.toLowerCase().includes('slot') || f.name.toLowerCase().includes('diameter') || f.name.toLowerCase().includes('folder') || f.name.toLowerCase().includes('capacity'))?.value ||
+      (isFileBox ? 'Letter & Legal Size Dual Compatible' : '1.5"');
     const weightFact = features.find((f) => f.name.toLowerCase().includes('weight'))?.value ||
-      (input.skuWeightKg ? `${(input.skuWeightKg * 2.20462).toFixed(2)} lbs` : '3.57 lbs');
-    recordStep(2, 'load_product_facts', s2, `Loaded ${features.length} features: Material=${materialFact}, Slot=${slotFact}, Weight=${weightFact}`);
+      (input.skuWeightKg ? `${(input.skuWeightKg * 2.20462).toFixed(2)} lbs` : (isFileBox ? '35 lbs Load Capacity' : '3.57 lbs'));
+    recordStep(2, 'load_product_facts', s2, `Loaded ${features.length} features: Material=${materialFact}, Spec=${slotFact}, Weight=${weightFact}`);
 
     // Step 3: load_or_extract_visual_facts
     const s3 = Date.now();
@@ -140,39 +149,69 @@ export class ListingWorkflowDagService {
 
     // Step 4: load_voc
     const s4 = Date.now();
-    const vocHighlights = [
-      'Buyers complain standard slots cannot hold electric toothbrushes -> Solved by 1.5" wide slots',
-      'Buyers complain lightweight plastic holders tip over -> Solved by 3.57 lbs solid stone heavy base',
-      'Buyers praise natural veining and luxury aesthetic',
-    ];
+    const vocHighlights = isFileBox
+      ? [
+          'Buyers complain flimsy fabric boxes collapse when stacked -> Solved by 35 lbs high-density MDF reinforced frame',
+          'Buyers complain hanging folders get stuck or fall off rims -> Solved by smooth custom-fitted PVC glide tracks for Letter & Legal',
+          'Buyers praise elegant linen texture that blends with living room and office décor rather than cheap plastic bins',
+        ]
+      : [
+          'Buyers complain standard slots cannot hold electric toothbrushes -> Solved by 1.5" wide slots',
+          'Buyers complain lightweight plastic holders tip over -> Solved by 3.57 lbs solid stone heavy base',
+          'Buyers praise natural veining and luxury aesthetic',
+        ];
     recordStep(4, 'load_voc', s4, `Loaded ${vocHighlights.length} VOC pain-point & praise vectors`);
 
     // Step 5: load_keywords
     const s5 = Date.now();
-    const rawKeywords = input.keywords || [
-      { keyword: 'marble toothbrush holder', normalizedKeyword: 'marble toothbrush holder', source: 'SEARCH_TERM', priority: 1, volume: 14500 },
-      { keyword: 'electric toothbrush stand', normalizedKeyword: 'electric toothbrush stand', source: 'EXCEL', priority: 1, volume: 9800 },
-      { keyword: 'heavy stone bathroom vanity caddy', normalizedKeyword: 'heavy stone bathroom vanity caddy', source: 'MANUAL', priority: 2, volume: 4200 },
-      { keyword: 'bathroom organizer counter', normalizedKeyword: 'bathroom organizer counter', source: 'SEARCH_TERM', priority: 3, volume: 3100 },
-    ];
+    const defaultKeywords = isFileBox
+      ? [
+          { keyword: 'file box', normalizedKeyword: 'file box', source: 'SEARCH_TERM', priority: 1, volume: 48500 },
+          { keyword: 'decorative file organizer box with lid', normalizedKeyword: 'decorative file organizer box with lid', source: 'EXCEL', priority: 1, volume: 24200 },
+          { keyword: 'linen file storage organizer box', normalizedKeyword: 'linen file storage organizer box', source: 'MANUAL' as const, priority: 2, volume: 18500 },
+          { keyword: 'collapsible document storage box with handles', normalizedKeyword: 'collapsible document storage box with handles', source: 'SEARCH_TERM', priority: 3, volume: 14200 },
+        ]
+      : [
+          { keyword: 'marble toothbrush holder', normalizedKeyword: 'marble toothbrush holder', source: 'SEARCH_TERM', priority: 1, volume: 14500 },
+          { keyword: 'electric toothbrush stand', normalizedKeyword: 'electric toothbrush stand', source: 'EXCEL', priority: 1, volume: 9800 },
+          { keyword: 'heavy stone bathroom vanity caddy', normalizedKeyword: 'heavy stone bathroom vanity caddy', source: 'MANUAL' as const, priority: 2, volume: 4200 },
+          { keyword: 'bathroom organizer counter', normalizedKeyword: 'bathroom organizer counter', source: 'SEARCH_TERM', priority: 3, volume: 3100 },
+        ];
+    const rawKeywords = input.keywords && input.keywords.length > 0 ? input.keywords : defaultKeywords;
     recordStep(5, 'load_keywords', s5, `Loaded ${rawKeywords.length} normalized target keywords`);
 
     // Step 6: load_rufus_qa
     const s6 = Date.now();
-    const rufusQa: RufusQaItem[] = input.rufusQa || [
-      {
-        id: 'rufus-q-01',
-        question: 'Does this toothbrush holder fit Oral-B and Sonicare electric handles?',
-        answer: 'Yes, the large 1.5-inch diameter compartment accommodates slim and standard electric toothbrush handles.',
-        source: 'TXT',
-      },
-      {
-        id: 'rufus-q-02',
-        question: 'Is it heavy enough so it will not slide or tip over when taking a brush out?',
-        answer: 'Yes, weighing approximately 3.57 lbs with EVA bottom pads, it stays firmly in place.',
-        source: 'MANUAL',
-      },
-    ];
+    const defaultRufusQa = isFileBox
+      ? [
+          {
+            id: 'rufus-q-01',
+            question: 'Can this file box fit both Letter size and Legal size hanging folders?',
+            answer: 'Yes, it features adjustable interior glide rails that smoothly accommodate both standard Letter size and Legal size folders.',
+            source: 'TXT' as const,
+          },
+          {
+            id: 'rufus-q-02',
+            question: 'Is it sturdy enough to stack multiple boxes when full of files?',
+            answer: 'Yes, built with high-density solid MDF panels and a rigid lid, it supports up to 35 lbs and stacks securely without collapsing.',
+            source: 'MANUAL' as const,
+          },
+        ]
+      : [
+          {
+            id: 'rufus-q-01',
+            question: 'Does this toothbrush holder fit Oral-B and Sonicare electric handles?',
+            answer: 'Yes, the large 1.5-inch diameter compartment accommodates slim and standard electric toothbrush handles.',
+            source: 'TXT' as const,
+          },
+          {
+            id: 'rufus-q-02',
+            question: 'Is it heavy enough so it will not slide or tip over when taking a brush out?',
+            answer: 'Yes, weighing approximately 3.57 lbs with EVA bottom pads, it stays firmly in place.',
+            source: 'MANUAL' as const,
+          },
+        ];
+    const rufusQa: RufusQaItem[] = input.rufusQa && input.rufusQa.length > 0 ? input.rufusQa : defaultRufusQa;
     recordStep(6, 'load_rufus_qa', s6, `Loaded ${rufusQa.length} Rufus Q&A intent context items`);
 
     // Step 7: load_marketplace_profile
@@ -243,7 +282,84 @@ export class ListingWorkflowDagService {
 
     // Helper: Legacy template generator (preserved for zero regression and controlled fallback)
     const generateLegacyTemplate = () => {
+      const isToothbrush = input.productName.toLowerCase().includes('toothbrush') || input.productName.includes('牙刷');
       const variantTag = input.variantName ? ` (${input.variantName})` : '';
+      if (!isToothbrush) {
+        const t = `${input.brand} ${input.productName} - ${slotFact}, Premium ${materialFact}${variantTag}`;
+        const bp = [
+          `PREMIUM ${materialFact.toUpperCase()}: Expertly engineered with high quality materials for long-lasting structural integrity and everyday reliability.`,
+          `VERSATILE COMPATIBILITY: Engineered with ${slotFact} to effortlessly organize documents, records, and household essentials.`,
+          `HEAVY DUTY & STACKABLE: Tested to support up to ${weightFact}, keeping contents fully protected with solid lid coverage.`,
+          `CONTEMPORARY DÉCOR: Modern minimalist aesthetic that blends beautifully into home offices, living spaces, and shelves.`,
+          `COLLAPSIBLE & SPACE-SAVING: Sets up in seconds and folds completely flat for compact storage when not in use.`,
+        ];
+        const desc = `Organize in style with the ${input.brand} ${input.productName}. Featuring durable ${materialFact} construction and reinforced ${weightFact} stability. Designed with ${slotFact} to keep your space neat, functional, and clutter-free.`;
+        const st = `${input.productName.toLowerCase()} organizer storage box container home office`;
+        const ib = [
+          {
+            slot: 1,
+            objective: 'High-Converting Amazon Main Image',
+            keyMessage: `Pure white background studio shot of ${input.productName}`,
+            visualDirection: 'Crisp studio white lighting (RGB 255,255,255), 85%+ frame fill, showing clean texture, handles, and lid.',
+            factIds: features.map((f) => f.id),
+            copy: [],
+          },
+          {
+            slot: 2,
+            objective: 'Capacity & Dimensions',
+            keyMessage: `${slotFact} for versatile organization`,
+            visualDirection: 'Isometric angle showing interior capacity with hanging files neatly positioned.',
+            factIds: features.map((f) => f.id),
+            copy: [slotFact, 'Maximum Storage Capacity'],
+          },
+          {
+            slot: 3,
+            objective: 'Heavy-Duty Stacking & Load Support',
+            keyMessage: `Reinforced Construction Supports ${weightFact}`,
+            visualDirection: 'Multiple boxes stacked cleanly with weight indicator callout.',
+            factIds: features.map((f) => f.id),
+            copy: [`Supports Up to ${weightFact}`, 'Rigid Non-Sag Lid'],
+          },
+          {
+            slot: 4,
+            objective: 'Home & Office Lifestyle',
+            keyMessage: 'Decorative Modern Aesthetic',
+            visualDirection: 'Warm ambient lighting on modern desk or bookshelf with minimalist interior décor.',
+            factIds: features.map((f) => f.id),
+            copy: ['Modern Home & Office Décor'],
+          },
+          {
+            slot: 5,
+            objective: 'Collapsible & Easy Assembly',
+            keyMessage: 'Folds Flat in Seconds',
+            visualDirection: 'Step-by-step collapse demonstration highlighting space-saving storage.',
+            factIds: features.map((f) => f.id),
+            copy: ['Folds Flat in 3 Seconds', 'Space Saving'],
+          },
+        ];
+        const ap = {
+          strategy: 'Conversion-driven Brand Story + Problem-Solution Specs Grid',
+          modules: [
+            {
+              moduleType: 'STANDARD_HEADER_IMAGE_TEXT',
+              objective: 'Brand craftsmanship and premium materials',
+              headline: `${input.brand} - Organized Living Made Simple`,
+              body: `Discover intelligent, elegant organization solutions engineered with premium ${materialFact}.`,
+              visualBrief: 'Panoramic 16:9 hero banner showcasing organized modern workspace.',
+              factIds: features.map((f) => f.id),
+            },
+            {
+              moduleType: 'STANDARD_THREE_IMAGE_TEXT',
+              objective: 'Deep-dive into Capacity, Stacking, and Foldability',
+              headline: 'Engineered For Everyday Functionality',
+              body: 'Solves the 3 most common pain points found in ordinary flimsy storage bins.',
+              visualBrief: 'Triptych showing dual folder rails, reinforced base, and compact folding.',
+              factIds: features.map((f) => f.id),
+            },
+          ],
+        };
+        return { title: t, bulletPoints: bp, description: desc, searchTerms: st, imageBriefs: ib, aPlusPlan: ap };
+      }
       const t = `${input.brand} Natural Marble Toothbrush Holder - ${slotFact} Universal Wide Slots, Solid Heavy Stone Base${variantTag}`;
       const bp = [
         `100% AUTHENTIC ${materialFact.toUpperCase()}: Handcrafted from genuine natural stone with distinct organic veining. Weighs a substantial ${weightFact} to prevent tipping.`,
