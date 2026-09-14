@@ -1,28 +1,20 @@
 # CrossPilot 交接
 
-> **2026-09-14 · 经营分析归因对账门禁（Reconciliation Gate）与统一 Source of Truth 闭环修复**：
-> - **1 秒响应根因释疑**：经排查，`/api/v1/analyst/ask` 耗时约数十毫秒且响应极快的原因在于：系统执行的是**本地数据库高效 SQL 查表 + 确定性 TS 函数运算 + 字符串模板拼接**，**完全未挂接外部慢速大语言模型（LLM API 推理）**，亦非静态 HTTP 缓存。
-> - **Bug ① 利润账本内部矛盾修复（Unified Source of Truth）**：
->   - 杜绝脱节的独立 `totalVariance` 字段覆盖真实账本。`AnalystService.getWaterfall` 与 `askAnalyst` 统一强制：`totalVariance = roundMoney(currentProfit - previousProfit)`。
->   - Tool 1（`query_profit_summary`）入参和出参中 `totalVariance` 严格等于 `currentProfit - previousProfit`，消除数学自相矛盾。
-> - **Bug ② 域工具与归因事实冲突修复（Domain Tool vs Ledger）**：
->   - 退货域查询 `query_return_summary` 查询真实的 `ReturnRecord` 模型与 `profitDaily` 聚合损失。
->   - 在场景种子生成 `scenario.service.ts:resetDemo` 中增加创建真实的 Grey SKU（`MTH-GREY-001`）退货订单与退款明细（21 件，损失合计 $620.00），使退货域工具查询与 Section 286 归因账目（`returnsImpact: -620.00`）在数据源头完全一致。
-> - **Bug ③ 落地 Fail-Closed 对账门禁（Reconciliation Gate）**：
->   - **后端门禁**：在 `AnalystService.askAnalyst` 中，若 `!attribution.isExactMatch` 或存在不可忽略残差（`Math.abs(residual) > 0.001`）或域工具与归因事实冲突，触发对账门禁：
->     - 状态置为 `status: 'RECONCILIATION_FAILED'`, `isReconciled: false`；
->     - 坚决**阻断后续 Action 决策建议**（`actionPlan: []`），禁止在失真账本上做出自动化干预；
->     - 替换成功话术为严谨真实的对账告警与门禁阻断说明（呈现实际账面变化、归因因子测算合计、未解释残差及冲突证据源明细）。
->   - **前端门禁呈现（`apps/web/src/app/app/business-analyst/page.tsx`）**：
->     - 顶部徽章（Badge）由写死改为动态：对账通过显式绿色 `100% 封闭数学对账`，未通过显式红/琥珀色 `⚠️ 归因对账未平 (差额: $...)`；
->     - 对账未平时，在瀑布图上方呈现醒目的【对账门禁拦截告警框】，披露账面变动、分解合计与未平残差；
->     - 瀑布图 5 大卡片贡献度百分比接入动态计算 `waterfall.attribution.relativeContributions`；
->     - Trace 抽屉移除假静态 `exact: true` 假数据，无执行时渲染清晰空态引导；
->     - 答复区域若遭遇门禁阻断，显式标注【门禁已拦截】与操作风险警示。
-> - **实测验证**：
->   - 专项回归单测 `apps/api/test/analyst-reconciliation-gate.spec.ts` 4/4 PASS（覆盖账本派生统一性、数学残差门禁阻断、域工具冲突门禁阻断、完全对平放行及 Action 生成）；
->   - 域单测 `packages/domain/test/variance-attribution.service.spec.ts` 2/2 PASS；
->   - Monorepo 全工作区 Typecheck 10/10 PASS，Web 静态路由编译 24/24 PASS。
+> **2026-09-14 · 经营分析闭环数学对账、双场景切换器与多 SKU 范围明确（HEAD: `a9998bd`）**：
+> - **根数据修平（Issue 1）**：在 Scenario A（正常样本）中严格修平底账，Week 10 真实利润为 $4,120.00，Week 11 为 $1,840.00，总方差 -$2,280.00 = -980(Ads) - 620(Returns) - 510(Inv) - 310(Price) + 140(Other)，数学残差精确为 $0.00，对账门禁 100% PASS，正常生成 3 项高优先级 Action Plan。
+> - **退货单源事实统一（Issue 2）**：彻底打通 `ReturnRecord` ➔ `ProfitDaily` ➔ `AnalysisWaterfall`。在 Scenario A 下全部统一为 $620.00（Grey SKU 牙刷槽孔径问题），彻底消除了 $544.42 与 $620.00 的口径冲突。
+> - **分析范围显式声明（Issue 3）**：明确因果归因范围为 `scope: 'WORKSPACE'`（全店多 SKU 经营因果归因，涵盖 Carrara White 促销让利、Emerald Green 断货空运、Beige Grey 孔径退货）。前端顶部增加专属紫色标识，Agent 答复与工具执行入参中均透传范围定义，消除单变体与多变体混淆。
+> - **未平候选归因降级与文案合规（Issue 4）**：在 `RECONCILIATION_FAILED`（Scenario B 对抗样本）下：
+>   - 标题动态更名为 `候选归因因素 (未通过对账) • Candidate Attribution — NOT RECONCILED`；
+>   - 因子卡片降级为虚线浅色排查样式，移除高调百分比，标注 `⚠️ 未通过对账，仅供排查 • 因子测算: -$...`；
+>   - 文案统一升级为标准行业表述：**“已按 Fail-Closed 策略阻断生成确定性归因结论与 Action Plan，避免在失真账本上进行错误决策。”**
+> - **双场景实时切换器（Dual Scenario Switcher）**：
+>   - 后端暴露 `POST /api/v1/scenario/set-mode`（支持 `RECONCILED` 与 `CONFLICT_SAMPLE`）；
+>   - 前端顶部集成 `[🟢 封闭对账 (Scenario A)]` 与 `[🔴 门禁拦截 (Scenario B)]` 切换开关；
+> - **部署与线上实测通过**：
+>   - 代码已提交（`a9998bd`）并双推至 Gitee & GitHub `master`；
+>   - 远程服务器 `116.198.230.217`（`lavm-kx3e35xpar`）已同步拉取、编译与热重载；
+>   - 线上通过 `python3 /tmp/test_flow.py` 实测端到端两套场景切换均 100% 表现符合预期；当前默认线上保持为 Scenario A（100% 封闭对账通过）。
 >
 > **2026-09-14 · 外部设计吸收（Batch A~D）+ 关键技术债（F-1/F-11）+ Automation v1 终验全部闭环并成功提交推送部署（HEAD: `729925c`）**：
 > - **提交与推送**：工作区改动已完成提交（`729925c`），已一键双推至 `gitee:master` 与 `github:master`。
