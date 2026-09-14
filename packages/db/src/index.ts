@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 export * from '@prisma/client';
 export * from './simulator/simulator-store.js';
+export * from './simulator/v2-run-store.js';
 export * from './commerce/ensure-store-account.js';
 export * from './commerce/simulator-adapter.js';
 export * from './commerce/outcome-metrics-reader.js';

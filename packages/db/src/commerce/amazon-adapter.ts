@@ -4,6 +4,7 @@ import {
   CommercePortError,
   providerUnavailable,
   writeForbiddenResult,
+  type AdapterCapabilities,
   type AdapterWriteResult,
   type BidTarget,
   type CanonicalCampaign,
@@ -58,6 +59,15 @@ function round2(n: number): number {
  */
 export class AmazonAdapter implements CommerceAdapter {
   readonly platform: CommercePlatform = 'amazon';
+
+  getCapabilities(): AdapterCapabilities {
+    return {
+      supportedActions: [],
+      executionMode: 'live',
+      constraints: {},
+      dataFreshness: 'real-time',
+    };
+  }
 
   private readonly transport: Transport;
   private readonly exchangeToken: (refreshToken: string) => Promise<{ accessToken: string }>;

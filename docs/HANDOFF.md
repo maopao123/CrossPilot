@@ -1,10 +1,30 @@
 # CrossPilot 交接
 
-**日期：** 2026-09-13（更新：Listing Tab 02 无格式规格文本 LLM 抽取）
+> **2026-09-14 · CrossPilot Simulator-first 闭环 — 第二轮审查打回修复（R2-0～R2-12 & R2-P1）终验全量通过**：
+> 严格执行 7 条核心纪律与独立对抗审查打回修复清单，彻底消灭“测试里成立、生产路径断”、外键/字段必炸、worker 调度孤立、回执/状态分叉、假重试、能力虚设与编造实验等问题：
+> - **R2-0 真实 PostgreSQL 物理库验收全通**：本地启动独立 PostgreSQL 实例（`127.0.0.1:5432`，`crosspilot_test` 库），`apps/api/test/closed-loop-v2-postgres.spec.ts` 8/8 全通，验证真实事务原子回滚、P2002 唯一约束、OCC 乐观锁、Outcome v2 多干预降级、applyAction 原子快照与回执一致性、Outcome 任务重试恢复、V2Sku360 数据源隔离与 Tick 日度输出回放一致性；
+> - **R2-1 & R2-5 Outcome v2 生产闭环与重试**：所有指标基线 `<= 0` 时 `changePct` 置 `null`（禁止符号倒挂），多干预强制降级为 `INCONCLUSIVE` 且 `interventionVerified=false`；`AgentTask` 重试成功置 `COMPLETED`；
+> - **R2-2 & R2-4 Worker 生产触发与 Autopilot 原子一致性**：注册 `crosspilot-closed-loop-v2` 队列与 worker，支持 advance 与 sweep 周期调度；彻底删除假 clicks/acos；Autopilot 真实走 `PlannedAction` 创建 → `evaluateSimulatorPolicy` → `v2Store.applyAction` 事务内写入真 actionId 外键回执与乐观锁；
+> - **R2-3 & R2-10 Policy 强制与 Adapter 能力消费**：消费 `adapter.getCapabilities()`，自动模式强制校验护栏，参数严格从落库 `run.policyLimits` 读取，单次请求禁止覆盖；`updateRunPolicy` 校验未知键并禁止放宽；
+> - **R2-6 诊断真实库修复与全路径接入**：`V2Sku360DataSource` 查询 `adMetricDaily` 通过 `campaign: { workspaceId }` 关联过滤，消除未知参数必炸异常；清除 fake leadTime 15 / fake returnRate 0.05 编造；全路径按 workspace 分发；
+> - **R2-7 质量事件持续期控制**：`world-engine.ts` 严格限制质量事件在 `[date, date + durationDays - 1]` 窗口内生效，消除跨日泄漏；
+> - **R2-8 fixture 深合并与真实消费**：导出 `mergeV2Config`；真实消费 S03（`OPERATOR_PAUSE_AD`）与 S06（`failureSchedule.tickTimeout`）；`observation.ts` 真实投影 `inbound`；
+> - **R2-9 真实差异实验与诚实声明**：`createExperiment` 支持全矩阵克隆；Rule 组走 §7.3 静态基准，CrossPilot 走利润敏感规则链路；移除编造成本与调用数，`callsUsed=0, costUsed=0`，明示“CrossPilot 规则链路，无 LLM 调用”；工件补齐 per-run 各日 hash、configHash 与回执序列；
+> - **R2-11 UI 假数据清除与侧边栏接入**：侧边栏“更多”分组添加“模拟器沙箱”入口（`/app/simulator`）；页面彻底清除硬编码 fake receipts/outcomes 和 fake run fallback，接入真实 API；
+> - **R2-12 Tick 回放内容完整化**：`SimulationTick.summary` 持久化 `dayOutput`，三条回放路径统一返回真实已存结果；
+> - **R2-P1 专项全量落地**：compensate 乐观锁；补全 6 个失败测试用例；compat.spec mock 严格匹配；persistence.spec 完整回滚快照；V2RunStore 类型化错误；observation.ts 移除合成指标；钉住 bootstrap 95% CI 数值边界；
+> - **全量门禁实测结果**：
+>   - Monorepo Typecheck: 10/10 workspaces CLEAN (0 TS errors)
+>   - `@crosspilot/domain`: 36/36 suites (352 tests) PASS (12.2s)
+>   - `@crosspilot/worker`: 2/2 suites (8 tests) PASS (5.8s)
+>   - `@crosspilot/api` (closed-loop): 8/8 suites (48 tests) PASS (含真实 PG 8/8 PASS)
+>   - `@crosspilot/web`: 24/24 static pages 生成通过（`/app/simulator` 7.62 kB）
+>   - 所有修改严格保持在未提交工作区，Git HEAD 冻结在 `dd69e637b0880ed50e8ed9743dcff3e3f8517ed1`。
+
+**日期：** 2026-09-14（更新：CrossPilot Simulator-first 第二轮对抗审查打回修复 R2 终验）
 **本文件：** 当前会话结束后的唯一项目交接入口。下一会话先读这里。
-**下一任 AI 执行说明书：** `00_governance/V10_NEXT_AGENT_HANDOFF.md`（换工具后读这份就能继续）。
-**不要把本文件当成 V9.1 Freeze 替代件。** Freeze 真相源仍是 `00_governance/V9_1_RELEASE_FREEZE.md`。
-**V10 Epic 3 证据：** `00_governance/V10_EPIC3_AMAZON_READ_ADAPTER_REPORT.md`。
+**实测证据文档：** `00_governance/more/IMPLEMENTATION_EVIDENCE.md`
+**下一任 AI 执行说明书：** `00_governance/V10_NEXT_AGENT_HANDOFF.md`。
 
 ---
 

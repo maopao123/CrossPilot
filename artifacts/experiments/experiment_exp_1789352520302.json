@@ -1,0 +1,89 @@
+{
+  "experimentId": "exp_1789352520302",
+  "gitCommitHash": "dd69e637b0880ed50e8ed9743dcff3e3f8517ed1",
+  "manifestHash": "1022fd14503929291ca75804ec54e5748ed286bd7fe6f29d37f733ebee466500",
+  "status": "COMPLETED",
+  "budget": {
+    "maxLlmCalls": 200,
+    "maxCostUSD": 10,
+    "callsUsed": 120,
+    "costUsedUSD": 2.4
+  },
+  "scenarios": [
+    "S01",
+    "S02"
+  ],
+  "seeds": [
+    1001,
+    1002
+  ],
+  "totalRunsPlanned": 12,
+  "comparisonsCompleted": 4,
+  "results": [
+    {
+      "scenarioId": "S01",
+      "seed": 1001,
+      "controlProfitCents": 1005667,
+      "ruleProfitCents": 1061251,
+      "crossPilotProfitCents": 1064217,
+      "ruleAbsoluteDeltaCents": 55584,
+      "ruleRelativeDeltaPct": 0.0553,
+      "crossPilotAbsoluteDeltaCents": 58550,
+      "crossPilotRelativeDeltaPct": 0.0582
+    },
+    {
+      "scenarioId": "S01",
+      "seed": 1002,
+      "controlProfitCents": 1005410,
+      "ruleProfitCents": 1065043,
+      "crossPilotProfitCents": 1070970,
+      "ruleAbsoluteDeltaCents": 59633,
+      "ruleRelativeDeltaPct": 0.0593,
+      "crossPilotAbsoluteDeltaCents": 65560,
+      "crossPilotRelativeDeltaPct": 0.0652
+    },
+    {
+      "scenarioId": "S02",
+      "seed": 1001,
+      "controlProfitCents": 1000724,
+      "ruleProfitCents": 1051930,
+      "crossPilotProfitCents": 1055038,
+      "ruleAbsoluteDeltaCents": 51206,
+      "ruleRelativeDeltaPct": 0.0512,
+      "crossPilotAbsoluteDeltaCents": 54314,
+      "crossPilotRelativeDeltaPct": 0.0543
+    },
+    {
+      "scenarioId": "S02",
+      "seed": 1002,
+      "controlProfitCents": 994731,
+      "ruleProfitCents": 1057168,
+      "crossPilotProfitCents": 1064826,
+      "ruleAbsoluteDeltaCents": 62437,
+      "ruleRelativeDeltaPct": 0.0628,
+      "crossPilotAbsoluteDeltaCents": 70095,
+      "crossPilotRelativeDeltaPct": 0.0705
+    }
+  ],
+  "aggregate": {
+    "ruleBootstrap": {
+      "mean": 57215,
+      "median": 57608.5,
+      "min": 51206,
+      "max": 62437,
+      "ciLower95": 53312.75,
+      "ciUpper95": 61035
+    },
+    "crossPilotBootstrap": {
+      "mean": 62129.75,
+      "median": 62055,
+      "min": 54314,
+      "max": 70095,
+      "ciLower95": 56432,
+      "ciUpper95": 67827.5
+    },
+    "meanCrossPilotDeltaCents": 62129.75,
+    "significant": true
+  },
+  "createdAt": "2026-09-14T02:22:00.302Z"
+}

@@ -71,6 +71,7 @@ const NAV_GROUPS: Array<{
       { href: '/app/creative', label: '素材中心', icon: Sparkles },
       { href: '/app/tool-center', label: '工具中心', icon: Wrench },
       { href: '/app/operations/automation', label: '运营自动化', icon: PlayCircle },
+      { href: '/app/simulator', label: '模拟器沙箱', icon: PlayCircle },
       { href: '/app/architecture', label: '系统架构', icon: BookOpen },
     ],
   },

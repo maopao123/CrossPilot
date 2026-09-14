@@ -50,7 +50,7 @@ export type OutcomeMetricKey = keyof OutcomeMetrics;
 export interface OutcomeDeltaEntry {
   before: number;
   after: number;
-  changePct: number;
+  changePct: number | null;
 }
 
 export type OutcomeDelta = Partial<Record<OutcomeMetricKey, OutcomeDeltaEntry>>;

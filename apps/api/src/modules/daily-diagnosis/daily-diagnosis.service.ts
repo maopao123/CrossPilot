@@ -27,6 +27,7 @@ import {
   PersistenceUnavailableError,
 } from '@crosspilot/domain';
 import { StoreSku360DataSource } from '../commerce-store/store-sku360-data-source.js';
+import { V2Sku360DataSource } from '../commerce-store/v2-sku360-data-source.js';
 import { setDailyOperationWorkflowService } from '@crosspilot/tool-platform';
 import {
   DailyOperationStartRequestDto,
@@ -72,6 +73,21 @@ export class DailyDiagnosisService {
 
   public getCheckpointStore(): PostgresWorkflowCheckpointStore {
     return this.checkpointStore;
+  }
+
+  public async getServiceForWorkspace(workspaceId: string): Promise<DailyOperationWorkflowService> {
+    if (this.prisma.simulationRun?.findUnique) {
+      const isV2Run = await this.prisma.simulationRun.findUnique({
+        where: { runWorkspaceId: workspaceId },
+      });
+      if (isV2Run) {
+        return new DailyOperationWorkflowService({
+          checkpointStore: this.checkpointStore,
+          contextLoader: new Sku360ContextLoader(new V2Sku360DataSource(this.prisma)),
+        });
+      }
+    }
+    return this.workflowService;
   }
 
   /**
@@ -145,7 +161,8 @@ export class DailyDiagnosisService {
     };
 
     // Execute workflow in background (or await if requested)
-    const runPromise = this.workflowService.execute(input).catch((err) => {
+    const service = await this.getServiceForWorkspace(workspaceId);
+    const runPromise = service.execute(input).catch((err) => {
       console.error(`[DailyDiagnosisService] Error executing workflow task ${taskId}:`, err);
     });
 
@@ -171,7 +188,8 @@ export class DailyDiagnosisService {
     workspaceId: string,
     include?: string,
   ): Promise<DailyOperationTaskSummaryDto> {
-    const state = await this.workflowService.getState(taskId);
+    const service = await this.getServiceForWorkspace(workspaceId);
+    const state = await service.getState(taskId);
     if (!state) {
       throw new WorkflowNotFoundError(taskId);
     }
@@ -283,7 +301,8 @@ export class DailyDiagnosisService {
       });
     }
 
-    const updatedState = await this.workflowService.approveAction(
+    const service = await this.getServiceForWorkspace(workspaceId);
+    const updatedState = await service.approveAction(
       taskId,
       actionId,
       dto?.decidedBy || 'HUMAN_OPERATOR',
@@ -323,7 +342,8 @@ export class DailyDiagnosisService {
       });
     }
 
-    const state = await this.workflowService.getState(taskId);
+    const service = await this.getServiceForWorkspace(workspaceId);
+    const state = await service.getState(taskId);
     if (!state) {
       throw new WorkflowNotFoundError(taskId);
     }
@@ -334,7 +354,7 @@ export class DailyDiagnosisService {
       });
     }
 
-    const updatedState = await this.workflowService.rejectAction(
+    const updatedState = await service.rejectAction(
       taskId,
       actionId,
       dto?.decidedBy || 'HUMAN_OPERATOR',
@@ -374,7 +394,8 @@ export class DailyDiagnosisService {
       });
     }
 
-    const state = await this.workflowService.getState(taskId);
+    const service = await this.getServiceForWorkspace(workspaceId);
+    const state = await service.getState(taskId);
     if (!state) {
       throw new WorkflowNotFoundError(taskId);
     }
@@ -385,7 +406,7 @@ export class DailyDiagnosisService {
       });
     }
 
-    const updatedState = await this.workflowService.dismissAction(
+    const updatedState = await service.dismissAction(
       taskId,
       actionId,
       dto?.decidedBy || 'HUMAN_OPERATOR',
@@ -424,7 +445,8 @@ export class DailyDiagnosisService {
       });
     }
 
-    const state = await this.workflowService.getState(taskId);
+    const service = await this.getServiceForWorkspace(workspaceId);
+    const state = await service.getState(taskId);
     if (!state) {
       throw new WorkflowNotFoundError(taskId);
     }
@@ -435,7 +457,7 @@ export class DailyDiagnosisService {
       });
     }
 
-    const result = await this.workflowService.resume(taskId, options);
+    const result = await service.resume(taskId, options);
 
     return SensitiveDataGuard.scrub({
       taskId: result.taskId,

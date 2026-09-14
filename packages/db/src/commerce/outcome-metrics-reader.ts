@@ -17,11 +17,20 @@ function toDate(key: string): Date {
  * now 可注入，便于测试。
  */
 export async function resolveWorkspaceToday(
-  prisma: Pick<PrismaClient, 'simulationState'>,
+  prisma: any,
   workspaceId: string,
   now: Date = new Date(),
 ): Promise<Date> {
-  const state = await prisma.simulationState.findUnique({ where: { workspaceId } });
+  if (prisma.simulationRun?.findUnique) {
+    const v2Run = await prisma.simulationRun.findUnique({
+      where: { runWorkspaceId: workspaceId },
+    });
+    if (v2Run) {
+      const base = v2Run.completedThrough ?? new Date(0);
+      return new Date(base.toISOString().slice(0, 10) + 'T00:00:00.000Z');
+    }
+  }
+  const state = await prisma.simulationState?.findUnique?.({ where: { workspaceId } });
   const base = state?.simDate ?? now;
   return new Date(base.toISOString().slice(0, 10) + 'T00:00:00.000Z');
 }

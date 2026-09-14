@@ -8,9 +8,14 @@ import {
 } from './processors/agent-task.processor.js';
 import { runSimulatorTick } from './processors/simulator-tick.processor.js';
 import { runOutcomeEvaluation } from './processors/outcome-evaluator.processor.js';
+import {
+  advanceClosedLoopRun,
+  runClosedLoopV2Sweep,
+} from './processors/closed-loop-v2.processor.js';
 
 const SIMULATOR_QUEUE_NAME = 'crosspilot-simulator-tick';
 const OUTCOME_QUEUE_NAME = 'crosspilot-outcome-evaluator';
+export const CLOSED_LOOP_V2_QUEUE_NAME = 'crosspilot-closed-loop-v2';
 
 export class WorkerService {
   private worker: Worker<AgentTaskJobData> | null = null;
@@ -23,6 +28,10 @@ export class WorkerService {
   private outcomeQueue: Queue | null = null;
   private outcomeRedis: Redis | null = null;
   private outcomePrisma: PrismaClient | null = null;
+  private closedLoopWorker: Worker | null = null;
+  private closedLoopQueue: Queue | null = null;
+  private closedLoopRedis: Redis | null = null;
+  private closedLoopPrisma: PrismaClient | null = null;
   private redisService: RedisService;
   private isRunning = false;
 
@@ -46,6 +55,9 @@ export class WorkerService {
       // Scheduler is independent of the legacy agent-task queue: start it
       // first so a failure in the main Worker setup cannot starve it.
       await this.startSimulatorScheduler();
+
+      // Closed-Loop-v2 scheduler & processor worker
+      await this.startClosedLoopScheduler();
 
       // V10 Epic A：Outcome Tracking 评估器，与 simulator 调度互不影响。
       await this.startOutcomeScheduler();
@@ -187,6 +199,68 @@ export class WorkerService {
     }
   }
 
+  /**
+   * Closed-Loop v2 Simulator scheduler and processor worker.
+   * Handles explicit advance jobs enqueued via API and repeatable sweeps if SIMULATOR_ENABLED=true.
+   */
+  private async startClosedLoopScheduler(): Promise<void> {
+    try {
+      this.closedLoopPrisma = new PrismaClient();
+      const prisma = this.closedLoopPrisma;
+
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      this.closedLoopRedis = new Redis(redisUrl, { maxRetriesPerRequest: null });
+
+      this.closedLoopQueue = new Queue(CLOSED_LOOP_V2_QUEUE_NAME, {
+        connection: this.closedLoopRedis as any,
+      });
+
+      if (process.env.SIMULATOR_ENABLED === 'true') {
+        const intervalMinutes =
+          Number.parseInt(process.env.SIMULATOR_TICK_INTERVAL_MINUTES ?? '', 10) || 60;
+        await this.closedLoopQueue.add(
+          'closed-loop-v2-sweep',
+          {},
+          {
+            jobId: 'closed-loop-v2-sweep',
+            repeat: { every: intervalMinutes * 60 * 1000 },
+            removeOnComplete: true,
+            removeOnFail: 100,
+          },
+        );
+        console.log(
+          `🕐 ClosedLoopV2 scheduler enabled: sweep every ${intervalMinutes} minute(s).`,
+        );
+      }
+
+      this.closedLoopWorker = new Worker(
+        CLOSED_LOOP_V2_QUEUE_NAME,
+        async (job: Job) => {
+          const { runId, days, maxDays, userId } = job.data || {};
+          if (runId) {
+            return await advanceClosedLoopRun(prisma, runId, {
+              maxDays: days ?? maxDays ?? 1,
+              userId,
+            });
+          } else {
+            return await runClosedLoopV2Sweep(prisma);
+          }
+        },
+        { connection: this.closedLoopRedis as any },
+      );
+
+      this.closedLoopWorker.on('completed', (job: Job) => {
+        console.log(`✅ ClosedLoopV2 Job ${job.id} completed successfully`);
+      });
+
+      this.closedLoopWorker.on('failed', (job: Job | undefined, err: Error) => {
+        console.warn(`⚠️ ClosedLoopV2 Job ${job?.id} failed:`, err.message);
+      });
+    } catch (err: any) {
+      console.warn('⚠️ ClosedLoopV2 scheduler initialization warning:', err.message);
+    }
+  }
+
   public async stop(): Promise<void> {
     console.log('🛑 Shutting down CrossPilot Worker...');
     if (this.worker) {
@@ -228,6 +302,22 @@ export class WorkerService {
     if (this.outcomePrisma) {
       await this.outcomePrisma.$disconnect();
       this.outcomePrisma = null;
+    }
+    if (this.closedLoopWorker) {
+      await this.closedLoopWorker.close();
+      this.closedLoopWorker = null;
+    }
+    if (this.closedLoopQueue) {
+      await this.closedLoopQueue.close();
+      this.closedLoopQueue = null;
+    }
+    if (this.closedLoopRedis) {
+      await this.closedLoopRedis.quit();
+      this.closedLoopRedis = null;
+    }
+    if (this.closedLoopPrisma) {
+      await this.closedLoopPrisma.$disconnect();
+      this.closedLoopPrisma = null;
     }
     await this.redisService.disconnect();
     this.isRunning = false;

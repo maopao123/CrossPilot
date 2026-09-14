@@ -78,4 +78,13 @@ export class ActionLayerController {
   ) {
     return this.actions.execute(workspaceId, id, userId);
   }
+
+  @Post(':id/compensate')
+  compensate(
+    @CurrentWorkspace() workspaceId: string,
+    @CurrentUser('sub') userId: string | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.actions.compensate(workspaceId, id, userId);
+  }
 }

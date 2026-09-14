@@ -1,4 +1,5 @@
 import type {
+  AdapterCapabilities,
   AdapterWriteResult,
   BidTarget,
   CanonicalCampaign,
@@ -39,4 +40,5 @@ export interface ProfitPort {
 /** Resource-level commerce adapter. Business code depends on this, not a platform SDK. */
 export interface CommerceAdapter extends CatalogPort, OrderPort, InventoryPort, AdsPort, ProfitPort {
   readonly platform: CommercePlatform;
+  getCapabilities?(): AdapterCapabilities;
 }

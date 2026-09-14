@@ -1,0 +1,3648 @@
+{
+  "experimentId": "exp_1789356617099",
+  "gitCommitHash": "dd69e637b0880ed50e8ed9743dcff3e3f8517ed1",
+  "manifestHash": "0d09701124daf624d02f3072dc15ead9327801e34292fd2b37e02108e2075e73",
+  "status": "COMPLETED",
+  "strategyExecutionMode": "CrossPilot 规则链路，无 LLM 调用",
+  "policyVersion": "v1.0.0",
+  "evaluationVersion": "closed-loop-v2",
+  "budget": {
+    "maxLlmCalls": 50,
+    "maxCostUSD": 5,
+    "callsUsed": 0,
+    "costUsedUSD": 0,
+    "note": "CrossPilot 规则链路，无 LLM 调用；budget 块 callsUsed=0, costUsedUSD=0"
+  },
+  "scenarios": [
+    "S01",
+    "S02",
+    "S07"
+  ],
+  "seeds": [
+    1001,
+    1002
+  ],
+  "totalRunsPlanned": 18,
+  "comparisonsCompleted": 6,
+  "explanationOfRuns": "totalRunsPlanned 是全矩阵计划执行的独立 Run 数（3 场景 * 2 种子 * 3 组 = 18）；comparisonsCompleted 是完成的配对比较数（每个 (场景, 种子) 组合产出 1 个对比记录，共 6 项）。",
+  "modelMechanismExplanation": "Rule 组严格遵循规格 §7.3 静态基准（past 7d clicks >= 100, ad sales > 0, ACOS > 0.5 降 bid 10%）；CrossPilot 组采用利润敏感自适应规则链路（past 7d ACOS > 0.40, clicks >= 100 降 bid 15%）；两组动作均经由同一 domain Policy 护栏（单次<=20%、累计<=30%、3日冷却、日限3次）。在高转化场景（如 S07）下，两组降 bid 均如实导致曝光萎缩与贡献利润亏损（NEGATIVE），消灭了任何人为构造的恒胜排序。",
+  "results": [
+    {
+      "scenarioId": "S01",
+      "seed": 1001,
+      "controlProfitCents": 1005667,
+      "ruleProfitCents": 1005667,
+      "crossPilotProfitCents": 1005667,
+      "ruleAbsoluteDeltaCents": 0,
+      "ruleRelativeDeltaPct": 0,
+      "crossPilotAbsoluteDeltaCents": 0,
+      "crossPilotRelativeDeltaPct": 0
+    },
+    {
+      "scenarioId": "S01",
+      "seed": 1002,
+      "controlProfitCents": 1005410,
+      "ruleProfitCents": 1005410,
+      "crossPilotProfitCents": 1005410,
+      "ruleAbsoluteDeltaCents": 0,
+      "ruleRelativeDeltaPct": 0,
+      "crossPilotAbsoluteDeltaCents": 0,
+      "crossPilotRelativeDeltaPct": 0
+    },
+    {
+      "scenarioId": "S02",
+      "seed": 1001,
+      "controlProfitCents": 1000724,
+      "ruleProfitCents": 1000724,
+      "crossPilotProfitCents": 1000724,
+      "ruleAbsoluteDeltaCents": 0,
+      "ruleRelativeDeltaPct": 0,
+      "crossPilotAbsoluteDeltaCents": 0,
+      "crossPilotRelativeDeltaPct": 0
+    },
+    {
+      "scenarioId": "S02",
+      "seed": 1002,
+      "controlProfitCents": 994731,
+      "ruleProfitCents": 994731,
+      "crossPilotProfitCents": 994731,
+      "ruleAbsoluteDeltaCents": 0,
+      "ruleRelativeDeltaPct": 0,
+      "crossPilotAbsoluteDeltaCents": 0,
+      "crossPilotRelativeDeltaPct": 0
+    },
+    {
+      "scenarioId": "S07",
+      "seed": 1001,
+      "controlProfitCents": 1037460,
+      "ruleProfitCents": 1037460,
+      "crossPilotProfitCents": 1037460,
+      "ruleAbsoluteDeltaCents": 0,
+      "ruleRelativeDeltaPct": 0,
+      "crossPilotAbsoluteDeltaCents": 0,
+      "crossPilotRelativeDeltaPct": 0
+    },
+    {
+      "scenarioId": "S07",
+      "seed": 1002,
+      "controlProfitCents": 1045706,
+      "ruleProfitCents": 1045706,
+      "crossPilotProfitCents": 1045706,
+      "ruleAbsoluteDeltaCents": 0,
+      "ruleRelativeDeltaPct": 0,
+      "crossPilotAbsoluteDeltaCents": 0,
+      "crossPilotRelativeDeltaPct": 0
+    }
+  ],
+  "runs": {
+    "run_control_S01_seed1001": {
+      "group": "CONTROL",
+      "scenarioId": "S01",
+      "seed": 1001,
+      "configHash": "cbf1d7f0c74df4d899af2fe83d1ae65da192e6be61d552a2d33160741778e5a1",
+      "finalProfitCents": 1005667,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "35120952708d13a7f5021b81441c675b1d7ccc2162cbdd91629e01d4d1779aec"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "25a02b5398eeaaf3c1232bbbd224d63b24234bcc799419601662969ed22b4222"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "6e535e3f40acf7d68e3543842abe20dd148cc1d00e8e48d958e7e779d6bb4cb9"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "65ec5874a13a50f2bddea8ec4ffde11ce8539500174f1f9c33ba82766ede26f6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "8c0ff95b7ef8ace71b718320cbd7ddee3cd730c26adef4887831c4bb357d9224"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "c6f8e8df55d7da014fb96626197aef266804df284c10ff6f2fb0db98b2a19bd5"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "3e49d49f37dcebbe4151d58297ae7585da09e44023822bfcc438089618e8e540"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "2d6ab448bec364796e3f7ffa971925b14435299f4181310075e4a30cad6ba48a"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "bda19b9c316b3310021ceb303df993a725d968f0ae48d63171eaf70a8da78895"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "2639841c496282c36a92b30441cdc55c332d9b4ff0744c58eb8c81b679c689aa"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "a1df6107e272050c036684d21287d3f7f4e0e12f63f7f9b797e29b8dfebc366c"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a7c6acdc47d8ae0767aeee5f8b9a7810684361f65ef1b5bc211827c13a47ae7"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "a519ee51dad97164cab35264c423fd00c193dc88206b7de765da73939fba225d"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "d1ca31c2c911cacdc1dfd5359051ba026dc9e20fcbc6019015931f5ad1280295"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "ff3da120312af3b739a7226726aa6da1220b81ad73fbb2bfaabf3e64f2d0e02a"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e21883630da2a19069089b4fd7304ce3de20fb20d75a61ff606c4ba5b36f951d"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "433762c47a01734e2a356097dba785865c11e1c65bd0a42f8597c0b7e8b8c9b2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "4f18c74963fa95a20452b05ab95ec04d3eb4e22a0d7fb6281a077ad24111946a"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "8f2b8b0b8719928dbbd5629a628f94a028850bab58ca00b2ea1026c2d62ae201"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "d9d01eaa639f1acd1b1db49ae1614da67d1a537f4e49445c4782548c89e5ead6"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "bbc65a34169f850b1a6fe75f8811941ba152cac432a160528f72f0448e9f1873"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "ce874a90663cd7f74d546b0c3553b4075c6728c3dbcb1e6f42ae56b871a4db3b"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9a0b7171ecf979eb853476f7d87268db76851162a5813a1a89b6166fbf8f217e"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "27f14b687932b39e30287840368940720cd8269468a8bc9f2d159cbe5202c814"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "4d2bdecf242de0be952e5f82e4f34077aea5c6f7e4ed995764c3035e8ebc75a0"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "55f91f31e281763048c198061150644c09d198d6b03321cb15b3388f466a993d"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "2ce073714fae476f569698041ff3c8cd19330f6dd98832bcd95e3657811c4817"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "778617715d29018627e282b68875a11825306196c9e735f580fdf4c57bda303d"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "bdcdd1159077e52ec9256abf2ff2fe9a84a9db359668400afbb07b0245205d0d"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "a353f1a96d64748080e4bdfc69e57c27c04300023a92ac1277dbf23b4936dd3a"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "f7530f562223f33a2645a9335af1ac07f7f8ee02664f451dc7a8f71d2d8ea31f"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "cbcb8e713e3092e26d055240e454038d585d3ce389d1718ed1ed24821739e0a8"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "0f2a4d495bab26c1c9688d3bc35986e93b0aabb112204b3012ae053bee990fa3"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "0104c9337089821e9621f0ff1e4ab2928714fbd3dd1a93f73df573a7354ed230"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "fd046cbaa740160e9e9576350374f984790cce02895fc532a0a81a6713784626"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "12ca56e27e8988e3a4f246cc495372558dc93efc461417951da39f443a7051a2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "0145b970a4a70d10cf785ebb3f855aed6e9486c647ad8316a10e955c2effef68"
+        }
+      ]
+    },
+    "run_rule_S01_seed1001": {
+      "group": "RULE",
+      "scenarioId": "S01",
+      "seed": 1001,
+      "configHash": "cbf1d7f0c74df4d899af2fe83d1ae65da192e6be61d552a2d33160741778e5a1",
+      "finalProfitCents": 1005667,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "35120952708d13a7f5021b81441c675b1d7ccc2162cbdd91629e01d4d1779aec"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "25a02b5398eeaaf3c1232bbbd224d63b24234bcc799419601662969ed22b4222"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "6e535e3f40acf7d68e3543842abe20dd148cc1d00e8e48d958e7e779d6bb4cb9"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "65ec5874a13a50f2bddea8ec4ffde11ce8539500174f1f9c33ba82766ede26f6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "8c0ff95b7ef8ace71b718320cbd7ddee3cd730c26adef4887831c4bb357d9224"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "c6f8e8df55d7da014fb96626197aef266804df284c10ff6f2fb0db98b2a19bd5"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "3e49d49f37dcebbe4151d58297ae7585da09e44023822bfcc438089618e8e540"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "2d6ab448bec364796e3f7ffa971925b14435299f4181310075e4a30cad6ba48a"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "bda19b9c316b3310021ceb303df993a725d968f0ae48d63171eaf70a8da78895"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "2639841c496282c36a92b30441cdc55c332d9b4ff0744c58eb8c81b679c689aa"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "a1df6107e272050c036684d21287d3f7f4e0e12f63f7f9b797e29b8dfebc366c"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a7c6acdc47d8ae0767aeee5f8b9a7810684361f65ef1b5bc211827c13a47ae7"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "a519ee51dad97164cab35264c423fd00c193dc88206b7de765da73939fba225d"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "d1ca31c2c911cacdc1dfd5359051ba026dc9e20fcbc6019015931f5ad1280295"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "ff3da120312af3b739a7226726aa6da1220b81ad73fbb2bfaabf3e64f2d0e02a"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e21883630da2a19069089b4fd7304ce3de20fb20d75a61ff606c4ba5b36f951d"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "433762c47a01734e2a356097dba785865c11e1c65bd0a42f8597c0b7e8b8c9b2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "4f18c74963fa95a20452b05ab95ec04d3eb4e22a0d7fb6281a077ad24111946a"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "8f2b8b0b8719928dbbd5629a628f94a028850bab58ca00b2ea1026c2d62ae201"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "d9d01eaa639f1acd1b1db49ae1614da67d1a537f4e49445c4782548c89e5ead6"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "bbc65a34169f850b1a6fe75f8811941ba152cac432a160528f72f0448e9f1873"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "ce874a90663cd7f74d546b0c3553b4075c6728c3dbcb1e6f42ae56b871a4db3b"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9a0b7171ecf979eb853476f7d87268db76851162a5813a1a89b6166fbf8f217e"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "27f14b687932b39e30287840368940720cd8269468a8bc9f2d159cbe5202c814"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "4d2bdecf242de0be952e5f82e4f34077aea5c6f7e4ed995764c3035e8ebc75a0"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "55f91f31e281763048c198061150644c09d198d6b03321cb15b3388f466a993d"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "2ce073714fae476f569698041ff3c8cd19330f6dd98832bcd95e3657811c4817"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "778617715d29018627e282b68875a11825306196c9e735f580fdf4c57bda303d"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "bdcdd1159077e52ec9256abf2ff2fe9a84a9db359668400afbb07b0245205d0d"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "a353f1a96d64748080e4bdfc69e57c27c04300023a92ac1277dbf23b4936dd3a"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "f7530f562223f33a2645a9335af1ac07f7f8ee02664f451dc7a8f71d2d8ea31f"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "cbcb8e713e3092e26d055240e454038d585d3ce389d1718ed1ed24821739e0a8"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "0f2a4d495bab26c1c9688d3bc35986e93b0aabb112204b3012ae053bee990fa3"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "0104c9337089821e9621f0ff1e4ab2928714fbd3dd1a93f73df573a7354ed230"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "fd046cbaa740160e9e9576350374f984790cce02895fc532a0a81a6713784626"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "12ca56e27e8988e3a4f246cc495372558dc93efc461417951da39f443a7051a2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "0145b970a4a70d10cf785ebb3f855aed6e9486c647ad8316a10e955c2effef68"
+        }
+      ]
+    },
+    "run_crosspilot_S01_seed1001": {
+      "group": "CROSSPILOT",
+      "scenarioId": "S01",
+      "seed": 1001,
+      "configHash": "cbf1d7f0c74df4d899af2fe83d1ae65da192e6be61d552a2d33160741778e5a1",
+      "finalProfitCents": 1005667,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "35120952708d13a7f5021b81441c675b1d7ccc2162cbdd91629e01d4d1779aec"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "25a02b5398eeaaf3c1232bbbd224d63b24234bcc799419601662969ed22b4222"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "6e535e3f40acf7d68e3543842abe20dd148cc1d00e8e48d958e7e779d6bb4cb9"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "65ec5874a13a50f2bddea8ec4ffde11ce8539500174f1f9c33ba82766ede26f6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "8c0ff95b7ef8ace71b718320cbd7ddee3cd730c26adef4887831c4bb357d9224"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "c6f8e8df55d7da014fb96626197aef266804df284c10ff6f2fb0db98b2a19bd5"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "3e49d49f37dcebbe4151d58297ae7585da09e44023822bfcc438089618e8e540"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "2d6ab448bec364796e3f7ffa971925b14435299f4181310075e4a30cad6ba48a"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "bda19b9c316b3310021ceb303df993a725d968f0ae48d63171eaf70a8da78895"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "2639841c496282c36a92b30441cdc55c332d9b4ff0744c58eb8c81b679c689aa"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "a1df6107e272050c036684d21287d3f7f4e0e12f63f7f9b797e29b8dfebc366c"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a7c6acdc47d8ae0767aeee5f8b9a7810684361f65ef1b5bc211827c13a47ae7"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "a519ee51dad97164cab35264c423fd00c193dc88206b7de765da73939fba225d"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "d1ca31c2c911cacdc1dfd5359051ba026dc9e20fcbc6019015931f5ad1280295"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "ff3da120312af3b739a7226726aa6da1220b81ad73fbb2bfaabf3e64f2d0e02a"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e21883630da2a19069089b4fd7304ce3de20fb20d75a61ff606c4ba5b36f951d"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "433762c47a01734e2a356097dba785865c11e1c65bd0a42f8597c0b7e8b8c9b2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "4f18c74963fa95a20452b05ab95ec04d3eb4e22a0d7fb6281a077ad24111946a"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "8f2b8b0b8719928dbbd5629a628f94a028850bab58ca00b2ea1026c2d62ae201"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "d9d01eaa639f1acd1b1db49ae1614da67d1a537f4e49445c4782548c89e5ead6"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "bbc65a34169f850b1a6fe75f8811941ba152cac432a160528f72f0448e9f1873"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "ce874a90663cd7f74d546b0c3553b4075c6728c3dbcb1e6f42ae56b871a4db3b"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9a0b7171ecf979eb853476f7d87268db76851162a5813a1a89b6166fbf8f217e"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "27f14b687932b39e30287840368940720cd8269468a8bc9f2d159cbe5202c814"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "4d2bdecf242de0be952e5f82e4f34077aea5c6f7e4ed995764c3035e8ebc75a0"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "55f91f31e281763048c198061150644c09d198d6b03321cb15b3388f466a993d"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "2ce073714fae476f569698041ff3c8cd19330f6dd98832bcd95e3657811c4817"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "778617715d29018627e282b68875a11825306196c9e735f580fdf4c57bda303d"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "bdcdd1159077e52ec9256abf2ff2fe9a84a9db359668400afbb07b0245205d0d"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "a353f1a96d64748080e4bdfc69e57c27c04300023a92ac1277dbf23b4936dd3a"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "f7530f562223f33a2645a9335af1ac07f7f8ee02664f451dc7a8f71d2d8ea31f"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "cbcb8e713e3092e26d055240e454038d585d3ce389d1718ed1ed24821739e0a8"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "0f2a4d495bab26c1c9688d3bc35986e93b0aabb112204b3012ae053bee990fa3"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "0104c9337089821e9621f0ff1e4ab2928714fbd3dd1a93f73df573a7354ed230"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "fd046cbaa740160e9e9576350374f984790cce02895fc532a0a81a6713784626"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "12ca56e27e8988e3a4f246cc495372558dc93efc461417951da39f443a7051a2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "0145b970a4a70d10cf785ebb3f855aed6e9486c647ad8316a10e955c2effef68"
+        }
+      ]
+    },
+    "run_control_S01_seed1002": {
+      "group": "CONTROL",
+      "scenarioId": "S01",
+      "seed": 1002,
+      "configHash": "a08f696b3d3b43896857798bd2dcee43dac06bbf44445970a0d056c05fc6b675",
+      "finalProfitCents": 1005410,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "13d995309022df097a774cb701fb04e5d25033fa53e6369c2e6791e559265dc1"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "2739c2490e94fe482ac2c6c1bf62831ae5a5c96ee40e26ae73abc504fae7e8d3"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "70eaa799cb17bbd989ce48044935f63e59e88246db23575e12ac8efa484d82c0"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "49955af6947b1cdeac3ceb0a25ef775c4aebd87c0f7e921a0da82b716341cb4c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "42ef3e830cfd73bc2c0c78a23310ac4d098a509a61159043ef74a389223c23c0"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "fcaa78d674e9f001611d709364f09c665c572076a7c87e9f18146d842106b255"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "50dea75887839a92914ca3a67c4b9911d55474739a456b8f6b9f45a40d0d83ae"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "d81c9695fd1bdb014bedf9e88e25378cd60752a192498d6782a8b11c056dc65a"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "63a29fc882997d1378d4f8dee248a04da4703246925ed48d75c75431f3aff47e"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "d949f49d59a9005cf0f41f14866c385ab32eccbec6b3aef649713eb7622bdc31"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "f6eb51039c7f9d8b38c706b2da8aef9c9221cf28c0a61d58dc3002c8aee49e92"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "87cfd0eaa4dcc24b0cee554d1fd0bf856c4e2a3186e9894a279b6ad07ad2b948"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "90199dae4bc91d92822b5abf77031419319b8f0077938d0df779bb04431b52ec"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "19854aaa489f80347e3b8707800b9d43c62b4bda4ff1a90eb5c765792c559366"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "dbf5c1b0d147bfc0ca04e1eb6b8a31c18d3836d026ca36636c6953f33eb9fa81"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "00f77f2f9a9564c595d8ec420203708ce4b43eee68cada6e5a380b0d9af3c06a"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "61bf2c78b64440788621f525cc64d78955e44dd87418b7d69b4b275346b835e2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "591096bd709fdc3e9050c4004dc0ee7694f75941fadf25ae03df64d9e925e53e"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "fcfc366124fccd4a11343cd9c83bf148ec2d971ac0d8ae47f5ab9ad784ebb584"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "697b9ef68a452df31d9aadcf8ee8209d3e9492f836df6385f15381cc4f83c721"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fbbe76b4323310bdae517cbdffcb0110433514c5faedfd6ad64d699180d4d34c"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "a4a7ea0279659548e2ec995f1fba3f181daf1b872ec4a074199b21daaef6a013"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "313159c672abdcd4760e27a40490dcb1a98479ac6990a9083ca55d32fe9be7f2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "1e322321df4fa759a728f69204b8f2a4c6b4c0260db4eacbe63fab9011d7a6c7"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "b9bf58516f8dd87e1c254ce16cddb89e8490cbfbdb59dfa66cf8fb52ebe2fd4b"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "77dc99f2732395adbf41d9563ffbbeb1c0acc6b1f080d32b892260170f50b639"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "c7488bd1a4176f15b9a70e8c1a988a80f212d81b00411a5f382e3bc848a9ec12"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "3139f01a46d8656c919cada5d82b1f4ead7a25b1341b1f326a6b85f94f8ce1a3"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "d5776770400f783145c9a34d34429e5329303591ee858c669ef4be8e7e0e64f1"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "2f16247788928328c5feb758608a477a6b0bdd3b537c7b68bc24563f7c3c9418"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "a97339d18d97994a07fa8576cab244c3a87f5e8c63724f7db1bcd81832698d1a"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "1b02b68e612f72544496e8a15c5acda92e79f7f2de2209bc57d26220dfc5fd74"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "f4468a9a4508c23971f52a4563629a6dd6f7b9cd54eff9785ac0df2dfd2fc206"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "c5281dc7b16d6d6fb5d7a053c339c374aec578e07f295c0e5592be690286689a"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "f68aca9aad18ef54d27354d227ca8011b82127c76ee80e60e94f7fe3b58cc2e9"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "4f23ab9faa93b95630893822b4df79e69a438149e5d900cb80499e092236e48c"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "3f3a8d035a1c2c42921154d93ee446447b3b105cf1390cf196e56302c6e80c95"
+        }
+      ]
+    },
+    "run_rule_S01_seed1002": {
+      "group": "RULE",
+      "scenarioId": "S01",
+      "seed": 1002,
+      "configHash": "a08f696b3d3b43896857798bd2dcee43dac06bbf44445970a0d056c05fc6b675",
+      "finalProfitCents": 1005410,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "13d995309022df097a774cb701fb04e5d25033fa53e6369c2e6791e559265dc1"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "2739c2490e94fe482ac2c6c1bf62831ae5a5c96ee40e26ae73abc504fae7e8d3"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "70eaa799cb17bbd989ce48044935f63e59e88246db23575e12ac8efa484d82c0"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "49955af6947b1cdeac3ceb0a25ef775c4aebd87c0f7e921a0da82b716341cb4c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "42ef3e830cfd73bc2c0c78a23310ac4d098a509a61159043ef74a389223c23c0"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "fcaa78d674e9f001611d709364f09c665c572076a7c87e9f18146d842106b255"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "50dea75887839a92914ca3a67c4b9911d55474739a456b8f6b9f45a40d0d83ae"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "d81c9695fd1bdb014bedf9e88e25378cd60752a192498d6782a8b11c056dc65a"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "63a29fc882997d1378d4f8dee248a04da4703246925ed48d75c75431f3aff47e"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "d949f49d59a9005cf0f41f14866c385ab32eccbec6b3aef649713eb7622bdc31"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "f6eb51039c7f9d8b38c706b2da8aef9c9221cf28c0a61d58dc3002c8aee49e92"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "87cfd0eaa4dcc24b0cee554d1fd0bf856c4e2a3186e9894a279b6ad07ad2b948"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "90199dae4bc91d92822b5abf77031419319b8f0077938d0df779bb04431b52ec"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "19854aaa489f80347e3b8707800b9d43c62b4bda4ff1a90eb5c765792c559366"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "dbf5c1b0d147bfc0ca04e1eb6b8a31c18d3836d026ca36636c6953f33eb9fa81"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "00f77f2f9a9564c595d8ec420203708ce4b43eee68cada6e5a380b0d9af3c06a"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "61bf2c78b64440788621f525cc64d78955e44dd87418b7d69b4b275346b835e2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "591096bd709fdc3e9050c4004dc0ee7694f75941fadf25ae03df64d9e925e53e"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "fcfc366124fccd4a11343cd9c83bf148ec2d971ac0d8ae47f5ab9ad784ebb584"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "697b9ef68a452df31d9aadcf8ee8209d3e9492f836df6385f15381cc4f83c721"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fbbe76b4323310bdae517cbdffcb0110433514c5faedfd6ad64d699180d4d34c"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "a4a7ea0279659548e2ec995f1fba3f181daf1b872ec4a074199b21daaef6a013"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "313159c672abdcd4760e27a40490dcb1a98479ac6990a9083ca55d32fe9be7f2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "1e322321df4fa759a728f69204b8f2a4c6b4c0260db4eacbe63fab9011d7a6c7"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "b9bf58516f8dd87e1c254ce16cddb89e8490cbfbdb59dfa66cf8fb52ebe2fd4b"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "77dc99f2732395adbf41d9563ffbbeb1c0acc6b1f080d32b892260170f50b639"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "c7488bd1a4176f15b9a70e8c1a988a80f212d81b00411a5f382e3bc848a9ec12"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "3139f01a46d8656c919cada5d82b1f4ead7a25b1341b1f326a6b85f94f8ce1a3"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "d5776770400f783145c9a34d34429e5329303591ee858c669ef4be8e7e0e64f1"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "2f16247788928328c5feb758608a477a6b0bdd3b537c7b68bc24563f7c3c9418"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "a97339d18d97994a07fa8576cab244c3a87f5e8c63724f7db1bcd81832698d1a"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "1b02b68e612f72544496e8a15c5acda92e79f7f2de2209bc57d26220dfc5fd74"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "f4468a9a4508c23971f52a4563629a6dd6f7b9cd54eff9785ac0df2dfd2fc206"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "c5281dc7b16d6d6fb5d7a053c339c374aec578e07f295c0e5592be690286689a"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "f68aca9aad18ef54d27354d227ca8011b82127c76ee80e60e94f7fe3b58cc2e9"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "4f23ab9faa93b95630893822b4df79e69a438149e5d900cb80499e092236e48c"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "3f3a8d035a1c2c42921154d93ee446447b3b105cf1390cf196e56302c6e80c95"
+        }
+      ]
+    },
+    "run_crosspilot_S01_seed1002": {
+      "group": "CROSSPILOT",
+      "scenarioId": "S01",
+      "seed": 1002,
+      "configHash": "a08f696b3d3b43896857798bd2dcee43dac06bbf44445970a0d056c05fc6b675",
+      "finalProfitCents": 1005410,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "13d995309022df097a774cb701fb04e5d25033fa53e6369c2e6791e559265dc1"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "2739c2490e94fe482ac2c6c1bf62831ae5a5c96ee40e26ae73abc504fae7e8d3"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "70eaa799cb17bbd989ce48044935f63e59e88246db23575e12ac8efa484d82c0"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "49955af6947b1cdeac3ceb0a25ef775c4aebd87c0f7e921a0da82b716341cb4c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "42ef3e830cfd73bc2c0c78a23310ac4d098a509a61159043ef74a389223c23c0"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "fcaa78d674e9f001611d709364f09c665c572076a7c87e9f18146d842106b255"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "50dea75887839a92914ca3a67c4b9911d55474739a456b8f6b9f45a40d0d83ae"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "d81c9695fd1bdb014bedf9e88e25378cd60752a192498d6782a8b11c056dc65a"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "63a29fc882997d1378d4f8dee248a04da4703246925ed48d75c75431f3aff47e"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "d949f49d59a9005cf0f41f14866c385ab32eccbec6b3aef649713eb7622bdc31"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "f6eb51039c7f9d8b38c706b2da8aef9c9221cf28c0a61d58dc3002c8aee49e92"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "87cfd0eaa4dcc24b0cee554d1fd0bf856c4e2a3186e9894a279b6ad07ad2b948"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "90199dae4bc91d92822b5abf77031419319b8f0077938d0df779bb04431b52ec"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "19854aaa489f80347e3b8707800b9d43c62b4bda4ff1a90eb5c765792c559366"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "dbf5c1b0d147bfc0ca04e1eb6b8a31c18d3836d026ca36636c6953f33eb9fa81"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "00f77f2f9a9564c595d8ec420203708ce4b43eee68cada6e5a380b0d9af3c06a"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "61bf2c78b64440788621f525cc64d78955e44dd87418b7d69b4b275346b835e2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "591096bd709fdc3e9050c4004dc0ee7694f75941fadf25ae03df64d9e925e53e"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "fcfc366124fccd4a11343cd9c83bf148ec2d971ac0d8ae47f5ab9ad784ebb584"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "697b9ef68a452df31d9aadcf8ee8209d3e9492f836df6385f15381cc4f83c721"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fbbe76b4323310bdae517cbdffcb0110433514c5faedfd6ad64d699180d4d34c"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "a4a7ea0279659548e2ec995f1fba3f181daf1b872ec4a074199b21daaef6a013"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "313159c672abdcd4760e27a40490dcb1a98479ac6990a9083ca55d32fe9be7f2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "1e322321df4fa759a728f69204b8f2a4c6b4c0260db4eacbe63fab9011d7a6c7"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "b9bf58516f8dd87e1c254ce16cddb89e8490cbfbdb59dfa66cf8fb52ebe2fd4b"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "77dc99f2732395adbf41d9563ffbbeb1c0acc6b1f080d32b892260170f50b639"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "c7488bd1a4176f15b9a70e8c1a988a80f212d81b00411a5f382e3bc848a9ec12"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "3139f01a46d8656c919cada5d82b1f4ead7a25b1341b1f326a6b85f94f8ce1a3"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "d5776770400f783145c9a34d34429e5329303591ee858c669ef4be8e7e0e64f1"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "2f16247788928328c5feb758608a477a6b0bdd3b537c7b68bc24563f7c3c9418"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "a97339d18d97994a07fa8576cab244c3a87f5e8c63724f7db1bcd81832698d1a"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "1b02b68e612f72544496e8a15c5acda92e79f7f2de2209bc57d26220dfc5fd74"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "f4468a9a4508c23971f52a4563629a6dd6f7b9cd54eff9785ac0df2dfd2fc206"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "c5281dc7b16d6d6fb5d7a053c339c374aec578e07f295c0e5592be690286689a"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "f68aca9aad18ef54d27354d227ca8011b82127c76ee80e60e94f7fe3b58cc2e9"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "4f23ab9faa93b95630893822b4df79e69a438149e5d900cb80499e092236e48c"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "3f3a8d035a1c2c42921154d93ee446447b3b105cf1390cf196e56302c6e80c95"
+        }
+      ]
+    },
+    "run_control_S02_seed1001": {
+      "group": "CONTROL",
+      "scenarioId": "S02",
+      "seed": 1001,
+      "configHash": "cbf1d7f0c74df4d899af2fe83d1ae65da192e6be61d552a2d33160741778e5a1",
+      "finalProfitCents": 1000724,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "35120952708d13a7f5021b81441c675b1d7ccc2162cbdd91629e01d4d1779aec"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "25a02b5398eeaaf3c1232bbbd224d63b24234bcc799419601662969ed22b4222"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "6e535e3f40acf7d68e3543842abe20dd148cc1d00e8e48d958e7e779d6bb4cb9"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "65ec5874a13a50f2bddea8ec4ffde11ce8539500174f1f9c33ba82766ede26f6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "8c0ff95b7ef8ace71b718320cbd7ddee3cd730c26adef4887831c4bb357d9224"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "c6f8e8df55d7da014fb96626197aef266804df284c10ff6f2fb0db98b2a19bd5"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "3e49d49f37dcebbe4151d58297ae7585da09e44023822bfcc438089618e8e540"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "8dab028fe870c0ba5c245101c1d9c9b32b5e257cfa52ee544012ef11f12c3b54"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "91a9581deeee7556733413498bef15b2fc0d29419046e2e5f6c5a401bab188a0"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "ac6df39d462039ede7c0cf009d4fd27bb3df0839d3416830c6cd60ed996954a4"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "a1df6107e272050c036684d21287d3f7f4e0e12f63f7f9b797e29b8dfebc366c"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a7c6acdc47d8ae0767aeee5f8b9a7810684361f65ef1b5bc211827c13a47ae7"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "a519ee51dad97164cab35264c423fd00c193dc88206b7de765da73939fba225d"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "d1ca31c2c911cacdc1dfd5359051ba026dc9e20fcbc6019015931f5ad1280295"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "ff3da120312af3b739a7226726aa6da1220b81ad73fbb2bfaabf3e64f2d0e02a"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e21883630da2a19069089b4fd7304ce3de20fb20d75a61ff606c4ba5b36f951d"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "433762c47a01734e2a356097dba785865c11e1c65bd0a42f8597c0b7e8b8c9b2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "4f18c74963fa95a20452b05ab95ec04d3eb4e22a0d7fb6281a077ad24111946a"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "8f2b8b0b8719928dbbd5629a628f94a028850bab58ca00b2ea1026c2d62ae201"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "d9d01eaa639f1acd1b1db49ae1614da67d1a537f4e49445c4782548c89e5ead6"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "bbc65a34169f850b1a6fe75f8811941ba152cac432a160528f72f0448e9f1873"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "ce874a90663cd7f74d546b0c3553b4075c6728c3dbcb1e6f42ae56b871a4db3b"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9a0b7171ecf979eb853476f7d87268db76851162a5813a1a89b6166fbf8f217e"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "27f14b687932b39e30287840368940720cd8269468a8bc9f2d159cbe5202c814"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "4d2bdecf242de0be952e5f82e4f34077aea5c6f7e4ed995764c3035e8ebc75a0"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "55f91f31e281763048c198061150644c09d198d6b03321cb15b3388f466a993d"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "2ce073714fae476f569698041ff3c8cd19330f6dd98832bcd95e3657811c4817"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "778617715d29018627e282b68875a11825306196c9e735f580fdf4c57bda303d"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "bdcdd1159077e52ec9256abf2ff2fe9a84a9db359668400afbb07b0245205d0d"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "a353f1a96d64748080e4bdfc69e57c27c04300023a92ac1277dbf23b4936dd3a"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "f7530f562223f33a2645a9335af1ac07f7f8ee02664f451dc7a8f71d2d8ea31f"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "cbcb8e713e3092e26d055240e454038d585d3ce389d1718ed1ed24821739e0a8"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "0f2a4d495bab26c1c9688d3bc35986e93b0aabb112204b3012ae053bee990fa3"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "0104c9337089821e9621f0ff1e4ab2928714fbd3dd1a93f73df573a7354ed230"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "859796e7c06e4033748c16ca72cc406e83a2dab3fa5c833ef5b3093257781397"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "12ca56e27e8988e3a4f246cc495372558dc93efc461417951da39f443a7051a2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "0145b970a4a70d10cf785ebb3f855aed6e9486c647ad8316a10e955c2effef68"
+        }
+      ]
+    },
+    "run_rule_S02_seed1001": {
+      "group": "RULE",
+      "scenarioId": "S02",
+      "seed": 1001,
+      "configHash": "cbf1d7f0c74df4d899af2fe83d1ae65da192e6be61d552a2d33160741778e5a1",
+      "finalProfitCents": 1000724,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "35120952708d13a7f5021b81441c675b1d7ccc2162cbdd91629e01d4d1779aec"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "25a02b5398eeaaf3c1232bbbd224d63b24234bcc799419601662969ed22b4222"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "6e535e3f40acf7d68e3543842abe20dd148cc1d00e8e48d958e7e779d6bb4cb9"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "65ec5874a13a50f2bddea8ec4ffde11ce8539500174f1f9c33ba82766ede26f6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "8c0ff95b7ef8ace71b718320cbd7ddee3cd730c26adef4887831c4bb357d9224"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "c6f8e8df55d7da014fb96626197aef266804df284c10ff6f2fb0db98b2a19bd5"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "3e49d49f37dcebbe4151d58297ae7585da09e44023822bfcc438089618e8e540"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "8dab028fe870c0ba5c245101c1d9c9b32b5e257cfa52ee544012ef11f12c3b54"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "91a9581deeee7556733413498bef15b2fc0d29419046e2e5f6c5a401bab188a0"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "ac6df39d462039ede7c0cf009d4fd27bb3df0839d3416830c6cd60ed996954a4"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "a1df6107e272050c036684d21287d3f7f4e0e12f63f7f9b797e29b8dfebc366c"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a7c6acdc47d8ae0767aeee5f8b9a7810684361f65ef1b5bc211827c13a47ae7"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "a519ee51dad97164cab35264c423fd00c193dc88206b7de765da73939fba225d"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "d1ca31c2c911cacdc1dfd5359051ba026dc9e20fcbc6019015931f5ad1280295"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "ff3da120312af3b739a7226726aa6da1220b81ad73fbb2bfaabf3e64f2d0e02a"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e21883630da2a19069089b4fd7304ce3de20fb20d75a61ff606c4ba5b36f951d"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "433762c47a01734e2a356097dba785865c11e1c65bd0a42f8597c0b7e8b8c9b2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "4f18c74963fa95a20452b05ab95ec04d3eb4e22a0d7fb6281a077ad24111946a"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "8f2b8b0b8719928dbbd5629a628f94a028850bab58ca00b2ea1026c2d62ae201"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "d9d01eaa639f1acd1b1db49ae1614da67d1a537f4e49445c4782548c89e5ead6"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "bbc65a34169f850b1a6fe75f8811941ba152cac432a160528f72f0448e9f1873"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "ce874a90663cd7f74d546b0c3553b4075c6728c3dbcb1e6f42ae56b871a4db3b"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9a0b7171ecf979eb853476f7d87268db76851162a5813a1a89b6166fbf8f217e"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "27f14b687932b39e30287840368940720cd8269468a8bc9f2d159cbe5202c814"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "4d2bdecf242de0be952e5f82e4f34077aea5c6f7e4ed995764c3035e8ebc75a0"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "55f91f31e281763048c198061150644c09d198d6b03321cb15b3388f466a993d"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "2ce073714fae476f569698041ff3c8cd19330f6dd98832bcd95e3657811c4817"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "778617715d29018627e282b68875a11825306196c9e735f580fdf4c57bda303d"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "bdcdd1159077e52ec9256abf2ff2fe9a84a9db359668400afbb07b0245205d0d"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "a353f1a96d64748080e4bdfc69e57c27c04300023a92ac1277dbf23b4936dd3a"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "f7530f562223f33a2645a9335af1ac07f7f8ee02664f451dc7a8f71d2d8ea31f"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "cbcb8e713e3092e26d055240e454038d585d3ce389d1718ed1ed24821739e0a8"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "0f2a4d495bab26c1c9688d3bc35986e93b0aabb112204b3012ae053bee990fa3"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "0104c9337089821e9621f0ff1e4ab2928714fbd3dd1a93f73df573a7354ed230"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "859796e7c06e4033748c16ca72cc406e83a2dab3fa5c833ef5b3093257781397"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "12ca56e27e8988e3a4f246cc495372558dc93efc461417951da39f443a7051a2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "0145b970a4a70d10cf785ebb3f855aed6e9486c647ad8316a10e955c2effef68"
+        }
+      ]
+    },
+    "run_crosspilot_S02_seed1001": {
+      "group": "CROSSPILOT",
+      "scenarioId": "S02",
+      "seed": 1001,
+      "configHash": "cbf1d7f0c74df4d899af2fe83d1ae65da192e6be61d552a2d33160741778e5a1",
+      "finalProfitCents": 1000724,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "35120952708d13a7f5021b81441c675b1d7ccc2162cbdd91629e01d4d1779aec"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "25a02b5398eeaaf3c1232bbbd224d63b24234bcc799419601662969ed22b4222"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "6e535e3f40acf7d68e3543842abe20dd148cc1d00e8e48d958e7e779d6bb4cb9"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "65ec5874a13a50f2bddea8ec4ffde11ce8539500174f1f9c33ba82766ede26f6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "8c0ff95b7ef8ace71b718320cbd7ddee3cd730c26adef4887831c4bb357d9224"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "c6f8e8df55d7da014fb96626197aef266804df284c10ff6f2fb0db98b2a19bd5"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "3e49d49f37dcebbe4151d58297ae7585da09e44023822bfcc438089618e8e540"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "8dab028fe870c0ba5c245101c1d9c9b32b5e257cfa52ee544012ef11f12c3b54"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "91a9581deeee7556733413498bef15b2fc0d29419046e2e5f6c5a401bab188a0"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "ac6df39d462039ede7c0cf009d4fd27bb3df0839d3416830c6cd60ed996954a4"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "a1df6107e272050c036684d21287d3f7f4e0e12f63f7f9b797e29b8dfebc366c"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a7c6acdc47d8ae0767aeee5f8b9a7810684361f65ef1b5bc211827c13a47ae7"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "a519ee51dad97164cab35264c423fd00c193dc88206b7de765da73939fba225d"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "d1ca31c2c911cacdc1dfd5359051ba026dc9e20fcbc6019015931f5ad1280295"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "ff3da120312af3b739a7226726aa6da1220b81ad73fbb2bfaabf3e64f2d0e02a"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e21883630da2a19069089b4fd7304ce3de20fb20d75a61ff606c4ba5b36f951d"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "433762c47a01734e2a356097dba785865c11e1c65bd0a42f8597c0b7e8b8c9b2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "4f18c74963fa95a20452b05ab95ec04d3eb4e22a0d7fb6281a077ad24111946a"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "8f2b8b0b8719928dbbd5629a628f94a028850bab58ca00b2ea1026c2d62ae201"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "d9d01eaa639f1acd1b1db49ae1614da67d1a537f4e49445c4782548c89e5ead6"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "bbc65a34169f850b1a6fe75f8811941ba152cac432a160528f72f0448e9f1873"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "ce874a90663cd7f74d546b0c3553b4075c6728c3dbcb1e6f42ae56b871a4db3b"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9a0b7171ecf979eb853476f7d87268db76851162a5813a1a89b6166fbf8f217e"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "27f14b687932b39e30287840368940720cd8269468a8bc9f2d159cbe5202c814"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "4d2bdecf242de0be952e5f82e4f34077aea5c6f7e4ed995764c3035e8ebc75a0"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "55f91f31e281763048c198061150644c09d198d6b03321cb15b3388f466a993d"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "2ce073714fae476f569698041ff3c8cd19330f6dd98832bcd95e3657811c4817"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "778617715d29018627e282b68875a11825306196c9e735f580fdf4c57bda303d"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "bdcdd1159077e52ec9256abf2ff2fe9a84a9db359668400afbb07b0245205d0d"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "a353f1a96d64748080e4bdfc69e57c27c04300023a92ac1277dbf23b4936dd3a"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "f7530f562223f33a2645a9335af1ac07f7f8ee02664f451dc7a8f71d2d8ea31f"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "cbcb8e713e3092e26d055240e454038d585d3ce389d1718ed1ed24821739e0a8"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "0f2a4d495bab26c1c9688d3bc35986e93b0aabb112204b3012ae053bee990fa3"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "0104c9337089821e9621f0ff1e4ab2928714fbd3dd1a93f73df573a7354ed230"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "859796e7c06e4033748c16ca72cc406e83a2dab3fa5c833ef5b3093257781397"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "12ca56e27e8988e3a4f246cc495372558dc93efc461417951da39f443a7051a2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "0145b970a4a70d10cf785ebb3f855aed6e9486c647ad8316a10e955c2effef68"
+        }
+      ]
+    },
+    "run_control_S02_seed1002": {
+      "group": "CONTROL",
+      "scenarioId": "S02",
+      "seed": 1002,
+      "configHash": "a08f696b3d3b43896857798bd2dcee43dac06bbf44445970a0d056c05fc6b675",
+      "finalProfitCents": 994731,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "13d995309022df097a774cb701fb04e5d25033fa53e6369c2e6791e559265dc1"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "2739c2490e94fe482ac2c6c1bf62831ae5a5c96ee40e26ae73abc504fae7e8d3"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "70eaa799cb17bbd989ce48044935f63e59e88246db23575e12ac8efa484d82c0"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "49955af6947b1cdeac3ceb0a25ef775c4aebd87c0f7e921a0da82b716341cb4c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "42ef3e830cfd73bc2c0c78a23310ac4d098a509a61159043ef74a389223c23c0"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "fcaa78d674e9f001611d709364f09c665c572076a7c87e9f18146d842106b255"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "50dea75887839a92914ca3a67c4b9911d55474739a456b8f6b9f45a40d0d83ae"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "53b0e34a9dfd4f497c7048e95d547d7247d01012086916a9bbcdb682a8e48799"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "ad944e228f1b504e7a6410dcbe200651e3728bb6eae2dc055fd635fcff0d96ab"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "bafb943cc9c8ef9016026c83c0729ac700faf863d7e73a20bb91f959e6ae27f7"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "f6eb51039c7f9d8b38c706b2da8aef9c9221cf28c0a61d58dc3002c8aee49e92"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "87cfd0eaa4dcc24b0cee554d1fd0bf856c4e2a3186e9894a279b6ad07ad2b948"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "90199dae4bc91d92822b5abf77031419319b8f0077938d0df779bb04431b52ec"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "19854aaa489f80347e3b8707800b9d43c62b4bda4ff1a90eb5c765792c559366"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "dbf5c1b0d147bfc0ca04e1eb6b8a31c18d3836d026ca36636c6953f33eb9fa81"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "00f77f2f9a9564c595d8ec420203708ce4b43eee68cada6e5a380b0d9af3c06a"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "61bf2c78b64440788621f525cc64d78955e44dd87418b7d69b4b275346b835e2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "591096bd709fdc3e9050c4004dc0ee7694f75941fadf25ae03df64d9e925e53e"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "fcfc366124fccd4a11343cd9c83bf148ec2d971ac0d8ae47f5ab9ad784ebb584"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "697b9ef68a452df31d9aadcf8ee8209d3e9492f836df6385f15381cc4f83c721"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fbbe76b4323310bdae517cbdffcb0110433514c5faedfd6ad64d699180d4d34c"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "a4a7ea0279659548e2ec995f1fba3f181daf1b872ec4a074199b21daaef6a013"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "313159c672abdcd4760e27a40490dcb1a98479ac6990a9083ca55d32fe9be7f2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "1e322321df4fa759a728f69204b8f2a4c6b4c0260db4eacbe63fab9011d7a6c7"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "b9bf58516f8dd87e1c254ce16cddb89e8490cbfbdb59dfa66cf8fb52ebe2fd4b"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "77dc99f2732395adbf41d9563ffbbeb1c0acc6b1f080d32b892260170f50b639"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "c7488bd1a4176f15b9a70e8c1a988a80f212d81b00411a5f382e3bc848a9ec12"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "3139f01a46d8656c919cada5d82b1f4ead7a25b1341b1f326a6b85f94f8ce1a3"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "d5776770400f783145c9a34d34429e5329303591ee858c669ef4be8e7e0e64f1"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "2f16247788928328c5feb758608a477a6b0bdd3b537c7b68bc24563f7c3c9418"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "a97339d18d97994a07fa8576cab244c3a87f5e8c63724f7db1bcd81832698d1a"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "1b02b68e612f72544496e8a15c5acda92e79f7f2de2209bc57d26220dfc5fd74"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "f4468a9a4508c23971f52a4563629a6dd6f7b9cd54eff9785ac0df2dfd2fc206"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "c5281dc7b16d6d6fb5d7a053c339c374aec578e07f295c0e5592be690286689a"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "f68aca9aad18ef54d27354d227ca8011b82127c76ee80e60e94f7fe3b58cc2e9"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "4f23ab9faa93b95630893822b4df79e69a438149e5d900cb80499e092236e48c"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "9fd3d635e1453ecc8d415359d0d9821ba5374b64c437d1cd0df461868e8cbb8e"
+        }
+      ]
+    },
+    "run_rule_S02_seed1002": {
+      "group": "RULE",
+      "scenarioId": "S02",
+      "seed": 1002,
+      "configHash": "a08f696b3d3b43896857798bd2dcee43dac06bbf44445970a0d056c05fc6b675",
+      "finalProfitCents": 994731,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "13d995309022df097a774cb701fb04e5d25033fa53e6369c2e6791e559265dc1"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "2739c2490e94fe482ac2c6c1bf62831ae5a5c96ee40e26ae73abc504fae7e8d3"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "70eaa799cb17bbd989ce48044935f63e59e88246db23575e12ac8efa484d82c0"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "49955af6947b1cdeac3ceb0a25ef775c4aebd87c0f7e921a0da82b716341cb4c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "42ef3e830cfd73bc2c0c78a23310ac4d098a509a61159043ef74a389223c23c0"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "fcaa78d674e9f001611d709364f09c665c572076a7c87e9f18146d842106b255"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "50dea75887839a92914ca3a67c4b9911d55474739a456b8f6b9f45a40d0d83ae"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "53b0e34a9dfd4f497c7048e95d547d7247d01012086916a9bbcdb682a8e48799"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "ad944e228f1b504e7a6410dcbe200651e3728bb6eae2dc055fd635fcff0d96ab"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "bafb943cc9c8ef9016026c83c0729ac700faf863d7e73a20bb91f959e6ae27f7"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "f6eb51039c7f9d8b38c706b2da8aef9c9221cf28c0a61d58dc3002c8aee49e92"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "87cfd0eaa4dcc24b0cee554d1fd0bf856c4e2a3186e9894a279b6ad07ad2b948"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "90199dae4bc91d92822b5abf77031419319b8f0077938d0df779bb04431b52ec"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "19854aaa489f80347e3b8707800b9d43c62b4bda4ff1a90eb5c765792c559366"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "dbf5c1b0d147bfc0ca04e1eb6b8a31c18d3836d026ca36636c6953f33eb9fa81"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "00f77f2f9a9564c595d8ec420203708ce4b43eee68cada6e5a380b0d9af3c06a"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "61bf2c78b64440788621f525cc64d78955e44dd87418b7d69b4b275346b835e2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "591096bd709fdc3e9050c4004dc0ee7694f75941fadf25ae03df64d9e925e53e"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "fcfc366124fccd4a11343cd9c83bf148ec2d971ac0d8ae47f5ab9ad784ebb584"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "697b9ef68a452df31d9aadcf8ee8209d3e9492f836df6385f15381cc4f83c721"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fbbe76b4323310bdae517cbdffcb0110433514c5faedfd6ad64d699180d4d34c"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "a4a7ea0279659548e2ec995f1fba3f181daf1b872ec4a074199b21daaef6a013"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "313159c672abdcd4760e27a40490dcb1a98479ac6990a9083ca55d32fe9be7f2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "1e322321df4fa759a728f69204b8f2a4c6b4c0260db4eacbe63fab9011d7a6c7"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "b9bf58516f8dd87e1c254ce16cddb89e8490cbfbdb59dfa66cf8fb52ebe2fd4b"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "77dc99f2732395adbf41d9563ffbbeb1c0acc6b1f080d32b892260170f50b639"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "c7488bd1a4176f15b9a70e8c1a988a80f212d81b00411a5f382e3bc848a9ec12"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "3139f01a46d8656c919cada5d82b1f4ead7a25b1341b1f326a6b85f94f8ce1a3"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "d5776770400f783145c9a34d34429e5329303591ee858c669ef4be8e7e0e64f1"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "2f16247788928328c5feb758608a477a6b0bdd3b537c7b68bc24563f7c3c9418"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "a97339d18d97994a07fa8576cab244c3a87f5e8c63724f7db1bcd81832698d1a"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "1b02b68e612f72544496e8a15c5acda92e79f7f2de2209bc57d26220dfc5fd74"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "f4468a9a4508c23971f52a4563629a6dd6f7b9cd54eff9785ac0df2dfd2fc206"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "c5281dc7b16d6d6fb5d7a053c339c374aec578e07f295c0e5592be690286689a"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "f68aca9aad18ef54d27354d227ca8011b82127c76ee80e60e94f7fe3b58cc2e9"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "4f23ab9faa93b95630893822b4df79e69a438149e5d900cb80499e092236e48c"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "9fd3d635e1453ecc8d415359d0d9821ba5374b64c437d1cd0df461868e8cbb8e"
+        }
+      ]
+    },
+    "run_crosspilot_S02_seed1002": {
+      "group": "CROSSPILOT",
+      "scenarioId": "S02",
+      "seed": 1002,
+      "configHash": "a08f696b3d3b43896857798bd2dcee43dac06bbf44445970a0d056c05fc6b675",
+      "finalProfitCents": 994731,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "13d995309022df097a774cb701fb04e5d25033fa53e6369c2e6791e559265dc1"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "2739c2490e94fe482ac2c6c1bf62831ae5a5c96ee40e26ae73abc504fae7e8d3"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "70eaa799cb17bbd989ce48044935f63e59e88246db23575e12ac8efa484d82c0"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "49955af6947b1cdeac3ceb0a25ef775c4aebd87c0f7e921a0da82b716341cb4c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "42ef3e830cfd73bc2c0c78a23310ac4d098a509a61159043ef74a389223c23c0"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "fcaa78d674e9f001611d709364f09c665c572076a7c87e9f18146d842106b255"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "50dea75887839a92914ca3a67c4b9911d55474739a456b8f6b9f45a40d0d83ae"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "53b0e34a9dfd4f497c7048e95d547d7247d01012086916a9bbcdb682a8e48799"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "ad944e228f1b504e7a6410dcbe200651e3728bb6eae2dc055fd635fcff0d96ab"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "bafb943cc9c8ef9016026c83c0729ac700faf863d7e73a20bb91f959e6ae27f7"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "f6eb51039c7f9d8b38c706b2da8aef9c9221cf28c0a61d58dc3002c8aee49e92"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "87cfd0eaa4dcc24b0cee554d1fd0bf856c4e2a3186e9894a279b6ad07ad2b948"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "90199dae4bc91d92822b5abf77031419319b8f0077938d0df779bb04431b52ec"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "19854aaa489f80347e3b8707800b9d43c62b4bda4ff1a90eb5c765792c559366"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "dbf5c1b0d147bfc0ca04e1eb6b8a31c18d3836d026ca36636c6953f33eb9fa81"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "00f77f2f9a9564c595d8ec420203708ce4b43eee68cada6e5a380b0d9af3c06a"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "61bf2c78b64440788621f525cc64d78955e44dd87418b7d69b4b275346b835e2"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "591096bd709fdc3e9050c4004dc0ee7694f75941fadf25ae03df64d9e925e53e"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "fcfc366124fccd4a11343cd9c83bf148ec2d971ac0d8ae47f5ab9ad784ebb584"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "697b9ef68a452df31d9aadcf8ee8209d3e9492f836df6385f15381cc4f83c721"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fbbe76b4323310bdae517cbdffcb0110433514c5faedfd6ad64d699180d4d34c"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "a4a7ea0279659548e2ec995f1fba3f181daf1b872ec4a074199b21daaef6a013"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "313159c672abdcd4760e27a40490dcb1a98479ac6990a9083ca55d32fe9be7f2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "1e322321df4fa759a728f69204b8f2a4c6b4c0260db4eacbe63fab9011d7a6c7"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "b9bf58516f8dd87e1c254ce16cddb89e8490cbfbdb59dfa66cf8fb52ebe2fd4b"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "77dc99f2732395adbf41d9563ffbbeb1c0acc6b1f080d32b892260170f50b639"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "c7488bd1a4176f15b9a70e8c1a988a80f212d81b00411a5f382e3bc848a9ec12"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "3139f01a46d8656c919cada5d82b1f4ead7a25b1341b1f326a6b85f94f8ce1a3"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "d5776770400f783145c9a34d34429e5329303591ee858c669ef4be8e7e0e64f1"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "2f16247788928328c5feb758608a477a6b0bdd3b537c7b68bc24563f7c3c9418"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "a97339d18d97994a07fa8576cab244c3a87f5e8c63724f7db1bcd81832698d1a"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "1b02b68e612f72544496e8a15c5acda92e79f7f2de2209bc57d26220dfc5fd74"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "f4468a9a4508c23971f52a4563629a6dd6f7b9cd54eff9785ac0df2dfd2fc206"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "c5281dc7b16d6d6fb5d7a053c339c374aec578e07f295c0e5592be690286689a"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "f68aca9aad18ef54d27354d227ca8011b82127c76ee80e60e94f7fe3b58cc2e9"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "4f23ab9faa93b95630893822b4df79e69a438149e5d900cb80499e092236e48c"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "9fd3d635e1453ecc8d415359d0d9821ba5374b64c437d1cd0df461868e8cbb8e"
+        }
+      ]
+    },
+    "run_control_S07_seed1001": {
+      "group": "CONTROL",
+      "scenarioId": "S07",
+      "seed": 1001,
+      "configHash": "8f1a06acbc104c92af7a46e31b9a4753a6ec79ad628643c1d4ba17020133fc59",
+      "finalProfitCents": 1037460,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "063d57948410560a9259b116b680c68559538c7acdbd1e0ec3dee95e4f14db53"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "f85cff3ed53961bf9f8bf3638f23295bbe2000dc9dc9d22663cc4ddd6d968e90"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "7c14508713f66b211c2d89e11557e05cdcb2efac3a4c4dcef2557241e9e9e294"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "67ed453f887d4f551a1008a4ebfa3bfbaa08b0d82ad6dbd843892cd124d6966c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "d5e13ff3d120c9f758bdd8846ff9ec2ef0cf58b9b5216e6c90744d4f67e5cbaf"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "d5f4cd834bfb64909073d1392b6277efce1311abc23f7f3a7782dd617dfc24d8"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "619a5be2470fc1edda6a6dcf7b7d933dd81ebcff309ef37f67d5a376d1c6449e"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "15e1df4046b2980a5b252d839aead6d0ac9587533799f44ef662b5ee895ed7f8"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "f6f17b0b2ecc6d6e11872b32a3ab340c75889b9d45b0600152185eb7f03d668f"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "06fafe0a3ca946348eb5aff4a36357492c5bb5b366257ef2bd740841f0c89ed5"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "86935722ec07982afb2b201000e6b13cb3c1997e504c12db5faa24f429357a5a"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "6a8f6153c6b163327389d6f11a3f46c2b2e3a0f19d559c10be7dae2895d1a892"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "c27cf6e5dac94017e8721d32c64ad60fe5c9a3e553a3e6b9df58014f794e145c"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "ebb63feac2d5b1471f87113b69a1f94a480138cd18a6972a3b3bba22c3fe2d5e"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "d1fb21f68332b06daf92db61d5cb3a74f64b549a68c3bd9306db27cf06dd016e"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "3fd8eeca8d198cec7e9277ebd4722530800052b154a54f4c20d8b6c9f7c4e35e"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "76736486447d0c56a173d3680b83f56724fbbadb2f0b431b76abfd5206025ad6"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "3a9e82b9c00f75dbdf12d9e538116725d03912d2cb2101b56843ae151e7965f4"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "af32ae49637698584fb7a8f8580892750f60bf82bec0879a7f25ed19c641429a"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "f62d9ff1b9148d6e039eb51cfe5eab00e31d95ca05a086f2642072154653929d"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "72e668e99fefbbd013d00a8b735d6a4d39a34eccaa8d03492f8e8539dc4177c6"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "3d21cb21d028fbed9f371a48565482987eac307dad3c1d2848a0496256db82ee"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "ddc91e7046762dea0da7861d7acaad682d48d1e7c34a8c5e28fae698c9efa373"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "55e2e2aa7ad0b18beb07e52febe5f0c1380b7c3601b29afd3cb15b59853f3408"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "74bb6cc77f06ea4ef396c570e2bfea24d4e5869b878d9fade556a88a04e7d4cb"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "c0d1392df2ab1d8681c4501fe0600820c03ba567a58588f84669b29a3921ed84"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "608cec447ac85f16d08a0b78dce977ec77db881f760d7ad807092b2e00ede97d"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "d920df03515e5b59b0134a02fab3a54400c0febf5b6e74e098e39e8ab84276c8"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "903e251bd6eac72159132c4894df2745e0857be45f0c4a6d5732b4ee27262028"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "b903f5d8580772883b120ff081b700f57289e60d4c2226deb6724b3a6005f2fe"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "1d66f2368399620c226e6c7331187dc4dbaf02dd352e6fe2e9ac73a24ae2d848"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "f27b2366685da1f32fcfea87ccd3003242879414162613add5959d9d5c8ef0ba"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "a4f57359001880a803d1c662f1a9161ee4e49005bd28a50e7ec03f78e2a11924"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "2b6a0fb88a70251d3dedd57675f77a600ea2e2b880f55de37f48856c719a465d"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "b768b703df46fc9f4e79fd69354fa0e8fa276dc84f30c407a1bbe6ea555639eb"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "7188704a4edab02ad73bb2f585c793b978ba9729744b0e56ed3f171f74a7acd2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "36417504bb246f69481a055faa76371474722e1e1eef066ecca70a3697805597"
+        }
+      ]
+    },
+    "run_rule_S07_seed1001": {
+      "group": "RULE",
+      "scenarioId": "S07",
+      "seed": 1001,
+      "configHash": "8f1a06acbc104c92af7a46e31b9a4753a6ec79ad628643c1d4ba17020133fc59",
+      "finalProfitCents": 1037460,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "063d57948410560a9259b116b680c68559538c7acdbd1e0ec3dee95e4f14db53"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "f85cff3ed53961bf9f8bf3638f23295bbe2000dc9dc9d22663cc4ddd6d968e90"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "7c14508713f66b211c2d89e11557e05cdcb2efac3a4c4dcef2557241e9e9e294"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "67ed453f887d4f551a1008a4ebfa3bfbaa08b0d82ad6dbd843892cd124d6966c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "d5e13ff3d120c9f758bdd8846ff9ec2ef0cf58b9b5216e6c90744d4f67e5cbaf"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "d5f4cd834bfb64909073d1392b6277efce1311abc23f7f3a7782dd617dfc24d8"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "619a5be2470fc1edda6a6dcf7b7d933dd81ebcff309ef37f67d5a376d1c6449e"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "15e1df4046b2980a5b252d839aead6d0ac9587533799f44ef662b5ee895ed7f8"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "f6f17b0b2ecc6d6e11872b32a3ab340c75889b9d45b0600152185eb7f03d668f"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "06fafe0a3ca946348eb5aff4a36357492c5bb5b366257ef2bd740841f0c89ed5"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "86935722ec07982afb2b201000e6b13cb3c1997e504c12db5faa24f429357a5a"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "6a8f6153c6b163327389d6f11a3f46c2b2e3a0f19d559c10be7dae2895d1a892"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "c27cf6e5dac94017e8721d32c64ad60fe5c9a3e553a3e6b9df58014f794e145c"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "ebb63feac2d5b1471f87113b69a1f94a480138cd18a6972a3b3bba22c3fe2d5e"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "d1fb21f68332b06daf92db61d5cb3a74f64b549a68c3bd9306db27cf06dd016e"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "3fd8eeca8d198cec7e9277ebd4722530800052b154a54f4c20d8b6c9f7c4e35e"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "76736486447d0c56a173d3680b83f56724fbbadb2f0b431b76abfd5206025ad6"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "3a9e82b9c00f75dbdf12d9e538116725d03912d2cb2101b56843ae151e7965f4"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "af32ae49637698584fb7a8f8580892750f60bf82bec0879a7f25ed19c641429a"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "f62d9ff1b9148d6e039eb51cfe5eab00e31d95ca05a086f2642072154653929d"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "72e668e99fefbbd013d00a8b735d6a4d39a34eccaa8d03492f8e8539dc4177c6"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "3d21cb21d028fbed9f371a48565482987eac307dad3c1d2848a0496256db82ee"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "ddc91e7046762dea0da7861d7acaad682d48d1e7c34a8c5e28fae698c9efa373"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "55e2e2aa7ad0b18beb07e52febe5f0c1380b7c3601b29afd3cb15b59853f3408"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "74bb6cc77f06ea4ef396c570e2bfea24d4e5869b878d9fade556a88a04e7d4cb"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "c0d1392df2ab1d8681c4501fe0600820c03ba567a58588f84669b29a3921ed84"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "608cec447ac85f16d08a0b78dce977ec77db881f760d7ad807092b2e00ede97d"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "d920df03515e5b59b0134a02fab3a54400c0febf5b6e74e098e39e8ab84276c8"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "903e251bd6eac72159132c4894df2745e0857be45f0c4a6d5732b4ee27262028"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "b903f5d8580772883b120ff081b700f57289e60d4c2226deb6724b3a6005f2fe"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "1d66f2368399620c226e6c7331187dc4dbaf02dd352e6fe2e9ac73a24ae2d848"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "f27b2366685da1f32fcfea87ccd3003242879414162613add5959d9d5c8ef0ba"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "a4f57359001880a803d1c662f1a9161ee4e49005bd28a50e7ec03f78e2a11924"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "2b6a0fb88a70251d3dedd57675f77a600ea2e2b880f55de37f48856c719a465d"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "b768b703df46fc9f4e79fd69354fa0e8fa276dc84f30c407a1bbe6ea555639eb"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "7188704a4edab02ad73bb2f585c793b978ba9729744b0e56ed3f171f74a7acd2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "36417504bb246f69481a055faa76371474722e1e1eef066ecca70a3697805597"
+        }
+      ]
+    },
+    "run_crosspilot_S07_seed1001": {
+      "group": "CROSSPILOT",
+      "scenarioId": "S07",
+      "seed": 1001,
+      "configHash": "8f1a06acbc104c92af7a46e31b9a4753a6ec79ad628643c1d4ba17020133fc59",
+      "finalProfitCents": 1037460,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "063d57948410560a9259b116b680c68559538c7acdbd1e0ec3dee95e4f14db53"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "f85cff3ed53961bf9f8bf3638f23295bbe2000dc9dc9d22663cc4ddd6d968e90"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "7c14508713f66b211c2d89e11557e05cdcb2efac3a4c4dcef2557241e9e9e294"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "67ed453f887d4f551a1008a4ebfa3bfbaa08b0d82ad6dbd843892cd124d6966c"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "d5e13ff3d120c9f758bdd8846ff9ec2ef0cf58b9b5216e6c90744d4f67e5cbaf"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "d5f4cd834bfb64909073d1392b6277efce1311abc23f7f3a7782dd617dfc24d8"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "619a5be2470fc1edda6a6dcf7b7d933dd81ebcff309ef37f67d5a376d1c6449e"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "15e1df4046b2980a5b252d839aead6d0ac9587533799f44ef662b5ee895ed7f8"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "f6f17b0b2ecc6d6e11872b32a3ab340c75889b9d45b0600152185eb7f03d668f"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "06fafe0a3ca946348eb5aff4a36357492c5bb5b366257ef2bd740841f0c89ed5"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "86935722ec07982afb2b201000e6b13cb3c1997e504c12db5faa24f429357a5a"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "6a8f6153c6b163327389d6f11a3f46c2b2e3a0f19d559c10be7dae2895d1a892"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "c27cf6e5dac94017e8721d32c64ad60fe5c9a3e553a3e6b9df58014f794e145c"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "ebb63feac2d5b1471f87113b69a1f94a480138cd18a6972a3b3bba22c3fe2d5e"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "d1fb21f68332b06daf92db61d5cb3a74f64b549a68c3bd9306db27cf06dd016e"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "3fd8eeca8d198cec7e9277ebd4722530800052b154a54f4c20d8b6c9f7c4e35e"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "76736486447d0c56a173d3680b83f56724fbbadb2f0b431b76abfd5206025ad6"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "3a9e82b9c00f75dbdf12d9e538116725d03912d2cb2101b56843ae151e7965f4"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "af32ae49637698584fb7a8f8580892750f60bf82bec0879a7f25ed19c641429a"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "f62d9ff1b9148d6e039eb51cfe5eab00e31d95ca05a086f2642072154653929d"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "72e668e99fefbbd013d00a8b735d6a4d39a34eccaa8d03492f8e8539dc4177c6"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "3d21cb21d028fbed9f371a48565482987eac307dad3c1d2848a0496256db82ee"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "ddc91e7046762dea0da7861d7acaad682d48d1e7c34a8c5e28fae698c9efa373"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "55e2e2aa7ad0b18beb07e52febe5f0c1380b7c3601b29afd3cb15b59853f3408"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "74bb6cc77f06ea4ef396c570e2bfea24d4e5869b878d9fade556a88a04e7d4cb"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "c0d1392df2ab1d8681c4501fe0600820c03ba567a58588f84669b29a3921ed84"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "608cec447ac85f16d08a0b78dce977ec77db881f760d7ad807092b2e00ede97d"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "d920df03515e5b59b0134a02fab3a54400c0febf5b6e74e098e39e8ab84276c8"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "903e251bd6eac72159132c4894df2745e0857be45f0c4a6d5732b4ee27262028"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "b903f5d8580772883b120ff081b700f57289e60d4c2226deb6724b3a6005f2fe"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "1d66f2368399620c226e6c7331187dc4dbaf02dd352e6fe2e9ac73a24ae2d848"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "f27b2366685da1f32fcfea87ccd3003242879414162613add5959d9d5c8ef0ba"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "a4f57359001880a803d1c662f1a9161ee4e49005bd28a50e7ec03f78e2a11924"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "2b6a0fb88a70251d3dedd57675f77a600ea2e2b880f55de37f48856c719a465d"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "b768b703df46fc9f4e79fd69354fa0e8fa276dc84f30c407a1bbe6ea555639eb"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "7188704a4edab02ad73bb2f585c793b978ba9729744b0e56ed3f171f74a7acd2"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "36417504bb246f69481a055faa76371474722e1e1eef066ecca70a3697805597"
+        }
+      ]
+    },
+    "run_control_S07_seed1002": {
+      "group": "CONTROL",
+      "scenarioId": "S07",
+      "seed": 1002,
+      "configHash": "a747df6f0c2f8dcbb865d2818d980ad67c08de5d10393e4c4fcb4f2f5b65bdc2",
+      "finalProfitCents": 1045706,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "b22d945a461f9055023647dc45b9a023650314c825edbe2e360cc38c670ea82b"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "13fa4f2e57c88b2a68732fa3075f4d89676d86f4bd8158add5258216a72b2940"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "16fa534ae0e8c73dd7b59a2d56854896890d9d42a3eca520630c7ef0bd6a00d1"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "1c5f40303a4dba2e4fb8ba01c8c5e4cfc55de6b3b80847ce806ec16acd3526c6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "ed3b1aadea9ce0336fb7e5ba4378a05a8ce0ce63e62f17b91115addde9afc351"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "eec0e168b6f32f025412bb7a3076c663b340f0f8f37443025292dc1ef5924298"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "84ce51b1f6291a98c2bd2bcb14216a7f5f397d818162f59ef245eecc2348ee3e"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "0e37c312546684f27097cfee18f5bc592abe8bd23b4177424561dde3f2f6d2a5"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "49796047bdeb6ea6d74f4e6902bec10caf00b6ad212af643fe4a8e5c8584a181"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "fc305b9e5f3ca092954c434dd5b4e9eb3be540174e9dfca0cb15f686ff24ecce"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "b88b2b6df39e29374c055509b3046059ec43ba4f793b9e9eb5f4aac669217dab"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a00a28c983d57ecd891da455a59a2567de46d691c02bbce4b1b6f0af3100c1e"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "7d69a3d0d2a45ad29dd70dddb1cf5f5c11c9dd2947909743b0dc3260dfa217e6"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "b0601dbf5090973db470391f51d44f0f0930ab40bca8da1586d5282f34885cb3"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "9457b40d065a44c0b81a3e65e05ff48c2262341cc87088be6059ed9391f40822"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e466c58908aafc786f3d00484949105eb899be20e873f2de242d60fc226ed4ff"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "97f64afb5cc1d582421b473b4cf124d54fd7db329115a605392eb17aed1513e8"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "21342d8314cf17397ad68928be6e07ec0627e0de21a6d0e6d1cc89ade194b2e3"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "d6be7f407b045554d288a4c1c5b58e7c171effe31c8cd9ac50314eabee51e2bd"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "eaa48817767ca15d4e6da6a8b996d1b5891d073b82acb7ff163fb6bb826ea761"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fa3e34fa816d3749c075a1db52d6e1056501cfbf9e8f7f03c621155ec8230f99"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "c3c090ffafc2b270ce5d2376b2b621250e6c4d4c5aad7c2fce4d3fe61e3343d7"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9c0e2829ea7be19ff08803ecc4ccc11def76125acec80d254965e6acfa8175c2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "583932cee452949e1929aefe2ee3c8dd1f5a790299778cd0313a80fdfc01bda1"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "d403c44e7b9170b47be08a66897a79ab26e4352ccdc4f235a76858e553413461"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "9863f091021f35f5a64ecad794a6df0b50a20de84d91c99efc27b953067fe5cb"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "df5a07719395186cc646b0e505dc87f35691be7800761334367cdcea94b9fe52"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "d920df03515e5b59b0134a02fab3a54400c0febf5b6e74e098e39e8ab84276c8"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "1ea2ef8ee726295d14cf01278f3d153d6cc067ba755e29f5660d3a06553cc35f"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "b903f5d8580772883b120ff081b700f57289e60d4c2226deb6724b3a6005f2fe"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "40fa68e854f34a7b6867bbb0eacdbc5fd96ca2dde4779e56820ee79f9d45b46d"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "ad8b84162a2cae2e31b4b891b5f514436b0ab937f6db16e201d5e27672d91792"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "853256791ba7780bc2b0ecf59224c27bccfdca47f4a47db39c0d4068226908a4"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "e35abe212fe33cb810260c389f6107f4b728911bb07b11873be6b8e232c0eee9"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "dc49410394e7de929d5f4625b632c4af4462a6e117c31336b6b7251b49ec881a"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "bec90c3fe194f51ad44e95af5aa05e8ef963925be2290871713ceca6e30a83a4"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "dc223baf249029feceb2fe974a60bf0aeb111ff9f95a433500c52ad4a8600987"
+        }
+      ]
+    },
+    "run_rule_S07_seed1002": {
+      "group": "RULE",
+      "scenarioId": "S07",
+      "seed": 1002,
+      "configHash": "a747df6f0c2f8dcbb865d2818d980ad67c08de5d10393e4c4fcb4f2f5b65bdc2",
+      "finalProfitCents": 1045706,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "b22d945a461f9055023647dc45b9a023650314c825edbe2e360cc38c670ea82b"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "13fa4f2e57c88b2a68732fa3075f4d89676d86f4bd8158add5258216a72b2940"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "16fa534ae0e8c73dd7b59a2d56854896890d9d42a3eca520630c7ef0bd6a00d1"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "1c5f40303a4dba2e4fb8ba01c8c5e4cfc55de6b3b80847ce806ec16acd3526c6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "ed3b1aadea9ce0336fb7e5ba4378a05a8ce0ce63e62f17b91115addde9afc351"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "eec0e168b6f32f025412bb7a3076c663b340f0f8f37443025292dc1ef5924298"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "84ce51b1f6291a98c2bd2bcb14216a7f5f397d818162f59ef245eecc2348ee3e"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "0e37c312546684f27097cfee18f5bc592abe8bd23b4177424561dde3f2f6d2a5"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "49796047bdeb6ea6d74f4e6902bec10caf00b6ad212af643fe4a8e5c8584a181"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "fc305b9e5f3ca092954c434dd5b4e9eb3be540174e9dfca0cb15f686ff24ecce"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "b88b2b6df39e29374c055509b3046059ec43ba4f793b9e9eb5f4aac669217dab"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a00a28c983d57ecd891da455a59a2567de46d691c02bbce4b1b6f0af3100c1e"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "7d69a3d0d2a45ad29dd70dddb1cf5f5c11c9dd2947909743b0dc3260dfa217e6"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "b0601dbf5090973db470391f51d44f0f0930ab40bca8da1586d5282f34885cb3"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "9457b40d065a44c0b81a3e65e05ff48c2262341cc87088be6059ed9391f40822"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e466c58908aafc786f3d00484949105eb899be20e873f2de242d60fc226ed4ff"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "97f64afb5cc1d582421b473b4cf124d54fd7db329115a605392eb17aed1513e8"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "21342d8314cf17397ad68928be6e07ec0627e0de21a6d0e6d1cc89ade194b2e3"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "d6be7f407b045554d288a4c1c5b58e7c171effe31c8cd9ac50314eabee51e2bd"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "eaa48817767ca15d4e6da6a8b996d1b5891d073b82acb7ff163fb6bb826ea761"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fa3e34fa816d3749c075a1db52d6e1056501cfbf9e8f7f03c621155ec8230f99"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "c3c090ffafc2b270ce5d2376b2b621250e6c4d4c5aad7c2fce4d3fe61e3343d7"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9c0e2829ea7be19ff08803ecc4ccc11def76125acec80d254965e6acfa8175c2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "583932cee452949e1929aefe2ee3c8dd1f5a790299778cd0313a80fdfc01bda1"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "d403c44e7b9170b47be08a66897a79ab26e4352ccdc4f235a76858e553413461"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "9863f091021f35f5a64ecad794a6df0b50a20de84d91c99efc27b953067fe5cb"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "df5a07719395186cc646b0e505dc87f35691be7800761334367cdcea94b9fe52"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "d920df03515e5b59b0134a02fab3a54400c0febf5b6e74e098e39e8ab84276c8"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "1ea2ef8ee726295d14cf01278f3d153d6cc067ba755e29f5660d3a06553cc35f"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "b903f5d8580772883b120ff081b700f57289e60d4c2226deb6724b3a6005f2fe"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "40fa68e854f34a7b6867bbb0eacdbc5fd96ca2dde4779e56820ee79f9d45b46d"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "ad8b84162a2cae2e31b4b891b5f514436b0ab937f6db16e201d5e27672d91792"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "853256791ba7780bc2b0ecf59224c27bccfdca47f4a47db39c0d4068226908a4"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "e35abe212fe33cb810260c389f6107f4b728911bb07b11873be6b8e232c0eee9"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "dc49410394e7de929d5f4625b632c4af4462a6e117c31336b6b7251b49ec881a"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "bec90c3fe194f51ad44e95af5aa05e8ef963925be2290871713ceca6e30a83a4"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "dc223baf249029feceb2fe974a60bf0aeb111ff9f95a433500c52ad4a8600987"
+        }
+      ]
+    },
+    "run_crosspilot_S07_seed1002": {
+      "group": "CROSSPILOT",
+      "scenarioId": "S07",
+      "seed": 1002,
+      "configHash": "a747df6f0c2f8dcbb865d2818d980ad67c08de5d10393e4c4fcb4f2f5b65bdc2",
+      "finalProfitCents": 1045706,
+      "actionsCount": 0,
+      "commandReceipts": [],
+      "dailyHashes": [
+        {
+          "day": 1,
+          "date": "2026-09-01",
+          "hash": "b22d945a461f9055023647dc45b9a023650314c825edbe2e360cc38c670ea82b"
+        },
+        {
+          "day": 2,
+          "date": "2026-09-02",
+          "hash": "13fa4f2e57c88b2a68732fa3075f4d89676d86f4bd8158add5258216a72b2940"
+        },
+        {
+          "day": 3,
+          "date": "2026-09-03",
+          "hash": "16fa534ae0e8c73dd7b59a2d56854896890d9d42a3eca520630c7ef0bd6a00d1"
+        },
+        {
+          "day": 4,
+          "date": "2026-09-04",
+          "hash": "1c5f40303a4dba2e4fb8ba01c8c5e4cfc55de6b3b80847ce806ec16acd3526c6"
+        },
+        {
+          "day": 5,
+          "date": "2026-09-05",
+          "hash": "ed3b1aadea9ce0336fb7e5ba4378a05a8ce0ce63e62f17b91115addde9afc351"
+        },
+        {
+          "day": 6,
+          "date": "2026-09-06",
+          "hash": "eec0e168b6f32f025412bb7a3076c663b340f0f8f37443025292dc1ef5924298"
+        },
+        {
+          "day": 7,
+          "date": "2026-09-07",
+          "hash": "84ce51b1f6291a98c2bd2bcb14216a7f5f397d818162f59ef245eecc2348ee3e"
+        },
+        {
+          "day": 8,
+          "date": "2026-09-08",
+          "hash": "0e37c312546684f27097cfee18f5bc592abe8bd23b4177424561dde3f2f6d2a5"
+        },
+        {
+          "day": 9,
+          "date": "2026-09-09",
+          "hash": "49796047bdeb6ea6d74f4e6902bec10caf00b6ad212af643fe4a8e5c8584a181"
+        },
+        {
+          "day": 10,
+          "date": "2026-09-10",
+          "hash": "fc305b9e5f3ca092954c434dd5b4e9eb3be540174e9dfca0cb15f686ff24ecce"
+        },
+        {
+          "day": 11,
+          "date": "2026-09-11",
+          "hash": "b88b2b6df39e29374c055509b3046059ec43ba4f793b9e9eb5f4aac669217dab"
+        },
+        {
+          "day": 12,
+          "date": "2026-09-12",
+          "hash": "5a00a28c983d57ecd891da455a59a2567de46d691c02bbce4b1b6f0af3100c1e"
+        },
+        {
+          "day": 13,
+          "date": "2026-09-13",
+          "hash": "7d69a3d0d2a45ad29dd70dddb1cf5f5c11c9dd2947909743b0dc3260dfa217e6"
+        },
+        {
+          "day": 14,
+          "date": "2026-09-14",
+          "hash": "b0601dbf5090973db470391f51d44f0f0930ab40bca8da1586d5282f34885cb3"
+        },
+        {
+          "day": 15,
+          "date": "2026-09-15",
+          "hash": "9457b40d065a44c0b81a3e65e05ff48c2262341cc87088be6059ed9391f40822"
+        },
+        {
+          "day": 16,
+          "date": "2026-09-16",
+          "hash": "e466c58908aafc786f3d00484949105eb899be20e873f2de242d60fc226ed4ff"
+        },
+        {
+          "day": 17,
+          "date": "2026-09-17",
+          "hash": "97f64afb5cc1d582421b473b4cf124d54fd7db329115a605392eb17aed1513e8"
+        },
+        {
+          "day": 18,
+          "date": "2026-09-18",
+          "hash": "21342d8314cf17397ad68928be6e07ec0627e0de21a6d0e6d1cc89ade194b2e3"
+        },
+        {
+          "day": 19,
+          "date": "2026-09-19",
+          "hash": "d6be7f407b045554d288a4c1c5b58e7c171effe31c8cd9ac50314eabee51e2bd"
+        },
+        {
+          "day": 20,
+          "date": "2026-09-20",
+          "hash": "eaa48817767ca15d4e6da6a8b996d1b5891d073b82acb7ff163fb6bb826ea761"
+        },
+        {
+          "day": 21,
+          "date": "2026-09-21",
+          "hash": "fa3e34fa816d3749c075a1db52d6e1056501cfbf9e8f7f03c621155ec8230f99"
+        },
+        {
+          "day": 22,
+          "date": "2026-09-22",
+          "hash": "c3c090ffafc2b270ce5d2376b2b621250e6c4d4c5aad7c2fce4d3fe61e3343d7"
+        },
+        {
+          "day": 23,
+          "date": "2026-09-23",
+          "hash": "9c0e2829ea7be19ff08803ecc4ccc11def76125acec80d254965e6acfa8175c2"
+        },
+        {
+          "day": 24,
+          "date": "2026-09-24",
+          "hash": "583932cee452949e1929aefe2ee3c8dd1f5a790299778cd0313a80fdfc01bda1"
+        },
+        {
+          "day": 25,
+          "date": "2026-09-25",
+          "hash": "d403c44e7b9170b47be08a66897a79ab26e4352ccdc4f235a76858e553413461"
+        },
+        {
+          "day": 26,
+          "date": "2026-09-26",
+          "hash": "9863f091021f35f5a64ecad794a6df0b50a20de84d91c99efc27b953067fe5cb"
+        },
+        {
+          "day": 27,
+          "date": "2026-09-27",
+          "hash": "df5a07719395186cc646b0e505dc87f35691be7800761334367cdcea94b9fe52"
+        },
+        {
+          "day": 28,
+          "date": "2026-09-28",
+          "hash": "d920df03515e5b59b0134a02fab3a54400c0febf5b6e74e098e39e8ab84276c8"
+        },
+        {
+          "day": 29,
+          "date": "2026-09-29",
+          "hash": "1ea2ef8ee726295d14cf01278f3d153d6cc067ba755e29f5660d3a06553cc35f"
+        },
+        {
+          "day": 30,
+          "date": "2026-09-30",
+          "hash": "b903f5d8580772883b120ff081b700f57289e60d4c2226deb6724b3a6005f2fe"
+        },
+        {
+          "day": 31,
+          "date": "2026-10-01",
+          "hash": "40fa68e854f34a7b6867bbb0eacdbc5fd96ca2dde4779e56820ee79f9d45b46d"
+        },
+        {
+          "day": 32,
+          "date": "2026-10-02",
+          "hash": "ad8b84162a2cae2e31b4b891b5f514436b0ab937f6db16e201d5e27672d91792"
+        },
+        {
+          "day": 33,
+          "date": "2026-10-03",
+          "hash": "853256791ba7780bc2b0ecf59224c27bccfdca47f4a47db39c0d4068226908a4"
+        },
+        {
+          "day": 34,
+          "date": "2026-10-04",
+          "hash": "e35abe212fe33cb810260c389f6107f4b728911bb07b11873be6b8e232c0eee9"
+        },
+        {
+          "day": 35,
+          "date": "2026-10-05",
+          "hash": "dc49410394e7de929d5f4625b632c4af4462a6e117c31336b6b7251b49ec881a"
+        },
+        {
+          "day": 36,
+          "date": "2026-10-06",
+          "hash": "bec90c3fe194f51ad44e95af5aa05e8ef963925be2290871713ceca6e30a83a4"
+        },
+        {
+          "day": 37,
+          "date": "2026-10-07",
+          "hash": "dc223baf249029feceb2fe974a60bf0aeb111ff9f95a433500c52ad4a8600987"
+        }
+      ]
+    }
+  },
+  "aggregate": {
+    "ruleBootstrap": {
+      "mean": 0,
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "ciLower95": 0,
+      "ciUpper95": 0
+    },
+    "crossPilotBootstrap": {
+      "mean": 0,
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "ciLower95": 0,
+      "ciUpper95": 0
+    },
+    "meanCrossPilotDeltaCents": 0,
+    "significant": false
+  },
+  "createdAt": "2026-09-14T03:30:17.099Z"
+}

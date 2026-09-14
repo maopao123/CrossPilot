@@ -3,3 +3,4 @@ export * from './action-registry.js';
 export * from './action-validator.js';
 export * from './action-planner.js';
 export * from './mock-executor.js';
+export * from './simulator-policy.js';

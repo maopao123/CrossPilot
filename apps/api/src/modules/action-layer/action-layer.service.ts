@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
 } from '@nestjs/common';
@@ -14,10 +16,16 @@ import {
 } from '@crosspilot/shared';
 import {
   ActionLayerError,
+  computeSha256,
   createDefaultMockRegistry,
   executeMockAction,
   planFromRecommendation,
+  evaluateSimulatorPolicy,
 } from '@crosspilot/domain';
+import {
+  resolveCommerceAdapter,
+  V2RunStore,
+} from '@crosspilot/db';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { AdvertisingService } from '../advertising/advertising.service.js';
@@ -32,14 +40,18 @@ function asObject(value: Prisma.JsonValue | null | undefined): Record<string, un
 
 @Injectable()
 export class ActionLayerService {
+  private readonly logger = new Logger(ActionLayerService.name);
   private readonly registry = createDefaultMockRegistry();
+  private readonly v2Store: V2RunStore;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly intel: IntelligenceService,
     private readonly advertising: AdvertisingService,
     @Optional() private readonly outcomeTracking?: OutcomeTrackingService,
-  ) {}
+  ) {
+    this.v2Store = new V2RunStore(prisma);
+  }
 
   list(workspaceId: string, recommendationId?: string) {
     return this.wrap(async () => {
@@ -136,11 +148,50 @@ export class ActionLayerService {
           `Action ${id} is ${row.status}; only WAITING_APPROVAL can be approved`,
         );
       }
+
+      const target = asObject(row.target);
+      const parameters = asObject(row.parameters);
+
+      let approvalMetadata: any = undefined;
+      if (target.runId) {
+        const expectedTargetVersion = target.expectedTargetVersion ?? parameters.expectedTargetVersion;
+        if (expectedTargetVersion === undefined || expectedTargetVersion === null) {
+          throw new ActionLayerError(
+            ErrorCodes.ACTION_INVALID_STATE,
+            `expectedTargetVersion is required to approve closed-loop v2 action ${id}`,
+          );
+        }
+        const cleanParameters = { ...parameters };
+        delete (cleanParameters as any)._approval;
+        const payloadHash = computeSha256({
+          actionType: row.actionType,
+          target,
+          parameters: cleanParameters,
+        });
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        approvalMetadata = {
+          payloadHash,
+          expectedTargetVersion: Number(expectedTargetVersion),
+          expiresAt,
+        };
+      }
+
       const updated = await this.prisma.plannedAction.update({
         where: { id },
-        data: { status: 'APPROVED', lastMessage: '已由 owner 批准（仍需 Mock Executor 执行）' },
+        data: {
+          status: 'APPROVED',
+          parameters: (approvalMetadata ? { ...parameters, _approval: approvalMetadata } : parameters) as Prisma.InputJsonValue,
+          lastMessage: '已由 owner 批准（仍需 Mock Executor 执行）',
+        },
       });
-      await this.appendHistory(workspaceId, id, userId || 'owner', 'approved', { status: 'APPROVED' }, 1);
+      await this.appendHistory(
+        workspaceId,
+        id,
+        userId || 'owner',
+        'approved',
+        { status: 'APPROVED', ...(approvalMetadata ? { approval: approvalMetadata } : {}) },
+        1,
+      );
       return this.toAction(updated);
     });
   }
@@ -166,22 +217,93 @@ export class ActionLayerService {
   execute(workspaceId: string, id: string, userId?: string) {
     return this.wrap(async () => {
       const row = await this.requireAction(workspaceId, id);
+      const target = asObject(row.target);
+      const parameters = asObject(row.parameters);
+
+      // Idempotent retry / timeout recovery for closed-loop v2 actions
+      if (target.runId && row.status === 'SUCCESS') {
+        const cleanParameters = { ...parameters };
+        delete (cleanParameters as any)._approval;
+        const payloadHash = computeSha256({
+          actionType: row.actionType,
+          target,
+          parameters: cleanParameters,
+        });
+        const existingReceipt = await this.prisma.simulationExecutionReceipt.findFirst({
+          where: {
+            runId: String(target.runId),
+            actionId: row.id,
+            operationKind: 'APPLY',
+          },
+        });
+        if (existingReceipt && existingReceipt.status === 'APPLIED') {
+          if (existingReceipt.payloadHash === payloadHash) {
+            return this.toAction(row);
+          } else {
+            throw new ConflictException('IDEMPOTENCY_CONFLICT: same actionId with different payload');
+          }
+        }
+      }
+
       if (row.status !== 'APPROVED') {
         throw new ActionLayerError(
           ErrorCodes.ACTION_INVALID_STATE,
           `Action ${id} is ${row.status}; only APPROVED actions can execute`,
         );
       }
+
+      // Verify approval metadata if target.runId (FIX-6)
+      if (target.runId) {
+        const approval = (parameters as any)?._approval;
+        if (!approval) {
+          throw new ActionLayerError(
+            ErrorCodes.ACTION_INVALID_STATE,
+            `Action ${id} missing approval metadata`,
+          );
+        }
+        if (approval.expiresAt && new Date() > new Date(approval.expiresAt)) {
+          throw new ActionLayerError(
+            ErrorCodes.ACTION_INVALID_STATE,
+            `Approval for action ${id} has expired (expired at ${approval.expiresAt})`,
+          );
+        }
+        const cleanParameters = { ...parameters };
+        delete (cleanParameters as any)._approval;
+        const currentPayloadHash = computeSha256({
+          actionType: row.actionType,
+          target,
+          parameters: cleanParameters,
+        });
+        if (approval.payloadHash && approval.payloadHash !== currentPayloadHash) {
+          throw new ConflictException(`PAYLOAD_HASH_MISMATCH: action parameters changed after approval`);
+        }
+        const expectedTargetVersion =
+          target.expectedTargetVersion ??
+          cleanParameters.expectedTargetVersion ??
+          approval.expectedTargetVersion;
+        if (expectedTargetVersion === undefined || expectedTargetVersion === null) {
+          throw new ActionLayerError(
+            ErrorCodes.ACTION_INVALID_STATE,
+            `expectedTargetVersion is required for closed-loop v2 action ${id}`,
+          );
+        }
+      }
+
+      // Branch: Closed-loop v2 Simulator action execution
+      if (target.runId) {
+        return await this.executeV2SimulatorAction(workspaceId, row, target, parameters, userId);
+      }
+
       await this.prisma.plannedAction.update({
         where: { id },
         data: { status: 'EXECUTING', lastMessage: 'Mock Executor 已启动' },
       });
-      await this.appendHistory(workspaceId, id, userId || 'owner', 'execution_started', asObject(row.parameters), 1);
+      await this.appendHistory(workspaceId, id, userId || 'owner', 'execution_started', parameters, 1);
 
       const outcome = await executeMockAction(this.registry, {
         actionType: row.actionType as CommerceActionType,
-        target: asObject(row.target),
-        parameters: asObject(row.parameters),
+        target,
+        parameters,
       });
 
       let successExecution: { timestamp?: Date } | null = null;
@@ -220,6 +342,319 @@ export class ActionLayerService {
       }
 
       return this.toAction(updated);
+    });
+  }
+
+  private async executeV2SimulatorAction(
+    workspaceId: string,
+    row: any,
+    target: Record<string, unknown>,
+    parameters: Record<string, unknown>,
+    userId?: string,
+  ) {
+    const runId = String(target.runId);
+
+    // 1. Keyword check: campaign-level action must not specify keyword
+    if (typeof target.keyword === 'string' && target.keyword.trim().length > 0) {
+      throw new BadRequestException(
+        'keyword targeting is not supported on campaign-level action; keyword must be empty',
+      );
+    }
+
+    // 2. Adapter capabilities check (R2-10)
+    const adapter = resolveCommerceAdapter(this.prisma, 'simulator');
+    const capabilities = adapter.getCapabilities ? adapter.getCapabilities() : null;
+    if (capabilities && !capabilities.supportedActions.includes(row.actionType)) {
+      throw new BadRequestException(
+        `UNSUPPORTED_CAPABILITY: action ${row.actionType} is not supported by ${adapter.platform} adapter`,
+      );
+    }
+
+    const cleanParameters = { ...parameters };
+    delete (cleanParameters as any)._approval;
+
+    // 3. Payload hash
+    const payloadHash = computeSha256({
+      actionType: row.actionType,
+      target,
+      parameters: cleanParameters,
+    });
+
+    // 4. Check existing receipt for idempotent replay
+    if (this.prisma.simulationExecutionReceipt?.findFirst) {
+      const existingReceipt = await this.prisma.simulationExecutionReceipt.findFirst({
+        where: {
+          runId,
+          actionId: row.id,
+          operationKind: 'APPLY',
+        },
+      });
+
+      if (existingReceipt && existingReceipt.status === 'APPLIED') {
+        if (existingReceipt.payloadHash === payloadHash) {
+          // Idempotent replay: return success without mutating world state again
+          const updated = await this.prisma.plannedAction.update({
+            where: { id: row.id },
+            data: {
+              status: 'SUCCESS',
+              lastMessage: 'Simulator v2 Action APPLIED (idempotent replay)',
+            },
+          });
+          return this.toAction(updated);
+        } else {
+          throw new ConflictException('IDEMPOTENCY_CONFLICT: same actionId with different payload');
+        }
+      }
+    }
+
+    // 5. Load SimulationRun
+    const run = await this.prisma.simulationRun.findUnique({
+      where: { id: runId },
+    });
+    if (!run) {
+      throw new NotFoundException(`SimulationRun not found: ${runId}`);
+    }
+    if (run.status !== 'RUNNING') {
+      throw new ConflictException(`SimulationRun ${runId} is not in RUNNING status (${run.status})`);
+    }
+
+    // Target storeId check against run.storeId (FIX-6)
+    if (target.storeId && target.storeId !== run.storeId) {
+      throw new ForbiddenException(
+        `Target storeId ${target.storeId} does not match SimulationRun storeId ${run.storeId}`,
+      );
+    }
+
+    const worldState = run.stateSnapshot as any;
+    if (!worldState || !Array.isArray(worldState.campaigns)) {
+      throw new BadRequestException('SimulationRun stateSnapshot has invalid campaigns');
+    }
+
+    const campaignId = String(target.campaignId);
+    const campaign = worldState.campaigns.find((c: any) => c.id === campaignId);
+    if (!campaign) {
+      throw new NotFoundException(`Campaign ${campaignId} not found in SimulationRun ${runId}`);
+    }
+
+    // 6. Version check (FIX-6: expectedTargetVersion missing directly rejected)
+    const expectedTargetVersion =
+      target.expectedTargetVersion ??
+      cleanParameters.expectedTargetVersion ??
+      (parameters as any)?._approval?.expectedTargetVersion;
+
+    if (expectedTargetVersion === undefined || expectedTargetVersion === null) {
+      throw new BadRequestException('expectedTargetVersion is required for v2 simulation action execution');
+    }
+
+    if (Number(expectedTargetVersion) !== campaign.targetVersion) {
+      throw new ConflictException(
+        `VERSION_CONFLICT: expected targetVersion ${expectedTargetVersion} but found ${campaign.targetVersion}`,
+      );
+    }
+
+    // 7. Policy guard for automatic mode (R2-3)
+    const approval = (parameters as any)?._approval;
+    if (approval?.mode === 'POLICY_AUTO' || (row.metadata as any)?.source === 'SIMULATOR_AUTOPILOT') {
+      const limits = (run.policyLimits as any) ?? {};
+      const history = (worldState.actionHistory as any[]) || [];
+      const pastMetrics = this.prisma.adMetricDaily?.findMany
+        ? await this.prisma.adMetricDaily.findMany({
+            where: { campaignId },
+            take: 7,
+          })
+        : [];
+      const clicks = pastMetrics.reduce((sum: number, m: any) => sum + Number(m.clicks || 0), 0);
+      const policyCheck = evaluateSimulatorPolicy({
+        actionType: row.actionType,
+        campaignId,
+        currentDate: worldState.nextDate || new Date().toISOString().slice(0, 10),
+        currentBidCents: campaign.bidCents,
+        initialBidCents: campaign.bidCents,
+        percentage: Number(cleanParameters.percentage || 10),
+        recent7DayClicks: clicks,
+        actionHistory: history,
+        policyLimits: {
+          maxSingleDecreasePct: limits.maxSingleBidChangePct ?? 0.20,
+          maxCumulativeDecreasePct: limits.maxCumulativeBidChangePct ?? 0.30,
+          cooldownDays: limits.cooldownDays ?? 3,
+          maxActionsPerDay: limits.maxDailyActionsPerTarget ?? 3,
+          min7DayClicks: limits.min7DayClicks ?? 100,
+          minBidFloorCents: Math.round((limits.minBidUSD ?? 0.20) * 100),
+        },
+      });
+
+      if (policyCheck.decision === 'REJECT') {
+        throw new BadRequestException(
+          `POLICY_VIOLATION: ${policyCheck.reason || 'POLICY_REJECT'}`,
+        );
+      }
+    }
+
+    // 8. Atomic execution via V2RunStore (R2-10, R2-4)
+    let applyRes: any;
+    try {
+      applyRes = await this.v2Store.applyAction({
+        runId,
+        actionId: row.id,
+        actionType: row.actionType,
+        target,
+        parameters: cleanParameters,
+        userId,
+        payloadHash,
+        expectedTargetVersion: Number(expectedTargetVersion),
+      });
+    } catch (err: any) {
+      if (err?.code === 'CONFLICT' || err?.message?.includes('conflict') || err?.message?.includes('VERSION_CONFLICT')) {
+        throw new ConflictException(err.message);
+      }
+      if (err?.code === 'BAD_REQUEST' || err?.message?.includes('percentage must be')) {
+        throw new BadRequestException(err.message);
+      }
+      if (err?.code === 'P2002') {
+        throw new ConflictException(`Unique constraint conflict: ${err.message}`);
+      }
+      throw err;
+    }
+
+    // 9. Safe Outcome creation with recoverable recording (FIX-12 / R2-5)
+    try {
+      await this.outcomeTracking?.createForExecution(
+        workspaceId,
+        { id: row.id, target },
+        applyRes.appliedDate,
+        { evaluationVersion: 'closed-loop-v2' },
+      );
+    } catch (err: any) {
+      this.logger.error(`Failed to create outcome for action ${row.id}: ${err?.message}`, err?.stack);
+      try {
+        if (this.prisma.agentTask?.create) {
+          await this.prisma.agentTask.create({
+            data: {
+              workspaceId,
+              taskType: 'OUTCOME_CREATION_RETRY',
+              status: 'PENDING',
+              inputJson: JSON.stringify({
+                actionId: row.id,
+                target,
+                appliedDate: applyRes.appliedDate.toISOString(),
+                evaluationVersion: 'closed-loop-v2',
+              }),
+            },
+          });
+        }
+      } catch (taskErr: any) {
+        this.logger.error(`Failed to record outcome creation retry task: ${taskErr?.message}`);
+      }
+    }
+
+    const updatedAction = await this.prisma.plannedAction.findUnique({ where: { id: row.id } });
+    return this.toAction(updatedAction || row);
+  }
+
+  compensate(workspaceId: string, id: string, userId?: string) {
+    return this.wrap(async () => {
+      const row = await this.requireAction(workspaceId, id);
+      const target = asObject(row.target);
+      if (!target.runId) {
+        throw new BadRequestException('Compensation is only supported for v2 simulator actions');
+      }
+
+      const runId = String(target.runId);
+      const applyReceipt = await this.prisma.simulationExecutionReceipt.findFirst({
+        where: { runId, actionId: id, operationKind: 'APPLY' },
+      });
+      if (!applyReceipt || applyReceipt.status !== 'APPLIED') {
+        throw new BadRequestException(`No APPLIED receipt found for action ${id}`);
+      }
+
+      const run = await this.prisma.simulationRun.findUnique({ where: { id: runId } });
+      if (!run) throw new NotFoundException('SimulationRun not found');
+      const worldState = run.stateSnapshot as any;
+      const campaign = worldState.campaigns.find((c: any) => c.id === target.campaignId);
+      if (!campaign) throw new NotFoundException('Campaign not found in run');
+
+      if (campaign.targetVersion !== applyReceipt.targetVersion) {
+        throw new ConflictException(
+          `VERSION_CONFLICT: target has version ${campaign.targetVersion} but receipt has ${applyReceipt.targetVersion}; subsequent modification detected`,
+        );
+      }
+
+      const attempt = (applyReceipt.attempt ?? 1) + 1;
+
+      // P1 #5: Append execution_started history
+      await this.appendHistory(
+        workspaceId,
+        id,
+        userId || 'owner',
+        'execution_started',
+        { operation: 'COMPENSATE' },
+        attempt,
+      );
+
+      const beforeState = {
+        bidCents: campaign.bidCents,
+        status: campaign.status,
+        targetVersion: campaign.targetVersion,
+      };
+
+      const originalBefore = applyReceipt.beforeState as any;
+      if (originalBefore.bidCents !== undefined) campaign.bidCents = originalBefore.bidCents;
+      if (originalBefore.status !== undefined) campaign.status = originalBefore.status;
+      campaign.targetVersion += 1;
+
+      const afterState = {
+        bidCents: campaign.bidCents,
+        status: campaign.status,
+        targetVersion: campaign.targetVersion,
+      };
+
+      let updatedAction: any;
+      await this.prisma.$transaction(async (tx: any) => {
+        await tx.simulationExecutionReceipt.create({
+          data: {
+            runId,
+            actionId: id,
+            operationKind: 'COMPENSATE',
+            payloadHash: applyReceipt.payloadHash,
+            appliedDate: new Date(`${worldState.nextDate}T00:00:00.000Z`),
+            targetVersion: campaign.targetVersion,
+            status: 'APPLIED',
+            beforeState,
+            afterState,
+            attempt,
+          },
+        });
+        const updateCount = await tx.simulationRun.updateMany({
+          where: { id: run.id, stateVersion: run.stateVersion },
+          data: {
+            stateSnapshot: worldState,
+            stateVersion: { increment: 1 },
+          },
+        });
+        if (updateCount.count === 0) {
+          throw new ConflictException('VERSION_CONFLICT: SimulationRun stateVersion conflict during compensation');
+        }
+        await tx.actionExecution.create({
+          data: {
+            workspaceId,
+            actionId: id,
+            operator: userId || 'owner',
+            status: 'SUCCESS',
+            attempt,
+            input: { operation: 'COMPENSATE' },
+            output: { beforeState, afterState },
+          },
+        });
+        updatedAction = await tx.plannedAction.update({
+          where: { id },
+          data: {
+            status: 'COMPENSATED',
+            lastMessage: 'Simulator v2 Action COMPENSATED',
+          },
+        });
+      });
+
+      return this.toAction(updatedAction || row);
     });
   }
 

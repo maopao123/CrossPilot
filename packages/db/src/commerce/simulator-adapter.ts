@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import {
   providerUnavailable,
   writeForbiddenResult,
+  type AdapterCapabilities,
   type AdapterWriteResult,
   type BidTarget,
   type CanonicalCampaign,
@@ -63,6 +64,22 @@ export class SimulatorAdapterBindError extends Error {
  */
 export class SimulatorAdapter implements CommerceAdapter {
   readonly platform: CommercePlatform = 'simulator';
+
+  getCapabilities(): AdapterCapabilities {
+    return {
+      supportedActions: ['DECREASE_BID', 'STOP_CAMPAIGN'],
+      executionMode: 'simulator',
+      constraints: {
+        minBidUSD: 0.20,
+        maxSingleBidChangePct: 0.20,
+        maxCumulativeBidChangePct: 0.30,
+        cooldownDays: 3,
+        maxDailyActionsPerTarget: 3,
+        min7DayClicks: 100,
+      },
+      dataFreshness: 'simulated-daily',
+    };
+  }
 
   constructor(
     private readonly prisma: PrismaClient | any,

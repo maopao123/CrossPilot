@@ -36,6 +36,21 @@ export function computeOutcomeWindows(
   };
 }
 
+/**
+ * v2 闭环评估窗口：严格 7 天基线 [D-6..D]（7 天完整日），观察窗 [D+1..D+windowDays]。
+ */
+export function computeOutcomeWindowsV2(
+  executionDateKey: string,
+  windowDays: number,
+): OutcomeWindow {
+  return {
+    baselineStart: addDays(executionDateKey, -6),
+    baselineEnd: executionDateKey,
+    observeStart: addDays(executionDateKey, 1),
+    observeEnd: addDays(executionDateKey, windowDays),
+  };
+}
+
 /** 判定规则 v1 主指标映射：竞价类 → acos；改价类 → margin；其余 → profit */
 export function primaryMetricForAction(actionType: string): OutcomeMetricKey {
   if (actionType === 'DECREASE_BID' || actionType === 'INCREASE_BID') return 'acos';
@@ -209,5 +224,188 @@ export function evaluateOutcome(input: OutcomeEvaluationInput): OutcomeEvaluatio
     evaluationReason:
       `主指标 ${primaryLabel} 变化 ${formatPct(change)}，处于 ±` +
       `${(config.thresholdPct * 100).toFixed(0)}% 阈值内${guardrailNote}`,
+  };
+}
+
+export interface OutcomeEvaluationInputV2 extends OutcomeEvaluationInput {
+  windowDays: number;
+  zeroConversionSpend?: boolean;
+  evaluationVersion?: string;
+}
+
+/**
+ * Closed-loop v2 Outcome Evaluator with daily average normalization,
+ * zero conversion spend handling, and completedThrough maturity gates.
+ */
+export function evaluateOutcomeV2(input: OutcomeEvaluationInputV2): OutcomeEvaluationResult {
+  if (!input.observeWindowEnded) {
+    return { status: 'OBSERVING', delta: null, evaluationReason: null };
+  }
+
+  const config = { ...DEFAULT_OUTCOME_EVALUATION_CONFIG, ...input.config };
+  const primary = input.primaryMetric ?? primaryMetricForAction(input.actionType);
+  const primaryLabel = primary.toUpperCase();
+
+  if (!input.baseline || !input.after) {
+    const missing = [!input.baseline ? '基线窗口' : null, !input.after ? '观察窗口' : null]
+      .filter(Boolean)
+      .join('与');
+    return {
+      status: 'INCONCLUSIVE',
+      delta: null,
+      evaluationReason: `${missing}无任何指标数据（目标可能未被 simulator 覆盖或 sync 中断），无法判定`,
+    };
+  }
+
+  // Zero conversion spend check: spend > 0 but adSales = 0
+  if (
+    input.zeroConversionSpend ||
+    (primary === 'acos' &&
+      input.after.acos === null &&
+      ((input.after as any).adSpend > 0 || (input.after as any).spend > 0))
+  ) {
+    return {
+      status: 'NEGATIVE',
+      delta: null,
+      evaluationReason:
+        'ZERO_CONVERSION_SPEND: 广告花费大于0但广告销售为0，ACOS无有效转化，判定为负向效果',
+    };
+  }
+
+  // Volume metrics that require daily normalization
+  const volumeMetrics: OutcomeMetricKey[] = ['profit', 'revenue', 'orders'];
+  const baselineDays = 7;
+  const observeDays = input.windowDays || 7;
+
+  const delta: OutcomeEvaluationResult['delta'] = {};
+  for (const key of Object.keys(input.baseline) as OutcomeMetricKey[]) {
+    const b = input.baseline[key];
+    const a = input.after[key];
+    if (b === null || a === null) continue;
+
+    if (volumeMetrics.includes(key)) {
+      const bDaily = b / baselineDays;
+      const aDaily = a / observeDays;
+      // When baseline <= 0, relative percentage change is undefined/misleading -> null
+      const changePct = bDaily <= 0 ? null : relativeChange(bDaily, aDaily);
+      delta[key] = {
+        before: round2(bDaily),
+        after: round2(aDaily),
+        changePct: changePct !== null ? round4(changePct) : null,
+      };
+    } else {
+      // For ratio-like or non-volume metrics: when baseline <= 0, do not compute relativeChange
+      const changePct = b <= 0 ? null : relativeChange(b, a);
+      delta[key] = {
+        before: round2(b),
+        after: round2(a),
+        changePct: changePct !== null ? round4(changePct) : null,
+      };
+    }
+  }
+
+  const beforePrimaryVal = input.baseline[primary];
+  const afterPrimaryVal = input.after[primary];
+
+  if (beforePrimaryVal === null || afterPrimaryVal === null) {
+    return {
+      status: 'INCONCLUSIVE',
+      delta: null,
+      evaluationReason: `主指标 ${primaryLabel} 数据缺失，无法判定`,
+    };
+  }
+
+  const beforeNorm = volumeMetrics.includes(primary)
+    ? beforePrimaryVal / baselineDays
+    : beforePrimaryVal;
+  const afterNorm = volumeMetrics.includes(primary)
+    ? afterPrimaryVal / observeDays
+    : afterPrimaryVal;
+
+  let change = 0;
+  let improved = false;
+  let worsened = false;
+
+  if (beforeNorm <= 0) {
+    const absDiff = afterNorm - beforeNorm;
+    if (absDiff < 0) {
+      worsened = true;
+    } else if (afterNorm > 0 && absDiff >= (primary === 'profit' ? 10 : primary === 'orders' ? 1 : 0.01)) {
+      improved = true;
+    } else {
+      improved = false;
+    }
+  } else {
+    change = relativeChange(beforeNorm, afterNorm);
+    improved = isLowerBetter(primary)
+      ? change <= -config.thresholdPct
+      : change >= config.thresholdPct;
+    worsened = isLowerBetter(primary)
+      ? change >= config.thresholdPct
+      : change <= -config.thresholdPct;
+  }
+
+  // Guardrail check
+  const guardrails = config.guardrailMetrics.filter((g) => g !== primary);
+  const worsenedGuardrails: string[] = [];
+  for (const g of guardrails) {
+    const b = input.baseline[g];
+    const a = input.after[g];
+    if (b === null || a === null) continue;
+    const bDaily = volumeMetrics.includes(g) ? b / baselineDays : b;
+    const aDaily = volumeMetrics.includes(g) ? a / observeDays : a;
+    let gWorsened = false;
+    let gChange: number | null = null;
+    if (bDaily <= 0) {
+      if (aDaily < bDaily) {
+        gWorsened = true;
+      }
+    } else {
+      gChange = relativeChange(bDaily, aDaily);
+      gWorsened = isLowerBetter(g) ? gChange >= config.thresholdPct : gChange <= -config.thresholdPct;
+    }
+    if (gWorsened) {
+      const changeStr = gChange !== null ? ` ${formatPct(gChange)}` : ` (基线 ${round2(bDaily)} → 观察 ${round2(aDaily)})`;
+      worsenedGuardrails.push(`${g.toUpperCase()} 恶化${changeStr}`);
+    }
+  }
+
+  const changeReason = beforeNorm <= 0
+    ? `基线 ${round2(beforeNorm)} → 观察 ${round2(afterNorm)}（差值 ${afterNorm >= beforeNorm ? '+' : ''}${round2(afterNorm - beforeNorm)}，基线≤0不计算百分比）`
+    : `变化 ${formatPct(change)}`;
+
+  if (worsened) {
+    return {
+      status: 'NEGATIVE',
+      delta,
+      evaluationReason: beforeNorm <= 0
+        ? `主指标 ${primaryLabel} 恶化，${changeReason}`
+        : `主指标 ${primaryLabel} 恶化 ${formatPct(change)}，超过 ${(config.thresholdPct * 100).toFixed(0)}% 阈值`,
+    };
+  }
+
+  if (improved) {
+    if (worsenedGuardrails.length > 0) {
+      return {
+        status: 'NEUTRAL',
+        delta,
+        evaluationReason: beforeNorm <= 0
+          ? `主指标 ${primaryLabel} 虽改善（${changeReason}），但护栏指标恶化（${worsenedGuardrails.join('；')}），按保守原则不计正向效果`
+          : `主指标 ${primaryLabel} 虽改善 ${formatPct(change)}，但护栏指标恶化（${worsenedGuardrails.join('；')}），按保守原则不计正向效果`,
+      };
+    }
+    return {
+      status: 'POSITIVE',
+      delta,
+      evaluationReason: beforeNorm <= 0
+        ? `主指标 ${primaryLabel} 改善，${changeReason}`
+        : `主指标 ${primaryLabel} 改善 ${formatPct(change)}，超过 ${(config.thresholdPct * 100).toFixed(0)}% 阈值`,
+    };
+  }
+
+  return {
+    status: 'NEUTRAL',
+    delta,
+    evaluationReason: `主指标 ${primaryLabel} ${changeReason}，处于阈值范围内`,
   };
 }

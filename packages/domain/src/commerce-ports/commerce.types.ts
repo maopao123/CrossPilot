@@ -113,3 +113,10 @@ export function createCommerceContext(
 ): CommerceContext {
   return { workspaceId, storeId, traceId };
 }
+
+export interface AdapterCapabilities {
+  supportedActions: string[];
+  executionMode: 'mock' | 'simulator' | 'live';
+  constraints: Record<string, unknown>;
+  dataFreshness: string;
+}

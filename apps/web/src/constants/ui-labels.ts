@@ -69,10 +69,17 @@ export const STATUS_LABELS: Record<string, string> = {
   INCONCLUSIVE: '数据不足',
   EXPIRED: '已过期',
 
+  // Simulator closed-loop-v2 执行回执与实验状态
+  APPLIED: '已生效',
+  NOT_APPLIED: '未生效',
+  UNKNOWN: '状态未知',
+  PAUSED_BUDGET: '预算暂停',
+
   // Listing 生成引擎降级状态
   TEMPLATE_FALLBACK: '模板降级',
   LEGACY_TEMPLATE: '传统模板',
 };
+
 
 /**
  * 安全获取状态的中文显示文案，未命中时回退显示原枚举字符串

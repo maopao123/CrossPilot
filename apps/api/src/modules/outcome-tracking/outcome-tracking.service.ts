@@ -14,6 +14,7 @@ import {
 } from '@crosspilot/shared';
 import {
   computeOutcomeWindows,
+  computeOutcomeWindowsV2,
   dateKey,
   resolveOutcomeTarget,
 } from '@crosspilot/domain';
@@ -180,65 +181,80 @@ export class OutcomeTrackingService {
 
   /**
    * Action 执行成功（ActionExecution SUCCESS）后创建 7/14/30 天观察窗 Outcome。
-   * 任何失败只打 error 日志，绝不影响 execute 主流程（PRD §2.4 链路串联）。
+   * 失败时向调用方抛出异常，以便记录 OUTCOME_CREATION_RETRY。
    */
   async createForExecution(
     workspaceId: string,
     action: { id: string; target: Record<string, unknown> },
     executedAt: Date,
+    options?: { evaluationVersion?: string },
   ): Promise<void> {
-    try {
-      const resolvedSkuId = await this.resolveSkuIdByCode(workspaceId, action.target);
-      const target = resolveOutcomeTarget(action.target, resolvedSkuId);
-      if (!target) {
-        console.warn(
-          `⚠️ ActionOutcome skipped for action ${action.id}: target 无法解析（target=${JSON.stringify(action.target)}）`,
-        );
-        return;
-      }
-      const t0 = dateKey(executedAt);
-      for (const windowDays of OUTCOME_WINDOW_DAYS) {
-        const window = computeOutcomeWindows(t0, windowDays);
-        const baseline = await this.reader.readWindowMetrics({
-          workspaceId,
-          ...target,
-          start: window.baselineStart,
-          end: window.baselineEnd,
+    let evaluationVersion = options?.evaluationVersion;
+    if (!evaluationVersion) {
+      if (action.target?.runId) {
+        evaluationVersion = 'closed-loop-v2';
+      } else if (this.prisma.simulationRun?.findFirst) {
+        const run = await this.prisma.simulationRun.findFirst({
+          where: { runWorkspaceId: workspaceId },
+          select: { id: true },
         });
-        try {
-          await this.prisma.actionOutcome.create({
-            data: {
-              workspaceId,
-              actionId: action.id,
-              targetType: target.targetType,
-              targetId: target.targetId,
-              baselineStart: new Date(`${window.baselineStart}T00:00:00.000Z`),
-              baselineEnd: new Date(`${window.baselineEnd}T00:00:00.000Z`),
-              observeStart: new Date(`${window.observeStart}T00:00:00.000Z`),
-              observeEnd: new Date(`${window.observeEnd}T00:00:00.000Z`),
-              windowDays,
-              metricsBefore:
-                baseline === null
-                  ? Prisma.JsonNull
-                  : (JSON.parse(JSON.stringify(baseline)) as Prisma.InputJsonValue),
-              status: 'OBSERVING',
-            },
-          });
-        } catch (err) {
-          if (isP2002(err)) {
-            console.warn(
-              `⚠️ ActionOutcome 已存在（action=${action.id}, window=${windowDays}d），跳过重复创建`,
-            );
-            continue;
-          }
-          throw err;
+        if (run) {
+          evaluationVersion = 'closed-loop-v2';
         }
       }
-    } catch (err: any) {
-      console.error(
-        '❌ ActionOutcome 创建失败（不影响 execute 主流程）:',
-        err?.message || err,
+    }
+    if (!evaluationVersion) {
+      evaluationVersion = 'legacy-v1';
+    }
+
+    const resolvedSkuId = await this.resolveSkuIdByCode(workspaceId, action.target);
+    const target = resolveOutcomeTarget(action.target, resolvedSkuId);
+    if (!target) {
+      console.warn(
+        `⚠️ ActionOutcome skipped for action ${action.id}: target 无法解析（target=${JSON.stringify(action.target)}）`,
       );
+      return;
+    }
+    const t0 = dateKey(executedAt);
+    for (const windowDays of OUTCOME_WINDOW_DAYS) {
+      const window = evaluationVersion === 'closed-loop-v2'
+        ? computeOutcomeWindowsV2(t0, windowDays)
+        : computeOutcomeWindows(t0, windowDays);
+      const baseline = await this.reader.readWindowMetrics({
+        workspaceId,
+        ...target,
+        start: window.baselineStart,
+        end: window.baselineEnd,
+      });
+      try {
+        await this.prisma.actionOutcome.create({
+          data: {
+            workspaceId,
+            actionId: action.id,
+            targetType: target.targetType,
+            targetId: target.targetId,
+            baselineStart: new Date(`${window.baselineStart}T00:00:00.000Z`),
+            baselineEnd: new Date(`${window.baselineEnd}T00:00:00.000Z`),
+            observeStart: new Date(`${window.observeStart}T00:00:00.000Z`),
+            observeEnd: new Date(`${window.observeEnd}T00:00:00.000Z`),
+            windowDays,
+            evaluationVersion,
+            metricsBefore:
+              baseline === null
+                ? Prisma.JsonNull
+                : (JSON.parse(JSON.stringify(baseline)) as Prisma.InputJsonValue),
+            status: 'OBSERVING',
+          },
+        });
+      } catch (err) {
+        if (isP2002(err)) {
+          console.warn(
+            `⚠️ ActionOutcome 已存在（action=${action.id}, window=${windowDays}d），跳过重复创建`,
+          );
+          continue;
+        }
+        throw err;
+      }
     }
   }
 

@@ -87,6 +87,9 @@ model Workspace {
   simulationState          SimulationState?
   simulationEvents         SimulationEvent[]
   channelDailyMetrics      ChannelDailyMetric[]
+  controlWorkspaceRuns     SimulationRun[]            @relation("ControlWorkspaceRuns")
+  runWorkspaceRuns         SimulationRun?             @relation("RunWorkspaceRuns")
+  controlExperiments       SimulationExperiment[]     @relation("ControlWorkspaceExperiments")
 
   defaultMarketplace       Marketplace?               @relation(fields: [defaultMarketplaceId], references: [id])
 
@@ -1324,6 +1327,8 @@ model Store {
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   accounts    CommerceAccount[]
   identities  ChannelIdentity[]
+  simulationRuns          SimulationRun[]
+  simulationLedgerEntries SimulationLedgerEntry[]
 
   @@index([workspaceId])
   @@index([workspaceId, platform])
@@ -1545,6 +1550,7 @@ model PlannedAction {
   recommendation   BusinessRecommendation? @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
   executions       ActionExecution[]
   outcomes         ActionOutcome[]
+  simulationReceipts SimulationExecutionReceipt[]
 
   @@index([workspaceId])
   @@index([recommendationId])
@@ -1596,10 +1602,13 @@ model ActionOutcome {
   metricsAfter     Json?     @map("metrics_after")
   delta            Json?
 
-  status           String    @default("OBSERVING")
-  evaluationReason String?   @map("evaluation_reason") @db.Text
+  status               String    @default("OBSERVING")
+  evaluationReason     String?   @map("evaluation_reason") @db.Text
+  evaluationVersion    String    @default("legacy-v1") @map("evaluation_version")
+  interventionVerified Boolean   @default(false) @map("intervention_verified")
+  dataCoverage         Json?     @map("data_coverage")
 
-  createdAt        DateTime  @default(now()) @map("created_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   evaluatedAt      DateTime? @map("evaluated_at")
 
@@ -1676,3 +1685,131 @@ model ChannelDailyMetric {
   @@index([metricDate])
   @@map("channel_daily_metrics")
 }
+
+// ==========================================
+// Simulator closed-loop-v2 (docs/00_governance/more)
+// ==========================================
+
+model SimulationRun {
+  id                 String    @id @default(uuid())
+  controlWorkspaceId String    @map("control_workspace_id")
+  runWorkspaceId     String    @unique @map("run_workspace_id")
+  storeId            String    @map("store_id")
+  modelVersion       String    @default("closed-loop-v2") @map("model_version")
+  configHash         String    @map("config_hash")
+  seed               Int       @default(1001)
+  status             String    @default("RUNNING") // RUNNING | PAUSED | COMPLETED | FAILED
+  completedThrough   DateTime? @map("completed_through") @db.Date
+  parentExperimentId String?   @map("parent_experiment_id")
+  stateSnapshot      Json?     @map("state_snapshot")
+  config             Json?     @map("config")
+  policyEnabled      Boolean   @default(false) @map("policy_enabled")
+  policyLimits       Json?     @map("policy_limits")
+  idempotencyKey     String?   @unique @map("idempotency_key")
+  stateVersion       Int       @default(1) @map("state_version")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  controlWorkspace   Workspace                  @relation("ControlWorkspaceRuns", fields: [controlWorkspaceId], references: [id], onDelete: Cascade)
+  runWorkspace       Workspace                  @relation("RunWorkspaceRuns", fields: [runWorkspaceId], references: [id], onDelete: Cascade)
+  store              Store                      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  parentExperiment   SimulationExperiment?      @relation("ExperimentRuns", fields: [parentExperimentId], references: [id], onDelete: SetNull)
+  ticks              SimulationTick[]
+  receipts           SimulationExecutionReceipt[]
+  ledgerEntries      SimulationLedgerEntry[]
+
+  @@index([controlWorkspaceId])
+  @@index([status])
+  @@map("simulation_runs")
+}
+
+model SimulationTick {
+  id           String   @id @default(uuid())
+  runId        String   @map("run_id")
+  date         DateTime @db.Date
+  inputHash    String   @map("input_hash")
+  outputHash   String   @map("output_hash")
+  stateVersion Int      @default(1) @map("state_version")
+  status       String   @default("COMMITTED") // COMMITTED | FAILED | ROLLING_BACK
+  summary      Json?
+  completedAt  DateTime @default(now()) @map("completed_at")
+
+  run          SimulationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, date])
+  @@index([runId])
+  @@map("simulation_ticks")
+}
+
+model SimulationExecutionReceipt {
+  id            String   @id @default(uuid())
+  runId         String   @map("run_id")
+  actionId      String   @map("action_id")
+  operationKind String   @default("APPLY") @map("operation_kind") // APPLY | COMPENSATE
+  payloadHash   String   @map("payload_hash")
+  appliedDate   DateTime @map("applied_date") @db.Date
+  targetVersion Int      @map("target_version")
+  status        String   @default("APPLIED") // PENDING | APPLIED | NOT_APPLIED | UNKNOWN
+  beforeState   Json?    @map("before_state")
+  afterState    Json?    @map("after_state")
+  attempt       Int      @default(1)
+  errorMessage  String?  @map("error_message") @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  run           SimulationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  action        PlannedAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, actionId, operationKind])
+  @@index([runId])
+  @@index([actionId])
+  @@map("simulation_execution_receipts")
+}
+
+model SimulationLedgerEntry {
+  id                String   @id @default(uuid())
+  runId             String   @map("run_id")
+  storeId           String   @map("store_id")
+  date              DateTime @db.Date
+  sourceType        String   @map("source_type") // ORDER | AD_DAILY | REFUND | FEE | EVENT
+  sourceId          String   @map("source_id")
+  entryType         String   @map("entry_type") // REVENUE | COGS | AD_SPEND | PLATFORM_FEE | FULFILLMENT_FEE | STORAGE_FEE | RETURN_REFUND | COGS_REVERSAL | AI_COST
+  sequence          Int      @default(0)
+  signedAmountCents Int      @map("signed_amount_cents")
+  currency          String   @default("USD")
+  description       String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  run               SimulationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  store             Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, date, sourceType, sourceId, entryType, sequence])
+  @@index([runId, date])
+  @@map("simulation_ledger_entries")
+}
+
+model SimulationExperiment {
+  id                 String   @id @default(uuid())
+  controlWorkspaceId String   @map("control_workspace_id")
+  name               String
+  scenarioManifest   Json     @map("scenario_manifest")
+  seedManifest       Json     @map("seed_manifest")
+  manifestHash       String   @map("manifest_hash")
+  policyVersion      String   @default("v1.0.0") @map("policy_version")
+  evaluationVersion  String   @default("closed-loop-v2") @map("evaluation_version")
+  status             String   @default("RUNNING") // RUNNING | COMPLETED | PAUSED_BUDGET | FAILED
+  controlRunId       String?  @map("control_run_id")
+  ruleRunId          String?  @map("rule_run_id")
+  crossPilotRunId    String?  @map("cross_pilot_run_id")
+  results            Json?    @map("results")
+  artifacts          Json?    @map("artifacts")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  controlWorkspace   Workspace       @relation("ControlWorkspaceExperiments", fields: [controlWorkspaceId], references: [id], onDelete: Cascade)
+  runs               SimulationRun[] @relation("ExperimentRuns")
+
+  @@index([controlWorkspaceId])
+  @@map("simulation_experiments")
+}
+

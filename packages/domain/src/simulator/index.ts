@@ -7,3 +7,4 @@ export * from './review-engine.js';
 export * from './ads-engine.js';
 export * from './funnel-engine.js';
 export * from './daily-tick.js';
+export * from './v2/index.js';
