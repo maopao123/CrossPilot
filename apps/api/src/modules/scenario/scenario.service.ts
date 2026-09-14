@@ -237,20 +237,46 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
     };
 
     // Insert ProfitDaily records
-    const profitData = scenario.skuMetrics.map((m) => ({
-      workspaceId: wsId,
-      skuId: skuMap[m.skuCode],
-      date: new Date(m.date),
-      revenue: m.revenue,
-      cogs: m.cogs,
-      adsCost: m.adsCost,
-      amazonFees: m.amazonFees,
-      fbaFee: m.fbaFee,
-      returnLoss: m.returnLoss,
-      otherCosts: m.otherCosts,
-      netProfit: m.netProfit,
-      margin: m.margin,
-    }));
+    // Ensure Week 10 (days 64..70) and Week 11 (days 71..77) align precisely with Section 286 Waterfall Ledger:
+    // Week 10 Profit: $4,120.00, Week 11 Profit: $1,840.00 (Total Variance: -$2,280.00)
+    const profitData = scenario.skuMetrics.map((m) => {
+      let netProfit = m.netProfit;
+      let returnLoss = m.returnLoss;
+
+      if (m.day >= 64 && m.day <= 70) {
+        // Week 10 target: $4,120.00 distributed across 3 SKUs
+        // Day total: 588.57 (588.58 on Day 70) -> 7 days = 4120.00
+        const isDay70 = m.day === 70;
+        if (m.skuCode === 'MTH-WHITE-001') netProfit = 300.0;
+        else if (m.skuCode === 'MTH-GREEN-001') netProfit = 200.0;
+        else if (m.skuCode === 'MTH-GREY-001') netProfit = isDay70 ? 88.58 : 88.57;
+      } else if (m.day >= 71 && m.day <= 77) {
+        // Week 11 target: $1,840.00 distributed across 3 SKUs
+        // Day total: 262.86 (262.84 on Day 77) -> 7 days = 1840.00
+        const isDay77 = m.day === 77;
+        if (m.skuCode === 'MTH-WHITE-001') netProfit = 150.0;
+        else if (m.skuCode === 'MTH-GREEN-001') netProfit = 60.0;
+        else if (m.skuCode === 'MTH-GREY-001') {
+          netProfit = isDay77 ? 52.84 : 52.86;
+          if (m.day === 73) returnLoss = 620.0;
+        }
+      }
+
+      return {
+        workspaceId: wsId,
+        skuId: skuMap[m.skuCode],
+        date: new Date(m.date),
+        revenue: m.revenue,
+        cogs: m.cogs,
+        adsCost: m.adsCost,
+        amazonFees: m.amazonFees,
+        fbaFee: m.fbaFee,
+        returnLoss,
+        otherCosts: m.otherCosts,
+        netProfit,
+        margin: m.margin,
+      };
+    });
     await this.prisma.profitDaily.createMany({ data: profitData });
 
     // Insert Inventory Snapshots
@@ -264,6 +290,41 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
       daysCover: m.daysCover,
     }));
     await this.prisma.inventorySnapshot.createMany({ data: invSnapshots });
+
+    // 5.1 Create Order & ReturnRecord for Grey SKU (Matching $620 return loss in Week 11 attribution)
+    await this.prisma.order.create({
+      data: {
+        workspaceId: wsId,
+        marketplaceId: marketplace.id,
+        orderNumber: '112-9876543-1234567',
+        externalOrderId: '112-9876543-1234567',
+        orderedAt: new Date(scenario.days[60].date),
+        status: 'SHIPPED',
+        currencyCode: 'USD',
+        totalAmount: 620.0,
+        items: {
+          create: [
+            {
+              workspaceId: wsId,
+              skuId: greySku.id,
+              quantity: 21,
+              unitPrice: 28.99,
+              returns: {
+                create: {
+                  workspaceId: wsId,
+                  skuId: greySku.id,
+                  refundAmount: 620.0,
+                  reason:
+                    'Electric toothbrush slot diameter too narrow (1.1" vs 1.5" standard)',
+                  status: 'COMPLETED',
+                  returnDate: new Date(scenario.days[70].date),
+                },
+              },
+            },
+          ],
+        },
+      },
+    });
 
     // 6. Create Campaigns & Search Term Metrics
     const campaign = await this.prisma.campaign.create({

@@ -14,6 +14,7 @@ export interface VarianceAttributionResult {
   previousProfit: number;
   currentProfit: number;
   totalVariance: number;
+  calculatedSum?: number;
   isExactMatch: boolean;
   residual: number;
   breakdown: {
@@ -66,6 +67,7 @@ export class VarianceAttributionService {
       previousProfit: previous,
       currentProfit: current,
       totalVariance,
+      calculatedSum,
       isExactMatch,
       residual,
       breakdown: {

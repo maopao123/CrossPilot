@@ -1,5 +1,29 @@
 # CrossPilot 交接
 
+> **2026-09-14 · 经营分析归因对账门禁（Reconciliation Gate）与统一 Source of Truth 闭环修复**：
+> - **1 秒响应根因释疑**：经排查，`/api/v1/analyst/ask` 耗时约数十毫秒且响应极快的原因在于：系统执行的是**本地数据库高效 SQL 查表 + 确定性 TS 函数运算 + 字符串模板拼接**，**完全未挂接外部慢速大语言模型（LLM API 推理）**，亦非静态 HTTP 缓存。
+> - **Bug ① 利润账本内部矛盾修复（Unified Source of Truth）**：
+>   - 杜绝脱节的独立 `totalVariance` 字段覆盖真实账本。`AnalystService.getWaterfall` 与 `askAnalyst` 统一强制：`totalVariance = roundMoney(currentProfit - previousProfit)`。
+>   - Tool 1（`query_profit_summary`）入参和出参中 `totalVariance` 严格等于 `currentProfit - previousProfit`，消除数学自相矛盾。
+> - **Bug ② 域工具与归因事实冲突修复（Domain Tool vs Ledger）**：
+>   - 退货域查询 `query_return_summary` 查询真实的 `ReturnRecord` 模型与 `profitDaily` 聚合损失。
+>   - 在场景种子生成 `scenario.service.ts:resetDemo` 中增加创建真实的 Grey SKU（`MTH-GREY-001`）退货订单与退款明细（21 件，损失合计 $620.00），使退货域工具查询与 Section 286 归因账目（`returnsImpact: -620.00`）在数据源头完全一致。
+> - **Bug ③ 落地 Fail-Closed 对账门禁（Reconciliation Gate）**：
+>   - **后端门禁**：在 `AnalystService.askAnalyst` 中，若 `!attribution.isExactMatch` 或存在不可忽略残差（`Math.abs(residual) > 0.001`）或域工具与归因事实冲突，触发对账门禁：
+>     - 状态置为 `status: 'RECONCILIATION_FAILED'`, `isReconciled: false`；
+>     - 坚决**阻断后续 Action 决策建议**（`actionPlan: []`），禁止在失真账本上做出自动化干预；
+>     - 替换成功话术为严谨真实的对账告警与门禁阻断说明（呈现实际账面变化、归因因子测算合计、未解释残差及冲突证据源明细）。
+>   - **前端门禁呈现（`apps/web/src/app/app/business-analyst/page.tsx`）**：
+>     - 顶部徽章（Badge）由写死改为动态：对账通过显式绿色 `100% 封闭数学对账`，未通过显式红/琥珀色 `⚠️ 归因对账未平 (差额: $...)`；
+>     - 对账未平时，在瀑布图上方呈现醒目的【对账门禁拦截告警框】，披露账面变动、分解合计与未平残差；
+>     - 瀑布图 5 大卡片贡献度百分比接入动态计算 `waterfall.attribution.relativeContributions`；
+>     - Trace 抽屉移除假静态 `exact: true` 假数据，无执行时渲染清晰空态引导；
+>     - 答复区域若遭遇门禁阻断，显式标注【门禁已拦截】与操作风险警示。
+> - **实测验证**：
+>   - 专项回归单测 `apps/api/test/analyst-reconciliation-gate.spec.ts` 4/4 PASS（覆盖账本派生统一性、数学残差门禁阻断、域工具冲突门禁阻断、完全对平放行及 Action 生成）；
+>   - 域单测 `packages/domain/test/variance-attribution.service.spec.ts` 2/2 PASS；
+>   - Monorepo 全工作区 Typecheck 10/10 PASS，Web 静态路由编译 24/24 PASS。
+>
 > **2026-09-14 · 外部设计吸收（Batch A~D）+ 关键技术债（F-1/F-11）+ Automation v1 终验全部闭环并成功提交推送部署（HEAD: `729925c`）**：
 > - **提交与推送**：工作区改动已完成提交（`729925c`），已一键双推至 `gitee:master` 与 `github:master`。
 > - **生产部署与验证**：远端主机 `root@116.198.230.217` 拉取 `729925c`，完成 Prisma 客户端生成、全包构建与 Web 24 路由生产优化构建；PM2 三进程（`crosspilot-api`、`crosspilot-worker`、`crosspilot-web`）全部平滑 reload 并 online；`/api/v1/health` 检查（API/PG/Redis/Milvus）全部 UP。

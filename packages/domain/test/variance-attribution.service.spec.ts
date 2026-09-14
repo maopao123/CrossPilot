@@ -20,6 +20,26 @@ describe('VarianceAttributionService', () => {
     expect(result.breakdown.returns).toBe(-620);
     expect(result.breakdown.inventory).toBe(-510);
     expect(result.breakdown.price).toBe(-310);
+    expect(result.calculatedSum).toBe(-2280.00);
     expect(result.breakdown.other).toBe(140);
+  });
+
+  it('should flag isExactMatch=false when totalVariance does not equal sum of factor impacts', () => {
+    const result = VarianceAttributionService.attributeVariance({
+      previousProfit: 1665.95,
+      currentProfit: 1440.79,
+      advertisingImpact: -980.00,
+      returnsImpact: -620.00,
+      inventoryImpact: -510.00,
+      priceImpact: -310.00,
+      otherImpact: 140.00,
+    });
+
+    expect(result.previousProfit).toBe(1665.95);
+    expect(result.currentProfit).toBe(1440.79);
+    expect(result.totalVariance).toBe(-225.16);
+    expect(result.calculatedSum).toBe(-2280.00);
+    expect(result.isExactMatch).toBe(false);
+    expect(result.residual).toBe(2054.84);
   });
 });

@@ -73,6 +73,10 @@ export default function BusinessAnalystPage() {
   const [question, setQuestion] = useState('为什么第11周利润骤降？');
   const [answering, setAnswering] = useState(false);
   const [agentAnswer, setAgentAnswer] = useState<string | null>(null);
+  const [askStatus, setAskStatus] = useState<string | null>(null);
+  const [actionPlan, setActionPlan] = useState<
+    Array<{ priority: number; action: string; target: string; impact: string }>
+  >([]);
   const [toolTraces, setToolTraces] = useState<ToolExecutionTrace[]>([]);
   const [showTraces, setShowTraces] = useState(true);
   const [sseActive, setSseActive] = useState(false);
@@ -103,9 +107,40 @@ export default function BusinessAnalystPage() {
     try {
       setAnswering(true);
       setAgentAnswer(null);
+      setAskStatus(null);
+      setActionPlan([]);
       const res = await ApiClient.post<any>('/api/v1/analyst/ask', { question });
       setAgentAnswer(res.answer);
+      setAskStatus(res.status);
+      setActionPlan(res.actionPlan || []);
       setToolTraces(res.toolExecutions || []);
+      if (res.waterfallSummary) {
+        setWaterfall((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            totalVariance:
+              typeof res.waterfallSummary.totalVariance === 'number'
+                ? res.waterfallSummary.totalVariance
+                : prev.totalVariance,
+            attribution: {
+              ...prev.attribution,
+              totalVariance:
+                typeof res.waterfallSummary.totalVariance === 'number'
+                  ? res.waterfallSummary.totalVariance
+                  : prev.attribution?.totalVariance,
+              isExactMatch:
+                typeof res.waterfallSummary.isExactMatch === 'boolean'
+                  ? res.waterfallSummary.isExactMatch
+                  : prev.attribution?.isExactMatch,
+              residual:
+                typeof res.waterfallSummary.residual === 'number'
+                  ? res.waterfallSummary.residual
+                  : prev.attribution?.residual,
+            },
+          };
+        });
+      }
     } catch (err: any) {
       console.error('Ask analyst failed:', err);
     } finally {
@@ -202,15 +237,55 @@ export default function BusinessAnalystPage() {
           </button>
         </div>
 
-        {/* Agent Answer Render */}
+        {/* Agent Answer Render & Action Plan Gate */}
         {agentAnswer && (
-          <div className="mt-4 p-4 rounded-xl bg-purple-950/20 border border-purple-800/40 text-xs text-gray-200 space-y-2">
+          <div className="mt-4 p-4 rounded-xl bg-purple-950/20 border border-purple-800/40 text-xs text-gray-200 space-y-3">
             <div className="flex items-center space-x-2 text-purple-300 font-bold">
               <Sparkles className="w-4 h-4" />
               <span>AI 经营分析师综合答复</span>
+              {askStatus === 'RECONCILIATION_FAILED' && (
+                <span className="ml-auto text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2 py-0.5 rounded font-mono font-bold flex items-center space-x-1">
+                  <AlertCircle className="w-3 h-3 text-rose-400" />
+                  <span>门禁已拦截 (Fail-Closed)</span>
+                </span>
+              )}
             </div>
             <div className="whitespace-pre-wrap leading-relaxed text-gray-300 font-normal">
               {agentAnswer}
+            </div>
+
+            {/* Action Plan Block or Display */}
+            <div className="pt-3 border-t border-purple-800/30">
+              <div className="text-xs font-bold text-gray-300 mb-2 flex items-center space-x-1.5">
+                <span>🎯 自动化执行建议 (Action Plan)</span>
+              </div>
+              {actionPlan.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {actionPlan.map((action, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-surface-elevated border border-border p-2.5 rounded-lg text-xs space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-purple-400 font-bold">
+                          P{action.priority}: {action.action}
+                        </span>
+                      </div>
+                      <div className="text-gray-300 font-mono text-[11px] truncate">
+                        {action.target}
+                      </div>
+                      <div className="text-emerald-400 text-[10px]">{action.impact}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 bg-surface-elevated/70 border border-amber-800/40 rounded-lg text-[11px] text-amber-300/90 flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                  <span>
+                    【门禁阻断】系统检测到利润对账未平或底层证据源存在冲突，已依法阻断生成自动化 Action 与决策建议，避免在失真账本上进行错误干预。
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -239,9 +314,22 @@ export default function BusinessAnalystPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
                 确定性利润归因瀑布图
               </span>
-              <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono font-bold">
-                100% 封闭数学对账
-              </span>
+              {waterfall?.attribution?.isExactMatch ? (
+                <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold flex items-center space-x-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>100% 封闭数学对账</span>
+                </span>
+              ) : (
+                <span className="text-xs bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2 py-0.5 rounded font-mono font-bold flex items-center space-x-1">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                  <span>
+                    ⚠️ 归因对账未平
+                    {typeof waterfall?.attribution?.residual === 'number'
+                      ? ` (差额: $${Math.abs(waterfall.attribution.residual).toFixed(2)})`
+                      : ''}
+                  </span>
+                </span>
+              )}
             </div>
             <h2 className="text-lg font-bold text-white mt-0.5">
               第 10 周 ➔ 第 11 周 利润骤降归因瀑布图
@@ -264,6 +352,47 @@ export default function BusinessAnalystPage() {
           </div>
         </div>
 
+        {/* Reconciliation Failure Alert Box (Fail-Closed Notification) */}
+        {waterfall?.attribution && !waterfall.attribution.isExactMatch && (
+          <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-800/60 text-xs text-rose-200 space-y-2.5">
+            <div className="flex items-center space-x-2 text-rose-400 font-bold text-sm">
+              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+              <span>对账门禁拦截：确定性利润归因校验未通过</span>
+            </div>
+            <p className="text-rose-200/90 leading-relaxed text-xs">
+              系统检测到实际账面利润变化与五大杠杆分解合计存在数学残差。根据 Fail-Closed 对账门禁策略，已依法阻断生成虚假“100% 对账”声明与后续决策建议。
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-xs">
+              <div className="bg-rose-900/30 p-2.5 rounded-lg border border-rose-700/40">
+                <span className="text-rose-400 block text-[10px]">实际账面利润变化</span>
+                <span className="font-bold text-white text-sm">
+                  {typeof waterfall.totalVariance === 'number'
+                    ? `${waterfall.totalVariance < 0 ? '-' : ''}$${Math.abs(waterfall.totalVariance).toFixed(2)}`
+                    : 'N/A'}
+                </span>
+              </div>
+              <div className="bg-rose-900/30 p-2.5 rounded-lg border border-rose-700/40">
+                <span className="text-rose-400 block text-[10px]">五大杠杆分解合计</span>
+                <span className="font-bold text-white text-sm">
+                  ${(
+                    (b.advertising || 0) +
+                    (b.returns || 0) +
+                    (b.inventory || 0) +
+                    (b.price || 0) +
+                    (b.other || 0)
+                  ).toFixed(2)}
+                </span>
+              </div>
+              <div className="bg-rose-900/30 p-2.5 rounded-lg border border-rose-700/40">
+                <span className="text-rose-400 block text-[10px]">未解释残差 (Residual)</span>
+                <span className="font-bold text-rose-300 text-sm">
+                  ${Math.abs(waterfall.attribution.residual).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Waterfall Graphic Bars */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2">
           {/* Advertising */}
@@ -274,7 +403,7 @@ export default function BusinessAnalystPage() {
               泛词 &ldquo;bathroom organizer&rdquo; ACOS 93.3% 预算泄漏
             </p>
             <div className="mt-2 text-[10px] text-rose-300 font-semibold bg-rose-950/40 p-1.5 rounded">
-              贡献度: 38.3% (首要归因)
+              贡献度: {waterfall?.attribution?.relativeContributions?.advertisingPercent ?? 38.3}% (首要归因)
             </div>
           </div>
 
@@ -286,7 +415,7 @@ export default function BusinessAnalystPage() {
               Grey 变体退货率升至 6.7%（电动牙刷孔径不匹配与破损）
             </p>
             <div className="mt-2 text-[10px] text-amber-300 font-semibold bg-amber-950/40 p-1.5 rounded">
-              贡献度: 24.2%
+              贡献度: {waterfall?.attribution?.relativeContributions?.returnsPercent ?? 24.2}%
             </div>
           </div>
 
@@ -298,7 +427,7 @@ export default function BusinessAnalystPage() {
               Green 变体爆单断货4天损失毛利 + 紧急空运补货附加费
             </p>
             <div className="mt-2 text-[10px] text-orange-300 font-semibold bg-orange-950/40 p-1.5 rounded">
-              贡献度: 19.9%
+              贡献度: {waterfall?.attribution?.relativeContributions?.inventoryPercent ?? 19.9}%
             </div>
           </div>
 
@@ -310,7 +439,7 @@ export default function BusinessAnalystPage() {
               White 主力款临时 10% 优惠券降价让利
             </p>
             <div className="mt-2 text-[10px] text-blue-300 font-semibold bg-blue-950/40 p-1.5 rounded">
-              贡献度: 12.1%
+              贡献度: {waterfall?.attribution?.relativeContributions?.pricePercent ?? 12.1}%
             </div>
           </div>
 
@@ -352,40 +481,43 @@ export default function BusinessAnalystPage() {
               CrossPilot 禁止让 LLM 瞎猜数字。以下为 Business Analyst Agent 自动编排调用的确定性工具真实入参、出参与毫秒延迟：
             </p>
 
-            <div className="space-y-2.5">
-              {(toolTraces.length > 0 ? toolTraces : [
-                { tool: 'query_profit_summary', input: { periodA: '第10周', periodB: '第11周' }, output: { week10: 4120, week11: 1840, variance: -2280 }, latencyMs: 145 },
-                { tool: 'query_ad_metrics', input: { campaignType: 'SPONSORED_PRODUCTS' }, output: { acosSpikeKeyword: 'bathroom organizer', spend: 420 }, latencyMs: 180 },
-                { tool: 'query_return_summary', input: { sku: 'MTH-GREY-001' }, output: { returnRate: 0.067, lossDelta: 620 }, latencyMs: 140 },
-                { tool: 'query_inventory_risk', input: { sku: 'MTH-GREEN-001' }, output: { stockoutHours: 96, rushShippingFee: 315 }, latencyMs: 110 },
-                { tool: 'calculate_variance', input: { ads: -980, ret: -620, inv: -510, price: -310, other: 140 }, output: { total: -2280, exact: true }, latencyMs: 25 },
-              ]).map((trace, idx) => (
-                <div key={idx} className="bg-surface-elevated border border-border rounded-lg p-3 font-mono text-xs">
-                  <div className="flex items-center justify-between text-cyan-300 font-bold mb-1">
-                    <span className="flex items-center space-x-1.5">
-                      <span className="w-4 h-4 rounded-full bg-cyan-950 border border-cyan-800 flex items-center justify-center text-[10px] text-cyan-400">
-                        {idx + 1}
+            {toolTraces.length > 0 ? (
+              <div className="space-y-2.5">
+                {toolTraces.map((trace, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-surface-elevated border border-border rounded-lg p-3 font-mono text-xs"
+                  >
+                    <div className="flex items-center justify-between text-cyan-300 font-bold mb-1">
+                      <span className="flex items-center space-x-1.5">
+                        <span className="w-4 h-4 rounded-full bg-cyan-950 border border-cyan-800 flex items-center justify-center text-[10px] text-cyan-400">
+                          {idx + 1}
+                        </span>
+                        <span>Tool: {trace.tool}()</span>
                       </span>
-                      <span>Tool: {trace.tool}()</span>
-                    </span>
-                    <span className="text-[11px] text-gray-400 font-normal flex items-center">
-                      <Clock className="w-3 h-3 mr-1" /> {trace.latencyMs}ms
-                    </span>
-                  </div>
+                      <span className="text-[11px] text-gray-400 font-normal flex items-center">
+                        <Clock className="w-3 h-3 mr-1" /> {trace.latencyMs}ms
+                      </span>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] mt-2">
-                    <div className="bg-surface p-2 rounded border border-border/70 text-gray-400">
-                      <span className="text-gray-500 font-bold block mb-0.5">输入参数:</span>
-                      <code>{JSON.stringify(trace.input)}</code>
-                    </div>
-                    <div className="bg-surface p-2 rounded border border-border/70 text-emerald-400">
-                      <span className="text-gray-500 font-bold block mb-0.5">输出结果:</span>
-                      <code>{JSON.stringify(trace.output)}</code>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] mt-2">
+                      <div className="bg-surface p-2 rounded border border-border/70 text-gray-400">
+                        <span className="text-gray-500 font-bold block mb-0.5">输入参数:</span>
+                        <code>{JSON.stringify(trace.input)}</code>
+                      </div>
+                      <div className="bg-surface p-2 rounded border border-border/70 text-emerald-400">
+                        <span className="text-gray-500 font-bold block mb-0.5">输出结果:</span>
+                        <code>{JSON.stringify(trace.output)}</code>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg bg-surface-elevated border border-dashed border-border text-center text-xs text-gray-400">
+                暂无工具调用轨迹。点击上方「提问经营 Agent」按钮即可触发真实的跨域工具链调度，并在此实时查看入参、出参与毫秒级延迟。
+              </div>
+            )}
           </div>
         )}
       </div>
