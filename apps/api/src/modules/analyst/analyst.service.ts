@@ -139,6 +139,11 @@ export class AnalystService {
 
     const waterfall = await this.prisma.analysisWaterfall.findFirst({
       where: { session: { workspaceId } },
+      include: {
+        session: {
+          include: { findings: true },
+        },
+      },
     });
 
     if (!waterfall) {
