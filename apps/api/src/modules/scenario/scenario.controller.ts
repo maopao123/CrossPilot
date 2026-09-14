@@ -29,6 +29,18 @@ export class ScenarioController {
     const slug = member.workspace?.slug || 'crosspilot-demo';
     return this.scenarioService.resetDemo(slug);
   }
+
+  @Post('set-mode')
+  setMode(@Req() req: any, @Body() body?: { mode?: 'RECONCILED' | 'CONFLICT_SAMPLE' }) {
+    const member = req.workspaceMember;
+    const slug =
+      member?.workspace?.slug ||
+      member?.workspace?.id ||
+      req.headers['x-workspace-id'] ||
+      'crosspilot-demo';
+    const mode = body?.mode === 'CONFLICT_SAMPLE' ? 'CONFLICT_SAMPLE' : 'RECONCILED';
+    return this.scenarioService.setScenarioMode(slug, mode);
+  }
 }
 
 @Controller('demo')
@@ -43,5 +55,17 @@ export class DemoController {
     }
     const slug = member.workspace?.slug || 'crosspilot-demo';
     return this.scenarioService.resetDemo(slug);
+  }
+
+  @Post('set-mode')
+  setMode(@Req() req: any, @Body() body?: { mode?: 'RECONCILED' | 'CONFLICT_SAMPLE' }) {
+    const member = req.workspaceMember;
+    const slug =
+      member?.workspace?.slug ||
+      member?.workspace?.id ||
+      req.headers['x-workspace-id'] ||
+      'crosspilot-demo';
+    const mode = body?.mode === 'CONFLICT_SAMPLE' ? 'CONFLICT_SAMPLE' : 'RECONCILED';
+    return this.scenarioService.setScenarioMode(slug, mode);
   }
 }

@@ -217,8 +217,14 @@ export class AnalystService {
     const toolExecutions = [
       {
         tool: 'query_profit_summary',
-        input: { workspaceId, comparison: 'Week 10 vs Week 11' },
-        output: { previousProfit, currentProfit, totalVariance },
+        input: { workspaceId, comparison: 'Week 10 vs Week 11', scope: 'WORKSPACE' },
+        output: {
+          scope: 'WORKSPACE',
+          scopeDescription: '全店多 SKU 经营因果归因 (Carrara White, Emerald Green, Beige Grey)',
+          previousProfit,
+          currentProfit,
+          totalVariance,
+        },
         latencyMs: t1Ms,
       },
       {
@@ -299,6 +305,7 @@ export class AnalystService {
 
       const failureAnswer = `⚠️ **利润归因对账失败 (Reconciliation Gate Blocked)**
 
+- **分析范围 (Scope)**: **全店多 SKU 经营因果归因 (WORKSPACE)** (覆盖 White-001, Green-001, Grey-001)
 - **实际账面利润变化**: **${actualVarianceFormatted}** (基准期 $${previousProfit.toFixed(2)} ➔ 对比期 $${currentProfit.toFixed(2)})
 - **归因因子测算合计**: **${explainedSumFormatted}** (Ads: $${adsImpact.toFixed(2)}, Returns: $${returnsImpact.toFixed(2)}, Inventory: $${invImpact.toFixed(2)}, Price: $${prImpact.toFixed(2)}, Other: $${othImpact.toFixed(2)})
 - **未解释差额 (Residual)**: **${residualFormatted}**
@@ -306,12 +313,14 @@ export class AnalystService {
 ${conflictLines.join('\n')}
 
 > **对账门禁策略 (Fail-Closed Gate)**:
-> 系统检测到底层财务流水与经营因果归因之间存在冲突或未平残差。根据 CrossPilot 财务闭环与对账门禁准则，**已依法阻断生成不实确定性归因结论与行动建议**。请核查原始交易明细并补齐/对齐工具数据源。`;
+> 系统检测到底层财务流水与经营因果归因之间存在冲突或未平残差。根据 CrossPilot 财务闭环与对账门禁准则，**已按 Fail-Closed 策略阻断生成确定性归因结论与 Action Plan。** 请核查原始交易明细并补齐/对齐工具数据源。`;
 
       return {
         question,
         status: 'RECONCILIATION_FAILED',
         isReconciled: false,
+        scope: 'WORKSPACE',
+        scopeDescription: '全店多 SKU 经营因果归因 (Carrara White, Emerald Green, Beige Grey)',
         reconciliationError: {
           actualVariance: totalVariance,
           explainedVariance: calculatedSum,
@@ -336,6 +345,8 @@ ${conflictLines.join('\n')}
     // Gate Passed: 100% Reconciled
     const successAnswer = `Based on cross-domain ledger reconciliation for workspace, Week 11 Net Profit changed by **$${totalVariance.toFixed(2)}** (from $${previousProfit.toFixed(2)} to $${currentProfit.toFixed(2)}).
 
+**Analysis Scope**: WORKSPACE (Multi-SKU causal attribution across Carrara White, Emerald Green, and Beige Grey)
+
 The variance is deterministically decomposed across 5 operational levers:
 1. **Advertising ($${adsImpact.toFixed(2)})**: High ACOS keyword "${wasteKeyword}" drained $${wasteSpend.toFixed(2)} in unconverting spend.
 2. **Returns ($${returnsImpact.toFixed(2)})**: Return volume on ${affectedSku} due to slot compatibility complaints.
@@ -349,6 +360,8 @@ The variance is deterministically decomposed across 5 operational levers:
       question,
       status: 'RECONCILED',
       isReconciled: true,
+      scope: 'WORKSPACE',
+      scopeDescription: '全店多 SKU 经营因果归因 (Carrara White, Emerald Green, Beige Grey)',
       answer: successAnswer,
       toolExecutions,
       waterfallSummary: {

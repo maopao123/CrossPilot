@@ -83,16 +83,40 @@ export default function BusinessAnalystPage() {
   const [sseLogs, setSseLogs] = useState<string[]>([]);
   const sseCloseRef = useRef<(() => void) | null>(null);
   const [loading, setLoading] = useState(true);
+  const [switchingScenario, setSwitchingScenario] = useState(false);
+  const [scenarioMode, setScenarioMode] = useState<'RECONCILED' | 'CONFLICT_SAMPLE'>('RECONCILED');
 
   const loadWaterfall = async () => {
     try {
       setLoading(true);
       const res = await ApiClient.get<WaterfallData>('/api/v1/analyst/waterfall');
       setWaterfall(res);
+      if (res?.attribution?.isExactMatch === false) {
+        setScenarioMode('CONFLICT_SAMPLE');
+      } else if (res?.attribution?.isExactMatch === true) {
+        setScenarioMode('RECONCILED');
+      }
     } catch (err) {
       console.error('Failed to load waterfall:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSwitchScenario = async (mode: 'RECONCILED' | 'CONFLICT_SAMPLE') => {
+    try {
+      setSwitchingScenario(true);
+      await ApiClient.post('/api/v1/scenario/set-mode', { mode });
+      setScenarioMode(mode);
+      setAgentAnswer(null);
+      setAskStatus(null);
+      setActionPlan([]);
+      setToolTraces([]);
+      await loadWaterfall();
+    } catch (err) {
+      console.error('Failed to switch scenario mode:', err);
+    } finally {
+      setSwitchingScenario(false);
     }
   };
 
@@ -114,6 +138,11 @@ export default function BusinessAnalystPage() {
       setAskStatus(res.status);
       setActionPlan(res.actionPlan || []);
       setToolTraces(res.toolExecutions || []);
+      if (res.status === 'RECONCILIATION_FAILED') {
+        setScenarioMode('CONFLICT_SAMPLE');
+      } else if (res.status === 'RECONCILED') {
+        setScenarioMode('RECONCILED');
+      }
       if (res.waterfallSummary) {
         setWaterfall((prev) => {
           if (!prev) return prev;
@@ -192,10 +221,13 @@ export default function BusinessAnalystPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
             <h1 className="cp-title">经营分析</h1>
             <span className="rounded-md border border-border bg-surface-elevated px-2 py-0.5 text-[11px] font-medium text-fg-muted">
               利润归因
+            </span>
+            <span className="rounded-md border border-purple-800/60 bg-purple-950/40 px-2.5 py-0.5 text-[11px] font-mono text-purple-300">
+              Scope: 全店多 SKU 经营因果 (WORKSPACE) • 白/绿/灰 3 变体
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -203,7 +235,35 @@ export default function BusinessAnalystPage() {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+          {/* Dual Scenario Switcher */}
+          <div className="flex items-center space-x-1 bg-surface-elevated p-1 rounded-lg border border-border">
+            <button
+              onClick={() => handleSwitchScenario('RECONCILED')}
+              disabled={switchingScenario}
+              title="切换至 100% 封闭数学对账正常样本 (Week 10 $4,120 ➔ Week 11 $1,840, 差异 -$2,280, 门禁通过)"
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                scenarioMode === 'RECONCILED'
+                  ? 'bg-emerald-600 text-white font-bold shadow'
+                  : 'text-gray-400 hover:text-white hover:bg-surface'
+              }`}
+            >
+              🟢 封闭对账 (Scenario A)
+            </button>
+            <button
+              onClick={() => handleSwitchScenario('CONFLICT_SAMPLE')}
+              disabled={switchingScenario}
+              title="切换至门禁拦截对抗样本 (实际差异 -$225.16 vs 测算 -$2,280, 残差 $2,054.84, 触发 Fail-Closed)"
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                scenarioMode === 'CONFLICT_SAMPLE'
+                  ? 'bg-rose-700 text-white font-bold shadow'
+                  : 'text-gray-400 hover:text-white hover:bg-surface'
+              }`}
+            >
+              🔴 门禁拦截 (Scenario B)
+            </button>
+          </div>
+
           <button
             onClick={handleStartSSE}
             disabled={sseActive}
@@ -282,7 +342,7 @@ export default function BusinessAnalystPage() {
                 <div className="p-3 bg-surface-elevated/70 border border-amber-800/40 rounded-lg text-[11px] text-amber-300/90 flex items-center space-x-2">
                   <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
                   <span>
-                    【门禁阻断】系统检测到利润对账未平或底层证据源存在冲突，已依法阻断生成自动化 Action 与决策建议，避免在失真账本上进行错误干预。
+                    【门禁阻断】系统检测到利润对账未平或底层证据源存在冲突，已按 Fail-Closed 策略阻断生成确定性归因结论与 Action Plan，避免在失真账本上进行错误决策。
                   </span>
                 </div>
               )}
@@ -312,7 +372,7 @@ export default function BusinessAnalystPage() {
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
-                确定性利润归因瀑布图
+                {waterfall?.attribution?.isExactMatch ? '确定性利润归因瀑布图' : '候选归因因素排查'}
               </span>
               {waterfall?.attribution?.isExactMatch ? (
                 <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold flex items-center space-x-1">
@@ -332,7 +392,9 @@ export default function BusinessAnalystPage() {
               )}
             </div>
             <h2 className="text-lg font-bold text-white mt-0.5">
-              第 10 周 ➔ 第 11 周 利润骤降归因瀑布图
+              {waterfall?.attribution?.isExactMatch
+                ? '第 10 周 ➔ 第 11 周 利润骤降归因瀑布图'
+                : '候选归因因素 (未通过对账) • Candidate Attribution — NOT RECONCILED'}
             </h2>
             <p className="mt-1 text-xs text-fg-muted">
               总差异额:{' '}
@@ -360,7 +422,7 @@ export default function BusinessAnalystPage() {
               <span>对账门禁拦截：确定性利润归因校验未通过</span>
             </div>
             <p className="text-rose-200/90 leading-relaxed text-xs">
-              系统检测到实际账面利润变化与五大杠杆分解合计存在数学残差。根据 Fail-Closed 对账门禁策略，已依法阻断生成虚假“100% 对账”声明与后续决策建议。
+              系统检测到实际账面利润变化与五大杠杆分解合计存在数学残差。根据 Fail-Closed 对账门禁策略，已按 Fail-Closed 策略阻断生成确定性归因结论与 Action Plan。
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-xs">
               <div className="bg-rose-900/30 p-2.5 rounded-lg border border-rose-700/40">
@@ -394,67 +456,132 @@ export default function BusinessAnalystPage() {
         )}
 
         {/* Waterfall Graphic Bars */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2">
-          {/* Advertising */}
-          <div className="bg-surface-elevated border border-rose-500/30 p-4 rounded-xl relative overflow-hidden">
-            <div className="text-xs font-semibold text-rose-400">1. 广告溢出 (Ads)</div>
-            <div className="text-xl font-bold text-rose-400 mt-1">-${Math.abs(b.advertising)}</div>
-            <p className="text-[11px] text-gray-400 mt-1">
-              泛词 &ldquo;bathroom organizer&rdquo; ACOS 93.3% 预算泄漏
-            </p>
-            <div className="mt-2 text-[10px] text-rose-300 font-semibold bg-rose-950/40 p-1.5 rounded">
-              贡献度: {waterfall?.attribution?.relativeContributions?.advertisingPercent ?? 38.3}% (首要归因)
-            </div>
-          </div>
+        {(() => {
+          const isExact = waterfall?.attribution?.isExactMatch === true;
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2">
+              {/* Advertising */}
+              <div
+                className={`bg-surface-elevated p-4 rounded-xl relative overflow-hidden transition-all ${
+                  isExact
+                    ? 'border border-rose-500/30'
+                    : 'border border-dashed border-rose-800/40 opacity-80 bg-surface-elevated/60'
+                }`}
+              >
+                <div className="text-xs font-semibold text-rose-400">1. 广告溢出 (Ads)</div>
+                <div className="text-xl font-bold text-rose-400 mt-1">-${Math.abs(b.advertising)}</div>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  泛词 &ldquo;bathroom organizer&rdquo; ACOS 93.3% 预算泄漏
+                </p>
+                {isExact ? (
+                  <div className="mt-2 text-[10px] text-rose-300 font-semibold bg-rose-950/40 p-1.5 rounded">
+                    贡献度: {waterfall?.attribution?.relativeContributions?.advertisingPercent ?? 38.3}% (首要归因)
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[10px] text-gray-400 font-normal bg-black/40 border border-dashed border-gray-700 p-1.5 rounded">
+                    ⚠️ 未通过对账，仅供排查 • 因子测算: -${Math.abs(b.advertising)}
+                  </div>
+                )}
+              </div>
 
-          {/* Returns */}
-          <div className="bg-surface-elevated border border-amber-500/30 p-4 rounded-xl relative overflow-hidden">
-            <div className="text-xs font-semibold text-amber-400">2. 退货激增 (Returns)</div>
-            <div className="text-xl font-bold text-amber-400 mt-1">-${Math.abs(b.returns)}</div>
-            <p className="text-[11px] text-gray-400 mt-1">
-              Grey 变体退货率升至 6.7%（电动牙刷孔径不匹配与破损）
-            </p>
-            <div className="mt-2 text-[10px] text-amber-300 font-semibold bg-amber-950/40 p-1.5 rounded">
-              贡献度: {waterfall?.attribution?.relativeContributions?.returnsPercent ?? 24.2}%
-            </div>
-          </div>
+              {/* Returns */}
+              <div
+                className={`bg-surface-elevated p-4 rounded-xl relative overflow-hidden transition-all ${
+                  isExact
+                    ? 'border border-amber-500/30'
+                    : 'border border-dashed border-amber-800/40 opacity-80 bg-surface-elevated/60'
+                }`}
+              >
+                <div className="text-xs font-semibold text-amber-400">2. 退货激增 (Returns)</div>
+                <div className="text-xl font-bold text-amber-400 mt-1">-${Math.abs(b.returns)}</div>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Grey 变体退货率升至 6.7%（电动牙刷孔径不匹配与破损）
+                </p>
+                {isExact ? (
+                  <div className="mt-2 text-[10px] text-amber-300 font-semibold bg-amber-950/40 p-1.5 rounded">
+                    贡献度: {waterfall?.attribution?.relativeContributions?.returnsPercent ?? 24.2}%
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[10px] text-gray-400 font-normal bg-black/40 border border-dashed border-gray-700 p-1.5 rounded">
+                    ⚠️ 未通过对账，仅供排查 • 因子测算: -${Math.abs(b.returns)}
+                  </div>
+                )}
+              </div>
 
-          {/* Inventory */}
-          <div className="bg-surface-elevated border border-orange-500/30 p-4 rounded-xl relative overflow-hidden">
-            <div className="text-xs font-semibold text-orange-400">3. 断货与加急运费 (Inventory)</div>
-            <div className="text-xl font-bold text-orange-400 mt-1">-${Math.abs(b.inventory)}</div>
-            <p className="text-[11px] text-gray-400 mt-1">
-              Green 变体爆单断货4天损失毛利 + 紧急空运补货附加费
-            </p>
-            <div className="mt-2 text-[10px] text-orange-300 font-semibold bg-orange-950/40 p-1.5 rounded">
-              贡献度: {waterfall?.attribution?.relativeContributions?.inventoryPercent ?? 19.9}%
-            </div>
-          </div>
+              {/* Inventory */}
+              <div
+                className={`bg-surface-elevated p-4 rounded-xl relative overflow-hidden transition-all ${
+                  isExact
+                    ? 'border border-orange-500/30'
+                    : 'border border-dashed border-orange-800/40 opacity-80 bg-surface-elevated/60'
+                }`}
+              >
+                <div className="text-xs font-semibold text-orange-400">3. 断货与加急运费 (Inventory)</div>
+                <div className="text-xl font-bold text-orange-400 mt-1">-${Math.abs(b.inventory)}</div>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Green 变体爆单断货4天损失毛利 + 紧急空运补货附加费
+                </p>
+                {isExact ? (
+                  <div className="mt-2 text-[10px] text-orange-300 font-semibold bg-orange-950/40 p-1.5 rounded">
+                    贡献度: {waterfall?.attribution?.relativeContributions?.inventoryPercent ?? 19.9}%
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[10px] text-gray-400 font-normal bg-black/40 border border-dashed border-gray-700 p-1.5 rounded">
+                    ⚠️ 未通过对账，仅供排查 • 因子测算: -${Math.abs(b.inventory)}
+                  </div>
+                )}
+              </div>
 
-          {/* Price Discount */}
-          <div className="bg-surface-elevated border border-blue-500/30 p-4 rounded-xl relative overflow-hidden">
-            <div className="text-xs font-semibold text-blue-400">4. 促销让利 (Price)</div>
-            <div className="text-xl font-bold text-blue-400 mt-1">-${Math.abs(b.price)}</div>
-            <p className="text-[11px] text-gray-400 mt-1">
-              White 主力款临时 10% 优惠券降价让利
-            </p>
-            <div className="mt-2 text-[10px] text-blue-300 font-semibold bg-blue-950/40 p-1.5 rounded">
-              贡献度: {waterfall?.attribution?.relativeContributions?.pricePercent ?? 12.1}%
-            </div>
-          </div>
+              {/* Price Discount */}
+              <div
+                className={`bg-surface-elevated p-4 rounded-xl relative overflow-hidden transition-all ${
+                  isExact
+                    ? 'border border-blue-500/30'
+                    : 'border border-dashed border-blue-800/40 opacity-80 bg-surface-elevated/60'
+                }`}
+              >
+                <div className="text-xs font-semibold text-blue-400">4. 促销让利 (Price)</div>
+                <div className="text-xl font-bold text-blue-400 mt-1">-${Math.abs(b.price)}</div>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  White 主力款临时 10% 优惠券降价让利
+                </p>
+                {isExact ? (
+                  <div className="mt-2 text-[10px] text-blue-300 font-semibold bg-blue-950/40 p-1.5 rounded">
+                    贡献度: {waterfall?.attribution?.relativeContributions?.pricePercent ?? 12.1}%
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[10px] text-gray-400 font-normal bg-black/40 border border-dashed border-gray-700 p-1.5 rounded">
+                    ⚠️ 未通过对账，仅供排查 • 因子测算: -${Math.abs(b.price)}
+                  </div>
+                )}
+              </div>
 
-          {/* Other / Packaging */}
-          <div className="bg-surface-elevated border border-emerald-500/30 p-4 rounded-xl relative overflow-hidden">
-            <div className="text-xs font-semibold text-emerald-400">5. 包装返利 (Cost Savings)</div>
-            <div className="text-xl font-bold text-emerald-400 mt-1">+${b.other}</div>
-            <p className="text-[11px] text-gray-400 mt-1">
-              向供应商批量定购外箱获得的纸箱阶梯返利
-            </p>
-            <div className="mt-2 text-[10px] text-emerald-300 font-semibold bg-emerald-950/40 p-1.5 rounded">
-              正向缓冲: +$140.00
+              {/* Other / Packaging */}
+              <div
+                className={`bg-surface-elevated p-4 rounded-xl relative overflow-hidden transition-all ${
+                  isExact
+                    ? 'border border-emerald-500/30'
+                    : 'border border-dashed border-emerald-800/40 opacity-80 bg-surface-elevated/60'
+                }`}
+              >
+                <div className="text-xs font-semibold text-emerald-400">5. 包装返利 (Cost Savings)</div>
+                <div className="text-xl font-bold text-emerald-400 mt-1">+${b.other}</div>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  向供应商批量定购外箱获得的纸箱阶梯返利
+                </p>
+                {isExact ? (
+                  <div className="mt-2 text-[10px] text-emerald-300 font-semibold bg-emerald-950/40 p-1.5 rounded">
+                    正向缓冲: +$140.00
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[10px] text-gray-400 font-normal bg-black/40 border border-dashed border-gray-700 p-1.5 rounded">
+                    ⚠️ 未通过对账，仅供排查 • 因子测算: +$140.00
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Agent Trace Drawer (Milestone 7) */}

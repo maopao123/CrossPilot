@@ -748,4 +748,238 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
       message: '90 天纯净演示数据集已生成。',
     };
   }
+
+  /**
+   * Switch between Scenario A (RECONCILED: 100% exact math closure)
+   * and Scenario B (CONFLICT_SAMPLE: intentional ledger residual / domain conflict to demonstrate Fail-Closed Gate).
+   */
+  async setScenarioMode(
+    workspaceSlugOrId: string,
+    mode: 'RECONCILED' | 'CONFLICT_SAMPLE' = 'RECONCILED',
+  ) {
+    this.logger.log(`Switching scenario mode for ${workspaceSlugOrId} to ${mode}`);
+
+    const workspace = await this.prisma.workspace.findFirst({
+      where: {
+        OR: [{ id: workspaceSlugOrId }, { slug: workspaceSlugOrId }],
+      },
+    });
+
+    if (!workspace) {
+      throw new Error(`Workspace not found: ${workspaceSlugOrId}`);
+    }
+
+    const wsId = workspace.id;
+
+    // Find waterfall session
+    const waterfall = await this.prisma.analysisWaterfall.findFirst({
+      where: { session: { workspaceId: wsId } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!waterfall) {
+      throw new Error(`No analysis waterfall found for workspace: ${wsId}`);
+    }
+
+    const skus = await this.prisma.sku.findMany({
+      where: { workspaceId: wsId },
+    });
+    const whiteSku = skus.find((s) => s.skuCode === 'MTH-WHITE-001');
+    const greenSku = skus.find((s) => s.skuCode === 'MTH-GREEN-001');
+    const greySku = skus.find((s) => s.skuCode === 'MTH-GREY-001');
+
+    // Retrieve all daily records in the waterfall period
+    const dailyRecords = await this.prisma.profitDaily.findMany({
+      where: {
+        workspaceId: wsId,
+        date: {
+          gte: waterfall.periodStart,
+          lte: waterfall.periodEnd,
+        },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Group dates uniquely
+    const dateSet = new Set<string>();
+    for (const r of dailyRecords) {
+      const dStr =
+        r.date instanceof Date
+          ? r.date.toISOString().slice(0, 10)
+          : String(r.date).slice(0, 10);
+      dateSet.add(dStr);
+    }
+    const sortedDates = Array.from(dateSet).sort();
+
+    if (sortedDates.length >= 14) {
+      const w10Dates = sortedDates.slice(0, 7);
+      const w11Dates = sortedDates.slice(7, 14);
+
+      if (mode === 'RECONCILED') {
+        // Scenario A:
+        // Week 10: $4,120.00 exact (300 White + 200 Green + 88.57/88.58 Grey)
+        for (let i = 0; i < w10Dates.length; i++) {
+          const dStr = w10Dates[i];
+          const isLast = i === w10Dates.length - 1;
+          const startOfDay = new Date(`${dStr}T00:00:00.000Z`);
+          const endOfDay = new Date(`${dStr}T23:59:59.999Z`);
+
+          if (whiteSku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: 300.0 },
+            });
+          }
+          if (greenSku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: 200.0 },
+            });
+          }
+          if (greySku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: greySku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: isLast ? 88.58 : 88.57 },
+            });
+          }
+        }
+
+        // Week 11: $1,840.00 exact (150 White + 60 Green + 52.86/52.84 Grey)
+        // Total variance = 1840 - 4120 = -2280.00
+        for (let i = 0; i < w11Dates.length; i++) {
+          const dStr = w11Dates[i];
+          const isLast = i === w11Dates.length - 1;
+          const startOfDay = new Date(`${dStr}T00:00:00.000Z`);
+          const endOfDay = new Date(`${dStr}T23:59:59.999Z`);
+
+          if (whiteSku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: 150.0 },
+            });
+          }
+          if (greenSku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: 60.0 },
+            });
+          }
+          if (greySku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: greySku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: isLast ? 52.84 : 52.86, returnLoss: i === 2 ? 620.0 : 0 },
+            });
+          }
+        }
+
+        // Returns Table: refundAmount = 620.00 (aligns with $620 return loss)
+        await this.prisma.returnRecord.updateMany({
+          where: { workspaceId: wsId },
+          data: { refundAmount: 620.0 },
+        });
+
+        // AnalysisWaterfall
+        await this.prisma.analysisWaterfall.update({
+          where: { id: waterfall.id },
+          data: {
+            totalVariance: -2280.0,
+            advertisingImpact: -980.0,
+            returnsImpact: -620.0,
+            inventoryImpact: -510.0,
+            priceImpact: -310.0,
+            otherImpact: 140.0,
+            formulaExplained: '-2280 = -980 - 620 - 510 - 310 + 140',
+          },
+        });
+      } else {
+        // Scenario B (CONFLICT_SAMPLE):
+        // Week 10: $1,665.95
+        // Week 11: $1,440.79
+        // Actual variance = 1440.79 - 1665.95 = -225.16
+        // Factor sum = -2280.00 -> Residual = $2,054.84
+        for (let i = 0; i < w10Dates.length; i++) {
+          const dStr = w10Dates[i];
+          const isLast = i === w10Dates.length - 1;
+          const startOfDay = new Date(`${dStr}T00:00:00.000Z`);
+          const endOfDay = new Date(`${dStr}T23:59:59.999Z`);
+
+          if (whiteSku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: 120.0 },
+            });
+          }
+          if (greenSku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: 70.0 },
+            });
+          }
+          if (greySku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: greySku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: isLast ? 48.01 : 47.99 },
+            });
+          }
+        }
+
+        for (let i = 0; i < w11Dates.length; i++) {
+          const dStr = w11Dates[i];
+          const isLast = i === w11Dates.length - 1;
+          const startOfDay = new Date(`${dStr}T00:00:00.000Z`);
+          const endOfDay = new Date(`${dStr}T23:59:59.999Z`);
+
+          if (whiteSku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: 100.0 },
+            });
+          }
+          if (greenSku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: 60.0 },
+            });
+          }
+          if (greySku) {
+            await this.prisma.profitDaily.updateMany({
+              where: { workspaceId: wsId, skuId: greySku.id, date: { gte: startOfDay, lte: endOfDay } },
+              data: { netProfit: isLast ? 45.87 : 45.82, returnLoss: i === 2 ? 544.42 : 0 },
+            });
+          }
+        }
+
+        // Returns Table: refundAmount = 544.42 (conflicts with $620 return loss)
+        await this.prisma.returnRecord.updateMany({
+          where: { workspaceId: wsId },
+          data: { refundAmount: 544.42 },
+        });
+
+        // AnalysisWaterfall: factors remain -980, -620, -510, -310, +140 (sum = -2280)
+        await this.prisma.analysisWaterfall.update({
+          where: { id: waterfall.id },
+          data: {
+            totalVariance: -225.16,
+            advertisingImpact: -980.0,
+            returnsImpact: -620.0,
+            inventoryImpact: -510.0,
+            priceImpact: -310.0,
+            otherImpact: 140.0,
+            formulaExplained:
+              '-225.16 ≠ -2280 (-980 Ads - 620 Returns - 510 Inv - 310 Price + 140 Other) [Residual: 2054.84]',
+          },
+        });
+      }
+    }
+
+    return {
+      success: true,
+      mode,
+      workspaceId: wsId,
+      message:
+        mode === 'RECONCILED'
+          ? '已切换至 Scenario A (100% 封闭数学对账正常样本)：Week 10 $4,120.00 ➔ Week 11 $1,840.00，差额 -$2,280.00，退货统一 $620.00，门禁通过。'
+          : '已切换至 Scenario B (门禁拦截对抗样本)：Week 10 $1,665.95 ➔ Week 11 $1,440.79，实际差额 -$225.16 vs 归因测算 -$2,280.00，残差 $2,054.84，退货存在 $544.42 冲突，触发 Fail-Closed 门禁阻断。',
+    };
+  }
 }
