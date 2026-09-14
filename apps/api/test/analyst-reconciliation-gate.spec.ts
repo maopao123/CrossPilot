@@ -215,6 +215,30 @@ describe('AnalystService - Reconciliation Gate & Unified Source of Truth', () =>
       expect(res.waterfallSummary.residual).toBe(0);
       expect(res.actionPlan.length).toBe(3);
       expect(res.answer).toContain('100% exact closure');
+
+      // Truthfulness V2: Verify formal RecommendedAction binding
+      for (const action of res.actionPlan) {
+        expect(action.actionId).toBeDefined();
+        expect(action.riskLevel).toBeDefined();
+        expect(action.executionMode).toBe('APPROVAL_REQUIRED');
+        expect(Array.isArray(action.evidenceIds)).toBe(true);
+        expect(action.evidenceIds!.length).toBeGreaterThan(0);
+        expect(action.sourceDiagnosisIds).toBeDefined();
+        expect(action.expectedImpactFormula).toBeDefined();
+      }
+
+      // Truthfulness V2: Verify all tools strictly enforce scope: WORKSPACE & time bounds
+      expect(res.toolExecutions.length).toBe(6);
+      for (const trace of res.toolExecutions) {
+        expect(trace.input).toHaveProperty('scope', 'WORKSPACE');
+        expect(trace.tool).toBeDefined();
+      }
+      expect(res.toolExecutions[0].tool).toBe('query_profit_summary');
+      expect(res.toolExecutions[1].tool).toBe('query_ad_metrics');
+      expect(res.toolExecutions[2].tool).toBe('query_return_summary');
+      expect(res.toolExecutions[3].tool).toBe('query_inventory_risk');
+      expect(res.toolExecutions[4].tool).toBe('calculate_variance');
+      expect(res.toolExecutions[5].tool).toBe('cross_domain_consistency_gate');
     });
   });
 });

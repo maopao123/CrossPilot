@@ -233,7 +233,7 @@ describe('CrossDomainDiagnosisService', () => {
       // Primary driver: Advertising (-$980, largest negative impact)
       expect(profitDiag!.primaryDriver.domain).toBe('ADVERTISING');
       expect(profitDiag!.primaryDriver.impactAmount).toBe(-980.0);
-      expect(profitDiag!.primaryDriver.causalStrength).toBe('PROVEN');
+      expect(profitDiag!.primaryDriver.causalStrength).toBe('SUPPORTED');
       expect(profitDiag!.primaryDriver.contributionRatio).toBeGreaterThan(0.35);
 
       // Secondary drivers: Returns (-$620), Inventory (-$510), Price (-$310)
@@ -843,7 +843,7 @@ describe('CrossDomainDiagnosisService', () => {
       expect(diagnosisResponse.diagnoses.length).toBeGreaterThan(0);
       const profitDiag = diagnosisResponse.diagnoses.find((d) => d.affectedDomains.includes('PROFIT'));
       expect(profitDiag).toBeDefined();
-      expect(profitDiag!.primaryDriver.causalStrength).toBe('PROVEN');
+      expect(profitDiag!.primaryDriver.causalStrength).toBe('STRONG');
       expect(profitDiag!.gateStatus).toBe('SUPPORTED');
     });
 

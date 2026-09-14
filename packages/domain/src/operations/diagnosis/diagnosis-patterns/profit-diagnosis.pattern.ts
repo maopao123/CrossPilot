@@ -201,7 +201,7 @@ export class ProfitDropPattern implements IDiagnosisPattern {
         impactType: 'MEASURED',
         contributionRatio: ratio,
         direction: d.direction,
-        causalStrength: 'PROVEN',
+        causalStrength: matchingSignals.length > 0 ? 'STRONG' : 'SUPPORTED',
         relatedSignalIds: matchingSignals.map((s) => s.signalId),
         description: d.description,
       };

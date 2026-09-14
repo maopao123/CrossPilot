@@ -147,7 +147,7 @@ export interface RecommendedAction {
 // 4. Diagnosis & Causal Drivers
 // ============================================================================
 
-export type CausalStrength = 'PROVEN' | 'STRONG' | 'INDICATIVE' | 'UNKNOWN';
+export type CausalStrength = 'PROVEN' | 'STRONG' | 'SUPPORTED' | 'INDICATIVE' | 'UNKNOWN';
 
 export type DiagnosisEvidenceGateStatus =
   | 'SUPPORTED'

@@ -839,25 +839,27 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
           if (whiteSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 300.0, returnLoss: 0 },
+              data: { netProfit: 300.0, adsCost: 120.98, returnLoss: 0, otherCosts: 0 },
             });
           }
           if (greenSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 200.0, returnLoss: 0 },
+              data: { netProfit: 200.0, adsCost: 0, returnLoss: 0, otherCosts: 0 },
             });
           }
           if (greySku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greySku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: isLast ? 88.58 : 88.57, returnLoss: 0 },
+              data: { netProfit: isLast ? 88.58 : 88.57, adsCost: 0, returnLoss: 0, otherCosts: 0 },
             });
           }
         }
 
         // Week 11: $1,840.00 exact (150 White + 60 Green + 52.86/52.84 Grey)
         // Total variance = 1840 - 4120 = -2280.00
+        // adsCost difference = 1826.86 - 846.86 = 980.00 (advertising impact = -980)
+        // Green otherCosts = 45.0/day * 7 = 315 emergency freight + 195 stockout = 510 inventory impact
         for (let i = 0; i < w11Dates.length; i++) {
           const dStr = w11Dates[i];
           const isLast = i === w11Dates.length - 1;
@@ -867,19 +869,19 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
           if (whiteSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 150.0, returnLoss: 0 },
+              data: { netProfit: 150.0, adsCost: 260.98, returnLoss: 0, otherCosts: 0 },
             });
           }
           if (greenSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 60.0, returnLoss: 0 },
+              data: { netProfit: 60.0, adsCost: 0, returnLoss: 0, otherCosts: 45.0 },
             });
           }
           if (greySku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greySku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: isLast ? 52.84 : 52.86, returnLoss: i === 2 ? 620.0 : 0 },
+              data: { netProfit: isLast ? 52.84 : 52.86, adsCost: 0, returnLoss: i === 2 ? 620.0 : 0, otherCosts: 0 },
             });
           }
         }
@@ -945,6 +947,16 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
             formulaExplained: '-2280 = -980 - 620 - 510 - 310 + 140',
           },
         });
+
+        // Ensure searchTermMetricDaily aligns with Week 11
+        const campaign = await this.prisma.campaign.findFirst({ where: { workspaceId: wsId } });
+        if (campaign && whiteSku) {
+          const w11DateObj = new Date(`${w11Dates[2]}T12:00:00.000Z`);
+          await this.prisma.searchTermMetricDaily.updateMany({
+            where: { campaignId: campaign.id, searchTerm: 'bathroom organizer' },
+            data: { metricDate: w11DateObj, spend: 420.0, acos: 0.9333 },
+          });
+        }
       } else {
         // Scenario B (CONFLICT_SAMPLE):
         // Week 10: $1,665.95

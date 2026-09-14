@@ -1,5 +1,33 @@
 # CrossPilot 交接
 
+> **2026-09-15 · 经营分析真理架构 V2 全面闭环（Analyst Truthfulness V2）**：
+> - **P0 原始业务事实推导归因**：彻底废弃把 `AnalysisWaterfall.xxxImpact` 当作真值的账目反填机制。5 个归因因子全部基于底层事实表实时计算：
+>   - Ads 杠杆：由 `profitDaily.adsCost` 周期增量与 `searchTermMetricDaily` 高 ACOS 搜索词实证；
+>   - Returns 杠杆：由 `profitDaily.returnLoss` 周期增量与 `returnRecord` 实际退货退款明细直接锚定；
+>   - Inventory 杠杆：由 `inventorySnapshot` 断货天数测算毛利损失与 `profitDaily.otherCosts` 加急空运运费综合推导；
+>   - Price 杠杆：由白变体限时折扣（$26.99 vs $29.99）与销售件数乘积严格推导；
+>   - Cost 杠杆：由供应商纸箱包材优化返还（+$140.00）推导。
+> - **P0 六维跨域证据一致性门禁（Cross-Domain Consistency Gate）**：
+>   - 门禁从单一的 `Math + Returns` 升级为 6 维度交叉一致性门禁：`isMathExact && isAdsConsistent && isReturnConsistent && isInventoryConsistent && isPriceConsistent && isCostConsistent`；
+>   - 任何一维存在未平残差或证据冲突，立即触发 Fail-Closed 门禁阻断，输出详细冲突诊断列表并清空 `actionPlan: []`。
+> - **P0 因果强度与会计闭环解耦**：
+>   - `operation-contracts.ts` 补充 `SUPPORTED` 枚举至 `CausalStrength`；
+>   - `profit-diagnosis.pattern.ts` 明确分离会计分解与因果证明：无业务信号直接支撑时标为 `SUPPORTED`，有信号相关时标为 `STRONG`，严禁硬编码 `PROVEN`。
+> - **P1 规范动作推荐框架接入（ActionRecommendationService）**：
+>   - 删除了 `AnalystService` 中手写生拼的 3 条字符串 Action，正式接入 `ActionRecommendationService`、`ActionDeduplicator` 与 `ActionRiskClassifier`；
+>   - 生成的每条动作均强行绑定 `actionId`、`riskLevel`、`executionMode: 'APPROVAL_REQUIRED'`、`evidenceIds`、`sourceDiagnosisIds`、`expectedImpactFormula`，兼顾 UI 展示与治理规范。
+> - **P1 全工具时间区间与工作区范围约束**：
+>   - 全部 6 个 Domain Tool（`query_profit_summary`, `query_ad_metrics`, `query_return_summary`, `query_inventory_risk`, `calculate_variance`, `cross_domain_consistency_gate`）统一透传 `[periodStart, periodEnd]` 闭区间与 `scope: 'WORKSPACE'`。
+> - **P2 真实 PostgreSQL SSE 流式事件推送**：
+>   - 彻底废除 `AgentTaskService.streamTaskExecution` 中基于 `setTimeout` 的静态假推流；
+>   - 改造为真实异步流，实时查询 PostgreSQL 底层数据，真实分步推送 `TASK_START / STEP_START / TOOL_CALL / TOOL_RESULT / EVIDENCE / TASK_COMPLETE`，真实呈现动态查询延迟与数据库事实。
+> - **P2 真实双场景夹具**：
+>   - `ScenarioService.setScenarioMode` 为 `RECONCILED` 和 `CONFLICT_SAMPLE` 分别写入完整一致/冲突的底层事实，确保 Scenario A 6 门禁全通，Scenario B 真实触发残差门禁阻断。
+> - **全量独立实测矩阵**：
+>   - `apps/api/test/analyst-reconciliation-gate.spec.ts` 4/4 PASS（覆盖对账闭环、残差阻断、冲突阻断、动作规范与全工具范围校验）；
+>   - `packages/domain` 36 套测试套件 353/353 PASS；
+>   - `@crosspilot/api` 与 `@crosspilot/web` 编译 0 错误通过。
+>
 > **2026-09-14 · 经营分析闭环数学对账、双场景切换器与多 SKU 范围明确（HEAD: `a9998bd`）**：
 > - **根数据修平（Issue 1）**：在 Scenario A（正常样本）中严格修平底账，Week 10 真实利润为 $4,120.00，Week 11 为 $1,840.00，总方差 -$2,280.00 = -980(Ads) - 620(Returns) - 510(Inv) - 310(Price) + 140(Other)，数学残差精确为 $0.00，对账门禁 100% PASS，正常生成 3 项高优先级 Action Plan。
 > - **退货单源事实统一（Issue 2）**：彻底打通 `ReturnRecord` ➔ `ProfitDaily` ➔ `AnalysisWaterfall`。在 Scenario A 下全部统一为 $620.00（Grey SKU 牙刷槽孔径问题），彻底消除了 $544.42 与 $620.00 的口径冲突。
