@@ -15,10 +15,13 @@ export class AnalystController {
   askAnalyst(
     @CurrentWorkspace() workspaceId: string,
     @Body('question') question: string,
+    @Body('executionId') executionId?: string,
   ) {
     return this.analystService.askAnalyst(
       question || 'Why did profit drop this week?',
       workspaceId,
+      executionId,
     );
   }
 }
+

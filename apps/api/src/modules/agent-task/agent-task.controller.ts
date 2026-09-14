@@ -24,7 +24,9 @@ export class AgentTaskController {
   streamExecution(
     @CurrentWorkspace() workspaceId: string,
     @Query('taskType') taskType?: string,
+    @Query('executionId') executionId?: string,
   ): Observable<MessageEvent> {
-    return this.taskService.streamTaskExecution(workspaceId, taskType);
+    return this.taskService.streamTaskExecution(workspaceId, taskType, executionId);
   }
+
 }
