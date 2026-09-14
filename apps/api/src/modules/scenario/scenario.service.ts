@@ -815,6 +815,18 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
       const w10Dates = sortedDates.slice(0, 7);
       const w11Dates = sortedDates.slice(7, 14);
 
+      // Clean returnLoss across the entire 14-day window first
+      await this.prisma.profitDaily.updateMany({
+        where: {
+          workspaceId: wsId,
+          date: {
+            gte: waterfall.periodStart,
+            lte: waterfall.periodEnd,
+          },
+        },
+        data: { returnLoss: 0 },
+      });
+
       if (mode === 'RECONCILED') {
         // Scenario A:
         // Week 10: $4,120.00 exact (300 White + 200 Green + 88.57/88.58 Grey)
@@ -827,19 +839,19 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
           if (whiteSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 300.0 },
+              data: { netProfit: 300.0, returnLoss: 0 },
             });
           }
           if (greenSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 200.0 },
+              data: { netProfit: 200.0, returnLoss: 0 },
             });
           }
           if (greySku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greySku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: isLast ? 88.58 : 88.57 },
+              data: { netProfit: isLast ? 88.58 : 88.57, returnLoss: 0 },
             });
           }
         }
@@ -855,13 +867,13 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
           if (whiteSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 150.0 },
+              data: { netProfit: 150.0, returnLoss: 0 },
             });
           }
           if (greenSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 60.0 },
+              data: { netProfit: 60.0, returnLoss: 0 },
             });
           }
           if (greySku) {
@@ -872,11 +884,53 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
           }
         }
 
-        // Returns Table: refundAmount = 620.00 (aligns with $620 return loss)
-        await this.prisma.returnRecord.updateMany({
+        // Returns Table: ensure return record exists and equals $620.00
+        const existingReturns = await this.prisma.returnRecord.findMany({
           where: { workspaceId: wsId },
-          data: { refundAmount: 620.0 },
         });
+        if (existingReturns.length > 0) {
+          await this.prisma.returnRecord.updateMany({
+            where: { workspaceId: wsId },
+            data: { refundAmount: 620.0 },
+          });
+        } else if (greySku) {
+          const marketplace = await this.prisma.marketplace.findFirst();
+          if (marketplace) {
+            await this.prisma.order.create({
+              data: {
+                workspaceId: wsId,
+                marketplaceId: marketplace.id,
+                orderNumber: '112-9876543-1234567',
+                externalOrderId: '112-9876543-1234567',
+                orderedAt: new Date(waterfall.periodStart),
+                status: 'SHIPPED',
+                currencyCode: 'USD',
+                totalAmount: 620.0,
+                items: {
+                  create: [
+                    {
+                      workspaceId: wsId,
+                      skuId: greySku.id,
+                      quantity: 21,
+                      unitPrice: 28.99,
+                      returns: {
+                        create: {
+                          workspaceId: wsId,
+                          skuId: greySku.id,
+                          refundAmount: 620.0,
+                          reason:
+                            'Electric toothbrush slot diameter too narrow (1.1" vs 1.5" standard)',
+                          status: 'COMPLETED',
+                          returnDate: new Date(w11Dates[2] || waterfall.periodEnd),
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            });
+          }
+        }
 
         // AnalysisWaterfall
         await this.prisma.analysisWaterfall.update({
@@ -906,19 +960,19 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
           if (whiteSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 120.0 },
+              data: { netProfit: 120.0, returnLoss: 0 },
             });
           }
           if (greenSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 70.0 },
+              data: { netProfit: 70.0, returnLoss: 0 },
             });
           }
           if (greySku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greySku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: isLast ? 48.01 : 47.99 },
+              data: { netProfit: isLast ? 48.01 : 47.99, returnLoss: 0 },
             });
           }
         }
@@ -932,13 +986,13 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
           if (whiteSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: whiteSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 100.0 },
+              data: { netProfit: 100.0, returnLoss: 0 },
             });
           }
           if (greenSku) {
             await this.prisma.profitDaily.updateMany({
               where: { workspaceId: wsId, skuId: greenSku.id, date: { gte: startOfDay, lte: endOfDay } },
-              data: { netProfit: 60.0 },
+              data: { netProfit: 60.0, returnLoss: 0 },
             });
           }
           if (greySku) {
@@ -950,10 +1004,52 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
         }
 
         // Returns Table: refundAmount = 544.42 (conflicts with $620 return loss)
-        await this.prisma.returnRecord.updateMany({
+        const existingReturns = await this.prisma.returnRecord.findMany({
           where: { workspaceId: wsId },
-          data: { refundAmount: 544.42 },
         });
+        if (existingReturns.length > 0) {
+          await this.prisma.returnRecord.updateMany({
+            where: { workspaceId: wsId },
+            data: { refundAmount: 544.42 },
+          });
+        } else if (greySku) {
+          const marketplace = await this.prisma.marketplace.findFirst();
+          if (marketplace) {
+            await this.prisma.order.create({
+              data: {
+                workspaceId: wsId,
+                marketplaceId: marketplace.id,
+                orderNumber: '112-9876543-1234567',
+                externalOrderId: '112-9876543-1234567',
+                orderedAt: new Date(waterfall.periodStart),
+                status: 'SHIPPED',
+                currencyCode: 'USD',
+                totalAmount: 544.42,
+                items: {
+                  create: [
+                    {
+                      workspaceId: wsId,
+                      skuId: greySku.id,
+                      quantity: 21,
+                      unitPrice: 28.99,
+                      returns: {
+                        create: {
+                          workspaceId: wsId,
+                          skuId: greySku.id,
+                          refundAmount: 544.42,
+                          reason:
+                            'Electric toothbrush slot diameter too narrow (1.1" vs 1.5" standard)',
+                          status: 'COMPLETED',
+                          returnDate: new Date(w11Dates[2] || waterfall.periodEnd),
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            });
+          }
+        }
 
         // AnalysisWaterfall: factors remain -980, -620, -510, -310, +140 (sum = -2280)
         await this.prisma.analysisWaterfall.update({
