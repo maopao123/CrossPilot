@@ -145,41 +145,108 @@ export class XydcMapper {
     return rawList.map((item) => this.toMarketProduct(item, marketplace));
   }
 
+  /**
+   * Safely picks a finite number from primary or fallback values.
+   * Preserves 0 (does not treat 0 as falsy). Returns null if neither is a finite number.
+   */
+  private static pickFiniteNumber(
+    primary: unknown,
+    fallback?: unknown,
+  ): number | null {
+    if (typeof primary === 'number' && Number.isFinite(primary)) {
+      return primary;
+    }
+    if (typeof primary === 'string' && primary.trim() !== '') {
+      const parsed = Number(primary);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    if (typeof fallback === 'number' && Number.isFinite(fallback)) {
+      return fallback;
+    }
+    if (typeof fallback === 'string' && fallback.trim() !== '') {
+      const parsed = Number(fallback);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+  }
+
   static toMarketOverview(
     raw: XydcRawMarketOverview,
     marketplace = 'AMAZON_US',
     mode: EvidenceSourceMode = 'LIVE',
   ): MarketOverviewSnapshot {
-    const trendingKeywords = (raw.trending_keywords || []).map((k) => ({
-      keyword: k.keyword || k.kw || '',
-      volume: k.volume || k.vol || 0,
-      growth: k.growth || k.growth_rate || '+0%',
-    }));
+    const trendingKeywords = (raw.trending_keywords || []).map((k) => {
+      const growthStr =
+        typeof k.growth === 'string' && k.growth.trim() !== ''
+          ? k.growth.trim()
+          : (typeof k.growth_rate === 'string' && k.growth_rate.trim() !== ''
+              ? k.growth_rate.trim()
+              : null);
+      return {
+        keyword: (k.keyword || k.kw || '').trim(),
+        volume: this.pickFiniteNumber(k.volume, k.vol),
+        growth: growthStr,
+      };
+    });
 
-    const topProducts = (raw.top_asins || []).map((p) => this.toMarketProduct(p, marketplace));
+    const topProducts = Array.isArray(raw.top_asins)
+      ? raw.top_asins.map((p) => this.toMarketProduct(p, marketplace))
+      : [];
+
+    const searchVolumeMonthly = this.pickFiniteNumber(
+      raw.monthly_search_volume,
+      raw.search_volume,
+    );
+    const avgPrice = this.pickFiniteNumber(
+      raw.average_price,
+      raw.avg_price,
+    );
+    const avgRating = this.pickFiniteNumber(
+      raw.average_rating,
+      raw.avg_rating,
+    );
+    const avgReviewCount = this.pickFiniteNumber(
+      raw.average_reviews,
+      raw.avg_reviews,
+    );
+    const competitorCount = this.pickFiniteNumber(
+      raw.active_competitors_count,
+      raw.competitors_count,
+    );
+    const opportunityScore = this.pickFiniteNumber(raw.opportunity_index);
+    const competitionScore = this.pickFiniteNumber(raw.competition_intensity);
+
+    const searchVolDesc = searchVolumeMonthly != null ? `${searchVolumeMonthly}` : '未提供';
+    const priceDesc = avgPrice != null ? `$${avgPrice}` : '未提供';
+    const ratingDesc = avgRating != null ? `${avgRating}` : '未提供';
 
     const evidenceList: ResearchEvidence[] = [
       this.toEvidence(
         'MARKET_METRIC',
         raw.keyword,
         `XYDC 市场大盘指标 - ${raw.keyword}`,
-        `月均搜索量 ${raw.monthly_search_volume || raw.search_volume || 0}，平均售价 $${raw.average_price || raw.avg_price || 0}，平均评分 ${raw.average_rating || raw.avg_rating || 0}。`,
+        `月均搜索量 ${searchVolDesc}，平均售价 ${priceDesc}，平均评分 ${ratingDesc}。`,
         mode,
         raw,
       ),
     ];
 
+    const category =
+      typeof raw.category === 'string' && raw.category.trim() !== ''
+        ? raw.category.trim()
+        : null;
+
     return {
       seedKeyword: raw.keyword,
-      category: raw.category || 'Home & Kitchen > Bath',
+      category,
       marketplace,
-      searchVolumeMonthly: raw.monthly_search_volume || raw.search_volume || 48500,
-      avgPrice: raw.average_price || raw.avg_price || 30.5,
-      avgRating: raw.average_rating || raw.avg_rating || 4.42,
-      avgReviewCount: raw.average_reviews || raw.avg_reviews || 1120,
-      competitorCount: raw.active_competitors_count || raw.competitors_count || 12,
-      opportunityScore: raw.opportunity_index || 8.8,
-      competitionScore: raw.competition_intensity || 6.5,
+      searchVolumeMonthly,
+      avgPrice,
+      avgRating,
+      avgReviewCount,
+      competitorCount,
+      opportunityScore,
+      competitionScore,
       trendingKeywords,
       topProducts,
       evidence: evidenceList,

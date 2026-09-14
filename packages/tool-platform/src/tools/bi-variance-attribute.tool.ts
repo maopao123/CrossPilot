@@ -1,4 +1,5 @@
-import { ToolDefinition } from '../contracts/tool.types.js';
+import { ToolDefinition, ToolErrorEnvelope } from '../contracts/tool.types.js';
+import { EvidenceMeta } from '@crosspilot/shared';
 import { VarianceAttributionService } from '@crosspilot/domain';
 
 export const BiVarianceAttributeTool: ToolDefinition = {
@@ -68,14 +69,53 @@ export const BiVarianceAttributeTool: ToolDefinition = {
     required: ['previousProfit', 'currentProfit'],
   },
   execute: (input) => {
-    return VarianceAttributionService.attributeVariance({
-      previousProfit: Number(input.previousProfit),
-      currentProfit: Number(input.currentProfit),
+    const prevProfitNum = Number(input.previousProfit);
+    const currProfitNum = Number(input.currentProfit);
+
+    if (!Number.isFinite(prevProfitNum) || !Number.isFinite(currProfitNum)) {
+      const errorEnvelope: ToolErrorEnvelope = {
+        code: 'INVALID_PROFIT_INPUT',
+        category: 'VALIDATION',
+        message: 'Both previousProfit and currentProfit must be finite numbers.',
+        why: 'Variance attribution requires finite numeric values for previous and current period profits.',
+        retryable: false,
+        suggestedFix: { previousProfit: 'number', currentProfit: 'number' },
+      };
+      const err: any = new Error(errorEnvelope.message);
+      err.code = errorEnvelope.code;
+      err.category = errorEnvelope.category;
+      err.why = errorEnvelope.why;
+      err.retryable = errorEnvelope.retryable;
+      err.errorEnvelope = errorEnvelope;
+      throw err;
+    }
+
+    const attribution = VarianceAttributionService.attributeVariance({
+      previousProfit: prevProfitNum,
+      currentProfit: currProfitNum,
       advertisingImpact: input.advertisingImpact !== undefined ? Number(input.advertisingImpact) : 0,
       returnsImpact: input.returnsImpact !== undefined ? Number(input.returnsImpact) : 0,
       inventoryImpact: input.inventoryImpact !== undefined ? Number(input.inventoryImpact) : 0,
       priceImpact: input.priceImpact !== undefined ? Number(input.priceImpact) : 0,
       otherImpact: input.otherImpact !== undefined ? Number(input.otherImpact) : 0,
     });
+
+    const evidenceMeta: EvidenceMeta[] = [
+      {
+        evidenceId: `evi_bi_variance_${Date.now()}`,
+        sourceType: 'DERIVED',
+        sourceRef: 'VarianceAttributionService.attributeVariance',
+        observedAt: null,
+        capturedAt: new Date().toISOString(),
+        valueStatus: 'DERIVED',
+        freshness: 'UNKNOWN',
+        confidence: 1.0,
+      },
+    ];
+
+    return {
+      ...attribution,
+      evidenceMeta,
+    };
   },
 };

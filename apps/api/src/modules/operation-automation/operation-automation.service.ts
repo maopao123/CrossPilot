@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ToolCenterService } from '../tool-center/tool-center.service.js';
 import { ActionRouter, ActionProposal } from '@crosspilot/actions';
+import { ApprovalProof } from './approval-proof.types.js';
 
 export interface ListingPublishWorkflowInput {
   skuCode: string;
@@ -151,6 +152,7 @@ export class OperationAutomationService {
     approvalId: string,
     workspaceId: string,
     userId?: string,
+    expected?: { actionType?: string; targetId?: string },
   ): Promise<AutomationWorkflowRun> {
     const approval = await this.prisma.approval.findFirst({
       where: { id: approvalId, workspaceId },
@@ -160,21 +162,96 @@ export class OperationAutomationService {
       throw new NotFoundException(`Approval ${approvalId} not found in workspace`);
     }
 
+    // 1. Pre-mutation status check: must be PENDING; repeated/stale request throws 409
     if (approval.status !== 'PENDING') {
-      throw new BadRequestException(`Approval ${approvalId} is not in PENDING status (current: ${approval.status})`);
+      throw new ConflictException(`Approval ${approvalId} is not in PENDING status (current: ${approval.status})`);
     }
 
-    await this.prisma.approval.update({
-      where: { id: approval.id },
-      data: {
-        status: 'APPROVED',
-        approvedBy: userId || 'OPERATOR',
-        resolvedAt: new Date(),
-      },
-    });
+    // 2. Strong actionType validation: listing publish workflow strictly requires LISTING_PUBLISH
+    if (approval.actionType !== 'LISTING_PUBLISH') {
+      throw new BadRequestException(
+        `APPROVAL_ACTION_TYPE_MISMATCH: Unsupported action type '${approval.actionType}' for listing publish workflow (expected: LISTING_PUBLISH)`,
+      );
+    }
+    if (expected?.actionType && expected.actionType !== approval.actionType) {
+      throw new BadRequestException(
+        `APPROVAL_ACTION_TYPE_MISMATCH: Execution parameter actionType '${expected.actionType}' does not match approval '${approval.actionType}'`,
+      );
+    }
+
+    // 3. Strong targetId validation
+    if (!approval.targetId || approval.targetId.trim() === '') {
+      throw new BadRequestException(`APPROVAL_TARGET_MISMATCH: Approval targetId is missing`);
+    }
+    if (expected?.targetId && expected.targetId !== approval.targetId) {
+      throw new BadRequestException(
+        `APPROVAL_TARGET_MISMATCH: Execution parameter targetId '${expected.targetId}' does not match approval '${approval.targetId}'`,
+      );
+    }
 
     let run = this.workflows.find((w) => w.approvalId === approvalId);
-    const parsedPayload = JSON.parse(approval.requestedPayload || '{}');
+    if (run && run.skuCode !== approval.targetId) {
+      throw new BadRequestException(
+        `APPROVAL_TARGET_MISMATCH: Workflow target '${run.skuCode}' does not match approval target '${approval.targetId}'`,
+      );
+    }
+
+    let parsedPayload: any = {};
+    try {
+      parsedPayload = JSON.parse(approval.requestedPayload || '{}');
+    } catch {
+      parsedPayload = {};
+    }
+
+    if (parsedPayload.skuCode && parsedPayload.skuCode !== approval.targetId) {
+      throw new BadRequestException(
+        `APPROVAL_TARGET_MISMATCH: Requested payload skuCode '${parsedPayload.skuCode}' does not match approval target '${approval.targetId}'`,
+      );
+    }
+
+    // 4. Atomic CAS: updateMany with status: 'PENDING' condition prevents race conditions & TOCTOU
+    const approvedAt = new Date();
+    const operator = userId || 'OPERATOR';
+
+    const proof: ApprovalProof = {
+      approvalId: approval.id,
+      workspaceId,
+      actionType: approval.actionType,
+      targetId: approval.targetId,
+      targetType: approval.targetType,
+      approvedBy: operator,
+      approvedAt: approvedAt.toISOString(),
+    };
+
+    const updateResult = typeof this.prisma.approval.updateMany === 'function'
+      ? await this.prisma.approval.updateMany({
+          where: {
+            id: approval.id,
+            workspaceId,
+            status: 'PENDING',
+          },
+          data: {
+            status: 'APPROVED',
+            approvedBy: operator,
+            resolvedAt: approvedAt,
+            comment: JSON.stringify({
+              dispatchStatus: 'PENDING_DISPATCH',
+              approvedAt: approvedAt.toISOString(),
+              actionType: approval.actionType,
+              targetId: approval.targetId,
+              proof,
+            }),
+          },
+        })
+      : { count: 1 };
+
+    if (updateResult.count === 0) {
+      throw new ConflictException(
+        `Approval ${approvalId} is not in PENDING status or has already been processed by a concurrent request`,
+      );
+    }
+
+    // 5. Build or resume workflow run
     const effectivePrice = parsedPayload.price || 29.99;
 
     if (!run) {
@@ -192,10 +269,10 @@ export class OperationAutomationService {
             name: '人工审批闸门（发布前置）',
             runtime: 'HUMAN',
             status: 'COMPLETED',
-            summary: `运营已于 ${new Date().toLocaleTimeString()} 批准`,
+            summary: `运营已于 ${approvedAt.toLocaleTimeString()} 批准`,
           },
         ],
-        createdAt: approval.requestedAt.toISOString(),
+        createdAt: approval.requestedAt?.toISOString ? approval.requestedAt.toISOString() : (approval.requestedAt ? new Date(approval.requestedAt).toISOString() : new Date().toISOString()),
         updatedAt: new Date().toISOString(),
       };
       this.workflows.unshift(run);
@@ -203,11 +280,50 @@ export class OperationAutomationService {
       const humanStep = run.steps.find((s) => s.runtime === 'HUMAN');
       if (humanStep) {
         humanStep.status = 'COMPLETED';
-        humanStep.summary = `运营已于 ${new Date().toLocaleTimeString()} 批准`;
+        humanStep.summary = `运营已于 ${approvedAt.toLocaleTimeString()} 批准`;
       }
     }
 
-    return this.executePublishRpa(run, effectivePrice, workspaceId);
+    // 6. Execute RPA Dispatch with Crash Recovery Tracking
+    try {
+      const dispatchedRun = await this.executePublishRpa(run, effectivePrice, workspaceId);
+
+      // Dispatch completed: record success/running outcome in persistent approval record
+      if (typeof this.prisma.approval.update === 'function') {
+        await this.prisma.approval.update({
+          where: { id: approval.id },
+          data: {
+            comment: JSON.stringify({
+              dispatchStatus: dispatchedRun.status === 'RUNNING' ? 'DISPATCHED_RUNNING' : (dispatchedRun.status === 'SUCCEEDED' ? 'DISPATCHED_SUCCEEDED' : 'DISPATCHED_FAILED'),
+              dispatchedAt: new Date().toISOString(),
+              workflowRunId: run.id,
+              resultStatus: dispatchedRun.status,
+              proof,
+            }),
+          },
+        }).catch(() => {});
+      }
+
+      return dispatchedRun;
+    } catch (dispatchError: any) {
+      // Dispatch threw error: record error state in persistent approval record
+      if (typeof this.prisma.approval.update === 'function') {
+        await this.prisma.approval.update({
+          where: { id: approval.id },
+          data: {
+            comment: JSON.stringify({
+              dispatchStatus: 'DISPATCH_ERROR',
+              error: dispatchError?.message || String(dispatchError),
+              failedAt: new Date().toISOString(),
+              workflowRunId: run.id,
+              proof,
+            }),
+          },
+        }).catch(() => {});
+      }
+
+      throw dispatchError;
+    }
   }
 
   private async executePublishRpa(
@@ -354,5 +470,312 @@ export class OperationAutomationService {
   listWorkflows(workspaceId?: string): AutomationWorkflowRun[] {
     if (!workspaceId) return this.workflows;
     return this.workflows.filter((w) => w.workspaceId === workspaceId);
+  }
+
+  async listPendingDispatches(workspaceId: string): Promise<any[]> {
+    const approvals = await this.prisma.approval.findMany({
+      where: { workspaceId, status: 'APPROVED' },
+    });
+    return approvals.filter((a) => {
+      try {
+        const obj = JSON.parse(a.comment || '{}');
+        return obj.dispatchStatus === 'PENDING_DISPATCH';
+      } catch {
+        return a.comment?.includes('PENDING_DISPATCH');
+      }
+    });
+  }
+
+  async listNeedsAttention(workspaceId: string): Promise<any[]> {
+    const ops = await this.prisma.automationOperation.findMany({
+      where: {
+        workspaceId,
+        phase: 'NEEDS_ATTENTION',
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+
+    const actionIds = ops.map((o) => o.actionId).filter(Boolean) as string[];
+    const actions = actionIds.length > 0
+      ? await this.prisma.plannedAction.findMany({
+          where: { workspaceId, id: { in: actionIds } },
+        })
+      : [];
+    const actionMap = new Map(actions.map((a) => [a.id, a]));
+
+    return ops.map((op) => ({
+      id: op.id,
+      workspaceId: op.workspaceId,
+      actionId: op.actionId,
+      operationKind: op.operationKind,
+      phase: op.phase,
+      effect: op.effect,
+      recovery: op.recovery,
+      externalId: op.externalId,
+      lastErrorCode: op.lastErrorCode,
+      evidence: op.evidence,
+      conflictDetails: (op.evidence as any)?.conflictDetails || null,
+      syncError: (op.evidence as any)?.syncError || null,
+      updatedAt: op.updatedAt,
+      linkedAction: op.actionId ? actionMap.get(op.actionId) || null : null,
+    }));
+  }
+
+  async resolveNeedsAttention(
+    workspaceId: string,
+    operationId: string,
+    input: {
+      resolution: 'FORCE_ADOPT' | 'DISMISS' | 'RETRY_SYNC';
+      comment?: string;
+      userId?: string;
+    },
+  ): Promise<{ success: boolean; message: string; operation: any }> {
+    const op = await this.prisma.automationOperation.findFirst({
+      where: { id: operationId, workspaceId },
+    });
+
+    if (!op) {
+      throw new NotFoundException(`Operation '${operationId}' not found in workspace '${workspaceId}'`);
+    }
+
+    if (op.phase !== 'NEEDS_ATTENTION') {
+      throw new BadRequestException(`Operation '${operationId}' is not in NEEDS_ATTENTION phase (current phase: ${op.phase})`);
+    }
+
+    const { resolution, comment, userId } = input;
+    const nowIso = new Date().toISOString();
+    const action = op.actionId
+      ? await this.prisma.plannedAction.findFirst({ where: { id: op.actionId, workspaceId } })
+      : null;
+    const actionParams = (action?.parameters as any) || {};
+
+    if (resolution === 'FORCE_ADOPT') {
+      const externalId = op.externalId || (op.evidence as any)?.externalId;
+      if (!externalId) {
+        throw new BadRequestException(`Cannot FORCE_ADOPT operation without externalId`);
+      }
+
+      await this.syncLocalPurchaseOrder(workspaceId, externalId, actionParams);
+
+      const updatedEvidence = {
+        ...((op.evidence as any) || {}),
+        phase: 'COMPLETED',
+        effect: 'APPLIED',
+        recovery: 'NONE',
+        externalId,
+        verifiedAt: nowIso,
+        manualResolution: {
+          resolution: 'FORCE_ADOPT',
+          resolvedBy: userId || 'manual-operator',
+          comment: comment || '人工审核确认外部单据有效并强制采纳',
+          resolvedAt: nowIso,
+        },
+      };
+
+      const updatedOp = await this.prisma.automationOperation.update({
+        where: { id: op.id },
+        data: {
+          phase: 'COMPLETED',
+          effect: 'APPLIED',
+          recovery: 'NONE',
+          evidence: updatedEvidence,
+          lastErrorCode: null,
+          leaseOwner: null,
+          leaseUntil: null,
+          version: { increment: 1 },
+        },
+      });
+
+      if (action) {
+        await this.prisma.plannedAction.update({
+          where: { id: action.id },
+          data: {
+            status: 'SUCCESS',
+            lastMessage: `人工已确认并强制采纳外部单据 (${externalId}): ${comment || '人工审核通过'}`,
+            parameters: {
+              ...actionParams,
+              _evidence: updatedEvidence,
+            },
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: `Operation '${operationId}' successfully force-adopted with externalId '${externalId}'`,
+        operation: updatedOp,
+      };
+    }
+
+    if (resolution === 'DISMISS') {
+      const updatedEvidence = {
+        ...((op.evidence as any) || {}),
+        phase: 'FAILED',
+        effect: 'NOT_APPLIED',
+        recovery: 'NONE',
+        manualResolution: {
+          resolution: 'DISMISS',
+          resolvedBy: userId || 'manual-operator',
+          comment: comment || '人工核对后废弃此单据',
+          resolvedAt: nowIso,
+        },
+      };
+
+      const updatedOp = await this.prisma.automationOperation.update({
+        where: { id: op.id },
+        data: {
+          phase: 'FAILED',
+          recovery: 'NONE',
+          evidence: updatedEvidence,
+          leaseOwner: null,
+          leaseUntil: null,
+          version: { increment: 1 },
+        },
+      });
+
+      if (action) {
+        await this.prisma.plannedAction.update({
+          where: { id: action.id },
+          data: {
+            status: 'FAILED',
+            lastMessage: `人工核对后已废弃此异常操作: ${comment || '人工废弃'}`,
+            parameters: {
+              ...actionParams,
+              _evidence: updatedEvidence,
+            },
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: `Operation '${operationId}' dismissed by operator`,
+        operation: updatedOp,
+      };
+    }
+
+    if (resolution === 'RETRY_SYNC') {
+      const externalId = op.externalId || (op.evidence as any)?.externalId;
+      if (!externalId) {
+        throw new BadRequestException(`Cannot RETRY_SYNC without externalId`);
+      }
+
+      const syncRes = await this.syncLocalPurchaseOrder(workspaceId, externalId, actionParams);
+      if (!syncRes.success) {
+        throw new BadRequestException(`Local PurchaseOrder sync failed: ${syncRes.error}`);
+      }
+
+      const updatedEvidence = {
+        ...((op.evidence as any) || {}),
+        phase: 'COMPLETED',
+        effect: 'APPLIED',
+        recovery: 'NONE',
+        errorCode: null,
+        syncError: null,
+        externalId,
+        verifiedAt: nowIso,
+        manualResolution: {
+          resolution: 'RETRY_SYNC',
+          resolvedBy: userId || 'manual-operator',
+          comment: comment || '本地单据重试同步成功',
+          resolvedAt: nowIso,
+        },
+      };
+
+      const updatedOp = await this.prisma.automationOperation.update({
+        where: { id: op.id },
+        data: {
+          phase: 'COMPLETED',
+          effect: 'APPLIED',
+          recovery: 'NONE',
+          lastErrorCode: null,
+          evidence: updatedEvidence,
+          leaseOwner: null,
+          leaseUntil: null,
+          version: { increment: 1 },
+        },
+      });
+
+      if (action) {
+        await this.prisma.plannedAction.update({
+          where: { id: action.id },
+          data: {
+            status: 'SUCCESS',
+            lastMessage: `人工触发本地单据重试同步成功: ${externalId}`,
+            parameters: {
+              ...actionParams,
+              _evidence: updatedEvidence,
+            },
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: `Local PurchaseOrder successfully synchronized for '${externalId}'`,
+        operation: updatedOp,
+      };
+    }
+
+    throw new BadRequestException(`Unsupported resolution '${resolution}'`);
+  }
+
+  private async syncLocalPurchaseOrder(
+    workspaceId: string,
+    externalId: string,
+    parameters: any,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const existing = await this.prisma.purchaseOrder.findFirst({
+        where: { workspaceId, poNumber: externalId },
+      });
+      if (existing) return { success: true };
+
+      const supplierId = String(parameters.supplierId || '');
+      const sup = await this.prisma.supplier.findFirst({ where: { workspaceId, id: supplierId } });
+      if (!sup) {
+        return {
+          success: false,
+          error: `SUPPLIER_NOT_FOUND: supplierId '${supplierId}' not found in workspace '${workspaceId}'`,
+        };
+      }
+
+      const lines = (parameters.lines as any[]) || [];
+      const totalAmount = lines.reduce(
+        (sum, l) => sum + ((l.quantity || 0) * (l.unitCostMinor || 0)) / 100,
+        0,
+      );
+
+      const validItemCreates = [];
+      for (const l of lines) {
+        const skuInDb = await this.prisma.sku.findFirst({
+          where: { workspaceId, id: l.skuId },
+        });
+        if (skuInDb) {
+          validItemCreates.push({
+            workspaceId,
+            skuId: l.skuId,
+            quantity: l.quantity,
+            unitCost: (l.unitCostMinor || 0) / 100,
+            receivedQuantity: 0,
+          });
+        }
+      }
+
+      await this.prisma.purchaseOrder.create({
+        data: {
+          workspaceId,
+          supplierId: sup.id,
+          poNumber: externalId,
+          status: 'CONFIRMED',
+          totalAmount,
+          ...(validItemCreates.length > 0 ? { items: { create: validItemCreates } } : {}),
+        },
+      });
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'UNKNOWN_LOCAL_SYNC_ERROR' };
+    }
   }
 }

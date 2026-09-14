@@ -1,3 +1,5 @@
+import type { EvidenceMeta } from '@crosspilot/shared';
+
 export type ToolCategory =
   | 'CREATIVE'
   | 'PRODUCT_RESEARCH'
@@ -48,6 +50,17 @@ export interface ToolError {
   details?: any;
 }
 
+export interface ToolErrorEnvelope {
+  code: string;
+  category: 'VALIDATION' | 'AUTH' | 'RATE_LIMIT' | 'UPSTREAM' | 'CONFLICT' | 'UNSUPPORTED';
+  message: string;
+  why?: string;
+  retryable: boolean;
+  retryAfterMs?: number;
+  suggestedFix?: Record<string, unknown>;
+  docsRef?: string;
+}
+
 export interface ToolExecutionResult<T = any> {
   success: boolean;
   data?: T;
@@ -58,6 +71,8 @@ export interface ToolExecutionResult<T = any> {
     amount: number;
     unit: string;
   };
+  evidenceMeta?: EvidenceMeta[];
+  errorEnvelope?: ToolErrorEnvelope;
 }
 
 export interface ToolDefinition<TInput = any, TOutput = any> {

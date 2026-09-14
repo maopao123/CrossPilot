@@ -1,0 +1,67 @@
+[
+  {
+    "name": "api-targeted",
+    "command": [
+      "pnpm.cmd",
+      "--filter",
+      "@crosspilot/api",
+      "test",
+      "--runInBand",
+      "--runTestsByPath",
+      "test/legacy-reset-disabled.spec.ts",
+      "test/simulator.spec.ts",
+      "test/closed-loop-v2-compat.spec.ts"
+    ],
+    "exitCode": 0,
+    "tail": "$ jest --passWithNoTests \"--runInBand\" \"--runTestsByPath\" \"test/legacy-reset-disabled.spec.ts\" \"test/simulator.spec.ts\" \"test/closed-loop-v2-compat.spec.ts\"\nPASS test/closed-loop-v2-compat.spec.ts (11.048 s)\nPASS test/simulator.spec.ts\nPASS test/legacy-reset-disabled.spec.ts\n\nTest Suites: 3 passed, 3 total\nTests:       17 passed, 17 total\nSnapshots:   0 total\nTime:        12.131 s, estimated 17 s\nRan all test suites within paths \"test/legacy-reset-disabled.spec.ts\", \"test/simulator.spec.ts\", \"test/closed-loop-v2-compat.spec.ts\".\n"
+  },
+  {
+    "name": "mapper",
+    "command": [
+      "node",
+      "packages/integrations/test/xydc-market-overview-truthfulness.test.cjs"
+    ],
+    "exitCode": 0,
+    "tail": "[TEST] Running XYDC Market Overview Truthfulness Acceptance Tests...\n--- Case 1: All metrics missing (keyword only) ---\n--- Case 2: Explicit zero inputs (legal zeros) ---\n--- Case 3: Primary field is 0, alias field is non-zero ---\n--- Case 4: Primary undefined, alias provided ---\n--- Case 5: Normal non-zero values ---\n[PASS] All XYDC Market Overview Truthfulness Acceptance Tests PASSED!\n"
+  },
+  {
+    "name": "web-targeted",
+    "command": [
+      "node",
+      "--test",
+      "apps/web/test/market-overview-truth.test.cjs",
+      "apps/web/test/automation-page-truth.test.cjs"
+    ],
+    "exitCode": 0,
+    "tail": "✔ G1-R05: UI approval HTTP 404 does not set approvalStatus to APPROVED (71.4876ms)\n✔ G1-R05: UI approval receiving FAILED status does not claim Feed confirmation or upload (10.493ms)\n✔ G1-R05: Fresh page initializes without fabricated approvalId and makes 0 approval posts (65.5142ms)\n✔ Batch A: Market Research page does not contain fake default fallback constants for snapshot metrics (1.6158ms)\n✔ Batch A: Formatter behavior on legal zero vs null vs normal values (17.1045ms)\nℹ tests 5\nℹ suites 0\nℹ pass 5\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 447.2996\n"
+  },
+  {
+    "name": "g1-original-10",
+    "command": [
+      "node",
+      "artifacts/external-absorption/batch-a/review-codex/run-original-g1.cjs",
+      "1"
+    ],
+    "exitCode": 0,
+    "tail": "    \"recovery\": \"MANUAL\",\n          \"externalId\": \"job-progress\",\n          \"errorCode\": \"UNVERIFIED_LIVE_EXECUTION\"\n        }\n      },\n      \"result\": \"PASS\"\n    },\n    {\n      \"id\": \"R04-mode-payload-approval-cache\",\n      \"actual\": {\n        \"status\": \"WAITING_APPROVAL\",\n        \"actionId\": \"different-action\",\n        \"evidence\": {\n          \"mode\": \"LIVE\",\n          \"provider\": \"human-gate\",\n          \"operationId\": \"same-key\",\n          \"phase\": \"READY\",\n          \"effect\": \"NOT_APPLIED\",\n          \"recovery\": \"MANUAL\"\n        }\n      },\n      \"result\": \"PASS\"\n    },\n    {\n      \"id\": \"R05-ui-http-404\",\n      \"actual\": {\n        \"approval\": \"PENDING\",\n        \"logs\": [\n          \"[18:24:29] [Approval Gate] Approval failed: 404 approval not found\"\n        ]\n      },\n      \"result\": \"PASS\"\n    },\n    {\n      \"id\": \"R05-ui-body-failed\",\n      \"actual\": {\n        \"approval\": \"FAILED\",\n        \"logs\": [\n          \"[18:24:29] [Node 5 - RPA] RPA 执行失败：adapter failed.\",\n          \"[18:24:29] [Node 4 - Human Gate] 审批已通过，但后续 RPA 执行失败.\"\n        ]\n      },\n      \"result\": \"PASS\"\n    }\n  ]\n}\n"
+  },
+  {
+    "name": "g1-remaining-9",
+    "command": [
+      "node",
+      "artifacts/external-absorption/batch-a/review-codex/run-original-g1.cjs",
+      "2"
+    ],
+    "exitCode": 0,
+    "tail": "        \"provider\": \"idempotency-cache\",\n          \"operationId\": \"cache-target\",\n          \"phase\": \"FAILED\",\n          \"effect\": \"NOT_APPLIED\",\n          \"recovery\": \"MANUAL\",\n          \"errorCode\": \"IDEMPOTENCY_CONFLICT\"\n        }\n      },\n      \"result\": \"PASS\"\n    },\n    {\n      \"id\": \"R04-cache-runtime\",\n      \"actual\": {\n        \"actionId\": \"g1r2-action\",\n        \"status\": \"FAILED\",\n        \"error\": \"IDEMPOTENCY_CONFLICT: operationId 'cache-runtime' has already been executed with different parameters, target, provider, or mode\",\n        \"traceId\": \"act_trace_1789381469755_i1u76\",\n        \"durationMs\": 0,\n        \"executionEvidence\": {\n          \"mode\": \"MOCK\",\n          \"provider\": \"idempotency-cache\",\n          \"operationId\": \"cache-runtime\",\n          \"phase\": \"FAILED\",\n          \"effect\": \"NOT_APPLIED\",\n          \"recovery\": \"MANUAL\",\n          \"errorCode\": \"IDEMPOTENCY_CONFLICT\"\n        }\n      },\n      \"result\": \"PASS\"\n    },\n    {\n      \"id\": \"R05-fresh-page-no-fabricated-approval\",\n      \"actual\": {\n        \"approvalPosts\": 0\n      },\n      \"result\": \"PASS\"\n    }\n  ]\n}\n"
+  },
+  {
+    "name": "independent-probes",
+    "command": [
+      "node",
+      "artifacts/external-absorption/batch-a/review-codex/batch-a-probes.cjs"
+    ],
+    "exitCode": 1,
+    "tail": "rowth\": \"+28%\"\n          },\n          {\n            \"keyword\": \"portable review probe\",\n            \"volume\": 14550,\n            \"growth\": \"+15%\"\n          },\n          {\n            \"keyword\": \"review probe with lid\",\n            \"volume\": 12125,\n            \"growth\": \"+35%\"\n          }\n        ],\n        \"provider\": \"xydc\",\n        \"transport\": \"MCP\",\n        \"mode\": \"LIVE\",\n        \"capturedAt\": \"2026-09-14T00:00:00Z\",\n        \"evidence\": []\n      },\n      \"pass\": false\n    },\n    {\n      \"id\": \"A-TREND-MISSING\",\n      \"actual\": [\n        {\n          \"keyword\": \"term\",\n          \"volume\": 0,\n          \"growth\": \"+0%\"\n        }\n      ],\n      \"pass\": false\n    },\n    {\n      \"id\": \"A-UI-MISSING\",\n      \"actual\": {\n        \"unsupportedClaims\": [\n          \"+22.4%\",\n          \"高潜力细分市场\",\n          \"壁垒中等，易切入\",\n          \"头部垄断度较低\"\n        ]\n      },\n      \"pass\": false\n    },\n    {\n      \"id\": \"A-UI-ZERO\",\n      \"actual\": {\n        \"unsupportedClaims\": [\n          \"+22.4%\",\n          \"高潜力细分市场\",\n          \"壁垒中等，易切入\",\n          \"头部垄断度较低\"\n        ]\n      },\n      \"pass\": false\n    }\n  ]\n}\n"
+  }
+]

@@ -100,6 +100,15 @@ describe('A7: Automation Recovery & Lease Preemption Suite', () => {
   });
 
   it('2. proves network-interrupted SUBMITTED operation is verified and converged to COMPLETED via QUERY', async () => {
+    // 0. Ensure supplier exists locally for local PO synchronization
+    await prisma.supplier.create({
+      data: {
+        id: 'SUPPLIER-REMOTE',
+        workspaceId: wsId,
+        name: 'Remote Supplier',
+      },
+    });
+
     // 1. Create order directly on ERP loopback server to simulate remote success before local crash
     const opId = `op-query-test-${Date.now()}`;
     const erpCreateRes = await fetch(`${erpBaseUrl}/erp/purchase-orders`, {

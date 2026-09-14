@@ -2,6 +2,8 @@ import {
   ToolDefinition,
   ToolExecutionContext,
   ToolExecutionResult,
+  ToolError,
+  ToolErrorEnvelope,
   ToolInputSchema,
 } from '../contracts/tool.types.js';
 import { ToolRegistry } from '../registry/tool.registry.js';
@@ -35,11 +37,18 @@ export class ToolExecutor {
 
     const tool = this.registry.get(toolId);
     if (!tool) {
+      const error: ToolError = {
+        code: 'TOOL_NOT_FOUND',
+        message: `Tool '${toolId}' is not registered in ToolPlatform.`,
+        retryable: false,
+      };
       return {
         success: false,
-        error: {
-          code: 'TOOL_NOT_FOUND',
-          message: `Tool '${toolId}' is not registered in ToolPlatform.`,
+        error,
+        errorEnvelope: {
+          code: error.code,
+          category: 'UNSUPPORTED',
+          message: error.message,
           retryable: false,
         },
         traceId,
@@ -54,11 +63,18 @@ export class ToolExecutor {
       const isPrivileged = userRole === 'OWNER' || userRole === 'ADMIN';
       const hasPermission = isPrivileged || tool.permissions.some((p) => userPermissions.includes(p));
       if (!hasPermission && fullContext.source !== 'WORKFLOW') {
+        const error: ToolError = {
+          code: 'PERMISSION_DENIED',
+          message: `Execution of tool '${toolId}' requires permissions: ${tool.permissions.join(', ')}`,
+          retryable: false,
+        };
         return {
           success: false,
-          error: {
-            code: 'PERMISSION_DENIED',
-            message: `Execution of tool '${toolId}' requires permissions: ${tool.permissions.join(', ')}`,
+          error,
+          errorEnvelope: {
+            code: error.code,
+            category: 'AUTH',
+            message: error.message,
             retryable: false,
           },
           traceId,
@@ -71,11 +87,18 @@ export class ToolExecutor {
     if (!options.skipValidation && tool.inputSchema) {
       const validationError = this.validateInput(input, tool.inputSchema);
       if (validationError) {
+        const error: ToolError = {
+          code: 'VALIDATION_ERROR',
+          message: validationError,
+          retryable: false,
+        };
         return {
           success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: validationError,
+          error,
+          errorEnvelope: {
+            code: error.code,
+            category: 'VALIDATION',
+            message: error.message,
             retryable: false,
           },
           traceId,
@@ -101,26 +124,45 @@ export class ToolExecutor {
       if (timerId) clearTimeout(timerId);
       const durationMs = Date.now() - startTime;
 
+      const evidenceMeta = (result as any)?.evidenceMeta;
+      const errorEnvelope = (result as any)?.errorEnvelope;
+
       return {
         success: true,
         data: result as TOutput,
         traceId,
         durationMs,
         cost: tool.costEstimate,
+        ...(Array.isArray(evidenceMeta) ? { evidenceMeta } : {}),
+        ...(errorEnvelope ? { errorEnvelope } : {}),
       };
     } catch (err: any) {
       if (timerId) clearTimeout(timerId);
       const durationMs = Date.now() - startTime;
       const isTimeout = err.message?.includes('timed out');
 
+      const toolError: ToolError = {
+        code: isTimeout ? 'TIMEOUT' : (err.code || 'EXECUTION_ERROR'),
+        message: err.message || 'Unknown error occurred during tool execution',
+        retryable: isTimeout || err.retryable || false,
+        details: err.details || { errorType: err.name || 'Error' },
+      };
+
+      const errorEnvelope: ToolErrorEnvelope = err.errorEnvelope || {
+        code: toolError.code,
+        category: err.category || (isTimeout ? 'UPSTREAM' : 'VALIDATION'),
+        message: toolError.message,
+        why: err.why,
+        retryable: toolError.retryable || false,
+        retryAfterMs: err.retryAfterMs,
+        suggestedFix: err.suggestedFix,
+        docsRef: err.docsRef,
+      };
+
       return {
         success: false,
-        error: {
-          code: isTimeout ? 'TIMEOUT' : 'EXECUTION_ERROR',
-          message: err.message || 'Unknown error occurred during tool execution',
-          retryable: isTimeout || false,
-          details: { errorType: err.name || 'Error' },
-        },
+        error: toolError,
+        errorEnvelope,
         traceId,
         durationMs,
         cost: tool.costEstimate,

@@ -18,21 +18,30 @@ export interface AutomationRecoveryResult {
   failed: number;
 }
 
+export interface LocalSyncResult {
+  success: boolean;
+  error?: string;
+}
+
 async function syncLocalPurchaseOrder(
   prisma: PrismaClient,
   workspaceId: string,
   externalId: string,
   parameters: any,
-): Promise<void> {
+): Promise<LocalSyncResult> {
   try {
     const existing = await prisma.purchaseOrder.findFirst({
       where: { workspaceId, poNumber: externalId },
     });
-    if (existing) return;
+    if (existing) return { success: true };
 
     const supplierId = String(parameters.supplierId || '');
     const sup = await prisma.supplier.findFirst({ where: { workspaceId, id: supplierId } });
-    if (!sup) return;
+    if (!sup) {
+      const err = `SUPPLIER_NOT_FOUND: supplierId '${supplierId}' not found in workspace '${workspaceId}'`;
+      console.warn(`[AutomationRecovery] Failed to sync local PurchaseOrder for ${externalId}: ${err}`);
+      return { success: false, error: err };
+    }
 
     const lines = (parameters.lines as any[]) || [];
     const totalAmount = lines.reduce((sum, l) => sum + ((l.quantity || 0) * (l.unitCostMinor || 0)) / 100, 0);
@@ -63,8 +72,10 @@ async function syncLocalPurchaseOrder(
         ...(validItemCreates.length > 0 ? { items: { create: validItemCreates } } : {}),
       },
     });
+    return { success: true };
   } catch (err: any) {
     console.warn(`[AutomationRecovery] Failed to sync local PurchaseOrder for ${externalId}: ${err.message}`);
+    return { success: false, error: err.message || 'UNKNOWN_LOCAL_SYNC_ERROR' };
   }
 }
 
@@ -103,7 +114,157 @@ export async function processAutomationRecovery(
 
         if (checkRes.success && checkRes.data?.externalId) {
           const externalId = checkRes.data.externalId;
-          await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, {
+          const remoteOrder = checkRes.data;
+
+          let action: any = null;
+          let params: any = {};
+          if (claimed.actionId) {
+            action = await prisma.plannedAction.findUnique({ where: { id: claimed.actionId } });
+            params = (action?.parameters as any) || {};
+          }
+
+          // D-R1: 远端单据关键内容与本地原始请求 payload 比对
+          // 至少供应商标识严格相等、总金额严格相等（如有明细则明细数量也比对）
+          const localSupplierId = String(params.supplierId || '');
+          const remoteSupplierId = String(remoteOrder.supplierId || '');
+
+          const localLines = Array.isArray(params.lines) ? params.lines : [];
+          const localTotalAmountMinor = localLines.reduce(
+            (sum: number, l: any) => sum + (Number(l.quantity) || 0) * (Number(l.unitCostMinor) || 0),
+            0,
+          );
+          const remoteTotalAmountMinor =
+            remoteOrder.totalAmountMinor != null
+              ? Number(remoteOrder.totalAmountMinor)
+              : (Array.isArray(remoteOrder.lines)
+                  ? remoteOrder.lines.reduce(
+                      (sum: number, l: any) =>
+                        sum + (Number(l.quantity) || 0) * (Number(l.unitCostMinor) || 0),
+                      0,
+                    )
+                  : null);
+
+          const localTotalQty = localLines.reduce(
+            (sum: number, l: any) => sum + (Number(l.quantity) || 0),
+            0,
+          );
+          const remoteTotalQty = Array.isArray(remoteOrder.lines)
+            ? remoteOrder.lines.reduce(
+                (sum: number, l: any) => sum + (Number(l.quantity) || 0),
+                0,
+              )
+            : null;
+
+          const supplierMismatch = Boolean(
+            localSupplierId && remoteSupplierId && localSupplierId !== remoteSupplierId,
+          );
+          const amountMismatch = Boolean(
+            localLines.length > 0 &&
+              remoteTotalAmountMinor != null &&
+              localTotalAmountMinor !== remoteTotalAmountMinor,
+          );
+          const quantityMismatch = Boolean(
+            localLines.length > 0 &&
+              remoteTotalQty != null &&
+              localTotalQty !== remoteTotalQty,
+          );
+
+          if (supplierMismatch || amountMismatch || quantityMismatch) {
+            const conflictDetails = {
+              reason: 'REMOTE_PAYLOAD_MISMATCH',
+              mismatches: [
+                ...(supplierMismatch
+                  ? [`supplierId: local='${localSupplierId}' vs remote='${remoteSupplierId}'`]
+                  : []),
+                ...(amountMismatch
+                  ? [`totalAmountMinor: local=${localTotalAmountMinor} vs remote=${remoteTotalAmountMinor}`]
+                  : []),
+                ...(quantityMismatch
+                  ? [`totalQuantity: local=${localTotalQty} vs remote=${remoteTotalQty}`]
+                  : []),
+              ],
+              local: {
+                supplierId: localSupplierId,
+                totalAmountMinor: localTotalAmountMinor,
+                totalQuantity: localTotalQty,
+              },
+              remote: {
+                externalId,
+                supplierId: remoteSupplierId,
+                totalAmountMinor: remoteTotalAmountMinor,
+                totalQuantity: remoteTotalQty,
+              },
+            };
+
+            const evidenceData: any = {
+              mode: claimed.mode as any,
+              provider: claimed.provider,
+              operationId: claimed.id,
+              phase: 'NEEDS_ATTENTION',
+              effect: 'NOT_APPLIED',
+              recovery: 'MANUAL',
+              externalId,
+              errorCode: 'REMOTE_PAYLOAD_MISMATCH',
+              conflictDetails,
+            };
+
+            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+            if (claimed.actionId) {
+              await prisma.plannedAction.updateMany({
+                where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
+                data: {
+                  status: 'FAILED',
+                  lastMessage: `ERP 采购单反查内容与原始请求不符 (${conflictDetails.mismatches.join('; ')})，已置入 NEEDS_ATTENTION 待人工核对`,
+                  parameters: {
+                    ...params,
+                    _evidence: evidenceData,
+                  },
+                },
+              });
+            }
+            escalated++;
+            continue;
+          }
+
+          // 内容校验一致，执行本地 PurchaseOrder 同步
+          const syncRes = await syncLocalPurchaseOrder(prisma, claimed.workspaceId, externalId, params);
+          if (!syncRes.success) {
+            // 远端已收敛生效但本地同步失败：落证据并进入 NEEDS_ATTENTION / MANUAL 可追踪状态，严禁静默吞掉
+            const evidenceData: any = {
+              mode: claimed.mode as any,
+              provider: claimed.provider,
+              operationId: claimed.id,
+              phase: 'NEEDS_ATTENTION',
+              effect: 'APPLIED',
+              recovery: 'MANUAL',
+              externalId,
+              errorCode: 'LOCAL_SYNC_FAILED',
+              verifiedAt: new Date().toISOString(),
+              syncError: syncRes.error,
+            };
+
+            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+            if (claimed.actionId) {
+              await prisma.plannedAction.updateMany({
+                where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
+                data: {
+                  status: 'FAILED',
+                  lastMessage: `ERP 采购单远端已生效 (${externalId})，但本地单据同步失败: ${syncRes.error}，需人工核对同步`,
+                  parameters: {
+                    ...params,
+                    _evidence: evidenceData,
+                  },
+                },
+              });
+            }
+            escalated++;
+            continue;
+          }
+
+          // 校验与本地同步均成功，收敛至 COMPLETED / APPLIED
+          const evidenceData: any = {
             mode: claimed.mode as any,
             provider: claimed.provider,
             operationId: claimed.id,
@@ -112,13 +273,11 @@ export async function processAutomationRecovery(
             recovery: 'NONE',
             externalId,
             verifiedAt: new Date().toISOString(),
-          });
+          };
+
+          await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
           if (claimed.actionId) {
-            const action = await prisma.plannedAction.findUnique({ where: { id: claimed.actionId } });
-            const params = (action?.parameters as any) || {};
-            await syncLocalPurchaseOrder(prisma, claimed.workspaceId, externalId, params);
-
             await prisma.plannedAction.updateMany({
               where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
               data: {
@@ -126,16 +285,7 @@ export async function processAutomationRecovery(
                 lastMessage: `ERP 采购单恢复成功 (远程已存在): ${externalId}`,
                 parameters: {
                   ...params,
-                  _evidence: {
-                    mode: claimed.mode,
-                    provider: claimed.provider,
-                    operationId: claimed.id,
-                    phase: 'COMPLETED',
-                    effect: 'APPLIED',
-                    recovery: 'NONE',
-                    externalId,
-                    verifiedAt: new Date().toISOString(),
-                  },
+                  _evidence: evidenceData,
                 },
               },
             });
@@ -283,7 +433,39 @@ export async function processAutomationRecovery(
         }
 
         if (createSuccess && externalId) {
-          await syncLocalPurchaseOrder(prisma, claimed.workspaceId, externalId, actionParams);
+          const syncRes = await syncLocalPurchaseOrder(prisma, claimed.workspaceId, externalId, actionParams);
+          if (!syncRes.success) {
+            const evidenceData: any = {
+              mode: claimed.mode as any,
+              provider: claimed.provider,
+              operationId: claimed.id,
+              phase: 'NEEDS_ATTENTION',
+              effect: 'APPLIED',
+              recovery: 'MANUAL',
+              externalId,
+              errorCode: 'LOCAL_SYNC_FAILED',
+              verifiedAt: new Date().toISOString(),
+              syncError: syncRes.error,
+            };
+
+            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+            if (claimed.actionId) {
+              await prisma.plannedAction.updateMany({
+                where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
+                data: {
+                  status: 'FAILED',
+                  lastMessage: `ERP 采购单重试远端已成功 (${externalId})，但本地单据同步失败: ${syncRes.error}，需人工核对同步`,
+                  parameters: {
+                    ...actionParams,
+                    _evidence: evidenceData,
+                  },
+                },
+              });
+            }
+            escalated++;
+            continue;
+          }
 
           await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, {
             mode: claimed.mode as any,

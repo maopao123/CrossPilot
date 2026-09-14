@@ -92,21 +92,9 @@ export class SimulatorService {
       );
     }
 
-    try {
-      const { worldState } = await this.persistence.resetWorld(workspaceId);
-      return {
-        success: true,
-        workspaceId,
-        simDate: worldState.simDate,
-        dayIndex: worldState.dayIndex,
-        message: '模拟器世界已重置为初始状态。',
-      };
-    } catch (err) {
-      if (err instanceof SimulatorCatalogMissingError) {
-        throw new BadRequestException(err.message);
-      }
-      throw err;
-    }
+    throw new BadRequestException(
+      'LEGACY_RESET_DISABLED: 传统模拟器重置已停用以保护未经验证的工作区数据。请创建并使用新的 v2 闭环模拟 Run。',
+    );
   }
 
   /** Lists v2 SimulationRuns for a control workspace. */

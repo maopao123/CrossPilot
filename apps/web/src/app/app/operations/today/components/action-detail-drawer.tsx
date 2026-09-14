@@ -232,12 +232,28 @@ export function ActionDetailDrawer({
                   </div>
 
                   {isNeedsAttention && (
-                    <div className="mt-2 text-xs text-rose-300 flex items-start gap-2 bg-rose-950/30 p-2.5 rounded-lg border border-rose-500/20">
-                      <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold">需要人工介入处理 (NEEDS_ATTENTION):</span>
-                        <p className="mt-0.5">重试已达上限或操作失败 (恢复策略: {exec.recovery || 'MANUAL'})，请核查外部 ERP 系统或转由人工审批流跟进。</p>
+                    <div className="mt-2 text-xs text-rose-300 flex flex-col gap-1.5 bg-rose-950/30 p-2.5 rounded-lg border border-rose-500/20">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold">需要人工介入处理 (NEEDS_ATTENTION):</span>
+                          <p className="mt-0.5">
+                            {exec.errorCode === 'REMOTE_PAYLOAD_MISMATCH'
+                              ? '反查远端 ERP 单据关键内容与原始请求不一致（供应商或金额存在差异），系统已硬阻断自动收敛，待人工复核。'
+                              : exec.errorCode === 'LOCAL_SYNC_FAILED'
+                              ? `远端订单已生效，但本地单据同步失败 (${exec.syncError || '数据库外键或连接异常'})，待人工处理。`
+                              : `重试已达上限或操作失败 (恢复策略: ${exec.recovery || 'MANUAL'})，请核查外部 ERP 系统或转由人工处理。`}
+                          </p>
+                        </div>
                       </div>
+                      {exec.conflictDetails?.mismatches && Array.isArray(exec.conflictDetails.mismatches) && (
+                        <div className="mt-1 pl-6 text-[11px] font-mono text-rose-200/90 space-y-0.5">
+                          <span className="font-semibold text-rose-300">比对差异项:</span>
+                          {exec.conflictDetails.mismatches.map((m: string, idx: number) => (
+                            <div key={idx}>• {m}</div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -1,0 +1,63 @@
+{
+  "actualNetworkCalls": 0,
+  "actualDatabaseCalls": 0,
+  "pass": 6,
+  "fail": 0,
+  "results": [
+    {
+      "id": "R2-SERVICE-AVGPRICE",
+      "actual": {
+        "avgPrice": 25
+      },
+      "pass": true,
+      "expect": "25 (only real price, B has none) or honest 0-inclusive result; never 30.5/16.99"
+    },
+    {
+      "id": "R2-SERVICE-NULL-METRICS",
+      "actual": {
+        "avgRating": null,
+        "avgReviewCount": null,
+        "searchVolumeMonthly": null,
+        "opportunityScore": null,
+        "competitionScore": null
+      },
+      "pass": true,
+      "expect": "all null (no real source)"
+    },
+    {
+      "id": "R2-SERVICE-TRENDING",
+      "actual": {
+        "trendingKeywords": [],
+        "fabricated": []
+      },
+      "pass": true,
+      "expect": "empty array, or entries with volume/growth null; no proportional derivation or hardcoded +xx%"
+    },
+    {
+      "id": "R2-SERVICE-COMPETITOR-COUNT",
+      "actual": {
+        "competitorCount": 2
+      },
+      "pass": true,
+      "expect": "2 (real products.length); never 10/12"
+    },
+    {
+      "id": "R2-SERVICE-MODE",
+      "actual": {
+        "mode": "LIVE",
+        "provider": "xydc"
+      },
+      "pass": true,
+      "expect": "mode 'LIVE'"
+    },
+    {
+      "id": "R2-UI-PARTIAL-SNAPSHOT",
+      "actual": {
+        "unsupportedClaims": [],
+        "staticHeaderClaims": []
+      },
+      "pass": true,
+      "note": "staticHeaderClaims is informational (section header claims regardless of data), not counted in pass/fail"
+    }
+  ]
+}

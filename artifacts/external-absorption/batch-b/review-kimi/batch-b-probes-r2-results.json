@@ -1,0 +1,21 @@
+{
+  "review": "batch-b adversarial probes (review-kimi)",
+  "probeFile": "apps/api/test/review-batch-b-adversarial.spec.ts",
+  "reason": "P-1 需要真实 PG 验证并发 CAS，Jest spec 是唯一可真实连库的基建；按统筹授权以 review- 前缀保留在 apps/api/test/",
+  "database": "postgresql://postgres:postgres@127.0.0.1:5432/crosspilot_test (隔离测试库，独立 wsId，afterAll 清理)",
+  "command": "pnpm.cmd --filter @crosspilot/api test --runInBand --runTestsByPath test/review-batch-b-adversarial.spec.ts",
+  "exitCode": 0,
+  "pass": 9,
+  "fail": 0,
+  "results": [
+    { "id": "P-1", "desc": "真实库并发 approveAndExecute x4", "actual": "1 fulfilled, 3 ConflictException(409), DB status=APPROVED", "pass": true },
+    { "id": "P-1b", "desc": "成功后重复审批", "actual": "409 ConflictException", "pass": true },
+    { "id": "P-2a", "desc": "body targetId 与审批记录不匹配", "actual": "400 BadRequestException，状态保持 PENDING", "pass": true },
+    { "id": "P-2b", "desc": "body 缺失但服务端 payload.skuCode 与审批 targetId 不匹配", "actual": "400 BadRequestException，状态保持 PENDING", "pass": true },
+    { "id": "P-2c", "desc": "审批记录 PO_SUBMIT 不能被客户端 body 改写为 LISTING_PUBLISH", "actual": "400 BadRequestException，状态保持 PENDING", "pass": true },
+    { "id": "P-2-control", "desc": "body 与记录一致时放行（对照组，证明非一刀切拒绝）", "actual": "成功，DB status=APPROVED", "pass": true },
+    { "id": "P-3", "desc": "targetId 差一个字符（body 侧与 payload 侧两种变体）", "actual": "均 400 BadRequestException", "pass": true },
+    { "id": "P-2d", "desc": "跨 workspace 访问审批单", "actual": "404 NotFoundException", "pass": true },
+    { "id": "P-1c", "desc": "崩溃窗口 PENDING_DISPATCH 可经 listPendingDispatches 恢复且 workspace 隔离", "actual": "悬挂单可查出，他 workspace 查不到", "pass": true }
+  ]
+}

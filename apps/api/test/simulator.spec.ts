@@ -11,6 +11,7 @@ import {
   SimulatorPersistenceService,
 } from '../src/modules/simulator/simulator.persistence.js';
 import { SimulatorController } from '../src/modules/simulator/simulator.controller.js';
+import { createDefaultSimConfig, createInitialWorldState } from '@crosspilot/domain';
 
 const WS_ID = 'ws_sim_test';
 
@@ -123,6 +124,20 @@ function createMockPrisma() {
   return {
     prisma,
     getSimStateRow: () => simStateRow,
+    initSimState: (dayIndex = 0, simDate = '2026-09-01') => {
+      const cfg = createDefaultSimConfig();
+      const worldState = createInitialWorldState(cfg);
+      worldState.dayIndex = dayIndex;
+      worldState.simDate = simDate;
+      simStateRow = {
+        id: 'sim_state_1',
+        workspaceId: WS_ID,
+        dayIndex,
+        simDate: new Date(`${simDate}T00:00:00.000Z`),
+        status: 'RUNNING',
+        config: { config: cfg, worldState },
+      };
+    },
     failNextStateUpdate: () => {
       prisma.simulationState.updateMany.mockResolvedValueOnce({ count: 0 });
     },
@@ -152,28 +167,16 @@ describe('Simulator module (mocked Prisma)', () => {
     controller = module.get<SimulatorController>(SimulatorController);
   });
 
-  it('reset -> advance 7 days: state advances to dayIndex 7 and simulator orders are persisted', async () => {
-    const resetResult = await service.reset(WS_ID);
-    expect(resetResult.success).toBe(true);
-    expect(resetResult.simDate).toBe('2026-09-01');
-    expect(mocks.getSimStateRow().dayIndex).toBe(0);
+  it('legacy reset is disabled with LEGACY_RESET_DISABLED to protect unverified workspace data', async () => {
+    await expect(service.reset(WS_ID)).rejects.toThrow(BadRequestException);
+    await expect(service.reset(WS_ID)).rejects.toThrow(/LEGACY_RESET_DISABLED/);
+    expect(prisma.orderItem.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.order.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.channelDailyMetric.deleteMany).not.toHaveBeenCalled();
+  });
 
-    // reset only touches simulator-scoped rows
-    expect(prisma.orderItem.deleteMany).toHaveBeenCalledWith({
-      where: { workspaceId: WS_ID, order: { sourceProvider: 'simulator' } },
-    });
-    expect(prisma.order.deleteMany).toHaveBeenCalledWith({
-      where: { workspaceId: WS_ID, sourceProvider: 'simulator' },
-    });
-    expect(prisma.review.deleteMany).toHaveBeenCalledWith({
-      where: { workspaceId: WS_ID, reviewerName: { startsWith: 'sim-' } },
-    });
-    // inventory balances restored to the initial 500/400/300
-    const balanceCreates = prisma.inventoryBalance.upsert.mock.calls.map(
-      (call: any[]) => call[0].create,
-    );
-    const whiteReset = balanceCreates.find((row: any) => row.skuId === 'sku_white');
-    expect(whiteReset.fulfillableQuantity).toBe(500);
+  it('advance 7 days: state advances to dayIndex 7 and simulator orders are persisted', async () => {
+    mocks.initSimState(0, '2026-09-01');
 
     const result = await service.advance(WS_ID, 7);
     expect(result.advancedDays).toBe(7);
@@ -209,7 +212,7 @@ describe('Simulator module (mocked Prisma)', () => {
   });
 
   it('tick is idempotent: a repeated tick for the same day raises 409', async () => {
-    await service.reset(WS_ID);
+    mocks.initSimState(0, '2026-09-01');
     await service.tick(WS_ID);
     expect(mocks.getSimStateRow().dayIndex).toBe(1);
 
@@ -233,13 +236,15 @@ describe('Simulator module (mocked Prisma)', () => {
 
     const spy = jest
       .spyOn(service, 'reset')
-      .mockResolvedValue({ success: true } as any);
-    await controller.reset(WS_ID, { workspaceMember: { role: 'ADMIN' } } as any);
+      .mockRejectedValue(new BadRequestException('LEGACY_RESET_DISABLED'));
+    await expect(
+      controller.reset(WS_ID, { workspaceMember: { role: 'ADMIN' } } as any),
+    ).rejects.toThrow(BadRequestException);
     expect(spy).toHaveBeenCalledWith(WS_ID);
   });
 
   it('getState returns the clock, events and channel funnel summary', async () => {
-    await service.reset(WS_ID);
+    mocks.initSimState(0, '2026-09-01');
     await service.advance(WS_ID, 3);
 
     const state = await service.getState(WS_ID);

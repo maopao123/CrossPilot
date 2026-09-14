@@ -18,7 +18,7 @@
           "error": "INVALID_REMOTE_RESPONSE: response missing jobId for SUCCESS status",
           "durationMs": 0
         },
-        "traceId": "act_trace_1789369177409_oehmx",
+        "traceId": "act_trace_1789394939936_e6jkk",
         "durationMs": 0,
         "executionEvidence": {
           "mode": "LIVE",
@@ -61,7 +61,7 @@
           "error": "UNSUPPORTED_STATUS: Unknown remote status CANCELLED",
           "durationMs": 0
         },
-        "traceId": "act_trace_1789369177409_w675s",
+        "traceId": "act_trace_1789394939936_w8avg",
         "durationMs": 0,
         "executionEvidence": {
           "mode": "LIVE",
@@ -143,7 +143,7 @@
           },
           "externalId": "pending-job"
         },
-        "updatedAt": "2026-09-14T06:59:37.458Z"
+        "updatedAt": "2026-09-14T14:08:59.984Z"
       },
       "result": "PASS"
     },
@@ -153,7 +153,7 @@
         "actionId": "g1r2-action",
         "status": "FAILED",
         "error": "IDEMPOTENCY_CONFLICT: operationId 'cache-provider' has already been executed with different parameters, target, provider, or mode",
-        "traceId": "act_trace_1789369177458_jgz7f",
+        "traceId": "act_trace_1789394939984_ksp05",
         "durationMs": 0,
         "executionEvidence": {
           "mode": "MOCK",
@@ -173,7 +173,7 @@
         "actionId": "g1r2-action",
         "status": "FAILED",
         "error": "IDEMPOTENCY_CONFLICT: operationId 'cache-target' has already been executed with different parameters, target, provider, or mode",
-        "traceId": "act_trace_1789369177458_hwxbe",
+        "traceId": "act_trace_1789394939984_hawmq",
         "durationMs": 0,
         "executionEvidence": {
           "mode": "MOCK",
@@ -193,7 +193,7 @@
         "actionId": "g1r2-action",
         "status": "FAILED",
         "error": "IDEMPOTENCY_CONFLICT: operationId 'cache-runtime' has already been executed with different parameters, target, provider, or mode",
-        "traceId": "act_trace_1789369177458_zama4",
+        "traceId": "act_trace_1789394939984_lnps5",
         "durationMs": 0,
         "executionEvidence": {
           "mode": "MOCK",

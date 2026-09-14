@@ -1,0 +1,164 @@
+{
+  "kind": "independent-adversarial-review",
+  "networkCalls": 0,
+  "databaseCalls": 0,
+  "pass": 10,
+  "fail": 0,
+  "rows": [
+    {
+      "id": "R01-accepted-running",
+      "actual": {
+        "responseBody": {
+          "jobId": "accepted-job",
+          "status": "RUNNING"
+        },
+        "status": "RUNNING",
+        "evidence": {
+          "mode": "LIVE",
+          "provider": "yingdao-rpa",
+          "operationId": "review-action",
+          "phase": "SUBMITTED",
+          "effect": "UNKNOWN",
+          "recovery": "MANUAL",
+          "externalId": "accepted-job"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R01-accepted-empty",
+      "actual": {
+        "responseBody": {},
+        "status": "FAILED",
+        "evidence": {
+          "mode": "LIVE",
+          "provider": "yingdao-rpa",
+          "operationId": "review-action",
+          "phase": "FAILED",
+          "effect": "UNKNOWN",
+          "recovery": "MANUAL",
+          "errorCode": "RPA_FAILED"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R02-mode-MOCK",
+      "actual": {
+        "liveAdapterCalls": 0,
+        "evidence": {
+          "mode": "MOCK",
+          "provider": "yingdao-rpa",
+          "operationId": "review-action",
+          "phase": "FAILED",
+          "effect": "NOT_APPLIED",
+          "recovery": "MANUAL",
+          "errorCode": "INVALID_PROVIDER_FOR_MODE"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R02-mode-SIMULATOR",
+      "actual": {
+        "liveAdapterCalls": 0,
+        "evidence": {
+          "mode": "SIMULATOR",
+          "provider": "rpa",
+          "operationId": "review-action",
+          "phase": "FAILED",
+          "effect": "NOT_APPLIED",
+          "recovery": "MANUAL",
+          "errorCode": "UNSUPPORTED"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R03-throw-after-submit",
+      "actual": {
+        "sideEffects": 1,
+        "evidence": {
+          "mode": "LIVE",
+          "provider": "throw-after-submit",
+          "operationId": "review-action",
+          "phase": "FAILED",
+          "effect": "UNKNOWN",
+          "recovery": "MANUAL"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R03-fetch-uncertainty",
+      "actual": {
+        "status": "FAILED",
+        "evidence": {
+          "mode": "LIVE",
+          "provider": "yingdao-rpa",
+          "operationId": "review-action",
+          "phase": "FAILED",
+          "effect": "UNKNOWN",
+          "recovery": "MANUAL",
+          "errorCode": "RPA_FAILED"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R04-auth-required-cache",
+      "actual": {
+        "calls": 2,
+        "status": "FAILED",
+        "evidence": {
+          "mode": "LIVE",
+          "provider": "changing-provider",
+          "operationId": "progress-key",
+          "phase": "SUBMITTED",
+          "effect": "UNKNOWN",
+          "recovery": "MANUAL",
+          "externalId": "job-progress",
+          "errorCode": "UNVERIFIED_LIVE_EXECUTION"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R04-mode-payload-approval-cache",
+      "actual": {
+        "status": "WAITING_APPROVAL",
+        "actionId": "different-action",
+        "evidence": {
+          "mode": "LIVE",
+          "provider": "human-gate",
+          "operationId": "same-key",
+          "phase": "READY",
+          "effect": "NOT_APPLIED",
+          "recovery": "MANUAL"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R05-ui-http-404",
+      "actual": {
+        "approval": "PENDING",
+        "logs": [
+          "[18:24:29] [Approval Gate] Approval failed: 404 approval not found"
+        ]
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R05-ui-body-failed",
+      "actual": {
+        "approval": "FAILED",
+        "logs": [
+          "[18:24:29] [Node 5 - RPA] RPA 执行失败：adapter failed.",
+          "[18:24:29] [Node 4 - Human Gate] 审批已通过，但后续 RPA 执行失败."
+        ]
+      },
+      "result": "PASS"
+    }
+  ]
+}

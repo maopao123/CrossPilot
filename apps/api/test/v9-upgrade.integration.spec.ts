@@ -45,9 +45,10 @@ describe('V9 Incremental Upgrade Integration Tests', () => {
         create: jest.fn().mockResolvedValue({ id: 'te_01' }),
       },
       approval: {
-        create: jest.fn().mockResolvedValue({ id: 'appr_01' }),
-        findFirst: jest.fn().mockResolvedValue({ id: 'appr_01', status: 'PENDING' }),
+        create: jest.fn().mockResolvedValue({ id: 'appr_01', actionType: 'LISTING_PUBLISH', targetId: 'MTH-GREEN-001' }),
+        findFirst: jest.fn().mockResolvedValue({ id: 'appr_01', status: 'PENDING', actionType: 'LISTING_PUBLISH', targetId: 'MTH-GREEN-001' }),
         update: jest.fn().mockResolvedValue({ id: 'appr_01', status: 'APPROVED' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
 

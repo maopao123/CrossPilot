@@ -1,0 +1,51 @@
+{
+  "pass": 4,
+  "fail": 0,
+  "results": [
+    {
+      "id": "P-1-LEGACY-COMPAT",
+      "actual": {
+        "success": true
+      },
+      "pass": true,
+      "note": "old-format result must flow without exception; new fields undefined everywhere"
+    },
+    {
+      "id": "P-2-ENVELOPE-CONSISTENCY",
+      "actual": {
+        "success": false,
+        "errorCode": "VALIDATION_ERROR",
+        "envelopeCode": "VALIDATION_ERROR",
+        "category": "VALIDATION",
+        "retryable": false,
+        "retryableType": "boolean"
+      },
+      "pass": true,
+      "note": "errorEnvelope.code must equal error.code; category in enum; retryable boolean"
+    },
+    {
+      "id": "P-3-FIELD-SEMANTICS",
+      "actual": {
+        "observedAt": null,
+        "observedAtFilledWithNow": false,
+        "valueStatus": "DERIVED",
+        "freshness": "UNKNOWN",
+        "confidence": 1,
+        "sourceType": "DERIVED"
+      },
+      "pass": true,
+      "note": "§9.2: 上游无时间戳严禁填 now()。valueStatus/freshness 标注是否恰当（KNOWN vs DERIVED）由统筹裁决——此处如实记录"
+    },
+    {
+      "id": "P-4-LOSSLESS-PASSTHROUGH",
+      "actual": {
+        "executorLevelDeepEqual": true,
+        "toolCenterRecordDeepEqual": true,
+        "err1": null,
+        "err2": null
+      },
+      "pass": true,
+      "note": "producer evidenceMeta must be deep-equal after executor -> tool-center record chain"
+    }
+  ]
+}

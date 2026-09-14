@@ -8,11 +8,11 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 统筹阶段 | **执行方自报 READY_FOR_REVIEW，等待统筹最终总复验** |
+| 统筹阶段 | **统筹独立终验完成：ACCEPTED（G1/G2/G3 全部通过）** |
 | 实施批次 | 第一批（A0～A2）、第二批（A3～A6）、第三批（A7～A8）全部实施并通过验证 |
 | 基线 HEAD | `be4b8f635fb5261a4c8ec09878a7b4f7c6e53055`（master） |
 | 工作区状态 | 全部改动保留在未提交工作树中，未执行 git commit / push / 生产部署 |
-| 全量验收矩阵 | **15/15 PASSED (E01 ～ E15 全部通过，自动化脚本耗时 28s)** |
+| 全量验收矩阵 | **15/15 PASSED (E01 ～ E15 全部通过，自动化脚本耗时 27s)** |
 | 独立对抗探针 | 原 10 项对抗探针（10/10 PASS）+ 二轮 9 项探针（9/9 PASS）共 19/19 PASS |
 | 集成测试用例 | **5 个自动化真实数据库与 HTTP 集成测试套件 30/30 项全部通过** |
 | 既有回归测试 | `closed-loop-v2-postgres`, `v10-audit-p0`, `v93-action-layer` 17/17 PASS |
@@ -38,9 +38,9 @@
 
 | 门禁 | 目标与要求 | 执行自报状态 | 统筹复审判定 | 验证依据与终审修复说明 |
 |---|---|---|---|---|
-| **G1** | 执行真实性门禁 | READY_FOR_REVIEW | **PASS** (终审已通过) | 19/19 对抗探针全过；无真实凭据明确抛出 UNSUPPORTED，严禁伪造 APPLIED；缓存强隔离 |
-| **G2** | 采购执行闭环门禁 | READY_FOR_REVIEW | 待统筹复审 | 修复 F-P0-3（超时/未知错误进入 QUERY 自愈链，不置永久 FAILED）；修复 F-P0-4（Prisma schema 与迁移文件严格单向一致，测试库通过迁移建表）；修复 P1（收货并发超收原子增量锁保护、幂等异参校验抛 409、真实查询供应商单价报价）。E07/E09/E10/E11/E12/E13/E14/E15 全过 |
-| **G3** | 兜底恢复与全量交付门禁 | READY_FOR_REVIEW | 待统筹复审 | 修复 F-P0-1（WorkerService 注册 Recovery Queue+Worker 与定时调度器，补测试 9/9 PASS）；修复 F-P0-2（claim 保持原 phase，打通 Case 2 重新 ERP 建单与端到端测试 4/4 PASS）；修复 P1（前端详情抽屉数据源真实映射，严禁编造兜底值）。全量 15 项验收矩阵 100% 通过；全仓 Typecheck 与 Web 构建无报错 |
+| **G1** | 执行真实性门禁 | READY_FOR_REVIEW | **PASS** | 19/19 对抗探针全过；无真实凭据明确抛出 UNSUPPORTED，严禁伪造 APPLIED；缓存强隔离 |
+| **G2** | 采购执行闭环门禁 | READY_FOR_REVIEW | **PASS** | 独立核验 F-P0-3（超时/未知错误进入 QUERY 自愈链，不置永久 FAILED 且写入 _evidence）；独立核验 F-P0-4（Prisma schema 与迁移文件严格一致，可空 actionId 隔离库验证通过）；独立核验 P1（收货并发超收原子增量锁保护、幂等异参校验抛 409、真实查询供应商报价）。真实 PG 场景 E07/E09/E10/E11/E12/E13/E14/E15 全部独立实测通过 |
+| **G3** | 兜底恢复与全量交付门禁 | READY_FOR_REVIEW | **PASS** | 独立核验 F-P0-1（WorkerService 生产接入 Recovery Queue+Worker 与定时调度器，测试 9/9 PASS）；独立核验 F-P0-2（claim 保持原 phase，打通 Case 2 重新 ERP 建单与端到端测试 4/4 PASS）；独立核验 P1（前端抽屉真实证据与未知回退）。全量 15 项验收矩阵 15/15 通过 (27s)；全仓 Typecheck 10/10 与 Web 构建 24/24 无报错 |
 
 ---
 

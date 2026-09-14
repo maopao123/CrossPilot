@@ -1,0 +1,54 @@
+{
+  "actualNetworkCalls": 0,
+  "actualDatabaseCalls": 0,
+  "pass": 4,
+  "fail": 0,
+  "results": [
+    {
+      "id": "A-SERVICE-MISSING-LIVE",
+      "actual": {
+        "seedKeyword": "review probe",
+        "category": null,
+        "searchVolumeMonthly": null,
+        "avgPrice": null,
+        "avgRating": null,
+        "avgReviewCount": null,
+        "competitorCount": 0,
+        "opportunityScore": null,
+        "competitionScore": null,
+        "trendingKeywords": [],
+        "provider": "xydc",
+        "transport": "MCP",
+        "mode": "LIVE",
+        "capturedAt": "2026-09-14T00:00:00Z",
+        "evidence": []
+      },
+      "pass": true
+    },
+    {
+      "id": "A-TREND-MISSING",
+      "actual": [
+        {
+          "keyword": "term",
+          "volume": null,
+          "growth": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "A-UI-MISSING",
+      "actual": {
+        "unsupportedClaims": []
+      },
+      "pass": true
+    },
+    {
+      "id": "A-UI-ZERO",
+      "actual": {
+        "unsupportedClaims": []
+      },
+      "pass": true
+    }
+  ]
+}

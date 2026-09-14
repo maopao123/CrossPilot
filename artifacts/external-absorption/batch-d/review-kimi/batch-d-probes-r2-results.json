@@ -1,0 +1,30 @@
+{
+  "review": "batch-d adversarial probes (review-kimi)",
+  "probeFile": "apps/api/test/review-batch-d-adversarial.spec.ts",
+  "environment": "真实隔离 PG (crosspilot_test) + Loopback HTTP ERP fixture（自带 AdversarialErpServer，支持落单后断连的真竞态注入）",
+  "command": "pnpm.cmd --filter @crosspilot/api test --runInBand --runTestsByPath test/review-batch-d-adversarial.spec.ts",
+  "jestExitCode": 1,
+  "pass": 2,
+  "fail": 1,
+  "results": [
+    {
+      "id": "P-1",
+      "desc": "真竞态：远端已落单但 socket 在建单后切断（执行方 fixture 是建单前断连，未覆盖）",
+      "actual": "execute -> EXECUTING + effect UNKNOWN；恢复一轮后零重复 POST（postCreateCount 恒为 1）、action SUCCESS、evidence COMPLETED/APPLIED、本地 PO poNumber 与远端 externalId 对齐",
+      "pass": true
+    },
+    {
+      "id": "P-2",
+      "desc": "同一 UNKNOWN/QUERY 操作被两轮并发 worker 扫描",
+      "actual": "recovered 合计恰好 1、failed 0、零建单、本地 PO 不重复、action SUCCESS；租约认领防住了并发",
+      "pass": true
+    },
+    {
+      "id": "P-3",
+      "desc": "假收敛对抗：远端按 operationId 返回 supplierId/金额/明细均不符的单据",
+      "actual": "worker 盲目采纳：action=SUCCESS, phase=COMPLETED, effect=APPLIED（未做任何内容比对）",
+      "pass": false,
+      "finding": "automation-recovery.processor.ts Case 1（104-115 行）只按 operationId 命中即采纳 externalId，不校验 supplier/金额/明细；远端数据损坏或被污染时会错误收敛为 APPLIED，绕过人工核查"
+    }
+  ]
+}

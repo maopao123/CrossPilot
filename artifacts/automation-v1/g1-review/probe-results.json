@@ -144,7 +144,7 @@
       "actual": {
         "approval": "PENDING",
         "logs": [
-          "[14:59:37] [Approval Gate] Approval failed: 404 approval not found"
+          "[22:08:59] [Approval Gate] Approval failed: 404 approval not found"
         ]
       },
       "result": "PASS"
@@ -154,8 +154,8 @@
       "actual": {
         "approval": "FAILED",
         "logs": [
-          "[14:59:37] [Node 5 - RPA] RPA 执行失败：adapter failed.",
-          "[14:59:37] [Node 4 - Human Gate] 审批已通过，但后续 RPA 执行失败."
+          "[22:08:59] [Node 5 - RPA] RPA 执行失败：adapter failed.",
+          "[22:08:59] [Node 4 - Human Gate] 审批已通过，但后续 RPA 执行失败."
         ]
       },
       "result": "PASS"

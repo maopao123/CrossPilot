@@ -91,7 +91,9 @@ export class SimulatorAdapter implements CommerceAdapter {
   }
 
   async reset(workspaceId: string) {
-    return this.persistence.resetWorld(workspaceId);
+    throw new Error(
+      'LEGACY_RESET_DISABLED: 传统模拟器重置已停用以保护未经验证的工作区数据。请创建并使用新的 v2 闭环模拟 Run。',
+    );
   }
 
   async listProducts(ctx: CommerceContext): Promise<CanonicalProduct[]> {

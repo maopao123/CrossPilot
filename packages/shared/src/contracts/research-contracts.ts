@@ -142,16 +142,16 @@ export interface ResearchEvidence {
 
 export interface MarketOverviewSnapshot {
   seedKeyword: string;
-  category: string;
+  category: string | null;
   marketplace: string;
-  searchVolumeMonthly: number;
-  avgPrice: number;
-  avgRating: number;
-  avgReviewCount: number;
-  competitorCount: number;
-  opportunityScore: number;
-  competitionScore: number;
-  trendingKeywords: Array<{ keyword: string; volume: number; growth?: string }>;
+  searchVolumeMonthly: number | null;
+  avgPrice: number | null;
+  avgRating: number | null;
+  avgReviewCount: number | null;
+  competitorCount: number | null;
+  opportunityScore: number | null;
+  competitionScore: number | null;
+  trendingKeywords: Array<{ keyword: string; volume: number | null; growth?: string | null }>;
   topProducts?: MarketProduct[];
   evidence?: ResearchEvidence[];
   source: string;

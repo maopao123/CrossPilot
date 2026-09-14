@@ -285,4 +285,19 @@ export class AutomationOperationStore {
       take: limit,
     });
   }
+
+  /**
+   * Lists operations in NEEDS_ATTENTION phase requiring human review/intervention.
+   */
+  async listNeedsAttention(workspaceId: string, limit: number = 50): Promise<AutomationOperation[]> {
+    return this.prisma.automationOperation.findMany({
+      where: {
+        workspaceId,
+        phase: 'NEEDS_ATTENTION',
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+    });
+  }
 }
+

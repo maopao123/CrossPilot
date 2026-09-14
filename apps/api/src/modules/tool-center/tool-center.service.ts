@@ -6,7 +6,9 @@ import {
   ToolExecutor,
   ToolRegistry,
   ToolExecutionResult,
+  ToolErrorEnvelope,
 } from '@crosspilot/tool-platform';
+import { EvidenceMeta } from '@crosspilot/shared';
 
 export interface RecordedToolRun {
   id: string;
@@ -22,6 +24,8 @@ export interface RecordedToolRun {
   source: string;
   createdAt: string;
   workspaceId?: string;
+  evidenceMeta?: EvidenceMeta[];
+  errorEnvelope?: ToolErrorEnvelope;
 }
 
 @Injectable()
@@ -96,6 +100,8 @@ export class ToolCenterService {
       source,
       createdAt: new Date().toISOString(),
       workspaceId,
+      evidenceMeta: result.evidenceMeta,
+      errorEnvelope: result.errorEnvelope,
     };
     this.recentExecutions.unshift(record);
     if (this.recentExecutions.length > 50) {

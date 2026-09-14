@@ -1,0 +1,29 @@
+{
+  "review": "batch-d R2 adversarial variants after D-R1 fix (review-kimi)",
+  "probeFile": "apps/api/test/review-batch-d-adversarial-r2.spec.ts",
+  "environment": "真实隔离 PG (crosspilot_test) + Loopback HTTP ERP fixture",
+  "command": "pnpm.cmd --filter @crosspilot/api test --runInBand --runTestsByPath test/review-batch-d-adversarial-r2.spec.ts",
+  "exitCode": 0,
+  "pass": 3,
+  "fail": 0,
+  "results": [
+    {
+      "id": "P-7",
+      "desc": "NEEDS_ATTENTION 稳定性：置人工态后再跑两轮 worker",
+      "actual": "op 保持 NEEDS_ATTENTION/NOT_APPLIED/MANUAL 不回弹；queryCount 不增长（listDue 不再扫到）；postCreateCount 不增长；action 保持 FAILED",
+      "pass": true
+    },
+    {
+      "id": "P-8",
+      "desc": "分单位边界：远端 5001 分 vs 本地 5000 分（供应商/数量一致）",
+      "actual": "拦截：NEEDS_ATTENTION + REMOTE_PAYLOAD_MISMATCH + NOT_APPLIED + action FAILED；严格相等无容差",
+      "pass": true
+    },
+    {
+      "id": "P-9",
+      "desc": "内容全一致对照",
+      "actual": "正常收敛 COMPLETED/APPLIED，action SUCCESS，本地 PO 按 externalId 落库；非一刀切拦截",
+      "pass": true
+    }
+  ]
+}

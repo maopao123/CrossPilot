@@ -1,0 +1,72 @@
+{
+  "fingerprints": [
+    {
+      "file": "apps/api/src/modules/simulator/simulator.service.ts",
+      "expected": "610b324ce4621b553701ce2f649677bd3057733bc50e533c6c907dfa7bdf9166",
+      "actual": "610b324ce4621b553701ce2f649677bd3057733bc50e533c6c907dfa7bdf9166",
+      "match": true
+    },
+    {
+      "file": "apps/api/test/simulator.spec.ts",
+      "expected": "dfb23b9d4e24ef484e62a037447b3efe716d3af0cf4513aac302f191c6527949",
+      "actual": "dfb23b9d4e24ef484e62a037447b3efe716d3af0cf4513aac302f191c6527949",
+      "match": true
+    },
+    {
+      "file": "apps/web/src/app/app/market-research/page.tsx",
+      "expected": "be666b9498581ef9799ce12e4c5bc049f8e8496d32c17ecdb251bbf30d01d91b",
+      "actual": "be666b9498581ef9799ce12e4c5bc049f8e8496d32c17ecdb251bbf30d01d91b",
+      "match": true
+    },
+    {
+      "file": "packages/db/src/commerce/simulator-adapter.ts",
+      "expected": "0883b228f725b8f8aaa772cabc50e8e679513f88bb212f35d8d7856efdbb042b",
+      "actual": "0883b228f725b8f8aaa772cabc50e8e679513f88bb212f35d8d7856efdbb042b",
+      "match": true
+    },
+    {
+      "file": "packages/integrations/src/provider-framework/providers/xydc/xydc.mapper.ts",
+      "expected": "122c94c4c249f2f22543d044684e8582a8f6e3a0e87b1f5a2491c0c17d69b484",
+      "actual": "122c94c4c249f2f22543d044684e8582a8f6e3a0e87b1f5a2491c0c17d69b484",
+      "match": true
+    },
+    {
+      "file": "packages/shared/src/contracts/research-contracts.ts",
+      "expected": "aea737f6ab149da773fc715c26ef7a0a85d661566b3cf34ceba92c2a46a5193e",
+      "actual": "aea737f6ab149da773fc715c26ef7a0a85d661566b3cf34ceba92c2a46a5193e",
+      "match": true
+    },
+    {
+      "file": "apps/api/test/legacy-reset-disabled.spec.ts",
+      "expected": "4428c03483d6cc58d67c535b25f224f1acc948604d977bc14ac8e452e254c4c6",
+      "actual": "4428c03483d6cc58d67c535b25f224f1acc948604d977bc14ac8e452e254c4c6",
+      "match": true
+    },
+    {
+      "file": "apps/web/test/market-overview-truth.test.cjs",
+      "expected": "381b028b461b41885d799c34aa3e4d9b19323c38c360d50c0f79a375370d7889",
+      "actual": "381b028b461b41885d799c34aa3e4d9b19323c38c360d50c0f79a375370d7889",
+      "match": true
+    },
+    {
+      "file": "packages/integrations/test/xydc-market-overview-truthfulness.test.cjs",
+      "expected": "1dcb356fe02bff0080dba1058138a2b1936354c44fcdd3d0f0d8ae8110f96831",
+      "actual": "1dcb356fe02bff0080dba1058138a2b1936354c44fcdd3d0f0d8ae8110f96831",
+      "match": true
+    }
+  ],
+  "probes": [
+    {
+      "file": "artifacts/automation-v1/g1-review/review-probes.cjs",
+      "sha256": "7ea8d44a7ab6ec61530827c1c0bda7c78188edfe7d3015e7fa7a63ba2bd23fe8"
+    },
+    {
+      "file": "artifacts/automation-v1/g1-review-round2/review-probes.cjs",
+      "sha256": "7ea8d44a7ab6ec61530827c1c0bda7c78188edfe7d3015e7fa7a63ba2bd23fe8"
+    },
+    {
+      "file": "artifacts/automation-v1/g1-review-round2/remaining-probes.cjs",
+      "sha256": "14666667831f197c6631ad36eb06195657a656279dd6d639bc36205587bf249c"
+    }
+  ]
+}

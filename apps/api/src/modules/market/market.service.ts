@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { IntegrationGateway } from '@crosspilot/integrations';
+import { IntegrationGateway, XydcMapper } from '@crosspilot/integrations';
 import { OpportunityScoreEngine } from '@crosspilot/domain';
 import {
   MarketOverviewSnapshot,
@@ -66,32 +66,92 @@ export class MarketService {
 
       if (searchRes.success && searchRes.data) {
         const rawData = searchRes.data as any;
+
+        if (typeof XydcMapper !== 'undefined' && rawData?.overview) {
+          return XydcMapper.toMarketOverview(rawData.overview, marketplace, searchRes.mode);
+        }
+
         const kwMetric = rawData.keywordMetric;
         const prods = rawData.products || [];
 
-        const prices = prods.map((p: any) => Number(p.price)).filter((p: number) => !isNaN(p) && p > 0);
-        const avgPrice = prices.length > 0 ? Number((prices.reduce((a: number, b: number) => a + b, 0) / prices.length).toFixed(2)) : fallbackPrice;
+        const prices = prods
+          .map((p: any) => Number(p.price))
+          .filter((p: number) => !isNaN(p) && p >= 0);
+        const avgPrice =
+          prices.length > 0
+            ? Number((prices.reduce((a: number, b: number) => a + b, 0) / prices.length).toFixed(2))
+            : null;
 
-        const ratings = prods.map((p: any) => Number(p.rating)).filter((r: number) => !isNaN(r) && r > 0);
-        const avgRating = ratings.length > 0 ? Number((ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length).toFixed(2)) : fallbackRating;
+        const ratings = prods
+          .map((p: any) => Number(p.rating))
+          .filter((r: number) => !isNaN(r) && r >= 0);
+        const avgRating =
+          ratings.length > 0
+            ? Number((ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length).toFixed(2))
+            : null;
 
-        const reviews = prods.map((p: any) => Number(p.reviewCount)).filter((r: number) => !isNaN(r) && r > 0);
-        const avgReviewCount = reviews.length > 0 ? Math.round(reviews.reduce((a: number, b: number) => a + b, 0) / reviews.length) : fallbackReviews;
+        const reviews = prods
+          .map((p: any) => Number(p.reviewCount))
+          .filter((r: number) => !isNaN(r) && r >= 0);
+        const avgReviewCount =
+          reviews.length > 0
+            ? Math.round(reviews.reduce((a: number, b: number) => a + b, 0) / reviews.length)
+            : null;
 
-        const weeklyVol = kwMetric?.searchVolume || kwMetric?.abaReport?.weeklySearchVolume || Math.round(fallbackMonthly / 4.3);
-        const searchVolumeMonthly = Math.round(weeklyVol * 4.3);
+        let searchVolumeMonthly: number | null = null;
+        if (kwMetric?.searchVolume != null && Number.isFinite(Number(kwMetric.searchVolume))) {
+          searchVolumeMonthly = Math.round(Number(kwMetric.searchVolume) * 4.3);
+        } else if (
+          kwMetric?.abaReport?.weeklySearchVolume != null &&
+          Number.isFinite(Number(kwMetric.abaReport.weeklySearchVolume))
+        ) {
+          searchVolumeMonthly = Math.round(Number(kwMetric.abaReport.weeklySearchVolume) * 4.3);
+        }
 
-        const compDifficulty = kwMetric?.competition != null ? kwMetric.competition : (kwMetric?.competitiveDifficulty != null ? kwMetric.competitiveDifficulty / 100 : 0.65);
-        const competitionScore = Number((compDifficulty * 10).toFixed(1));
-        const opportunityScore = Number((Math.max(1, 10 - compDifficulty * 6)).toFixed(1));
+        let competitionScore: number | null = null;
+        let opportunityScore: number | null = null;
+        if (kwMetric?.competition != null && Number.isFinite(Number(kwMetric.competition))) {
+          const comp = Number(kwMetric.competition);
+          competitionScore = Number((comp * 10).toFixed(1));
+          opportunityScore = Number(Math.max(1, 10 - comp * 6).toFixed(1));
+        } else if (
+          kwMetric?.competitiveDifficulty != null &&
+          Number.isFinite(Number(kwMetric.competitiveDifficulty))
+        ) {
+          const comp = Number(kwMetric.competitiveDifficulty) / 100;
+          competitionScore = Number((comp * 10).toFixed(1));
+          opportunityScore = Number(Math.max(1, 10 - comp * 6).toFixed(1));
+        }
 
-        const derivedCategory = prods[0]?.category || fallbackCategory;
+        const derivedCategory =
+          prods[0]?.category && String(prods[0].category).trim() !== ''
+            ? String(prods[0].category).trim()
+            : null;
 
-        const trendingKeywords = [
-          { keyword: `${seedKeyword} organizer`, volume: Math.round(searchVolumeMonthly * 0.45), growth: '+28%' },
-          { keyword: `portable ${seedKeyword}`, volume: Math.round(searchVolumeMonthly * 0.3), growth: '+15%' },
-          { keyword: `${seedKeyword} with lid`, volume: Math.round(searchVolumeMonthly * 0.25), growth: '+35%' },
-        ];
+        const competitorCount = Array.isArray(prods) ? prods.length : null;
+
+        const trendingKeywords: Array<{ keyword: string; volume: number | null; growth: string | null }> = [];
+        if (Array.isArray(rawData.trendingKeywords)) {
+          for (const k of rawData.trendingKeywords) {
+            const vol =
+              typeof k.volume === 'number' && Number.isFinite(k.volume)
+                ? k.volume
+                : typeof k.vol === 'number' && Number.isFinite(k.vol)
+                  ? k.vol
+                  : null;
+            const growthStr =
+              typeof k.growth === 'string' && k.growth.trim() !== ''
+                ? k.growth.trim()
+                : typeof k.growth_rate === 'string' && k.growth_rate.trim() !== ''
+                  ? k.growth_rate.trim()
+                  : null;
+            trendingKeywords.push({
+              keyword: String(k.keyword || k.kw || '').trim(),
+              volume: vol,
+              growth: growthStr,
+            });
+          }
+        }
 
         return {
           seedKeyword,
@@ -100,7 +160,7 @@ export class MarketService {
           avgPrice,
           avgRating,
           avgReviewCount,
-          competitorCount: prods.length || 10,
+          competitorCount,
           opportunityScore,
           competitionScore,
           trendingKeywords,
@@ -224,25 +284,18 @@ export class MarketService {
   }
 
   async getProductOpportunities(workspaceId: string, keyword?: string) {
-    if (keyword && keyword.trim() && !keyword.toLowerCase().includes('toothbrush')) {
+    const where: any = { workspaceId };
+    if (keyword && keyword.trim()) {
       const kw = keyword.trim();
-      return [
-        {
-          id: `opp_live_${Date.now()}`,
-          title: `下一代多功能便携 ${kw}：强化承重提手与顺滑内嵌导轨`,
-          problemSummary: `真实买家高频抱怨集中在箱体提手易撕裂变形、内壁挂捞夹滑轨脱落卡顿；高抗摔硬壳与防尘保密锁扣是强加分诉求。`,
-          targetCustomer: `远程办公、家庭整理及会计/财务高频文件归档用户群体。`,
-          recommendedPositioning: `兼顾高质感织物硬壳与工业级金属顺滑导轨，主打大容量便携手提与防尘保密双重保护。`,
-          opportunityScore: 8.6,
-          confidenceLevel: 0.90,
-          evidenceSummary: `基于该品类真实买家评论提炼：28% 负向抱怨集中在提手承重不足与边缘易刮破，39% 赞许轻量化折叠收纳。`,
-          status: 'APPROVED',
-        },
+      where.OR = [
+        { title: { contains: kw, mode: 'insensitive' } },
+        { problemSummary: { contains: kw, mode: 'insensitive' } },
+        { recommendedPositioning: { contains: kw, mode: 'insensitive' } },
       ];
     }
 
     const opportunities = await this.prisma.productOpportunity.findMany({
-      where: { workspaceId },
+      where,
       orderBy: { opportunityScore: 'desc' },
     });
 

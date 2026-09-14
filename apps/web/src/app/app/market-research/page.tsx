@@ -54,15 +54,15 @@ interface ResearchEvidenceItem {
 
 interface MarketSnapshot {
   seedKeyword: string;
-  category: string;
-  searchVolumeMonthly: number;
-  avgPrice: number;
-  avgRating: number;
-  avgReviewCount: number;
-  competitorCount: number;
-  opportunityScore: number;
-  competitionScore: number;
-  trendingKeywords: Array<{ keyword: string; volume: number; growth: string }>;
+  category: string | null;
+  searchVolumeMonthly: number | null;
+  avgPrice: number | null;
+  avgRating: number | null;
+  avgReviewCount: number | null;
+  competitorCount: number | null;
+  opportunityScore: number | null;
+  competitionScore: number | null;
+  trendingKeywords: Array<{ keyword: string; volume: number | null; growth?: string | null }>;
   provider?: string;
   transport?: string;
   mode?: 'LIVE' | 'CACHED' | 'MOCK' | 'DEGRADED';
@@ -1368,10 +1368,10 @@ export default function MarketResearchPage() {
         <div className="bg-surface border border-border p-4 rounded-xl">
           <span className="text-xs text-gray-400">月搜索量</span>
           <div className="text-lg font-bold text-white mt-1">
-            {(snapshot?.searchVolumeMonthly || 48500).toLocaleString()}
+            {snapshot?.searchVolumeMonthly != null ? snapshot.searchVolumeMonthly.toLocaleString() : '—'}
           </div>
-          <span className="text-[10px] text-emerald-400 flex items-center mt-0.5">
-            <TrendingUp className="w-3 h-3 mr-0.5" /> +22.4% 同比增长
+          <span className="text-[10px] text-gray-400 mt-0.5 block">
+            {snapshot?.searchVolumeMonthly != null && snapshot.searchVolumeMonthly > 0 ? '月度检索体量' : '—'}
           </span>
         </div>
 
@@ -1380,7 +1380,9 @@ export default function MarketResearchPage() {
           <div className="text-lg font-bold text-white mt-1">
             {snapshot?.avgPrice != null ? `$${snapshot.avgPrice.toFixed(2)}` : '—'}
           </div>
-          <span className="text-[10px] text-gray-400 mt-0.5">Prime 标品区间</span>
+          <span className="text-[10px] text-gray-400 mt-0.5 block">
+            {snapshot?.avgPrice != null && snapshot.avgPrice > 0 ? '样本平均售价' : '—'}
+          </span>
         </div>
 
         <div className="bg-surface border border-border p-4 rounded-xl">
@@ -1388,7 +1390,9 @@ export default function MarketResearchPage() {
           <div className="text-lg font-bold text-white mt-1">
             {snapshot?.avgRating != null ? `⭐ ${snapshot.avgRating.toFixed(1)}` : '—'}
           </div>
-          <span className="text-[10px] text-gray-400 mt-0.5">4.3~4.6分相对密集</span>
+          <span className="text-[10px] text-gray-400 mt-0.5 block">
+            {snapshot?.avgRating != null && snapshot.avgRating > 0 ? '样本平均星级' : '—'}
+          </span>
         </div>
 
         <div className="bg-surface border border-border p-4 rounded-xl">
@@ -1396,23 +1400,33 @@ export default function MarketResearchPage() {
           <div className="text-lg font-bold text-white mt-1">
             {snapshot?.avgReviewCount != null ? snapshot.avgReviewCount.toLocaleString() : '—'}
           </div>
-          <span className="text-[10px] text-gray-400 mt-0.5">壁垒中等，易切入</span>
+          <span className="text-[10px] text-gray-400 mt-0.5 block">
+            {snapshot?.avgReviewCount != null && snapshot.avgReviewCount > 0 ? '样本平均评价数' : '—'}
+          </span>
         </div>
 
         <div className="bg-surface border border-border p-4 rounded-xl">
           <span className="text-xs text-gray-400">机会评分</span>
           <div className="text-lg font-bold text-emerald-400 mt-1">
-            {snapshot?.opportunityScore || 8.8} / 10
+            {snapshot?.opportunityScore != null ? `${snapshot.opportunityScore} / 10` : '—'}
           </div>
-          <span className="text-[10px] text-emerald-400 mt-0.5">高潜力细分市场</span>
+          <span className="text-[10px] text-emerald-400 mt-0.5 block">
+            {snapshot?.opportunityScore != null && snapshot.opportunityScore > 0
+              ? (snapshot.opportunityScore >= 8 ? '高机会潜力' : snapshot.opportunityScore >= 5 ? '中等机会潜力' : '低机会潜力')
+              : '—'}
+          </span>
         </div>
 
         <div className="bg-surface border border-border p-4 rounded-xl">
           <span className="text-xs text-gray-400">竞争烈度</span>
           <div className="text-lg font-bold text-amber-400 mt-1">
-            {snapshot?.competitionScore || 6.5} / 10
+            {snapshot?.competitionScore != null ? `${snapshot.competitionScore} / 10` : '—'}
           </div>
-          <span className="text-[10px] text-amber-400 mt-0.5">头部垄断度较低</span>
+          <span className="text-[10px] text-amber-400 mt-0.5 block">
+            {snapshot?.competitionScore != null && snapshot.competitionScore > 0
+              ? (snapshot.competitionScore >= 8 ? '高竞争强度' : snapshot.competitionScore >= 5 ? '中等竞争强度' : '低竞争强度')
+              : '—'}
+          </span>
         </div>
       </div>
 
@@ -1420,22 +1434,30 @@ export default function MarketResearchPage() {
       <div className="bg-surface border border-border rounded-xl p-5">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3 flex items-center space-x-2">
           <TrendingUp className="w-4 h-4 text-blue-400" />
-          <span>高增长买家搜索词 (基于 {snapshot?.seedKeyword || '主题词'})</span>
+          <span>{(snapshot?.trendingKeywords || []).length > 0 ? '高增长买家搜索词' : '相关买家搜索词'} (基于 {snapshot?.seedKeyword || '主题词'})</span>
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {(snapshot?.trendingKeywords || []).map((k, i) => (
-            <div key={i} className="bg-surface-elevated border border-border rounded-lg p-3 flex items-center justify-between">
-              <div>
-                <div className="text-xs font-semibold text-white font-mono">{k.keyword}</div>
-                <div className="text-[11px] text-gray-400 mt-0.5">月搜索: {k.volume.toLocaleString()}</div>
+        {(snapshot?.trendingKeywords || []).length === 0 ? (
+          <div className="text-xs text-gray-500 py-4 text-center border border-dashed border-border rounded-lg">
+            当前数据源暂未收录相关买家趋势搜索词
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(snapshot?.trendingKeywords || []).map((k, i) => (
+              <div key={i} className="bg-surface-elevated border border-border rounded-lg p-3 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-white font-mono">{k.keyword}</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    月搜索: {k.volume != null ? k.volume.toLocaleString() : '—'}
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800 px-2 py-0.5 rounded">
+                  {k.growth != null ? k.growth : '—'}
+                </span>
               </div>
-              <span className="text-xs font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800 px-2 py-0.5 rounded">
-                {k.growth}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Product Opportunity Briefs Derived from VOC */}
@@ -1455,17 +1477,22 @@ export default function MarketResearchPage() {
           </span>
         </div>
 
-        <div className="space-y-4">
-          {opportunities.map((opp) => (
-            <div key={opp.id} className="bg-surface-elevated border border-border rounded-lg p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-base font-bold text-white">{opp.title}</h4>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-400">机会得分:</span>
-                  <span className="text-sm font-bold text-emerald-400">{opp.opportunityScore} / 10</span>
-                  <span className="text-xs text-gray-500">| 置信度: {(opp.confidenceLevel * 100).toFixed(0)}%</span>
+        {opportunities.length === 0 ? (
+          <div className="text-xs text-gray-500 py-6 text-center border border-dashed border-border rounded-lg">
+            暂无已沉淀的产品立项机会卡（需先完成品类 VOC 分析或机会评估）
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {opportunities.map((opp) => (
+              <div key={opp.id} className="bg-surface-elevated border border-border rounded-lg p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-bold text-white">{opp.title}</h4>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-400">机会得分:</span>
+                    <span className="text-sm font-bold text-emerald-400">{opp.opportunityScore} / 10</span>
+                    <span className="text-xs text-gray-500">| 置信度: {(opp.confidenceLevel * 100).toFixed(0)}%</span>
+                  </div>
                 </div>
-              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div className="bg-surface p-3 rounded border border-border">
@@ -1496,7 +1523,8 @@ export default function MarketResearchPage() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Phase 4: On-demand Product Trend Modal */}
