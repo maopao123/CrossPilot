@@ -60,7 +60,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-12 items-center justify-between gap-3 border-b border-border bg-surface px-3 text-[13px] md:px-5">
+    <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-3 text-[13px] md:px-5">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"

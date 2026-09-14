@@ -89,12 +89,12 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'z-50 flex h-[100dvh] w-56 shrink-0 flex-col border-r border-border bg-surface lg:sticky lg:top-0',
-        'fixed inset-y-0 left-0 transition-transform duration-200 ease-premium lg:relative lg:translate-x-0',
+        'z-50 flex h-full h-[100dvh] w-56 shrink-0 flex-col border-r border-border bg-surface',
+        'fixed inset-y-0 left-0 transition-transform duration-200 ease-premium lg:static lg:h-full lg:translate-x-0',
         open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
       )}
     >
-      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3.5">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-3.5">
         <span className="font-semibold tracking-tight text-fg">CrossPilot</span>
         <span className="text-[11px] text-fg-muted">运营台</span>
       </div>
@@ -132,7 +132,7 @@ export function Sidebar({
         ))}
       </nav>
 
-      <div className="border-t border-border p-3">
+      <div className="shrink-0 border-t border-border p-3">
         <div
           aria-disabled="true"
           className="flex cursor-not-allowed select-none items-center gap-2 text-[12px] text-fg-muted opacity-70"

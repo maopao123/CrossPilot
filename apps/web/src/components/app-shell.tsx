@@ -8,7 +8,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
 
   return (
-    <div className="flex min-h-[100dvh] bg-background text-fg">
+    <div className="flex h-screen h-[100dvh] overflow-hidden bg-background text-fg">
       <a href="#main" className="skip-link">
         跳到主要内容
       </a>
@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       ) : null}
       <Sidebar open={navOpen} onNavigate={() => setNavOpen(false)} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col h-full overflow-hidden">
         <TopBar onMenu={() => setNavOpen(true)} />
         <main id="main" className="flex-1 overflow-y-auto px-4 py-5 md:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-content">{children}</div>
