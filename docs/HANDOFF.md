@@ -1,5 +1,9 @@
 # CrossPilot 交接
 
+> **2026-09-14 · 外部设计吸收（Batch A~D）+ 关键技术债（F-1/F-11）+ Automation v1 终验全部闭环并成功提交推送部署（HEAD: `729925c`）**：
+> - **提交与推送**：工作区改动已完成提交（`729925c`），已一键双推至 `gitee:master` 与 `github:master`。
+> - **生产部署与验证**：远端主机 `root@116.198.230.217` 拉取 `729925c`，完成 Prisma 客户端生成、全包构建与 Web 24 路由生产优化构建；PM2 三进程（`crosspilot-api`、`crosspilot-worker`、`crosspilot-web`）全部平滑 reload 并 online；`/api/v1/health` 检查（API/PG/Redis/Milvus）全部 UP。
+>
 > **2026-09-14 · AI Automation v1 全量交付统筹独立终验：ACCEPTED（统筹：Antigravity）**：
 > 统筹对 Automation v1（G1/G2/G3）开展完全独立的二次终验，实证闭环初审 CHANGES_REQUESTED 报告登记的 4 项 P0 与 P1 缺陷：
 > 1. **F-P0-1（恢复 Worker 生产入口接线）**：`worker.service.ts` 接入 BullMQ `AUTOMATION_RECOVERY_QUEUE_NAME` 与定时调度器，生命周期测试 9/9 PASS；
