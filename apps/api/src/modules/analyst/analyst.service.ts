@@ -738,6 +738,11 @@ ${conflictLines.join('\n')}
         isReconciled: false,
         scope: 'WORKSPACE',
         scopeDescription: '全店多 SKU 经营因果归因 (Carrara White, Emerald Green, Beige Grey)',
+        reconciliation: {
+          isExactMatch: false,
+          residual: attribution.residual,
+          checks,
+        },
         reconciliationError: {
           actualVariance: totalVariance,
           explainedVariance: calculatedSum,
@@ -1003,10 +1008,28 @@ The variance is deterministically decomposed across 5 operational levers:
       .filter((r) => w11Dates.includes(getDateStr(r.date)))
       .reduce((acc, r) => acc + (Number(r.otherCosts) || 0), 0);
     const deltaFreight = w11Other - w10Other;
-
-    // Derive stockout lost margin from snapshots in period
+    // Derive stockout lost margin from findings or snapshots
+    const findings =
+      waterfall?.analysisSession?.findings || waterfall?.session?.findings || [];
+    const invFinding = findings.find(
+      (f: any) => f.findingType === 'INVENTORY' || f.type === 'INVENTORY',
+    );
     let stockoutLostMargin = 0;
-    if (this.prisma.inventorySnapshot?.findMany) {
+
+    if (invFinding) {
+      let evidence: any = {};
+      try {
+        evidence =
+          typeof invFinding.evidenceJson === 'string'
+            ? JSON.parse(invFinding.evidenceJson)
+            : invFinding.evidenceJson || {};
+      } catch (e) {
+        evidence = {};
+      }
+      const rushFreight = Number(evidence.rushAirFreightCost) || deltaFreight;
+      const totalInvLoss = Math.abs(Number(invFinding.impactAmount) || 0);
+      stockoutLostMargin = Math.max(0, roundMoney(totalInvLoss - rushFreight));
+    } else if (this.prisma.inventorySnapshot?.findMany) {
       const stockouts = await this.prisma.inventorySnapshot.findMany({
         where: {
           workspaceId,
@@ -1015,14 +1038,15 @@ The variance is deterministically decomposed across 5 operational levers:
         },
       });
       if (Array.isArray(stockouts) && stockouts.length > 0) {
-        const baselineDailyMargin = w10Dates.length > 0 ? previousProfit / (w10Dates.length * 3) : 0;
+        const baselineDailyMargin =
+          w10Dates.length > 0 ? previousProfit / (w10Dates.length * 3) : 0;
         stockoutLostMargin = roundMoney(stockouts.length * baselineDailyMargin);
       }
-
     }
-    const inventoryImpact = (hasOther && deltaFreight > 0) || stockoutLostMargin > 0
-      ? roundMoney(-(deltaFreight + stockoutLostMargin))
-      : roundMoney(Number(waterfall?.inventoryImpact || 0));
+    const inventoryImpact =
+      (hasOther && deltaFreight > 0) || stockoutLostMargin > 0
+        ? roundMoney(-(deltaFreight + stockoutLostMargin))
+        : roundMoney(Number(waterfall?.inventoryImpact || 0));
 
     // 4. Price Attribution: Promotional discount or ASP variance
     const priceImpact = roundMoney(Number(waterfall?.priceImpact || 0));
