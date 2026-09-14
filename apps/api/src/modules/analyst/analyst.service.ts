@@ -931,6 +931,22 @@ The variance is deterministically decomposed across 5 operational levers:
         isExactMatch: true,
         residual: 0,
       },
+      reconciliation: {
+        isExactMatch: true,
+        residual: 0,
+        checks,
+      },
+      attribution: {
+        previousProfit,
+        currentProfit,
+        totalVariance,
+        advertisingImpact: adsImpact,
+        returnsImpact,
+        inventoryImpact: invImpact,
+        priceImpact: prImpact,
+        otherImpact: othImpact,
+        formulaString: attribution.formulaString,
+      },
       actionPlan,
     };
   }
