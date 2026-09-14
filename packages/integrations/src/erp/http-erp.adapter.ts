@@ -1,0 +1,267 @@
+import type {
+  ErpCreateCommand,
+  ErpInventoryItem,
+  ErpLookup,
+  ErpPurchaseOrder,
+  ErpReceiptCommand,
+  ErpReceiptRecord,
+  ErpResult,
+} from '@crosspilot/shared';
+
+export interface HttpErpAdapterOptions {
+  baseUrl: string;
+  apiKey?: string;
+  timeoutMs?: number;
+  maxRetries?: number;
+}
+
+export class HttpERPAdapter {
+  protected readonly baseUrl: string;
+  protected readonly apiKey?: string;
+  protected readonly timeoutMs: number;
+  protected readonly maxRetries: number;
+
+  constructor(options: HttpErpAdapterOptions) {
+    this.baseUrl = options.baseUrl.replace(/\/+$/, '');
+    this.apiKey = options.apiKey;
+    this.timeoutMs = options.timeoutMs ?? 5000;
+    this.maxRetries = options.maxRetries ?? 0;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: {
+      method: string;
+      body?: unknown;
+      headers?: Record<string, string>;
+      timeoutMs?: number;
+    },
+  ): Promise<ErpResult<T>> {
+    const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const timeout = options.timeoutMs ?? this.timeoutMs;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}),
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: options.method,
+        headers,
+        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+
+      const status = response.status;
+      let text = '';
+      try {
+        text = await response.text();
+      } catch {
+        // ignore read error
+      }
+
+      let parsedJson: any = null;
+      if (text) {
+        try {
+          parsedJson = JSON.parse(text);
+        } catch {
+          parsedJson = null;
+        }
+      }
+
+      if (status === 401 || status === 403) {
+        return {
+          success: false,
+          errorCode: 'AUTH_FAILED',
+          errorMessage: parsedJson?.message || parsedJson?.error || `Authentication failed with HTTP ${status}`,
+          statusCode: status,
+          rawResponse: parsedJson || text,
+        };
+      }
+
+      if (status === 429) {
+        return {
+          success: false,
+          errorCode: 'RATE_LIMITED',
+          errorMessage: parsedJson?.message || parsedJson?.error || 'Rate limit exceeded',
+          statusCode: status,
+          rawResponse: parsedJson || text,
+        };
+      }
+
+      if (status === 400 || status === 422) {
+        return {
+          success: false,
+          errorCode: 'VALIDATION_ERROR',
+          errorMessage: parsedJson?.message || parsedJson?.error || `Validation error HTTP ${status}`,
+          statusCode: status,
+          rawResponse: parsedJson || text,
+        };
+      }
+
+      if (status === 404) {
+        return {
+          success: false,
+          errorCode: 'NOT_FOUND',
+          errorMessage: parsedJson?.message || parsedJson?.error || 'Resource not found',
+          statusCode: status,
+          rawResponse: parsedJson || text,
+        };
+      }
+
+      if (status < 200 || status >= 300) {
+        return {
+          success: false,
+          errorCode: 'UNKNOWN_ERROR',
+          errorMessage: parsedJson?.message || parsedJson?.error || `ERP server error HTTP ${status}`,
+          statusCode: status,
+          rawResponse: parsedJson || text,
+        };
+      }
+
+      if (!parsedJson || typeof parsedJson !== 'object') {
+        return {
+          success: false,
+          errorCode: 'UNKNOWN_ERROR',
+          errorMessage: 'Malformed 200 response: expected JSON object',
+          statusCode: status,
+          rawResponse: text,
+        };
+      }
+
+      return {
+        success: true,
+        data: (parsedJson.data ?? parsedJson) as T,
+        statusCode: status,
+        rawResponse: parsedJson,
+      };
+    } catch (err: any) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError' || err.code === 'UND_ERR_CONNECT_TIMEOUT') {
+        return {
+          success: false,
+          errorCode: 'TIMEOUT',
+          errorMessage: `Request timed out after ${timeout}ms`,
+        };
+      }
+      return {
+        success: false,
+        errorCode: 'UNKNOWN_ERROR',
+        errorMessage: err.message || 'Network error',
+      };
+    }
+  }
+
+  async createPurchaseOrder(cmd: ErpCreateCommand): Promise<ErpResult<ErpPurchaseOrder>> {
+    const headers: Record<string, string> = {
+      'x-workspace-id': cmd.scope.workspaceId,
+      'x-idempotency-key': cmd.idempotencyKey,
+      'x-operation-id': cmd.operationId,
+    };
+    if (cmd.scope.connectionId) {
+      headers['x-connection-id'] = cmd.scope.connectionId;
+    }
+
+    const res = await this.request<ErpPurchaseOrder>('/erp/purchase-orders', {
+      method: 'POST',
+      body: cmd,
+      headers,
+    });
+
+    if (!res.success) {
+      return res;
+    }
+
+    const po = res.data;
+    if (!po || typeof po !== 'object' || !po.externalId) {
+      return {
+        success: false,
+        errorCode: 'UNKNOWN_ERROR',
+        errorMessage: 'ERP returned 200 but missing externalId or malformed payload',
+        statusCode: res.statusCode,
+        rawResponse: res.rawResponse,
+      };
+    }
+
+    return res;
+  }
+
+  async getPurchaseOrder(lookup: ErpLookup): Promise<ErpResult<ErpPurchaseOrder>> {
+    let endpoint = '';
+    if (lookup.externalId) {
+      endpoint = `/erp/purchase-orders/${encodeURIComponent(lookup.externalId)}`;
+    } else if (lookup.operationId) {
+      endpoint = `/erp/purchase-orders/by-operation/${encodeURIComponent(lookup.operationId)}`;
+    } else if (lookup.idempotencyKey) {
+      endpoint = `/erp/purchase-orders/by-idempotency/${encodeURIComponent(lookup.idempotencyKey)}`;
+    } else {
+      return {
+        success: false,
+        errorCode: 'VALIDATION_ERROR',
+        errorMessage: 'Lookup requires externalId, operationId, or idempotencyKey',
+      };
+    }
+
+    const headers: Record<string, string> = {
+      'x-workspace-id': lookup.scope.workspaceId,
+    };
+    if (lookup.scope.connectionId) {
+      headers['x-connection-id'] = lookup.scope.connectionId;
+    }
+
+    return this.request<ErpPurchaseOrder>(endpoint, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  async getInventory(skuId: string, scope?: Record<string, unknown>): Promise<ErpResult<ErpInventoryItem>> {
+    const headers: Record<string, string> = {};
+    if (scope?.workspaceId) {
+      headers['x-workspace-id'] = String(scope.workspaceId);
+    }
+    return this.request<ErpInventoryItem>(`/erp/inventory/${encodeURIComponent(skuId)}`, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  async receivePurchaseOrder(cmd: ErpReceiptCommand): Promise<ErpResult<ErpReceiptRecord>> {
+    const headers: Record<string, string> = {
+      'x-workspace-id': cmd.scope.workspaceId,
+      'x-receipt-id': cmd.externalReceiptId,
+    };
+    const res = await this.request<ErpReceiptRecord>(
+      `/erp/purchase-orders/${encodeURIComponent(cmd.purchaseOrderId)}/receipts`,
+      {
+        method: 'POST',
+        body: cmd,
+        headers,
+      },
+    );
+
+    if (!res.success) {
+      return res;
+    }
+
+    const receipt = res.data;
+    if (!receipt || typeof receipt !== 'object' || !receipt.externalReceiptId) {
+      return {
+        success: false,
+        errorCode: 'UNKNOWN_ERROR',
+        errorMessage: 'ERP returned 200 for receipt but missing externalReceiptId',
+        statusCode: res.statusCode,
+        rawResponse: res.rawResponse,
+      };
+    }
+
+    return res;
+  }
+}

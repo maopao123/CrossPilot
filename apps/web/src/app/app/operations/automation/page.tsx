@@ -32,84 +32,75 @@ interface WorkflowNode {
   details?: any;
 }
 
+const DEMO_TEMPLATE_STEPS: WorkflowNode[] = [
+  {
+    stepNumber: 1,
+    name: 'Listing 文案与产品事实锚定（模板预览）',
+    runtime: 'AI',
+    status: 'PENDING',
+    summary: '采用天然大理石真实材质标题与 5 点描述模板（固定事实，启动后由 AI 节点处理）',
+    details: {
+      title: 'POLEGAS 天然大理石牙刷架 - 1.5" 通用宽卡槽，重型石质底座',
+      bulletCount: 5,
+      isTemplate: true,
+    },
+  },
+  {
+    stepNumber: 2,
+    name: 'Listing 亚马逊合规与宣称质检',
+    runtime: 'TOOL',
+    status: 'PENDING',
+    summary: '严格核查 POL-FDA-001 与 POL-RANK-002（质检门禁）',
+    details: { status: 'PENDING', score: 1.0, inspectedRules: 4 },
+  },
+  {
+    stepNumber: 3,
+    name: '素材工坊 1.5" 标注图与纯白底主图生成',
+    runtime: 'TOOL',
+    status: 'PENDING',
+    summary: '产出 2000x2000 亚马逊主图与 3 大卖点卡片图',
+    details: { imagesCount: 5, assetStatus: 'READY' },
+  },
+  {
+    stepNumber: 4,
+    name: '人工把关审批门禁 (Human Approval Gate)',
+    runtime: 'HUMAN',
+    status: 'PENDING',
+    summary: '高风险上架动作：待运营负责人批准发布标价与 Listing 终稿',
+    details: {
+      requiredAction: 'APPROVE_LISTING_SUBMIT',
+      price: 29.99,
+    },
+  },
+  {
+    stepNumber: 5,
+    name: 'RPA 模拟录入发布 (Mock)',
+    runtime: 'RPA',
+    status: 'PENDING',
+    summary: 'Mock RPA 模拟执行 Seller Central 录入（非真实店铺操作）',
+  },
+  {
+    stepNumber: 6,
+    name: '发布后回传与 Feed 确认（模拟环境）',
+    runtime: 'TOOL',
+    status: 'PENDING',
+    summary: '模拟批次接收 (Feed ID: 8192049102)，未在真实 Amazon 目录上线核验 (syncVerified=false)',
+  },
+];
+
 export default function OperationAutomationPage() {
   const [skuCode, setSkuCode] = useState('MTH-GREEN-001');
   const [targetPrice, setTargetPrice] = useState(29.99);
   const [isRunning, setIsRunning] = useState(false);
-  const [approvalStatus, setApprovalStatus] = useState<'IDLE' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
+  const [approvalStatus, setApprovalStatus] = useState<'IDLE' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'FAILED'>('IDLE');
   const [activeWorkflow, setActiveWorkflow] = useState<{
     id: string;
     status: 'WAITING_APPROVAL' | 'SUCCEEDED' | 'RUNNING' | 'FAILED';
-    approvalId: string;
+    approvalId?: string;
     steps: WorkflowNode[];
-  }>({
-    id: 'wf_run_publish_001',
-    status: 'WAITING_APPROVAL',
-    approvalId: 'appr_wf_run_publish_001',
-    steps: [
-      {
-        stepNumber: 1,
-        name: 'AI 文案生成与产品事实锚定',
-        runtime: 'AI',
-        status: 'COMPLETED',
-        summary: '生成 1.5" 孔径、3.57 lbs 净重与天然大理石真实材质标题与 5 点描述',
-        details: {
-          title: 'POLEGAS 天然大理石牙刷架 - 1.5" 通用宽卡槽，重型石质底座',
-          bulletCount: 5,
-        },
-      },
-      {
-        stepNumber: 2,
-        name: 'Listing 亚马逊合规与宣称质检',
-        runtime: 'TOOL',
-        status: 'COMPLETED',
-        summary: '严格核查 POL-FDA-001 与 POL-RANK-002，判定结果: PASS (0 违规)',
-        details: { status: 'PASS', score: 1.0, inspectedRules: 4 },
-      },
-      {
-        stepNumber: 3,
-        name: '素材工坊 1.5" 标注图与纯白底主图生成',
-        runtime: 'TOOL',
-        status: 'COMPLETED',
-        summary: '已产出 2000x2000 亚马逊主图与 3 大卖点卡片图',
-        details: { imagesCount: 5, assetStatus: 'READY' },
-      },
-      {
-        stepNumber: 4,
-        name: '人工把关审批门禁 (Human Approval Gate)',
-        runtime: 'HUMAN',
-        status: 'WAITING',
-        summary: '高风险上架动作：待运营负责人批准发布标价 $29.99 与 Listing 终稿',
-        details: {
-          approvalId: 'appr_wf_run_publish_001',
-          requiredAction: 'APPROVE_LISTING_SUBMIT',
-          price: 29.99,
-        },
-      },
-      {
-        stepNumber: 5,
-        name: 'RPA 自动化打开后台并填报发布',
-        runtime: 'RPA',
-        status: 'PENDING',
-        summary: '影刀/Mock RPA 驱动无头浏览器执行 Seller Central 录入',
-      },
-      {
-        stepNumber: 6,
-        name: '上架状态回验与 Feed ID 确认',
-        runtime: 'TOOL',
-        status: 'PENDING',
-        summary: '验证亚马逊 Batch Feed 批次接收并核验库存与价格生效',
-      },
-    ],
-  });
+  } | null>(null);
 
-  const [rpaLogs, setRpaLogs] = useState<string[]>([
-    '[09:30:12] [Workflow Engine] Initialized WF-Operation-01: Amazon Listing Publish Flow',
-    '[09:30:13] [Node 1 - AI] Generated copy grounded on SKU Product Brief facts.',
-    '[09:30:14] [Node 2 - Tool] Compliance check evaluated against 4 Amazon policies: 0 violations.',
-    '[09:30:15] [Node 3 - Tool] Ingested 5 assets from Creative Studio.',
-    '[09:30:15] [Node 4 - Human Gate] PAUSED at Approval Gate. Proposed target price: $29.99.',
-  ]);
+  const [rpaLogs, setRpaLogs] = useState<string[]>([]);
 
   const handleStartWorkflow = async () => {
     if (ApiClient.isViewer()) return;
@@ -144,8 +135,8 @@ export default function OperationAutomationPage() {
 
   const handleApprove = async () => {
     if (ApiClient.isViewer()) return;
+    if (!activeWorkflow?.approvalId) return;
     setIsRunning(true);
-    setApprovalStatus('APPROVED');
 
     try {
       const data = await ApiClient.post<any>(
@@ -153,17 +144,40 @@ export default function OperationAutomationPage() {
         {},
       );
 
+      if (data?.status === 'SUCCEEDED') {
+        setApprovalStatus('APPROVED');
+        setActiveWorkflow(data);
+        const feedId = data.result?.feedId || '8192049102';
+        setRpaLogs((prev) => [
+          `[${new Date().toLocaleTimeString()}] [Node 6 - Verification] [模拟演示] Amazon Batch Feed (Feed ID: ${feedId}) 模拟批次已接收 (syncVerified=false).`,
+          `[${new Date().toLocaleTimeString()}] [Node 5 - RPA] [模拟演示] Mock RPA 模拟录入完成.`,
+          `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] 审批已通过 (Approved by operator).`,
+          ...prev,
+        ]);
+        return;
+      }
+
+      if (data?.status === 'FAILED') {
+        setApprovalStatus('FAILED');
+        setActiveWorkflow(data);
+        setRpaLogs((prev) => [
+          `[${new Date().toLocaleTimeString()}] [Node 5 - RPA] RPA 执行失败：${data.result?.error || '执行未成功'}.`,
+          `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] 审批已通过，但后续 RPA 执行失败.`,
+          ...prev,
+        ]);
+        return;
+      }
+
       if (data) {
         setActiveWorkflow(data);
         setRpaLogs((prev) => [
-          `[${new Date().toLocaleTimeString()}] [Node 6 - Verification] Amazon Batch Feed confirmed.`,
-          `[${new Date().toLocaleTimeString()}] [Node 5 - RPA] Completed Seller Central automated upload for ${skuCode}.`,
-          `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] Approved by operator. Dispatched to RPA Adapter.`,
+          `[${new Date().toLocaleTimeString()}] [Workflow Engine] 流程状态已更新为：${data.status}.`,
           ...prev,
         ]);
         return;
       }
     } catch (err: any) {
+      setApprovalStatus('PENDING');
       setRpaLogs((prev) => [
         `[${new Date().toLocaleTimeString()}] [Approval Gate] Approval failed: ${err.message}`,
         ...prev,
@@ -193,11 +207,11 @@ export default function OperationAutomationPage() {
             <div className="flex items-center space-x-2">
               <h1 className="cp-title">运营自动化</h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                P0 RPA 流水线
+                演示流水线 (Mock 模式)
               </span>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">
-              WF-Operation-01 Listing 发布：AI 负责内容生成与合规质检，人类把关审批门禁，RPA 负责稳定填报与发布
+              WF-Operation-01 Listing 发布：文案模板与合规质检，人类把关审批门禁，Mock RPA 负责模拟填报与发布验证
             </p>
           </div>
         </div>
@@ -232,7 +246,7 @@ export default function OperationAutomationPage() {
       </div>
 
       {/* Human Approval Gate Spotlight Card */}
-      {activeWorkflow.status === 'WAITING_APPROVAL' && (
+      {activeWorkflow?.status === 'WAITING_APPROVAL' && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 animate-in fade-in duration-200">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start space-x-3">
@@ -287,14 +301,14 @@ export default function OperationAutomationPage() {
       )}
 
       {/* Success Notification Banner */}
-      {activeWorkflow.status === 'SUCCEEDED' && (
+      {activeWorkflow?.status === 'SUCCEEDED' && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-5 flex items-center justify-between animate-in fade-in">
           <div className="flex items-center space-x-3">
             <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-white">Listing 发布流水线全部完成</h3>
+              <h3 className="text-sm font-bold text-white">Listing 发布流水线（模拟演示）已完成</h3>
               <p className="text-xs text-gray-300 mt-0.5">
-                RPA 已成功将商品资料与图片提交至亚马逊 Seller Central，Feed ID: 8192049102，等待亚马逊全球商品目录编目。
+                Mock RPA 已模拟将商品资料提交至 Seller Central 接收端（Feed ID: 8192049102）。当前为模拟演示环境，未在真实店铺编目生效 (syncVerified=false)。
               </p>
             </div>
           </div>
@@ -322,20 +336,22 @@ export default function OperationAutomationPage() {
             状态:{' '}
             <strong
               className={`font-mono ${
-                activeWorkflow.status === 'SUCCEEDED'
+                activeWorkflow?.status === 'SUCCEEDED'
                   ? 'text-emerald-400'
-                  : activeWorkflow.status === 'WAITING_APPROVAL'
+                  : activeWorkflow?.status === 'WAITING_APPROVAL'
                   ? 'text-amber-400'
-                  : 'text-blue-400'
+                  : activeWorkflow
+                  ? 'text-blue-400'
+                  : 'text-gray-400'
               }`}
             >
-              {getStatusLabel(activeWorkflow.status)}
+              {activeWorkflow ? getStatusLabel(activeWorkflow.status) : '未启动（模板就绪）'}
             </strong>
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {activeWorkflow.steps.map((step) => {
+          {(activeWorkflow?.steps ?? DEMO_TEMPLATE_STEPS).map((step) => {
             const isCompleted = step.status === 'COMPLETED';
             const isWaiting = step.status === 'WAITING';
             const isPending = step.status === 'PENDING';
@@ -409,26 +425,32 @@ export default function OperationAutomationPage() {
             <Terminal className="w-4 h-4 text-emerald-400" />
             <h3 className="text-sm font-bold text-white">RPA 自动化执行实时审计日志</h3>
           </div>
-          <span className="text-[11px] text-gray-400 font-mono">适配器：影刀/Mock RPA 引擎</span>
+          <span className="text-[11px] text-gray-400 font-mono">适配器：Mock RPA 仿真引擎（模拟演示环境）</span>
         </div>
 
         <div className="p-4 rounded-lg bg-black/80 border border-border font-mono text-xs text-gray-300 space-y-1.5 max-h-56 overflow-y-auto">
-          {rpaLogs.map((log, i) => (
-            <div key={i} className="flex items-start space-x-2">
-              <span className="text-emerald-500 select-none">&gt;</span>
-              <span
-                className={
-                  log.includes('PAUSED') || log.includes('Gate')
-                    ? 'text-amber-300 font-semibold'
-                    : log.includes('Succeeded') || log.includes('accepted')
-                    ? 'text-emerald-400 font-semibold'
-                    : 'text-gray-300'
-                }
-              >
-                {log}
-              </span>
+          {rpaLogs.length === 0 ? (
+            <div className="text-gray-500 italic">
+              流水线尚未启动。点击“启动 Listing 发布流水线”开始执行。
             </div>
-          ))}
+          ) : (
+            rpaLogs.map((log, i) => (
+              <div key={i} className="flex items-start space-x-2">
+                <span className="text-emerald-500 select-none">&gt;</span>
+                <span
+                  className={
+                    log.includes('PAUSED') || log.includes('Gate')
+                      ? 'text-amber-300 font-semibold'
+                      : log.includes('Succeeded') || log.includes('accepted')
+                      ? 'text-emerald-400 font-semibold'
+                      : 'text-gray-300'
+                  }
+                >
+                  {log}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@ const ACTION_TYPES: CommerceActionType[] = [
   'STOP_CAMPAIGN',
   'CHANGE_PRICE',
   'DELETE_LISTING',
+  'CREATE_PURCHASE_ORDER',
 ];
 
 export function isCommerceActionType(value: string): value is CommerceActionType {

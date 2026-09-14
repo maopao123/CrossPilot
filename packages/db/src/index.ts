@@ -9,6 +9,7 @@ export * from './commerce/outcome-metrics-reader.js';
 export * from './commerce/outcome-evaluator.js';
 export * from './commerce/amazon-adapter.js';
 export * from './commerce/resolve-adapter.js';
+export * from './automation/automation-operation-store.js';
 
 declare global {
   // eslint-disable-next-line no-var

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Get,
@@ -6,6 +6,7 @@
   Post,
 } from '@nestjs/common';
 import { PurchaseService } from './purchase.service.js';
+import { PurchaseAutomationService } from './purchase-automation.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
 import {
   CreatePurchaseOrderInput,
@@ -16,7 +17,18 @@ import {
 
 @Controller('purchase-orders')
 export class PurchaseController {
-  constructor(private purchaseService: PurchaseService) {}
+  constructor(
+    private purchaseService: PurchaseService,
+    private purchaseAutomationService: PurchaseAutomationService,
+  ) {}
+
+  @Post('automation/proposals')
+  async createReplenishmentProposal(
+    @CurrentWorkspace() workspaceId: string,
+    @Body() body: any,
+  ) {
+    return this.purchaseAutomationService.generateReplenishmentProposal(workspaceId, body);
+  }
 
   @Get()
   async listPurchaseOrders(@CurrentWorkspace() workspaceId: string) {

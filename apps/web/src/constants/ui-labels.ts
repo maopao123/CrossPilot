@@ -78,6 +78,19 @@ export const STATUS_LABELS: Record<string, string> = {
   // Listing 生成引擎降级状态
   TEMPLATE_FALLBACK: '模板降级',
   LEGACY_TEMPLATE: '传统模板',
+
+  // AI Automation 执行真实性与环境状态
+  SUBMITTED: '已提交',
+  VERIFYING: '核验中',
+  NEEDS_ATTENTION: '待人工处理',
+  PARTIALLY_APPLIED: '部分生效',
+  AUTH_REQUIRED: '需要授权',
+  UNSUPPORTED: '能力未支持',
+  MOCK_SUBMITTED: '模拟已提交',
+  PENDING_CATALOG: '待编目同步',
+  MOCK: '模拟演示',
+  SIMULATOR: '沙箱模拟',
+  LIVE: '实盘运行',
 };
 
 

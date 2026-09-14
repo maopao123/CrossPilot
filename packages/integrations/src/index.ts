@@ -7,4 +7,5 @@ export * from './rpa/yingdao.adapter.js';
 export * from './rpa/rpa.registry.js';
 export * from './provider-framework/index.js';
 export * from './storage/object-storage.service.js';
+export * from './erp/index.js';
 

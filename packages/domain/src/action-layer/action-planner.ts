@@ -6,6 +6,7 @@ export interface PlannerTargetHints {
   campaignId?: string;
   keyword?: string;
   skuCode?: string;
+  supplierId?: string;
 }
 
 export interface PlannedDraft {
@@ -78,6 +79,15 @@ function buildPayload(
         target: { skuCode: hints.skuCode || '' },
         parameters: {},
         summary: '删除 Listing（仅 Mock）',
+      };
+    case 'CREATE_PURCHASE_ORDER':
+      return {
+        target: { supplierId: hints.supplierId || 'sup-default' },
+        parameters: {
+          currency: 'USD',
+          lines: [{ skuId: hints.skuCode || 'sku-default', quantity: 40, unitCostMinor: 250 }],
+        },
+        summary: '创建采购订单',
       };
   }
 }

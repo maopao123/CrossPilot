@@ -60,6 +60,7 @@ export const CreatePurchaseOrderSchema = z.object({
 export type CreatePurchaseOrderInput = z.infer<typeof CreatePurchaseOrderSchema>;
 
 export const ReceivePurchaseOrderSchema = z.object({
+  externalReceiptId: z.string().optional(),
   items: z.array(
     z.object({
       skuId: z.string().min(1),

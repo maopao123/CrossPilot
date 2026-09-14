@@ -4,7 +4,8 @@ export type CommerceActionType =
   | 'GENERATE_REPORT'
   | 'STOP_CAMPAIGN'
   | 'CHANGE_PRICE'
-  | 'DELETE_LISTING';
+  | 'DELETE_LISTING'
+  | 'CREATE_PURCHASE_ORDER';
 
 export type PlannedActionStatus =
   | 'CREATED'

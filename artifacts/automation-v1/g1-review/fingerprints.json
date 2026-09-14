@@ -1,0 +1,68 @@
+[
+  {
+    "path": "packages/shared/src/contracts/automation-contracts.ts",
+    "reported": "4BAA434A020B130D9B646AC81484597D90A690FCBA83CB4617127F7AF877A905",
+    "actual": "4BAA434A020B130D9B646AC81484597D90A690FCBA83CB4617127F7AF877A905",
+    "match": true
+  },
+  {
+    "path": "packages/actions/src/action.types.ts",
+    "reported": "B75BCCCCAEBDAD48669A44B53B9FC158ED5907F8ACC047A5C093834BD3EFE268",
+    "actual": "B75BCCCCAEBDAD48669A44B53B9FC158ED5907F8ACC047A5C093834BD3EFE268",
+    "match": true
+  },
+  {
+    "path": "packages/actions/src/action.router.ts",
+    "reported": "34F87E9F2C8CECF4E6E67FE6BEE65DDBEB6E1B633918765509C885E8A0E671DF",
+    "actual": "34F87E9F2C8CECF4E6E67FE6BEE65DDBEB6E1B633918765509C885E8A0E671DF",
+    "match": true
+  },
+  {
+    "path": "packages/actions/test/automation-execution-truth.spec.ts",
+    "reported": "9B3EB11B1E92A02E8E1E63D5BCEBD81B6FED32FD2E5A142B757F1D7E0695FE21",
+    "actual": "9B3EB11B1E92A02E8E1E63D5BCEBD81B6FED32FD2E5A142B757F1D7E0695FE21",
+    "match": true
+  },
+  {
+    "path": "packages/integrations/src/rpa/mock-rpa.adapter.ts",
+    "reported": "9F190567DC378072D8E0C60254A2687A581C09F4993447CACB4B8B36D67C802A",
+    "actual": "9F190567DC378072D8E0C60254A2687A581C09F4993447CACB4B8B36D67C802A",
+    "match": true
+  },
+  {
+    "path": "packages/integrations/src/rpa/rpa.registry.ts",
+    "reported": "F256A971138B7EEA8C34E2AECB2B740D8A8F1EA94DB72CC06938D1E51D0A816D",
+    "actual": "F256A971138B7EEA8C34E2AECB2B740D8A8F1EA94DB72CC06938D1E51D0A816D",
+    "match": true
+  },
+  {
+    "path": "packages/integrations/src/rpa/yingdao.adapter.ts",
+    "reported": "1B2AE0D80A9B7B401ACE9B192B383BA7F560747408EDA546FD0978079ED59BD1",
+    "actual": "1B2AE0D80A9B7B401ACE9B192B383BA7F560747408EDA546FD0978079ED59BD1",
+    "match": true
+  },
+  {
+    "path": "apps/api/src/modules/operation-automation/operation-automation.service.ts",
+    "reported": "929530F08823008785AEE9205EA481BDD2C28A765D957C73926E215D340135FE",
+    "actual": "929530F08823008785AEE9205EA481BDD2C28A765D957C73926E215D340135FE",
+    "match": true
+  },
+  {
+    "path": "apps/api/test/automation-publish-truth.spec.ts",
+    "reported": "716AAC2A145FA35BACCFE76FD25B0ED175596E85860650290AA7D6419C7B9E3F",
+    "actual": "716AAC2A145FA35BACCFE76FD25B0ED175596E85860650290AA7D6419C7B9E3F",
+    "match": true
+  },
+  {
+    "path": "apps/web/src/constants/ui-labels.ts",
+    "reported": "A263B93356AF39092A96224FF082E4112E8B75D6F6710FE81EEB21F26A25CBE2",
+    "actual": "A263B93356AF39092A96224FF082E4112E8B75D6F6710FE81EEB21F26A25CBE2",
+    "match": true
+  },
+  {
+    "path": "apps/web/src/app/app/operations/automation/page.tsx",
+    "reported": "B55830AC2F4CB7FCD2E34F3AE34A0E65D2FF8C385419DA456C816581AB2807E5",
+    "actual": "B55830AC2F4CB7FCD2E34F3AE34A0E65D2FF8C385419DA456C816581AB2807E5",
+    "match": true
+  }
+]

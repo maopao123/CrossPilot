@@ -1,0 +1,11 @@
+{
+  "baseHead": "be4b8f635fb5261a4c8ec09878a7b4f7c6e53055",
+  "reviewedTrackedDiffSha256": "ea7f784680a238169c5ac156d1da3438ab3df216ad7665a3e84b479a00530cef",
+  "newSourceFiles": {
+    "packages/shared/src/contracts/automation-contracts.ts": "4baa434a020b130d9b646ac81484597d90a690fcba83cb4617127f7af877a905",
+    "packages/actions/test/automation-execution-truth.spec.ts": "9b3eb11b1e92a02e8e1e63d5bcebd81b6fed32fd2e5a142b757f1d7e0695fe21",
+    "apps/api/test/automation-publish-truth.spec.ts": "716aac2a145fa35baccfe76fd25b0ed175596e85860650290aa7d6419c7b9e3f"
+  },
+  "report": "G1_CHANGES_REQUESTED",
+  "probesSha256": "7ea8d44a7ab6ec61530827c1c0bda7c78188edfe7d3015e7fa7a63ba2bd23fe8"
+}

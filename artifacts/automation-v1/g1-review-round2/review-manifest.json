@@ -1,0 +1,98 @@
+{
+  "baseHead": "be4b8f635fb5261a4c8ec09878a7b4f7c6e53055",
+  "trackedDiffSha256": "36a2cb4f3a0db3a7c79d03096eca20845672feb094f965b950c7965c2374fd4d",
+  "sourceFiles": [
+    {
+      "path": "packages/shared/src/contracts/automation-contracts.ts",
+      "reported": "4BAA434A020B130D9B646AC81484597D90A690FCBA83CB4617127F7AF877A905",
+      "actual": "4BAA434A020B130D9B646AC81484597D90A690FCBA83CB4617127F7AF877A905",
+      "match": true
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "reported": "FED692B92EE03052AD41D21456844970510B7580C2CD50C8CC62FC941398DB46",
+      "actual": "FED692B92EE03052AD41D21456844970510B7580C2CD50C8CC62FC941398DB46",
+      "match": true
+    },
+    {
+      "path": "packages/actions/src/action.types.ts",
+      "reported": "B75BCCCCAEBDAD48669A44B53B9FC158ED5907F8ACC047A5C093834BD3EFE268",
+      "actual": "B75BCCCCAEBDAD48669A44B53B9FC158ED5907F8ACC047A5C093834BD3EFE268",
+      "match": true
+    },
+    {
+      "path": "packages/actions/src/action.router.ts",
+      "reported": "0EF12B17B211E7B2E563A84116BF615BAE1FB041930EAD4534FF06E51CE71BEC",
+      "actual": "0EF12B17B211E7B2E563A84116BF615BAE1FB041930EAD4534FF06E51CE71BEC",
+      "match": true
+    },
+    {
+      "path": "packages/actions/test/automation-execution-truth.spec.ts",
+      "reported": "56A3A6BD4D2113CD7D2B056AAB681793A939488B83E96F3B21AEAE9A8505EC2C",
+      "actual": "56A3A6BD4D2113CD7D2B056AAB681793A939488B83E96F3B21AEAE9A8505EC2C",
+      "match": true
+    },
+    {
+      "path": "packages/actions/test/actions.spec.ts",
+      "reported": "95BA0250DEC69F11C91653DD36031ED425A5F0EAA9D6850E01C329DAAFAFAB14",
+      "actual": "95BA0250DEC69F11C91653DD36031ED425A5F0EAA9D6850E01C329DAAFAFAB14",
+      "match": true
+    },
+    {
+      "path": "packages/integrations/src/rpa/rpa.interface.ts",
+      "reported": "EC64598E7AA6EB77953E6C92638449207EB8F16B5D414E11C7830BB1CBC44FFA",
+      "actual": "EC64598E7AA6EB77953E6C92638449207EB8F16B5D414E11C7830BB1CBC44FFA",
+      "match": true
+    },
+    {
+      "path": "packages/integrations/src/rpa/mock-rpa.adapter.ts",
+      "reported": "8E74D240B9370383912F679B49A1FD80273DC8844BDC312BC55EB3A3AB150009",
+      "actual": "8E74D240B9370383912F679B49A1FD80273DC8844BDC312BC55EB3A3AB150009",
+      "match": true
+    },
+    {
+      "path": "packages/integrations/src/rpa/rpa.registry.ts",
+      "reported": "70BA27A89CC67169F4A1E994DAFBECBA8FED4E3C36C12FD5CBABB7746A575836",
+      "actual": "70BA27A89CC67169F4A1E994DAFBECBA8FED4E3C36C12FD5CBABB7746A575836",
+      "match": true
+    },
+    {
+      "path": "packages/integrations/src/rpa/yingdao.adapter.ts",
+      "reported": "A8DBB394406640AFBF434FB0DCE2C2591735557873F15BB11775044E3A38F213",
+      "actual": "A8DBB394406640AFBF434FB0DCE2C2591735557873F15BB11775044E3A38F213",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/modules/operation-automation/operation-automation.service.ts",
+      "reported": "929530F08823008785AEE9205EA481BDD2C28A765D957C73926E215D340135FE",
+      "actual": "929530F08823008785AEE9205EA481BDD2C28A765D957C73926E215D340135FE",
+      "match": true
+    },
+    {
+      "path": "apps/api/test/automation-publish-truth.spec.ts",
+      "reported": "716AAC2A145FA35BACCFE76FD25B0ED175596E85860650290AA7D6419C7B9E3F",
+      "actual": "716AAC2A145FA35BACCFE76FD25B0ED175596E85860650290AA7D6419C7B9E3F",
+      "match": true
+    },
+    {
+      "path": "apps/web/src/constants/ui-labels.ts",
+      "reported": "A263B93356AF39092A96224FF082E4112E8B75D6F6710FE81EEB21F26A25CBE2",
+      "actual": "A263B93356AF39092A96224FF082E4112E8B75D6F6710FE81EEB21F26A25CBE2",
+      "match": true
+    },
+    {
+      "path": "apps/web/src/app/app/operations/automation/page.tsx",
+      "reported": "BCF2A1C9B9E80F695B9CFC3F34AC88D077E425C83A1D60860834D017765E665C",
+      "actual": "BCF2A1C9B9E80F695B9CFC3F34AC88D077E425C83A1D60860834D017765E665C",
+      "match": true
+    },
+    {
+      "path": "apps/web/test/automation-page-truth.test.cjs",
+      "reported": "5B6B0788EA3EE92EA5F9419C88641B38CDCF644FE447B89D56C65A8B6571F835",
+      "actual": "5B6B0788EA3EE92EA5F9419C88641B38CDCF644FE447B89D56C65A8B6571F835",
+      "match": true
+    }
+  ],
+  "oldProbeSha256": "7ea8d44a7ab6ec61530827c1c0bda7c78188edfe7d3015e7fa7a63ba2bd23fe8",
+  "remainingProbeSha256": "14666667831f197c6631ad36eb06195657a656279dd6d639bc36205587bf249c"
+}

@@ -12,10 +12,15 @@ import {
   advanceClosedLoopRun,
   runClosedLoopV2Sweep,
 } from './processors/closed-loop-v2.processor.js';
+import {
+  processAutomationRecovery,
+  AUTOMATION_RECOVERY_QUEUE_NAME,
+} from './processors/automation-recovery.processor.js';
 
 const SIMULATOR_QUEUE_NAME = 'crosspilot-simulator-tick';
 const OUTCOME_QUEUE_NAME = 'crosspilot-outcome-evaluator';
 export const CLOSED_LOOP_V2_QUEUE_NAME = 'crosspilot-closed-loop-v2';
+export { AUTOMATION_RECOVERY_QUEUE_NAME };
 
 export class WorkerService {
   private worker: Worker<AgentTaskJobData> | null = null;
@@ -32,6 +37,10 @@ export class WorkerService {
   private closedLoopQueue: Queue | null = null;
   private closedLoopRedis: Redis | null = null;
   private closedLoopPrisma: PrismaClient | null = null;
+  private recoveryWorker: Worker | null = null;
+  private recoveryQueue: Queue | null = null;
+  private recoveryRedis: Redis | null = null;
+  private recoveryPrisma: PrismaClient | null = null;
   private redisService: RedisService;
   private isRunning = false;
 
@@ -61,6 +70,9 @@ export class WorkerService {
 
       // V10 Epic A：Outcome Tracking 评估器，与 simulator 调度互不影响。
       await this.startOutcomeScheduler();
+
+      // V10 AI Automation：故障恢复 Worker，监控租约过期与查询远端自愈
+      await this.startAutomationRecoveryScheduler();
 
       // BullMQ requires maxRetriesPerRequest: null. RedisService uses 1 for
       // API health checks, so the agent-task worker gets its own connection.
@@ -261,6 +273,60 @@ export class WorkerService {
     }
   }
 
+  /**
+   * V10 AI Automation — Recovery scheduler: scans for due automation operations
+   * (expired leases, unverified submissions, pending retries) and processes them.
+   */
+  private async startAutomationRecoveryScheduler(): Promise<void> {
+    try {
+      const intervalMinutes =
+        Number.parseInt(process.env.AUTOMATION_RECOVERY_INTERVAL_MINUTES ?? '', 10) || 5;
+
+      this.recoveryPrisma = new PrismaClient();
+      const prisma = this.recoveryPrisma;
+
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      this.recoveryRedis = new Redis(redisUrl, { maxRetriesPerRequest: null });
+
+      this.recoveryQueue = new Queue(AUTOMATION_RECOVERY_QUEUE_NAME, {
+        connection: this.recoveryRedis as any,
+      });
+
+      await this.recoveryQueue.add(
+        'automation-recovery-sweep',
+        {},
+        {
+          jobId: 'automation-recovery-sweep',
+          repeat: { every: intervalMinutes * 60 * 1000 },
+          removeOnComplete: true,
+          removeOnFail: 100,
+        },
+      );
+
+      this.recoveryWorker = new Worker(
+        AUTOMATION_RECOVERY_QUEUE_NAME,
+        async (_job: Job) => {
+          return await processAutomationRecovery(prisma);
+        },
+        { connection: this.recoveryRedis as any },
+      );
+
+      this.recoveryWorker.on('completed', (job: Job) => {
+        console.log(`✅ AutomationRecovery Job ${job.id} completed`);
+      });
+
+      this.recoveryWorker.on('failed', (job: Job | undefined, err: Error) => {
+        console.warn(`⚠️ AutomationRecovery Job ${job?.id} failed:`, err.message);
+      });
+
+      console.log(
+        `🔄 Automation recovery enabled: sweep every ${intervalMinutes} minute(s).`,
+      );
+    } catch (err: any) {
+      console.warn('⚠️ Automation recovery scheduler initialization warning:', err.message);
+    }
+  }
+
   public async stop(): Promise<void> {
     console.log('🛑 Shutting down CrossPilot Worker...');
     if (this.worker) {
@@ -319,6 +385,22 @@ export class WorkerService {
       await this.closedLoopPrisma.$disconnect();
       this.closedLoopPrisma = null;
     }
+    if (this.recoveryWorker) {
+      await this.recoveryWorker.close();
+      this.recoveryWorker = null;
+    }
+    if (this.recoveryQueue) {
+      await this.recoveryQueue.close();
+      this.recoveryQueue = null;
+    }
+    if (this.recoveryRedis) {
+      await this.recoveryRedis.quit();
+      this.recoveryRedis = null;
+    }
+    if (this.recoveryPrisma) {
+      await this.recoveryPrisma.$disconnect();
+      this.recoveryPrisma = null;
+    }
     await this.redisService.disconnect();
     this.isRunning = false;
     console.log('🏁 Worker shutdown complete.');
@@ -328,6 +410,13 @@ export class WorkerService {
     return {
       isRunning: this.isRunning,
       queueName: 'crosspilot-tasks',
+    };
+  }
+
+  public getRecoveryStatus(): { isRegistered: boolean; queueName: string } {
+    return {
+      isRegistered: this.recoveryWorker !== null,
+      queueName: AUTOMATION_RECOVERY_QUEUE_NAME,
     };
   }
 }

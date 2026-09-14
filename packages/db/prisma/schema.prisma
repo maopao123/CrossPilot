@@ -83,6 +83,7 @@ model Workspace {
   businessRecommendations  BusinessRecommendation[]
   plannedActions           PlannedAction[]
   actionExecutions         ActionExecution[]
+  automationOperations     AutomationOperation[]
   actionOutcomes           ActionOutcome[]
   simulationState          SimulationState?
   simulationEvents         SimulationEvent[]
@@ -1551,6 +1552,7 @@ model PlannedAction {
   executions       ActionExecution[]
   outcomes         ActionOutcome[]
   simulationReceipts SimulationExecutionReceipt[]
+  automationOperations AutomationOperation[]
 
   @@index([workspaceId])
   @@index([recommendationId])
@@ -1811,5 +1813,45 @@ model SimulationExperiment {
 
   @@index([controlWorkspaceId])
   @@map("simulation_experiments")
+}
+
+// ==========================================
+// V10 AI Automation — External Operation Persistence (A3)
+// Idempotency, claim lease, evidence tracking for external automation operations.
+// ==========================================
+
+model AutomationOperation {
+  id                  String    @id @default(uuid())
+  workspaceId         String    @map("workspace_id")
+  actionId            String?   @map("action_id")
+  connectionId        String    @map("connection_id")
+  operationKind       String    @map("operation_kind")
+  idempotencyKey      String    @map("idempotency_key")
+  payloadHash         String    @map("payload_hash")
+  approvedPayloadHash String?   @map("approved_payload_hash")
+  mode                String
+  provider            String
+  phase               String
+  effect              String
+  recovery            String
+  externalId          String?   @map("external_id")
+  version             Int       @default(1)
+  leaseOwner          String?   @map("lease_owner")
+  leaseUntil          DateTime? @map("lease_until")
+  attemptCount        Int       @default(0) @map("attempt_count")
+  nextAttemptAt       DateTime? @map("next_attempt_at")
+  lastErrorCode       String?   @map("last_error_code")
+  evidence            Json?     @map("evidence")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  workspace           Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  action              PlannedAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, connectionId, operationKind, idempotencyKey])
+  @@index([workspaceId])
+  @@index([actionId])
+  @@index([phase, nextAttemptAt])
+  @@map("automation_operations")
 }
 

@@ -1,3 +1,4 @@
+import { AutomationMode } from '@crosspilot/shared';
 import { RpaAdapter } from './rpa.interface.js';
 import { MockRpaAdapter } from './mock-rpa.adapter.js';
 import { YingdaoRpaAdapter } from './yingdao.adapter.js';
@@ -18,8 +19,37 @@ export class RpaRegistry {
     return this.adapters.get(id);
   }
 
-  getDefault(): RpaAdapter {
-    return this.adapters.get('mock-rpa') || Array.from(this.adapters.values())[0];
+  getDefault(mode: AutomationMode = 'LIVE'): RpaAdapter | undefined {
+    if (mode === 'MOCK') {
+      const mock = this.adapters.get('mock-rpa');
+      if (mock && (!mock.supportedModes || mock.supportedModes.includes('MOCK'))) {
+        return mock;
+      }
+      for (const adapter of this.adapters.values()) {
+        if (adapter.supportedModes?.includes('MOCK')) return adapter;
+      }
+      return undefined;
+    }
+
+    if (mode === 'LIVE') {
+      const live = this.adapters.get('yingdao-rpa');
+      if (live && (!live.supportedModes || live.supportedModes.includes('LIVE'))) {
+        return live;
+      }
+      for (const adapter of this.adapters.values()) {
+        if (adapter.supportedModes?.includes('LIVE')) return adapter;
+      }
+      return undefined;
+    }
+
+    if (mode === 'SIMULATOR') {
+      for (const adapter of this.adapters.values()) {
+        if (adapter.supportedModes?.includes('SIMULATOR')) return adapter;
+      }
+      return undefined;
+    }
+
+    return undefined;
   }
 
   listAdapters(): Array<{ id: string; name: string }> {

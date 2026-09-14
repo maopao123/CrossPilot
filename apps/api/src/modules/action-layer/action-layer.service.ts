@@ -25,11 +25,13 @@ import {
 import {
   resolveCommerceAdapter,
   V2RunStore,
+  AutomationOperationStore,
 } from '@crosspilot/db';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { AdvertisingService } from '../advertising/advertising.service.js';
 import { OutcomeTrackingService } from '../outcome-tracking/outcome-tracking.service.js';
+import { SimulatorERPAdapter } from '@crosspilot/integrations';
 
 function asObject(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -43,6 +45,7 @@ export class ActionLayerService {
   private readonly logger = new Logger(ActionLayerService.name);
   private readonly registry = createDefaultMockRegistry();
   private readonly v2Store: V2RunStore;
+  private readonly operationStore: AutomationOperationStore;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -51,6 +54,7 @@ export class ActionLayerService {
     @Optional() private readonly outcomeTracking?: OutcomeTrackingService,
   ) {
     this.v2Store = new V2RunStore(prisma);
+    this.operationStore = new AutomationOperationStore(prisma);
   }
 
   list(workspaceId: string, recommendationId?: string) {
@@ -153,14 +157,7 @@ export class ActionLayerService {
       const parameters = asObject(row.parameters);
 
       let approvalMetadata: any = undefined;
-      if (target.runId) {
-        const expectedTargetVersion = target.expectedTargetVersion ?? parameters.expectedTargetVersion;
-        if (expectedTargetVersion === undefined || expectedTargetVersion === null) {
-          throw new ActionLayerError(
-            ErrorCodes.ACTION_INVALID_STATE,
-            `expectedTargetVersion is required to approve closed-loop v2 action ${id}`,
-          );
-        }
+      if (target.runId || row.actionType === 'CREATE_PURCHASE_ORDER') {
         const cleanParameters = { ...parameters };
         delete (cleanParameters as any)._approval;
         const payloadHash = computeSha256({
@@ -169,11 +166,25 @@ export class ActionLayerService {
           parameters: cleanParameters,
         });
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        approvalMetadata = {
-          payloadHash,
-          expectedTargetVersion: Number(expectedTargetVersion),
-          expiresAt,
-        };
+        if (target.runId) {
+          const expectedTargetVersion = target.expectedTargetVersion ?? parameters.expectedTargetVersion;
+          if (expectedTargetVersion === undefined || expectedTargetVersion === null) {
+            throw new ActionLayerError(
+              ErrorCodes.ACTION_INVALID_STATE,
+              `expectedTargetVersion is required to approve closed-loop v2 action ${id}`,
+            );
+          }
+          approvalMetadata = {
+            payloadHash,
+            expectedTargetVersion: Number(expectedTargetVersion),
+            expiresAt,
+          };
+        } else {
+          approvalMetadata = {
+            payloadHash,
+            expiresAt,
+          };
+        }
       }
 
       const updated = await this.prisma.plannedAction.update({
@@ -252,8 +263,8 @@ export class ActionLayerService {
         );
       }
 
-      // Verify approval metadata if target.runId (FIX-6)
-      if (target.runId) {
+      // Verify approval metadata if target.runId or CREATE_PURCHASE_ORDER
+      if (target.runId || row.actionType === 'CREATE_PURCHASE_ORDER') {
         const approval = (parameters as any)?._approval;
         if (!approval) {
           throw new ActionLayerError(
@@ -277,21 +288,28 @@ export class ActionLayerService {
         if (approval.payloadHash && approval.payloadHash !== currentPayloadHash) {
           throw new ConflictException(`PAYLOAD_HASH_MISMATCH: action parameters changed after approval`);
         }
-        const expectedTargetVersion =
-          target.expectedTargetVersion ??
-          cleanParameters.expectedTargetVersion ??
-          approval.expectedTargetVersion;
-        if (expectedTargetVersion === undefined || expectedTargetVersion === null) {
-          throw new ActionLayerError(
-            ErrorCodes.ACTION_INVALID_STATE,
-            `expectedTargetVersion is required for closed-loop v2 action ${id}`,
-          );
+        if (target.runId) {
+          const expectedTargetVersion =
+            target.expectedTargetVersion ??
+            cleanParameters.expectedTargetVersion ??
+            approval.expectedTargetVersion;
+          if (expectedTargetVersion === undefined || expectedTargetVersion === null) {
+            throw new ActionLayerError(
+              ErrorCodes.ACTION_INVALID_STATE,
+              `expectedTargetVersion is required for closed-loop v2 action ${id}`,
+            );
+          }
         }
       }
 
       // Branch: Closed-loop v2 Simulator action execution
       if (target.runId) {
         return await this.executeV2SimulatorAction(workspaceId, row, target, parameters, userId);
+      }
+
+      // Branch: CREATE_PURCHASE_ORDER automation execution
+      if (row.actionType === 'CREATE_PURCHASE_ORDER') {
+        return await this.executeCreatePurchaseOrderAction(workspaceId, row, target, parameters, userId);
       }
 
       await this.prisma.plannedAction.update({
@@ -343,6 +361,256 @@ export class ActionLayerService {
 
       return this.toAction(updated);
     });
+  }
+
+  private async executeCreatePurchaseOrderAction(
+    workspaceId: string,
+    row: any,
+    target: Record<string, unknown>,
+    parameters: Record<string, unknown>,
+    userId?: string,
+  ) {
+    const connectionId = String(target.connectionId || 'default-erp');
+    const idempotencyKey = String(target.idempotencyKey || row.id);
+    const cleanParameters = { ...parameters };
+    delete (cleanParameters as any)._approval;
+    const payloadHash = computeSha256({
+      actionType: row.actionType,
+      target,
+      parameters: cleanParameters,
+    });
+    const approvedPayloadHash = (parameters as any)?._approval?.payloadHash;
+
+    const opResult = await this.operationStore.createOrReplay(
+      { workspaceId, connectionId },
+      {
+        actionId: row.id,
+        operationKind: 'CREATE_PURCHASE_ORDER',
+        idempotencyKey,
+        payloadHash,
+        approvedPayloadHash,
+        mode: String(target.mode || 'SIMULATOR'),
+        provider: String(target.provider || 'simulator-erp'),
+      },
+    );
+
+    if (opResult.kind === 'REPLAYED') {
+      const existing = opResult.operation;
+      if (existing.phase === 'COMPLETED' && existing.effect === 'APPLIED') {
+        const evidence = (existing.evidence as any) || {
+          mode: existing.mode,
+          provider: existing.provider,
+          operationId: existing.id,
+          phase: existing.phase,
+          effect: existing.effect,
+          recovery: existing.recovery,
+          externalId: existing.externalId,
+        };
+        const updated = await this.prisma.plannedAction.update({
+          where: { id: row.id },
+          data: {
+            status: 'SUCCESS',
+            lastMessage: `ERP 采购单已通过幂等重放确认: ${existing.externalId}`,
+            parameters: {
+              ...parameters,
+              _evidence: evidence,
+            },
+          },
+        });
+        return this.toAction(updated);
+      }
+    }
+
+    const claimedOp = await this.operationStore.claim(
+      workspaceId,
+      opResult.operation.id,
+      opResult.operation.version,
+      userId || 'owner',
+      30000,
+      'SUBMITTED',
+    );
+
+    const isSync = Boolean(target.syncExecution || target.erpBaseUrl);
+    if (!isSync) {
+      const updated = await this.prisma.plannedAction.update({
+        where: { id: row.id },
+        data: { status: 'EXECUTING', lastMessage: 'ERP 采购单创建操作已落库并认领' },
+      });
+      await this.appendHistory(
+        workspaceId,
+        row.id,
+        userId || 'owner',
+        'execution_started',
+        {
+          operationId: claimedOp.id,
+          version: claimedOp.version,
+          leaseOwner: claimedOp.leaseOwner,
+        },
+        1,
+      );
+      return this.toAction(updated);
+    }
+
+    // Synchronous execution against ERP endpoint
+    const mode = String(target.mode || 'SIMULATOR');
+    const erpBaseUrl = String(target.erpBaseUrl || process.env.SIMULATOR_ERP_URL || '');
+    const adapter = new SimulatorERPAdapter({ baseUrl: erpBaseUrl || undefined });
+
+    const erpRes = await adapter.createPurchaseOrder({
+      scope: { workspaceId, connectionId },
+      operationId: claimedOp.id,
+      idempotencyKey,
+      supplierId: String(parameters.supplierId),
+      lines: (parameters.lines as any) || [],
+      notes: String(parameters.notes || ''),
+    });
+
+    if (!erpRes.success) {
+      const isTimeout = erpRes.errorCode === 'TIMEOUT' || erpRes.errorCode === 'UNKNOWN_ERROR';
+      const isRateLimited = erpRes.errorCode === 'RATE_LIMITED';
+      const isAuthFailed = erpRes.errorCode === 'AUTH_FAILED';
+
+      const phase = isTimeout ? 'SUBMITTED' : 'FAILED';
+      const effect = isTimeout ? 'UNKNOWN' : 'NOT_APPLIED';
+      const recovery = isTimeout ? 'QUERY' : isRateLimited ? 'RETRY' : isAuthFailed ? 'REAUTHORIZE' : 'MANUAL';
+
+      const evidenceData: any = {
+        mode: mode as any,
+        provider: String(target.provider || 'simulator-erp'),
+        operationId: claimedOp.id,
+        phase,
+        effect,
+        recovery,
+        errorCode: erpRes.errorCode || 'UNKNOWN_ERROR',
+      };
+
+      await this.operationStore.recordEvidence(
+        workspaceId,
+        claimedOp.id,
+        claimedOp.version,
+        evidenceData,
+      );
+
+      const actionStatus = isTimeout ? 'EXECUTING' : 'FAILED';
+      const actionMessage = isTimeout
+        ? `ERP 采购单提交超时，远端状态未知，已置入 QUERY 恢复队列等待 Worker 自愈`
+        : `ERP 采购单创建失败: ${erpRes.errorMessage || erpRes.errorCode}`;
+
+      const failedAction = await this.prisma.plannedAction.update({
+        where: { id: row.id },
+        data: {
+          status: actionStatus,
+          lastMessage: actionMessage,
+          parameters: {
+            ...parameters,
+            _evidence: evidenceData,
+          },
+        },
+      });
+
+      await this.appendHistory(
+        workspaceId,
+        row.id,
+        userId || 'owner',
+        actionStatus,
+        { error: erpRes.errorMessage, errorCode: erpRes.errorCode, evidence: evidenceData },
+        1,
+        erpRes.errorMessage || actionMessage,
+      );
+
+      return this.toAction(failedAction);
+    }
+
+    // Success path
+    const externalId = erpRes.data!.externalId;
+    const evidenceData: any = {
+      mode: mode as any,
+      provider: String(target.provider || 'simulator-erp'),
+      operationId: claimedOp.id,
+      phase: 'COMPLETED',
+      effect: 'APPLIED',
+      recovery: 'NONE',
+      externalId,
+      verifiedAt: new Date().toISOString(),
+    };
+
+    await this.operationStore.recordEvidence(
+      workspaceId,
+      claimedOp.id,
+      claimedOp.version,
+      evidenceData,
+    );
+
+    // Sync or create local PurchaseOrder in DB if supplier exists
+    let syncError: string | null = null;
+    try {
+      const lines = (parameters.lines as any[]) || [];
+      const totalAmount = lines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitCostMinor || 0) / 100, 0);
+      const supplierId = String(parameters.supplierId);
+      const sup = await this.prisma.supplier.findFirst({ where: { workspaceId, id: supplierId } });
+      if (sup) {
+        const validItemCreates = [];
+        for (const l of lines) {
+          const skuInDb = await this.prisma.sku.findFirst({
+            where: { workspaceId, id: l.skuId },
+          });
+          if (skuInDb) {
+            validItemCreates.push({
+              workspaceId,
+              skuId: l.skuId,
+              quantity: l.quantity,
+              unitCost: (l.unitCostMinor || 0) / 100,
+              receivedQuantity: 0,
+            });
+          }
+        }
+
+        await this.prisma.purchaseOrder.create({
+          data: {
+            workspaceId,
+            supplierId: sup.id,
+            poNumber: externalId,
+            status: 'CONFIRMED',
+            totalAmount,
+            ...(validItemCreates.length > 0
+              ? { items: { create: validItemCreates } }
+              : {}),
+          },
+        });
+      }
+    } catch (err: any) {
+      syncError = err.message;
+      this.logger.error(`Failed to sync local PurchaseOrder for action ${row.id}: ${err.message}`);
+    }
+
+    const updatedAction = await this.prisma.plannedAction.update({
+      where: { id: row.id },
+      data: {
+        status: syncError ? 'FAILED' : 'SUCCESS',
+        lastMessage: syncError
+          ? `ERP 采购单远端已创建 (${externalId})，但本地同步记账失败: ${syncError}`
+          : `ERP 采购单已创建: ${externalId}`,
+        parameters: {
+          ...parameters,
+          _evidence: evidenceData,
+        },
+      },
+    });
+
+    await this.appendHistory(
+      workspaceId,
+      row.id,
+      userId || 'owner',
+      'SUCCESS',
+      {
+        operationId: claimedOp.id,
+        externalId,
+        version: claimedOp.version,
+      },
+      1,
+    );
+
+    return this.toAction(updatedAction);
   }
 
   private async executeV2SimulatorAction(

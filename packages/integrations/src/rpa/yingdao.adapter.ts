@@ -1,9 +1,9 @@
+import { AutomationMode } from '@crosspilot/shared';
 import {
   RpaAdapter,
   RpaExecutionInput,
   RpaExecutionResult,
 } from './rpa.interface.js';
-import { MockRpaAdapter } from './mock-rpa.adapter.js';
 
 export interface YingdaoConfig {
   apiKey?: string;
@@ -14,35 +14,24 @@ export interface YingdaoConfig {
 export class YingdaoRpaAdapter implements RpaAdapter {
   readonly id = 'yingdao-rpa';
   readonly name = '影刀 (Yingdao) Enterprise RPA Adapter';
-
-  private fallback = new MockRpaAdapter();
+  readonly supportedModes: AutomationMode[] = ['LIVE'];
 
   constructor(private readonly config: YingdaoConfig = {}) {}
 
   async execute(input: RpaExecutionInput): Promise<RpaExecutionResult> {
-    const apiKey = this.config.apiKey || process.env.YINGDAO_API_KEY;
+    const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : process.env.YINGDAO_API_KEY;
 
-    // If no real API key is configured, execute via fallback mock adapter
+    // In LIVE mode, missing credentials must fail-closed. Never silently fall back to Mock!
     if (!apiKey) {
-      console.log(
-        '[YingdaoRpaAdapter] No YINGDAO_API_KEY found, executing in verified sandbox simulation mode.',
-      );
-      const res = await this.fallback.execute(input);
       return {
-        ...res,
-        logs: [
-          {
-            timestamp: new Date().toISOString(),
-            step: 'YINGDAO_DISPATCH',
-            message: 'Routed through Yingdao sandbox gateway with verified contract.',
-          },
-          ...(res.logs || []),
-        ],
+        jobId: '',
+        status: 'FAILED',
+        error: 'AUTH_REQUIRED: YINGDAO_API_KEY is not configured',
+        durationMs: 0,
       };
     }
 
     const startTime = Date.now();
-    const jobId = `yd_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     // Real HTTP dispatch implementation
     try {
@@ -59,31 +48,92 @@ export class YingdaoRpaAdapter implements RpaAdapter {
       });
 
       if (!response.ok) {
-        throw new Error(`Yingdao HTTP ${response.status}: ${await response.text()}`);
+        return {
+          jobId: '',
+          status: 'FAILED',
+          error: `Yingdao HTTP ${response.status}: ${await response.text()}`,
+          durationMs: Date.now() - startTime,
+        };
       }
 
       const data = (await response.json()) as any;
+      if (!data || typeof data !== 'object') {
+        return {
+          jobId: '',
+          status: 'FAILED',
+          error: 'INVALID_REMOTE_RESPONSE: response is not a valid JSON object',
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      // If response is empty or missing both jobId and status, it cannot serve as proof of execution
+      if (!data.jobId && !data.status) {
+        return {
+          jobId: '',
+          status: 'FAILED',
+          error: 'INVALID_REMOTE_RESPONSE: response missing jobId and execution status',
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      // If job is accepted asynchronously (has jobId but no status, or explicitly RUNNING/SUBMITTED)
+      if (data.status === 'RUNNING' || data.status === 'SUBMITTED' || (!data.status && data.jobId)) {
+        return {
+          jobId: data.jobId || '',
+          status: 'RUNNING',
+          output: data.output,
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      if (data.status === 'TIMEOUT') {
+        return {
+          jobId: data.jobId || '',
+          status: 'TIMEOUT',
+          error: data.error || 'Remote Yingdao job timed out',
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      if (data.status === 'FAILED') {
+        return {
+          jobId: data.jobId || '',
+          status: 'FAILED',
+          error: data.error || 'Remote Yingdao execution failed',
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      if (data.status === 'SUCCESS') {
+        if (!data.jobId) {
+          return {
+            jobId: '',
+            status: 'FAILED',
+            error: 'INVALID_REMOTE_RESPONSE: response missing jobId for SUCCESS status',
+            durationMs: Date.now() - startTime,
+          };
+        }
+        return {
+          jobId: data.jobId,
+          status: 'SUCCESS',
+          output: data.output,
+          durationMs: Date.now() - startTime,
+        };
+      }
+
       return {
-        jobId: data.jobId || jobId,
-        status: 'SUCCESS',
-        output: data.output,
+        jobId: data.jobId || '',
+        status: 'FAILED',
+        error: `UNSUPPORTED_STATUS: Unknown remote status ${data.status}`,
         durationMs: Date.now() - startTime,
       };
     } catch (err: any) {
       return {
-        jobId,
+        jobId: '',
         status: 'FAILED',
-        error: err.message,
+        error: err.message || 'Yingdao HTTP dispatch failed',
         durationMs: Date.now() - startTime,
       };
     }
-  }
-
-  async cancel(jobId: string): Promise<boolean> {
-    return true;
-  }
-
-  async getStatus(jobId: string): Promise<RpaExecutionResult> {
-    return this.fallback.getStatus(jobId);
   }
 }

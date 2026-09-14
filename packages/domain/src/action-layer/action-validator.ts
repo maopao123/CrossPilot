@@ -57,6 +57,35 @@ export function validateActionPayload(
     case 'DELETE_LISTING':
       requireString(target, 'skuCode');
       return;
+    case 'CREATE_PURCHASE_ORDER':
+      requireString(target, 'supplierId');
+      if (!Array.isArray(parameters.lines) || parameters.lines.length === 0) {
+        throw new ActionLayerError(
+          ErrorCodes.ACTION_SCHEMA_INVALID,
+          'parameters.lines must be a non-empty array',
+        );
+      }
+      for (const line of parameters.lines as any[]) {
+        if (!line.skuId || typeof line.skuId !== 'string') {
+          throw new ActionLayerError(
+            ErrorCodes.ACTION_SCHEMA_INVALID,
+            'each order line requires string skuId',
+          );
+        }
+        if (!Number.isFinite(line.quantity) || line.quantity <= 0) {
+          throw new ActionLayerError(
+            ErrorCodes.ACTION_SCHEMA_INVALID,
+            'each order line quantity must be a positive number',
+          );
+        }
+        if (!Number.isFinite(line.unitCostMinor) || line.unitCostMinor < 0) {
+          throw new ActionLayerError(
+            ErrorCodes.ACTION_SCHEMA_INVALID,
+            'each order line unitCostMinor must be a non-negative number',
+          );
+        }
+      }
+      return;
     default:
       throw new ActionLayerError(ErrorCodes.ACTION_TYPE_UNKNOWN, `Unknown action_type: ${actionType}`);
   }
@@ -66,6 +95,14 @@ export function assessRisk(
   actionType: CommerceActionType,
   parameters: Record<string, unknown> = {},
 ): RiskCheckResult {
+  if (actionType === 'CREATE_PURCHASE_ORDER') {
+    return {
+      allowed: true,
+      needApproval: true,
+      risk: 'high',
+      reason: 'CREATE_PURCHASE_ORDER is a high risk procurement action requiring human approval',
+    };
+  }
   if (actionType === 'DELETE_LISTING' || actionType === 'STOP_CAMPAIGN') {
     return {
       allowed: true,

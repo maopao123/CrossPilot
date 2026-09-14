@@ -1,3 +1,4 @@
+import { AutomationMode } from '@crosspilot/shared';
 import {
   RpaAdapter,
   RpaExecutionInput,
@@ -6,7 +7,8 @@ import {
 
 export class MockRpaAdapter implements RpaAdapter {
   readonly id = 'mock-rpa';
-  readonly name = 'Mock Deterministic RPA Engine';
+  readonly name = 'Mock Deterministic RPA Engine (Simulation)';
+  readonly supportedModes: AutomationMode[] = ['MOCK'];
 
   async execute(input: RpaExecutionInput): Promise<RpaExecutionResult> {
     const startTime = Date.now();
@@ -15,33 +17,33 @@ export class MockRpaAdapter implements RpaAdapter {
     const logs = [
       {
         timestamp: new Date().toISOString(),
-        step: 'LAUNCH_BROWSER',
-        message: 'Chromium headless session spawned successfully.',
+        step: 'MOCK_SPAWN',
+        message: '[MOCK SIMULATION] Simulated headless worker initialized.',
       },
       {
         timestamp: new Date().toISOString(),
-        step: 'AUTH_VERIFY',
-        message: 'Seller Central session cookie valid. Region: North America.',
+        step: 'MOCK_AUTH',
+        message: '[MOCK SIMULATION] Verified simulated session token (Mock Seller Central).',
       },
       {
         timestamp: new Date().toISOString(),
-        step: 'NAVIGATE_INVENTORY',
-        message: 'Navigated to Seller Central > Add Products via Upload.',
+        step: 'MOCK_NAVIGATE',
+        message: '[MOCK SIMULATION] Navigating simulated product upload form.',
       },
       {
         timestamp: new Date().toISOString(),
-        step: 'POPULATE_FIELDS',
-        message: `Filled product attributes for workflow: ${input.workflow}. SKU: ${input.params.skuCode || 'N/A'}.`,
+        step: 'MOCK_POPULATE',
+        message: `[MOCK SIMULATION] Populated mock product fields for: ${input.workflow}. SKU: ${input.params.skuCode || 'N/A'}.`,
       },
       {
         timestamp: new Date().toISOString(),
-        step: 'UPLOAD_ASSETS',
-        message: 'Uploaded 5 compliant listing images and dimension diagrams.',
+        step: 'MOCK_ASSETS',
+        message: '[MOCK SIMULATION] Attached 5 simulated listing assets and dimension diagrams.',
       },
       {
         timestamp: new Date().toISOString(),
-        step: 'SUBMIT_FEED',
-        message: 'Batch feed submitted. Amazon Batch ID: 8192049102.',
+        step: 'MOCK_SUBMIT',
+        message: '[MOCK SIMULATION] Mock feed submitted. Demo Batch ID: 8192049102.',
       },
     ];
 
@@ -55,7 +57,9 @@ export class MockRpaAdapter implements RpaAdapter {
         marketplaceId: 'ATVPDKIKX0DER',
         skuCode: input.params.skuCode,
         draftUrl: `https://sellercentral.amazon.com/inventory/view/${input.params.skuCode || 'item'}`,
-        verified: true,
+        verified: false,
+        isMock: true,
+        mode: 'MOCK',
       },
       screenshotUrls: [
         'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop&q=80',
@@ -73,6 +77,11 @@ export class MockRpaAdapter implements RpaAdapter {
     return {
       jobId,
       status: 'SUCCESS',
+      output: {
+        isMock: true,
+        mode: 'MOCK',
+        verified: false,
+      },
       durationMs: 120,
     };
   }

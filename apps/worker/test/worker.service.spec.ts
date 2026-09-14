@@ -79,4 +79,11 @@ describe('WorkerService', () => {
       }
     }
   });
+
+  it('starts and registers the automation-recovery worker and queue in production entrypoint', async () => {
+    await service.start();
+    const recoveryStatus = service.getRecoveryStatus();
+    expect(recoveryStatus.isRegistered).toBe(true);
+    expect(recoveryStatus.queueName).toBe('crosspilot-automation-recovery');
+  });
 });

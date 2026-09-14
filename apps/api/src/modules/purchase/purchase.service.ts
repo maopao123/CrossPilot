@@ -11,6 +11,7 @@ import {
   PurchaseOrderInfo,
   ReceivePurchaseOrderInput,
 } from '@crosspilot/shared';
+import { Prisma } from '@prisma/client';
 import {
   InventoryMovementService,
   PurchaseOrderStateMachine,
@@ -233,7 +234,27 @@ export class PurchaseService {
         });
       }
 
-      this.assertPoTransition(po.status as PurchaseOrderStatus, 'RECEIVED');
+      // Idempotency check for externalReceiptId
+      if (input.externalReceiptId) {
+        const existingOp = await tx.automationOperation.findFirst({
+          where: {
+            workspaceId,
+            operationKind: 'RECEIPT',
+            idempotencyKey: input.externalReceiptId,
+            phase: 'COMPLETED',
+          },
+        });
+        if (existingOp) {
+          const incomingPayloadHash = JSON.stringify(input);
+          if (existingOp.payloadHash !== incomingPayloadHash) {
+            throw new ConflictException({
+              code: ErrorCodes.CONFLICT_ERROR,
+              message: `IDEMPOTENCY_CONFLICT: externalReceiptId '${input.externalReceiptId}' already executed with different payload`,
+            });
+          }
+          return this.mapPo(po);
+        }
+      }
 
       // Aggregate quantities by skuId first to prevent duplicate processing / over-receipt bugs
       const aggregatedItems = new Map<string, number>();
@@ -256,7 +277,7 @@ export class PurchaseService {
         );
       }
 
-      // Validate each received item belongs to this PO and check over-receipt
+      // Validate each received item belongs to this PO and check over-receipt first
       for (const [skuId, recQuantity] of aggregatedItems.entries()) {
         const poItem = po.items?.find((i) => i.skuId === skuId);
         if (!poItem) {
@@ -273,30 +294,42 @@ export class PurchaseService {
             message: `Over-receipt rejected: cannot receive ${recQuantity} units. Ordered: ${poItem.quantity}, previously received: ${poItem.receivedQuantity}, remaining allowed: ${poItem.quantity - poItem.receivedQuantity}`,
           });
         }
+      }
 
-        // Update inventory balance for each received item (Inventory +)
-        const balance = await tx.inventoryBalance.findUnique({
+      // Determine targetStatus and assert valid transition
+      const allFullyReceived = (po.items || []).every((item) => {
+        const adding = aggregatedItems.get(item.skuId) || 0;
+        return item.receivedQuantity + adding >= item.quantity;
+      });
+      const targetStatus: PurchaseOrderStatus = allFullyReceived
+        ? 'RECEIVED'
+        : 'PARTIALLY_RECEIVED';
+
+      this.assertPoTransition(po.status as PurchaseOrderStatus, targetStatus);
+
+      // Apply inventory updates and update PO items
+      for (const [skuId, recQuantity] of aggregatedItems.entries()) {
+        const poItem = po.items?.find((i) => i.skuId === skuId)!;
+
+        // Concurrency-safe check: update PO Item received quantity using increment with optimistic lock
+        const updateResult = await tx.purchaseOrderItem.updateMany({
           where: {
-            workspaceId_skuId_warehouseType: {
-              workspaceId,
-              skuId,
-              warehouseType: 'FBA',
-            },
+            id: poItem.id,
+            receivedQuantity: poItem.receivedQuantity,
+          },
+          data: {
+            receivedQuantity: { increment: recQuantity },
           },
         });
 
-        const currentBalance = balance || {
-          fulfillableQuantity: 0,
-          reservedQuantity: 0,
-          inboundQuantity: 0,
-          unfulfillableQuantity: 0,
-        };
+        if (updateResult.count === 0) {
+          throw new ConflictException({
+            code: ErrorCodes.CONFLICT_ERROR,
+            message: `Concurrent modification detected on purchase order item for SKU '${skuId}', please retry`,
+          });
+        }
 
-        const newBalance = InventoryMovementService.calculateReceiptInbound(
-          currentBalance,
-          recQuantity,
-        );
-
+        // Concurrency-safe inventory balance update using atomic increment
         await tx.inventoryBalance.upsert({
           where: {
             workspaceId_skuId_warehouseType: {
@@ -306,36 +339,18 @@ export class PurchaseService {
             },
           },
           update: {
-            fulfillableQuantity: newBalance.fulfillableQuantity,
-            inboundQuantity: newBalance.inboundQuantity,
+            fulfillableQuantity: { increment: recQuantity },
+            inboundQuantity: { decrement: recQuantity },
           },
           create: {
             workspaceId,
             skuId,
             warehouseType: 'FBA',
-            fulfillableQuantity: newBalance.fulfillableQuantity,
-            inboundQuantity: newBalance.inboundQuantity,
+            fulfillableQuantity: recQuantity,
+            inboundQuantity: 0,
           },
         });
-
-        // Update PO Item received quantity
-        await tx.purchaseOrderItem.update({
-          where: { id: poItem.id },
-          data: { receivedQuantity: totalReceived },
-        });
       }
-
-      // Check if all items in this PO are fully received
-      const updatedPoItems = await tx.purchaseOrderItem.findMany({
-        where: { purchaseOrderId: poId },
-      });
-      const allFullyReceived = updatedPoItems.every(
-        (item) => item.receivedQuantity >= item.quantity,
-      );
-
-      const targetStatus: PurchaseOrderStatus = allFullyReceived
-        ? 'RECEIVED'
-        : 'PARTIALLY_RECEIVED';
 
       const updatedPo = await tx.purchaseOrder.update({
         where: { id: poId },
@@ -351,8 +366,98 @@ export class PurchaseService {
         },
       });
 
+      // Record receipt evidence if externalReceiptId provided
+      if (input.externalReceiptId) {
+        try {
+          await tx.automationOperation.create({
+            data: {
+              workspaceId,
+              connectionId: 'erp-receipt',
+              operationKind: 'RECEIPT',
+              idempotencyKey: input.externalReceiptId,
+              payloadHash: JSON.stringify(input),
+              approvedPayloadHash: JSON.stringify(input),
+              mode: 'SIMULATOR',
+              provider: 'erp-receipt',
+              phase: 'COMPLETED',
+              effect: 'APPLIED',
+              recovery: 'NONE',
+              externalId: input.externalReceiptId,
+              evidence: {
+                externalReceiptId: input.externalReceiptId,
+                receivedAt: new Date().toISOString(),
+              },
+            },
+          });
+        } catch (err: any) {
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+            // Concurrent duplicate receipt created: safe to treat as idempotent
+          } else {
+            throw err;
+          }
+        }
+      }
+
       return this.mapPo(updatedPo);
     });
+  }
+
+  async reconcilePurchaseOrder(
+    workspaceId: string,
+    poId: string,
+  ): Promise<any> {
+    const po = await this.prisma.purchaseOrder.findFirst({
+      where: { id: poId, workspaceId },
+      include: {
+        items: { include: { sku: true } },
+      },
+    });
+
+    if (!po) {
+      throw new NotFoundException({
+        code: ErrorCodes.RESOURCE_NOT_FOUND,
+        message: 'Purchase order not found',
+      });
+    }
+
+    let totalOrdered = 0;
+    let totalReceived = 0;
+    const discrepancies: string[] = [];
+
+    const lines = (po.items || []).map((item) => {
+      totalOrdered += item.quantity;
+      totalReceived += item.receivedQuantity;
+      const remaining = item.quantity - item.receivedQuantity;
+      if (remaining > 0) {
+        discrepancies.push(`SKU ${item.skuId} has ${remaining} remaining units pending receipt`);
+      } else if (remaining < 0) {
+        discrepancies.push(`SKU ${item.skuId} is over-received by ${-remaining} units`);
+      }
+      return {
+        skuId: item.skuId,
+        ordered: item.quantity,
+        received: item.receivedQuantity,
+        remaining,
+        isBalanced: remaining === 0,
+      };
+    });
+
+    const isFullyReconciled =
+      totalOrdered === totalReceived &&
+      discrepancies.length === 0 &&
+      po.status === 'RECEIVED';
+
+    return {
+      poId: po.id,
+      poNumber: po.poNumber,
+      status: po.status,
+      totalOrderedQuantity: totalOrdered,
+      totalReceivedQuantity: totalReceived,
+      remainingQuantity: totalOrdered - totalReceived,
+      isFullyReconciled,
+      discrepancies,
+      lines,
+    };
   }
 
   private assertPoTransition(

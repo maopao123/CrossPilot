@@ -1,0 +1,124 @@
+{
+  "projectName": "CrossPilot AI Automation V1",
+  "generatedAt": "2026-09-14T07:00:04.394Z",
+  "durationSeconds": 28,
+  "environment": {
+    "nodeVersion": "v24.13.1",
+    "platform": "win32",
+    "databaseUrl": "postgresql://postgres:postgres@127.0.0.1:5432/crosspilot_test"
+  },
+  "summary": {
+    "totalScenarios": 15,
+    "passedScenarios": 15,
+    "failedScenarios": 0,
+    "passRate": "100%",
+    "verdict": "ACCEPTANCE_PASSED"
+  },
+  "scenarios": [
+    {
+      "id": "E01",
+      "title": "LIVE APPLIED 严禁伪造 / HTTP 200 非终态拦截",
+      "category": "Gate G1 Execution Truth",
+      "status": "PASS",
+      "details": "10/10 probes passed"
+    },
+    {
+      "id": "E02",
+      "title": "SIMULATOR / MOCK 执行模式与生效依据隔离",
+      "category": "Gate G1 Execution Truth",
+      "status": "PASS",
+      "details": "10/10 probes passed"
+    },
+    {
+      "id": "E03",
+      "title": "提交前类型化拒绝 vs 提交后异常状态区分",
+      "category": "Gate G1 Execution Truth",
+      "status": "PASS",
+      "details": "10/10 probes passed"
+    },
+    {
+      "id": "E04",
+      "title": "缓存键强约束与非幂等绕过拦截",
+      "category": "Gate G1 Execution Truth",
+      "status": "PASS",
+      "details": "10/10 probes passed"
+    },
+    {
+      "id": "E05",
+      "title": "鉴权失败与会话失效阻断 (AUTH_REQUIRED)",
+      "category": "Gate G1 Execution Truth",
+      "status": "PASS",
+      "details": "10/10 probes passed"
+    },
+    {
+      "id": "E06",
+      "title": "履约成功外部单号与验证时间真实性",
+      "category": "Gate G1 Truth Verification",
+      "status": "PASS",
+      "details": "9/9 round2 probes passed"
+    },
+    {
+      "id": "E07",
+      "title": "数据库乐观锁 OCC 并发租约防重",
+      "category": "Gate G2 Persistence",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    },
+    {
+      "id": "E09",
+      "title": "真实 Loopback ERP HTTP 协议联调",
+      "category": "Gate G2 ERP Protocol",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    },
+    {
+      "id": "E10",
+      "title": "异常状态分类 (AUTH/RATE/TIMEOUT) 精确归因",
+      "category": "Gate G2 ERP Protocol",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    },
+    {
+      "id": "E11",
+      "title": "补货算法与 ROP 建议量确定性计算",
+      "category": "Gate G2 Closed-Loop",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    },
+    {
+      "id": "E12",
+      "title": "补货建议人工审批强阻断 (Approval ≠ Execute)",
+      "category": "Gate G2 Closed-Loop",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    },
+    {
+      "id": "E13",
+      "title": "多批次到货入库与状态机正确流转",
+      "category": "Gate G2 Receipt & Reconcile",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    },
+    {
+      "id": "E14",
+      "title": "批次收货外部单号幂等性防重复入库",
+      "category": "Gate G2 Receipt & Reconcile",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    },
+    {
+      "id": "E15",
+      "title": "采购与入库全链路一致性自动化对账",
+      "category": "Gate G2 Receipt & Reconcile",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    },
+    {
+      "id": "E08",
+      "title": "租约过期自动释放与故障接管自愈",
+      "category": "Gate G3 Recovery & Healing",
+      "status": "PASS",
+      "details": "Jest test suite passed cleanly against real PostgreSQL & HTTP"
+    }
+  ]
+}

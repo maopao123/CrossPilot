@@ -1,5 +1,33 @@
 # CrossPilot 交接
 
+> **2026-09-14 · AI Automation 终审缺陷（F-P0-1～F-P0-4 & P1）全部闭环，全量矩阵 E01～E15 15/15 PASS，执行方自报 READY_FOR_REVIEW 提请最终复核**：
+> 执行方针对统筹终审报告（[AUTOMATION_FINAL_REVIEW_20260914.md](./00_governance/more/AUTOMATION_FINAL_REVIEW_20260914.md)）的 4 项 P0 及各 P1 缺陷完成闭环：
+> 1. **F-P0-1**：`apps/worker/src/worker.service.ts` 接入 `AUTOMATION_RECOVERY_QUEUE_NAME` 与定时调度扫描，补充生命周期接线测试（9/9 PASS）。
+> 2. **F-P0-2**：`claim()` 保持原 phase，打通 `automation-recovery.processor.ts` Case 2 重试建单与本地 PO 落地，补全端到端建单测试（4/4 PASS）。
+> 3. **F-P0-3**：`action-layer.service.ts` 超时与网络类异常分类为 `effect: UNKNOWN, recovery: QUERY`，PlannedAction 保持 `EXECUTING`（不永久标记 FAILED），打通 QUERY 写入链。
+> 4. **F-P0-4**：Prisma schema 与迁移文件严格单向一致（`action_id` 可空且移除未声明唯一索引），并在隔离库真实执行 SQL 验证。
+> 5. **P1 缺陷修复**：收货并发超收采用原子递增 `{ receivedQuantity: { increment } }` + 乐观锁及库存原子更新 `{ fulfillableQuantity: { increment }, inboundQuantity: { decrement } }`；幂等异参校验抛 409；Worker 租约时长置 30,000ms；前端抽屉读取真实后端证据并显示“未知”（严禁编造假 SIMULATOR）；补货真实查询供应商报价。
+> 6. **全量验收实测**：`node scripts/run-automation-acceptance.cjs` 耗时 28s，15/15 场景全数通过；Monorepo Typecheck 10/10 PASS，Web 静态路由 24/24 生成通过。
+> 7. **门禁自报状态**：`AUTOMATION_EXECUTION_EVIDENCE.md` 规范标记为“执行方自报 READY_FOR_REVIEW”，等待统筹 AI 最终裁定。工作区基于 `be4b8f6`，无 commit / push / 部署。
+>
+> > **2026-09-14 · 统筹终审结论：CHANGES_REQUESTED（历史记录）**。G1 判 PASS（19/19 探针独立复跑通过）；G2/G3 存在 4 项 P0（恢复 worker 未接入生产入口、claim 改写 phase 致重试分支死代码、ERP 超时误标 NOT_APPLIED、迁移与 schema 漂移），另有执行方自标门禁 PASSED 的流程违规。详见 [AUTOMATION_FINAL_REVIEW_20260914.md](./00_governance/more/AUTOMATION_FINAL_REVIEW_20260914.md)。下方为历史自报。
+
+> **2026-09-14 · AI Automation G1三次提交独立复审：READY_FOR_REVIEW（历史）**。执行方已针对统筹二次独立复审（CHANGES_REQUESTED，9项剩余条件）完成最小方案收敛修复：
+> 1. 影刀无凭证/未核实合同execute明确UNSUPPORTED且不发HTTP；Router对无生效证据的LIVE裸SUCCESS不给予APPLIED，归一为UNKNOWN。
+> 2. 合法SIMULATOR提供者成功回执严格保持原SIMULATOR模式，消除硬编码LIVE。
+> 3. 类型化区分前置拒绝与后置执行不确定：远端未知状态/派发后异常归一为UNKNOWN；影刀真实声明查询能力（无实现则不提供假方法），recovery真实为MANUAL；OperationAutomationService如实保留RUNNING与完整executionEvidence，不提前打标FAILED。
+> 4. Router幂等缓存key与冲突检查补齐providerId、targetId、actionType（runtime）与mode；同键异参抛出IDEMPOTENCY_CONFLICT；仅MOCK允许缓存，真实执行不可回放。
+> 5. 初始页面run置null、审批置IDLE、日志置空，消除虚构approvalId，未启动页面审批请求数实测为0。
+> 实测原10探针（10/10 PASS）与二轮9探针（9/9 PASS）共19项探针全部通过；Actions 24/24 PASS，API Automation 4/4 PASS，API回归 15/15 PASS，Web 37/37 PASS，Monorepo Typecheck 10/10 PASS，Web Build 24/24 PASS。代码严格保留在未提交工作区（base HEAD=`be4b8f6`），无 commit/push/deploy。第二批 A3～A6 严格保持未开始（NOT_STARTED），等待统筹 AI 独立三次复验。详细复审依据见 [AUTOMATION_EXECUTION_EVIDENCE.md](./00_governance/more/AUTOMATION_EXECUTION_EVIDENCE.md)。
+
+> **2026-09-14 · G1二次统筹独立复审：CHANGES_REQUESTED**。原10探针未改且10/10通过，actions21/API3/页面2共26项定向测试通过，15项源码指纹匹配；原书面修复要求仍有9个条件失败。先修裸SUCCESS误报、SIMULATOR成功标LIVE、UNKNOWN/查询能力/Service传播、缓存遗漏provider/target/runtime、初始虚构审批任务。入口：[二次复审与修复提示词](./00_governance/more/AUTOMATION_G1_REVIEW_R2_20260914.md)。A3～A6继续NOT_STARTED；统筹未改业务实现、未提交推送部署。下方READY_FOR_REVIEW为执行方历史自报。
+
+> **2026-09-14 · AI Automation G1二次提交独立复审：READY_FOR_REVIEW（历史）**。执行方已针对统筹首次独立复审提出的 G1-R01～R05 缺陷（10 个反例探针）完成闭环修复：模式强隔离拒绝非受支持 provider、远端网络/异常严格归一为 UNKNOWN 并保留真实重试/人工恢复语义、缓存绑定审批与精确参数并排除未成功状态、UI 状态与审计日志真实服从服务端响应。实测 `review-probes.cjs` 10/10 PASS，Actions 21/21 PASS，API Automation 3/3 PASS，Web 36/36 PASS，Web Build 24/24 PASS，Typecheck 10/10 PASS。代码严格保留在未提交工作区（base HEAD=`be4b8f6`），无 commit/push/deploy。第二批 A3～A6 严格保持未开始（NOT_STARTED），等待统筹 AI 独立二次复验。详细复审依据见 [AUTOMATION_EXECUTION_EVIDENCE.md](./00_governance/more/AUTOMATION_EXECUTION_EVIDENCE.md)。
+
+> **2026-09-14 · 下一阶段 AI Automation 执行计划就绪，代码尚未开工**：用户指定“其他 AI 工具执行，当前 AI 负责统筹”。新入口：[AUTOMATION_EXECUTION_HANDOFF.md](./00_governance/more/AUTOMATION_EXECUTION_HANDOFF.md)；完整任务：[AUTOMATION_EXECUTION_PLAN_V1.md](./00_governance/more/AUTOMATION_EXECUTION_PLAN_V1.md)；复审看板：[AUTOMATION_EXECUTION_EVIDENCE.md](./00_governance/more/AUTOMATION_EXECUTION_EVIDENCE.md)。下一步只实施第一批 A0～A2，完成后回交 G1 复审。此任务仅新增计划与指针，未改业务代码、未运行新功能测试、未提交推送部署。
+>
+> **规划时 Git 核实**：当前本地 HEAD=`be4b8f6`，已经包含上一轮 Simulator-first 闭环提交。下文“HEAD冻结dd69e63、未提交”是历史执行记录；不作为当前工作树事实，也不表示本地提交已部署。执行 AI 启动时再次核实实际 HEAD。
+
 > **2026-09-14 · CrossPilot Simulator-first 闭环 — 第二轮审查打回修复（R2-0～R2-12 & R2-P1）终验全量通过**：
 > 严格执行 7 条核心纪律与独立对抗审查打回修复清单，彻底消灭“测试里成立、生产路径断”、外键/字段必炸、worker 调度孤立、回执/状态分叉、假重试、能力虚设与编造实验等问题：
 > - **R2-0 真实 PostgreSQL 物理库验收全通**：本地启动独立 PostgreSQL 实例（`127.0.0.1:5432`，`crosspilot_test` 库），`apps/api/test/closed-loop-v2-postgres.spec.ts` 8/8 全通，验证真实事务原子回滚、P2002 唯一约束、OCC 乐观锁、Outcome v2 多干预降级、applyAction 原子快照与回执一致性、Outcome 任务重试恢复、V2Sku360 数据源隔离与 Tick 日度输出回放一致性；

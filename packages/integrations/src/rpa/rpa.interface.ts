@@ -1,3 +1,5 @@
+import { AutomationMode } from '@crosspilot/shared';
+
 export type RpaStatus = 'SUCCESS' | 'FAILED' | 'RUNNING' | 'TIMEOUT';
 
 export interface RpaExecutionLog {
@@ -25,6 +27,7 @@ export interface RpaExecutionResult {
 export interface RpaAdapter {
   readonly id: string;
   readonly name: string;
+  readonly supportedModes?: AutomationMode[];
   execute(input: RpaExecutionInput): Promise<RpaExecutionResult>;
   cancel?(jobId: string): Promise<boolean>;
   getStatus?(jobId: string): Promise<RpaExecutionResult>;

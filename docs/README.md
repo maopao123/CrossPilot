@@ -23,6 +23,8 @@
 
 当前交接：[`HANDOFF.md`](./HANDOFF.md)。Freeze 真相源：[`00_governance/V9_1_RELEASE_FREEZE.md`](./00_governance/V9_1_RELEASE_FREEZE.md)。
 
+**2026-09-14 下一阶段计划（尚未实施）：** AI Automation 按“执行真实性 → 最小采购闭环 → HTTP/队列恢复验收”分三批推进。其他 AI 工具从[执行交接入口](./00_governance/more/AUTOMATION_EXECUTION_HANDOFF.md)开始；[完整计划](./00_governance/more/AUTOMATION_EXECUTION_PLAN_V1.md)与[实施证据/统筹看板](./00_governance/more/AUTOMATION_EXECUTION_EVIDENCE.md)分开维护。用户指定其他工具执行，当前统筹 AI 在每批完成后复审。
+
 ---
 
 ## 2. AI / 开发者审查必须首读入口 (Start Here)

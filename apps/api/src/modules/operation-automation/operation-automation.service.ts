@@ -21,7 +21,7 @@ export interface AutomationWorkflowRun {
     stepNumber: number;
     name: string;
     runtime: 'AI' | 'TOOL' | 'HUMAN' | 'RPA';
-    status: 'COMPLETED' | 'WAITING' | 'RUNNING' | 'FAILED';
+    status: 'COMPLETED' | 'WAITING' | 'RUNNING' | 'FAILED' | 'PENDING';
     summary: string;
     details?: any;
   }>;
@@ -51,7 +51,7 @@ export class OperationAutomationService {
 
     const run: AutomationWorkflowRun = {
       id: runId,
-      workflowName: 'WF-Operation-01: Amazon Listing 发布流程',
+      workflowName: 'WF-Operation-01: Amazon Listing 发布流程（模拟演示）',
       skuCode,
       targetPrice: price,
       workspaceId,
@@ -62,7 +62,7 @@ export class OperationAutomationService {
     };
     this.workflows.unshift(run);
 
-    // Step 1: AI Listing Copy & Fact Grounding
+    // Step 1: AI Listing Copy & Fact Grounding (Demo Template)
     const title = 'POLEGAS 天然大理石牙刷架 - 1.5" 宽卡槽，重型石质底座';
     const bulletPoints = [
       '100% 纯正天然大理石：整块天然石材手工雕刻，纹理自然，重 3.57 lbs，稳如磐石不倾倒。',
@@ -73,11 +73,11 @@ export class OperationAutomationService {
     ];
     run.steps.push({
       stepNumber: 1,
-      name: 'AI 文案生成与产品事实锚定',
+      name: 'Listing 文案与产品事实锚定（演示模板）',
       runtime: 'AI',
       status: 'COMPLETED',
-      summary: `已为 SKU ${skuCode} 生成标题与 5 条已验证卖点`,
-      details: { title, bulletPoints },
+      summary: `采用 SKU ${skuCode} 演示文案模板（已锚定大理石事实与 5 条特性，非本次实时 AI 生成）`,
+      details: { title, bulletPoints, isTemplate: true },
     });
 
     // Step 2: Policy Compliance Check via ToolPlatform
@@ -128,7 +128,7 @@ export class OperationAutomationService {
         actionType: 'LISTING_PUBLISH',
         targetType: 'SKU',
         targetId: skuCode,
-        requestedPayload: JSON.stringify({ skuCode, price, title, bulletPoints }),
+        requestedPayload: JSON.stringify({ skuCode, price, title, bulletPoints, isDemoTemplate: true }),
         requestedBy: userId || 'SYSTEM',
         status: 'PENDING',
       },
@@ -180,7 +180,7 @@ export class OperationAutomationService {
     if (!run) {
       run = {
         id: `wf_run_${approval.id}`,
-        workflowName: 'WF-Operation-01: Amazon Listing 发布流程',
+        workflowName: 'WF-Operation-01: Amazon Listing 发布流程（模拟演示）',
         skuCode: approval.targetId,
         targetPrice: effectivePrice,
         workspaceId,
@@ -217,12 +217,12 @@ export class OperationAutomationService {
   ): Promise<AutomationWorkflowRun> {
     run.status = 'RUNNING';
 
-    // Step 5: RPA Submission via Action Router
+    // Step 5: RPA Submission via Action Router (Explicit MOCK simulation pipeline)
     const proposal: ActionProposal = {
       id: `act_${run.id}`,
       type: 'RPA',
       name: 'Amazon Seller Central Listing 上传',
-      description: `将 ${run.skuCode} 发布到 Seller Central`,
+      description: `将 ${run.skuCode} 发布到 Seller Central (模拟演示)`,
       requiresHumanApproval: true,
       targetEntity: 'SKU',
       targetId: run.skuCode,
@@ -238,16 +238,56 @@ export class OperationAutomationService {
     const actionResult = await this.actionRouter.dispatch(proposal, {
       workspaceId,
       isApproved: true,
+      executionMode: 'MOCK',
+      providerId: 'mock-rpa',
     });
+
+    if (actionResult.status === 'RUNNING') {
+      run.status = 'RUNNING';
+      run.steps.push({
+        stepNumber: 5,
+        name: 'RPA 模拟提交 Seller Central (Mock)',
+        runtime: 'RPA',
+        status: 'RUNNING',
+        summary: `[模拟演示] RPA 任务已派发处理中（外部任务 ID：${actionResult.data?.jobId || actionResult.executionEvidence?.externalId || 'pending'}）。`,
+        details: {
+          ...actionResult.data,
+          executionEvidence: actionResult.executionEvidence,
+        },
+      });
+
+      run.steps.push({
+        stepNumber: 6,
+        name: '发布后回传与 Feed 确认（等待中）',
+        runtime: 'TOOL',
+        status: 'PENDING',
+        summary: '等待前序 RPA 任务执行完成，待回传 Feed 确认',
+      });
+
+      run.result = {
+        skuCode: run.skuCode,
+        isMock: true,
+        mode: actionResult.executionEvidence?.mode || 'MOCK',
+        syncVerified: false,
+        status: 'RUNNING',
+        executionEvidence: actionResult.executionEvidence,
+        externalId: actionResult.executionEvidence?.externalId || actionResult.data?.jobId,
+      };
+      run.updatedAt = new Date().toISOString();
+      return run;
+    }
 
     if (actionResult.status !== 'SUCCEEDED') {
       run.steps.push({
         stepNumber: 5,
-        name: 'RPA 自动提交 Seller Central',
+        name: 'RPA 模拟提交 Seller Central',
         runtime: 'RPA',
         status: 'FAILED',
         summary: `RPA 执行失败：${actionResult.status}。${actionResult.error || ''}`,
-        details: actionResult.data,
+        details: {
+          ...actionResult.data,
+          executionEvidence: actionResult.executionEvidence,
+        },
       });
 
       run.steps.push({
@@ -255,13 +295,17 @@ export class OperationAutomationService {
         name: '发布后回传与 Feed 确认',
         runtime: 'TOOL',
         status: 'FAILED',
-        summary: '前序 RPA 执行失败，跳过发布后确认与库存同步',
+        summary: '前序 RPA 执行未成功，跳过发布后确认与库存同步',
       });
 
       run.status = 'FAILED';
       run.result = {
         skuCode: run.skuCode,
+        isMock: true,
+        mode: actionResult.executionEvidence?.mode || 'MOCK',
+        syncVerified: false,
         error: actionResult.error || 'RPA execution failed',
+        executionEvidence: actionResult.executionEvidence,
       };
       run.updatedAt = new Date().toISOString();
       return run;
@@ -269,32 +313,37 @@ export class OperationAutomationService {
 
     run.steps.push({
       stepNumber: 5,
-      name: 'RPA 自动提交 Seller Central',
+      name: 'RPA 模拟提交 Seller Central (Mock)',
       runtime: 'RPA',
       status: 'COMPLETED',
-      summary: `RPA 执行：${actionResult.status}。任务 ID：${actionResult.data?.jobId}`,
+      summary: `[模拟演示] RPA 执行完成。任务 ID：${actionResult.data?.jobId || 'mock'}`,
       details: actionResult.data,
     });
 
-    // Step 6: Post-Publish Verification
+    // Step 6: Post-Publish Verification (Simulated Feed Acceptance)
+    const feedId = actionResult.data?.output?.batchFeedId || '8192049102';
     run.steps.push({
       stepNumber: 6,
-      name: '发布后回传与 Feed 确认',
+      name: '发布后回传与 Feed 确认（模拟环境）',
       runtime: 'TOOL',
       status: 'COMPLETED',
-      summary: '已校验 ASIN 上线状态与 Seller Central 库存同步',
+      summary: `[模拟演示] 批次已提交至模拟端 (Feed ID: ${feedId})，未在真实 Amazon 目录上线核验 (syncVerified=false)`,
       details: {
-        feedId: '8192049102',
-        syncVerified: true,
-        catalogStatus: 'ACTIVE',
+        feedId,
+        syncVerified: false,
+        catalogStatus: 'MOCK_SUBMITTED',
+        mode: 'MOCK',
       },
     });
 
     run.status = 'SUCCEEDED';
     run.result = {
       skuCode: run.skuCode,
-      publishedAt: new Date().toISOString(),
-      feedId: '8192049102',
+      isMock: true,
+      mode: 'MOCK',
+      syncVerified: false,
+      catalogStatus: 'MOCK_SUBMITTED',
+      feedId,
       sellerCentralUrl: `https://sellercentral.amazon.com/inventory/view/${run.skuCode}`,
     };
     run.updatedAt = new Date().toISOString();

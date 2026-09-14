@@ -1,0 +1,218 @@
+{
+  "scope": "remaining criteria of original G1-R01..R05",
+  "networkCalls": 0,
+  "databaseCalls": 0,
+  "pass": 9,
+  "fail": 0,
+  "results": [
+    {
+      "id": "R01-bare-success-without-evidence",
+      "actual": {
+        "actionId": "g1r2-action",
+        "status": "FAILED",
+        "isMock": false,
+        "error": "INVALID_REMOTE_RESPONSE: response missing jobId for SUCCESS status",
+        "data": {
+          "jobId": "",
+          "status": "FAILED",
+          "error": "INVALID_REMOTE_RESPONSE: response missing jobId for SUCCESS status",
+          "durationMs": 0
+        },
+        "traceId": "act_trace_1789369177409_oehmx",
+        "durationMs": 0,
+        "executionEvidence": {
+          "mode": "LIVE",
+          "provider": "yingdao-rpa",
+          "operationId": "g1r2-action",
+          "phase": "FAILED",
+          "effect": "UNKNOWN",
+          "recovery": "MANUAL",
+          "errorCode": "RPA_FAILED"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R02-supported-simulator-preserves-mode",
+      "actual": {
+        "calls": 1,
+        "evidence": {
+          "mode": "SIMULATOR",
+          "provider": "real-simulator",
+          "operationId": "g1r2-action",
+          "phase": "COMPLETED",
+          "effect": "APPLIED",
+          "recovery": "NONE",
+          "externalId": "sim-job"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R03-unknown-remote-status-is-not-preflight",
+      "actual": {
+        "actionId": "g1r2-action",
+        "status": "FAILED",
+        "isMock": false,
+        "error": "UNSUPPORTED_STATUS: Unknown remote status CANCELLED",
+        "data": {
+          "jobId": "remote-job",
+          "status": "FAILED",
+          "error": "UNSUPPORTED_STATUS: Unknown remote status CANCELLED",
+          "durationMs": 0
+        },
+        "traceId": "act_trace_1789369177409_w675s",
+        "durationMs": 0,
+        "executionEvidence": {
+          "mode": "LIVE",
+          "provider": "yingdao-rpa",
+          "operationId": "g1r2-action",
+          "phase": "FAILED",
+          "effect": "UNKNOWN",
+          "recovery": "MANUAL",
+          "externalId": "remote-job",
+          "errorCode": "RPA_FAILED"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R03-query-capability-is-real",
+      "actual": {
+        "evidence": {
+          "mode": "LIVE",
+          "provider": "yingdao-rpa",
+          "operationId": "g1r2-action",
+          "phase": "SUBMITTED",
+          "effect": "UNKNOWN",
+          "recovery": "MANUAL",
+          "externalId": "remote-job"
+        },
+        "queryFailure": "yd.getStatus is not a function"
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R03-service-preserves-running-and-evidence",
+      "actual": {
+        "id": "wf-review",
+        "skuCode": "sku-1",
+        "status": "RUNNING",
+        "steps": [
+          {
+            "stepNumber": 5,
+            "name": "RPA 模拟提交 Seller Central (Mock)",
+            "runtime": "RPA",
+            "status": "RUNNING",
+            "summary": "[模拟演示] RPA 任务已派发处理中（外部任务 ID：pending-job）。",
+            "details": {
+              "jobId": "pending-job",
+              "executionEvidence": {
+                "mode": "MOCK",
+                "provider": "mock-rpa",
+                "operationId": "pending-operation",
+                "phase": "SUBMITTED",
+                "effect": "UNKNOWN",
+                "recovery": "MANUAL",
+                "externalId": "pending-job"
+              }
+            }
+          },
+          {
+            "stepNumber": 6,
+            "name": "发布后回传与 Feed 确认（等待中）",
+            "runtime": "TOOL",
+            "status": "PENDING",
+            "summary": "等待前序 RPA 任务执行完成，待回传 Feed 确认"
+          }
+        ],
+        "result": {
+          "skuCode": "sku-1",
+          "isMock": true,
+          "mode": "MOCK",
+          "syncVerified": false,
+          "status": "RUNNING",
+          "executionEvidence": {
+            "mode": "MOCK",
+            "provider": "mock-rpa",
+            "operationId": "pending-operation",
+            "phase": "SUBMITTED",
+            "effect": "UNKNOWN",
+            "recovery": "MANUAL",
+            "externalId": "pending-job"
+          },
+          "externalId": "pending-job"
+        },
+        "updatedAt": "2026-09-14T06:59:37.458Z"
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R04-cache-provider",
+      "actual": {
+        "actionId": "g1r2-action",
+        "status": "FAILED",
+        "error": "IDEMPOTENCY_CONFLICT: operationId 'cache-provider' has already been executed with different parameters, target, provider, or mode",
+        "traceId": "act_trace_1789369177458_jgz7f",
+        "durationMs": 0,
+        "executionEvidence": {
+          "mode": "MOCK",
+          "provider": "idempotency-cache",
+          "operationId": "cache-provider",
+          "phase": "FAILED",
+          "effect": "NOT_APPLIED",
+          "recovery": "MANUAL",
+          "errorCode": "IDEMPOTENCY_CONFLICT"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R04-cache-target",
+      "actual": {
+        "actionId": "g1r2-action",
+        "status": "FAILED",
+        "error": "IDEMPOTENCY_CONFLICT: operationId 'cache-target' has already been executed with different parameters, target, provider, or mode",
+        "traceId": "act_trace_1789369177458_hwxbe",
+        "durationMs": 0,
+        "executionEvidence": {
+          "mode": "MOCK",
+          "provider": "idempotency-cache",
+          "operationId": "cache-target",
+          "phase": "FAILED",
+          "effect": "NOT_APPLIED",
+          "recovery": "MANUAL",
+          "errorCode": "IDEMPOTENCY_CONFLICT"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R04-cache-runtime",
+      "actual": {
+        "actionId": "g1r2-action",
+        "status": "FAILED",
+        "error": "IDEMPOTENCY_CONFLICT: operationId 'cache-runtime' has already been executed with different parameters, target, provider, or mode",
+        "traceId": "act_trace_1789369177458_zama4",
+        "durationMs": 0,
+        "executionEvidence": {
+          "mode": "MOCK",
+          "provider": "idempotency-cache",
+          "operationId": "cache-runtime",
+          "phase": "FAILED",
+          "effect": "NOT_APPLIED",
+          "recovery": "MANUAL",
+          "errorCode": "IDEMPOTENCY_CONFLICT"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "id": "R05-fresh-page-no-fabricated-approval",
+      "actual": {
+        "approvalPosts": 0
+      },
+      "result": "PASS"
+    }
+  ]
+}

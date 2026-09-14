@@ -1,3 +1,5 @@
+import { AutomationMode, ExecutionEvidence } from '@crosspilot/shared';
+
 export type ActionType =
   | 'AI'
   | 'API'
@@ -37,4 +39,16 @@ export interface ActionExecutionResult<T = any> {
   traceId: string;
   durationMs: number;
   approvalId?: string;
+  isMock?: boolean;
+  executionEvidence?: ExecutionEvidence;
+}
+
+export interface ActionDispatcherContext {
+  workspaceId: string;
+  userId?: string;
+  traceId?: string;
+  isApproved?: boolean;
+  operationId?: string;
+  executionMode?: AutomationMode;
+  providerId?: string;
 }

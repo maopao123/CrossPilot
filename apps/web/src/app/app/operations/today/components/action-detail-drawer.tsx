@@ -188,6 +188,62 @@ export function ActionDetailDrawer({
               </div>
             </div>
 
+            {/* Automation Execution Evidence Card */}
+            {((action as any).executionEvidence || (action as any).parameters?._evidence || (action as any).metadata?.executionEvidence) && (() => {
+              const exec = (action as any).executionEvidence || (action as any).parameters?._evidence || (action as any).metadata?.executionEvidence;
+              const isNeedsAttention = exec.phase === 'NEEDS_ATTENTION';
+              return (
+                <div className={`p-4 rounded-xl border ${isNeedsAttention ? 'bg-rose-500/10 border-rose-500/30' : 'bg-surface-elevated/40 border-border'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className={`w-4 h-4 ${isNeedsAttention ? 'text-rose-400' : 'text-emerald-400'}`} />
+                      <span className="text-xs font-semibold text-white">执行真实性证据 (Execution Truthfulness)</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface border border-border text-gray-300">
+                      {(exec.mode || '未知')} / {(exec.provider || '未知')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono mb-2">
+                    <div className="bg-surface p-2 rounded border border-border/40">
+                      <span className="text-gray-400">执行阶段: </span>
+                      <span className={`font-semibold ${exec.phase === 'COMPLETED' ? 'text-emerald-400' : isNeedsAttention ? 'text-rose-400' : 'text-amber-400'}`}>
+                        {exec.phase}
+                      </span>
+                    </div>
+                    <div className="bg-surface p-2 rounded border border-border/40">
+                      <span className="text-gray-400">生效判定: </span>
+                      <span className={`font-semibold ${exec.effect === 'APPLIED' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {exec.effect}
+                      </span>
+                    </div>
+                    {exec.externalId && (
+                      <div className="col-span-2 bg-surface p-2 rounded border border-border/40">
+                        <span className="text-gray-400">外部实体单号: </span>
+                        <span className="text-white font-medium">{exec.externalId}</span>
+                      </div>
+                    )}
+                    {exec.verifiedAt && (
+                      <div className="col-span-2 bg-surface p-2 rounded border border-border/40">
+                        <span className="text-gray-400">验证时刻: </span>
+                        <span className="text-gray-300">{exec.verifiedAt}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {isNeedsAttention && (
+                    <div className="mt-2 text-xs text-rose-300 flex items-start gap-2 bg-rose-950/30 p-2.5 rounded-lg border border-rose-500/20">
+                      <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">需要人工介入处理 (NEEDS_ATTENTION):</span>
+                        <p className="mt-0.5">重试已达上限或操作失败 (恢复策略: {exec.recovery || 'MANUAL'})，请核查外部 ERP 系统或转由人工审批流跟进。</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* 3. Evidence Drilldown (Direct Business Facts) */}
             <div className="bg-surface-elevated/40 p-4 rounded-xl border border-border">
               <div className="flex items-center justify-between mb-3">

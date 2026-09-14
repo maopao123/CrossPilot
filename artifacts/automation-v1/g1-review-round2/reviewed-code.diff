@@ -1,0 +1,1093 @@
+diff --git a/apps/api/src/modules/operation-automation/operation-automation.service.ts b/apps/api/src/modules/operation-automation/operation-automation.service.ts
+index 99c3fc9..ab9cadb 100644
+--- a/apps/api/src/modules/operation-automation/operation-automation.service.ts
++++ b/apps/api/src/modules/operation-automation/operation-automation.service.ts
+@@ -51,7 +51,7 @@ export class OperationAutomationService {
+ 
+     const run: AutomationWorkflowRun = {
+       id: runId,
+-      workflowName: 'WF-Operation-01: Amazon Listing 发布流程',
++      workflowName: 'WF-Operation-01: Amazon Listing 发布流程（模拟演示）',
+       skuCode,
+       targetPrice: price,
+       workspaceId,
+@@ -62,7 +62,7 @@ export class OperationAutomationService {
+     };
+     this.workflows.unshift(run);
+ 
+-    // Step 1: AI Listing Copy & Fact Grounding
++    // Step 1: AI Listing Copy & Fact Grounding (Demo Template)
+     const title = 'POLEGAS 天然大理石牙刷架 - 1.5" 宽卡槽，重型石质底座';
+     const bulletPoints = [
+       '100% 纯正天然大理石：整块天然石材手工雕刻，纹理自然，重 3.57 lbs，稳如磐石不倾倒。',
+@@ -73,11 +73,11 @@ export class OperationAutomationService {
+     ];
+     run.steps.push({
+       stepNumber: 1,
+-      name: 'AI 文案生成与产品事实锚定',
++      name: 'Listing 文案与产品事实锚定（演示模板）',
+       runtime: 'AI',
+       status: 'COMPLETED',
+-      summary: `已为 SKU ${skuCode} 生成标题与 5 条已验证卖点`,
+-      details: { title, bulletPoints },
++      summary: `采用 SKU ${skuCode} 演示文案模板（已锚定大理石事实与 5 条特性，非本次实时 AI 生成）`,
++      details: { title, bulletPoints, isTemplate: true },
+     });
+ 
+     // Step 2: Policy Compliance Check via ToolPlatform
+@@ -128,7 +128,7 @@ export class OperationAutomationService {
+         actionType: 'LISTING_PUBLISH',
+         targetType: 'SKU',
+         targetId: skuCode,
+-        requestedPayload: JSON.stringify({ skuCode, price, title, bulletPoints }),
++        requestedPayload: JSON.stringify({ skuCode, price, title, bulletPoints, isDemoTemplate: true }),
+         requestedBy: userId || 'SYSTEM',
+         status: 'PENDING',
+       },
+@@ -180,7 +180,7 @@ export class OperationAutomationService {
+     if (!run) {
+       run = {
+         id: `wf_run_${approval.id}`,
+-        workflowName: 'WF-Operation-01: Amazon Listing 发布流程',
++        workflowName: 'WF-Operation-01: Amazon Listing 发布流程（模拟演示）',
+         skuCode: approval.targetId,
+         targetPrice: effectivePrice,
+         workspaceId,
+@@ -217,12 +217,12 @@ export class OperationAutomationService {
+   ): Promise<AutomationWorkflowRun> {
+     run.status = 'RUNNING';
+ 
+-    // Step 5: RPA Submission via Action Router
++    // Step 5: RPA Submission via Action Router (Explicit MOCK simulation pipeline)
+     const proposal: ActionProposal = {
+       id: `act_${run.id}`,
+       type: 'RPA',
+       name: 'Amazon Seller Central Listing 上传',
+-      description: `将 ${run.skuCode} 发布到 Seller Central`,
++      description: `将 ${run.skuCode} 发布到 Seller Central (模拟演示)`,
+       requiresHumanApproval: true,
+       targetEntity: 'SKU',
+       targetId: run.skuCode,
+@@ -238,12 +238,14 @@ export class OperationAutomationService {
+     const actionResult = await this.actionRouter.dispatch(proposal, {
+       workspaceId,
+       isApproved: true,
++      executionMode: 'MOCK',
++      providerId: 'mock-rpa',
+     });
+ 
+     if (actionResult.status !== 'SUCCEEDED') {
+       run.steps.push({
+         stepNumber: 5,
+-        name: 'RPA 自动提交 Seller Central',
++        name: 'RPA 模拟提交 Seller Central',
+         runtime: 'RPA',
+         status: 'FAILED',
+         summary: `RPA 执行失败：${actionResult.status}。${actionResult.error || ''}`,
+@@ -255,12 +257,15 @@ export class OperationAutomationService {
+         name: '发布后回传与 Feed 确认',
+         runtime: 'TOOL',
+         status: 'FAILED',
+-        summary: '前序 RPA 执行失败，跳过发布后确认与库存同步',
++        summary: '前序 RPA 执行未成功，跳过发布后确认与库存同步',
+       });
+ 
+       run.status = 'FAILED';
+       run.result = {
+         skuCode: run.skuCode,
++        isMock: true,
++        mode: 'MOCK',
++        syncVerified: false,
+         error: actionResult.error || 'RPA execution failed',
+       };
+       run.updatedAt = new Date().toISOString();
+@@ -269,32 +274,37 @@ export class OperationAutomationService {
+ 
+     run.steps.push({
+       stepNumber: 5,
+-      name: 'RPA 自动提交 Seller Central',
++      name: 'RPA 模拟提交 Seller Central (Mock)',
+       runtime: 'RPA',
+       status: 'COMPLETED',
+-      summary: `RPA 执行：${actionResult.status}。任务 ID：${actionResult.data?.jobId}`,
++      summary: `[模拟演示] RPA 执行完成。任务 ID：${actionResult.data?.jobId || 'mock'}`,
+       details: actionResult.data,
+     });
+ 
+-    // Step 6: Post-Publish Verification
++    // Step 6: Post-Publish Verification (Simulated Feed Acceptance)
++    const feedId = actionResult.data?.output?.batchFeedId || '8192049102';
+     run.steps.push({
+       stepNumber: 6,
+-      name: '发布后回传与 Feed 确认',
++      name: '发布后回传与 Feed 确认（模拟环境）',
+       runtime: 'TOOL',
+       status: 'COMPLETED',
+-      summary: '已校验 ASIN 上线状态与 Seller Central 库存同步',
++      summary: `[模拟演示] 批次已提交至模拟端 (Feed ID: ${feedId})，未在真实 Amazon 目录上线核验 (syncVerified=false)`,
+       details: {
+-        feedId: '8192049102',
+-        syncVerified: true,
+-        catalogStatus: 'ACTIVE',
++        feedId,
++        syncVerified: false,
++        catalogStatus: 'MOCK_SUBMITTED',
++        mode: 'MOCK',
+       },
+     });
+ 
+     run.status = 'SUCCEEDED';
+     run.result = {
+       skuCode: run.skuCode,
+-      publishedAt: new Date().toISOString(),
+-      feedId: '8192049102',
++      isMock: true,
++      mode: 'MOCK',
++      syncVerified: false,
++      catalogStatus: 'MOCK_SUBMITTED',
++      feedId,
+       sellerCentralUrl: `https://sellercentral.amazon.com/inventory/view/${run.skuCode}`,
+     };
+     run.updatedAt = new Date().toISOString();
+diff --git a/apps/web/src/app/app/operations/automation/page.tsx b/apps/web/src/app/app/operations/automation/page.tsx
+index 2a0aeec..f14cf88 100644
+--- a/apps/web/src/app/app/operations/automation/page.tsx
++++ b/apps/web/src/app/app/operations/automation/page.tsx
+@@ -36,7 +36,7 @@ export default function OperationAutomationPage() {
+   const [skuCode, setSkuCode] = useState('MTH-GREEN-001');
+   const [targetPrice, setTargetPrice] = useState(29.99);
+   const [isRunning, setIsRunning] = useState(false);
+-  const [approvalStatus, setApprovalStatus] = useState<'IDLE' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
++  const [approvalStatus, setApprovalStatus] = useState<'IDLE' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'FAILED'>('PENDING');
+   const [activeWorkflow, setActiveWorkflow] = useState<{
+     id: string;
+     status: 'WAITING_APPROVAL' | 'SUCCEEDED' | 'RUNNING' | 'FAILED';
+@@ -49,13 +49,14 @@ export default function OperationAutomationPage() {
+     steps: [
+       {
+         stepNumber: 1,
+-        name: 'AI 文案生成与产品事实锚定',
++        name: 'Listing 文案与产品事实锚定（演示模板）',
+         runtime: 'AI',
+         status: 'COMPLETED',
+-        summary: '生成 1.5" 孔径、3.57 lbs 净重与天然大理石真实材质标题与 5 点描述',
++        summary: '采用天然大理石真实材质标题与 5 点描述模板（固定事实，非本次实时 AI 生成）',
+         details: {
+           title: 'POLEGAS 天然大理石牙刷架 - 1.5" 通用宽卡槽，重型石质底座',
+           bulletCount: 5,
++          isTemplate: true,
+         },
+       },
+       {
+@@ -88,17 +89,17 @@ export default function OperationAutomationPage() {
+       },
+       {
+         stepNumber: 5,
+-        name: 'RPA 自动化打开后台并填报发布',
++        name: 'RPA 模拟录入发布 (Mock)',
+         runtime: 'RPA',
+         status: 'PENDING',
+-        summary: '影刀/Mock RPA 驱动无头浏览器执行 Seller Central 录入',
++        summary: 'Mock RPA 模拟执行 Seller Central 录入（非真实店铺操作）',
+       },
+       {
+         stepNumber: 6,
+-        name: '上架状态回验与 Feed ID 确认',
++        name: '发布后回传与 Feed 确认（模拟环境）',
+         runtime: 'TOOL',
+         status: 'PENDING',
+-        summary: '验证亚马逊 Batch Feed 批次接收并核验库存与价格生效',
++        summary: '模拟批次接收 (Feed ID: 8192049102)，未在真实 Amazon 目录上线核验 (syncVerified=false)',
+       },
+     ],
+   });
+@@ -144,8 +145,8 @@ export default function OperationAutomationPage() {
+ 
+   const handleApprove = async () => {
+     if (ApiClient.isViewer()) return;
++    if (!activeWorkflow?.approvalId) return;
+     setIsRunning(true);
+-    setApprovalStatus('APPROVED');
+ 
+     try {
+       const data = await ApiClient.post<any>(
+@@ -153,17 +154,40 @@ export default function OperationAutomationPage() {
+         {},
+       );
+ 
++      if (data?.status === 'SUCCEEDED') {
++        setApprovalStatus('APPROVED');
++        setActiveWorkflow(data);
++        const feedId = data.result?.feedId || '8192049102';
++        setRpaLogs((prev) => [
++          `[${new Date().toLocaleTimeString()}] [Node 6 - Verification] [模拟演示] Amazon Batch Feed (Feed ID: ${feedId}) 模拟批次已接收 (syncVerified=false).`,
++          `[${new Date().toLocaleTimeString()}] [Node 5 - RPA] [模拟演示] Mock RPA 模拟录入完成.`,
++          `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] 审批已通过 (Approved by operator).`,
++          ...prev,
++        ]);
++        return;
++      }
++
++      if (data?.status === 'FAILED') {
++        setApprovalStatus('FAILED');
++        setActiveWorkflow(data);
++        setRpaLogs((prev) => [
++          `[${new Date().toLocaleTimeString()}] [Node 5 - RPA] RPA 执行失败：${data.result?.error || '执行未成功'}.`,
++          `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] 审批已通过，但后续 RPA 执行失败.`,
++          ...prev,
++        ]);
++        return;
++      }
++
+       if (data) {
+         setActiveWorkflow(data);
+         setRpaLogs((prev) => [
+-          `[${new Date().toLocaleTimeString()}] [Node 6 - Verification] Amazon Batch Feed confirmed.`,
+-          `[${new Date().toLocaleTimeString()}] [Node 5 - RPA] Completed Seller Central automated upload for ${skuCode}.`,
+-          `[${new Date().toLocaleTimeString()}] [Node 4 - Human Gate] Approved by operator. Dispatched to RPA Adapter.`,
++          `[${new Date().toLocaleTimeString()}] [Workflow Engine] 流程状态已更新为：${data.status}.`,
+           ...prev,
+         ]);
+         return;
+       }
+     } catch (err: any) {
++      setApprovalStatus('PENDING');
+       setRpaLogs((prev) => [
+         `[${new Date().toLocaleTimeString()}] [Approval Gate] Approval failed: ${err.message}`,
+         ...prev,
+@@ -193,11 +217,11 @@ export default function OperationAutomationPage() {
+             <div className="flex items-center space-x-2">
+               <h1 className="cp-title">运营自动化</h1>
+               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+-                P0 RPA 流水线
++                演示流水线 (Mock 模式)
+               </span>
+             </div>
+             <p className="text-xs text-gray-400 mt-0.5">
+-              WF-Operation-01 Listing 发布：AI 负责内容生成与合规质检，人类把关审批门禁，RPA 负责稳定填报与发布
++              WF-Operation-01 Listing 发布：文案模板与合规质检，人类把关审批门禁，Mock RPA 负责模拟填报与发布验证
+             </p>
+           </div>
+         </div>
+@@ -292,9 +316,9 @@ export default function OperationAutomationPage() {
+           <div className="flex items-center space-x-3">
+             <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+             <div>
+-              <h3 className="text-sm font-bold text-white">Listing 发布流水线全部完成</h3>
++              <h3 className="text-sm font-bold text-white">Listing 发布流水线（模拟演示）已完成</h3>
+               <p className="text-xs text-gray-300 mt-0.5">
+-                RPA 已成功将商品资料与图片提交至亚马逊 Seller Central，Feed ID: 8192049102，等待亚马逊全球商品目录编目。
++                Mock RPA 已模拟将商品资料提交至 Seller Central 接收端（Feed ID: 8192049102）。当前为模拟演示环境，未在真实店铺编目生效 (syncVerified=false)。
+               </p>
+             </div>
+           </div>
+@@ -409,7 +433,7 @@ export default function OperationAutomationPage() {
+             <Terminal className="w-4 h-4 text-emerald-400" />
+             <h3 className="text-sm font-bold text-white">RPA 自动化执行实时审计日志</h3>
+           </div>
+-          <span className="text-[11px] text-gray-400 font-mono">适配器：影刀/Mock RPA 引擎</span>
++          <span className="text-[11px] text-gray-400 font-mono">适配器：Mock RPA 仿真引擎（模拟演示环境）</span>
+         </div>
+ 
+         <div className="p-4 rounded-lg bg-black/80 border border-border font-mono text-xs text-gray-300 space-y-1.5 max-h-56 overflow-y-auto">
+diff --git a/apps/web/src/constants/ui-labels.ts b/apps/web/src/constants/ui-labels.ts
+index 8ed4360..d9dcc63 100644
+--- a/apps/web/src/constants/ui-labels.ts
++++ b/apps/web/src/constants/ui-labels.ts
+@@ -78,6 +78,19 @@ export const STATUS_LABELS: Record<string, string> = {
+   // Listing 生成引擎降级状态
+   TEMPLATE_FALLBACK: '模板降级',
+   LEGACY_TEMPLATE: '传统模板',
++
++  // AI Automation 执行真实性与环境状态
++  SUBMITTED: '已提交',
++  VERIFYING: '核验中',
++  NEEDS_ATTENTION: '待人工处理',
++  PARTIALLY_APPLIED: '部分生效',
++  AUTH_REQUIRED: '需要授权',
++  UNSUPPORTED: '能力未支持',
++  MOCK_SUBMITTED: '模拟已提交',
++  PENDING_CATALOG: '待编目同步',
++  MOCK: '模拟演示',
++  SIMULATOR: '沙箱模拟',
++  LIVE: '实盘运行',
+ };
+ 
+ 
+diff --git a/packages/actions/src/action.router.ts b/packages/actions/src/action.router.ts
+index 194e7f6..ec71d02 100644
+--- a/packages/actions/src/action.router.ts
++++ b/packages/actions/src/action.router.ts
+@@ -1,21 +1,32 @@
+-import { ActionExecutionResult, ActionProposal, ActionStatus } from './action.types.js';
++import {
++  ActionExecutionResult,
++  ActionProposal,
++  ActionDispatcherContext,
++} from './action.types.js';
+ import { defaultRpaRegistry, RpaAdapter } from '@crosspilot/integrations/rpa';
++import { AutomationMode } from '@crosspilot/shared';
+ 
+-export interface ActionDispatcherContext {
+-  workspaceId: string;
+-  userId?: string;
+-  traceId?: string;
+-  isApproved?: boolean;
+-  operationId?: string;
++export type { ActionDispatcherContext } from './action.types.js';
++
++interface CachedOperationRecord {
++  actionId: string;
++  mode: AutomationMode;
++  payloadJson: string;
++  result: ActionExecutionResult;
+ }
+ 
+ export class ActionRouter {
+-  private readonly completedOperations = new Map<string, ActionExecutionResult>();
++  /**
++   * Note: This in-memory Map is ONLY a process-local deduplication cache for successfully completed operations.
++   * It is NOT a durable cross-process or cross-worker idempotency guarantee.
++   * Failed or pending attempts are never cached to avoid permanently freezing recoverable operations.
++   */
++  private readonly completedOperations = new Map<string, CachedOperationRecord>();
+ 
+   constructor(private readonly rpaRegistry = defaultRpaRegistry) {}
+ 
+   /**
+-   * Evaluates if proposal requires human gate, or dispatches directly to chosen runtime
++   * Evaluates if proposal requires human gate, validates mode/provider, or dispatches to chosen runtime
+    */
+   async dispatch<T = any>(
+     proposal: ActionProposal<T>,
+@@ -23,17 +34,10 @@ export class ActionRouter {
+   ): Promise<ActionExecutionResult> {
+     const startTime = Date.now();
+     const traceId = context.traceId || `act_trace_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
++    const mode: AutomationMode = context.executionMode || 'LIVE';
++    const operationId = context.operationId || proposal.id;
+ 
+-    // 0. Check Idempotency via operationId
+-    if (context.operationId && this.completedOperations.has(context.operationId)) {
+-      const cached = this.completedOperations.get(context.operationId)!;
+-      return {
+-        ...cached,
+-        traceId,
+-      };
+-    }
+-
+-    // 1. Check Human Gate
++    // 0. Check Human Gate FIRST (before checking any cache or dispatching)
+     if (proposal.requiresHumanApproval && !context.isApproved) {
+       return {
+         actionId: proposal.id,
+@@ -45,63 +49,300 @@ export class ActionRouter {
+           message: 'High-risk action held at Human Gate. Waiting for human approval.',
+           proposal,
+         },
++        executionEvidence: {
++          mode,
++          provider: 'human-gate',
++          operationId,
++          phase: 'READY',
++          effect: 'NOT_APPLIED',
++          recovery: 'MANUAL',
++        },
++      };
++    }
++
++    // 1. Check Idempotency via scoped workspaceId:operationId
++    const cacheKey = context.operationId ? `${context.workspaceId}:${context.operationId}` : undefined;
++    if (cacheKey && this.completedOperations.has(cacheKey)) {
++      const cached = this.completedOperations.get(cacheKey)!;
++      const currentPayloadJson = JSON.stringify(proposal.payload || {});
++
++      // Verify that the cached operation strictly matches actionId, executionMode and payload
++      if (
++        cached.actionId === proposal.id &&
++        cached.mode === mode &&
++        cached.payloadJson === currentPayloadJson
++      ) {
++        return {
++          ...cached.result,
++          traceId,
++        };
++      }
++
++      // Idempotency conflict: same operationId was dispatched with different parameters, mode, or actionId
++      return {
++        actionId: proposal.id,
++        status: 'FAILED',
++        error: `IDEMPOTENCY_CONFLICT: operationId '${context.operationId}' has already been executed with different parameters or mode`,
++        traceId,
++        durationMs: Date.now() - startTime,
++        executionEvidence: {
++          mode,
++          provider: 'idempotency-cache',
++          operationId,
++          phase: 'FAILED',
++          effect: 'NOT_APPLIED',
++          recovery: 'MANUAL',
++          errorCode: 'IDEMPOTENCY_CONFLICT',
++        },
+       };
+     }
+ 
+     // 2. Dispatch by runtime
+-    try {
+-      let data: any;
+-      switch (proposal.type) {
+-        case 'RPA': {
+-          const adapter = this.rpaRegistry.getDefault();
+-          const rpaResult = await adapter.execute({
+-            workflow: proposal.name,
+-            params: proposal.payload as Record<string, unknown>,
+-          });
+-          data = rpaResult;
++    let result: ActionExecutionResult;
++
++    switch (proposal.type) {
++      case 'RPA': {
++        const adapter: RpaAdapter | undefined = context.providerId
++          ? this.rpaRegistry.get(context.providerId)
++          : this.rpaRegistry.getDefault(mode);
++
++        if (!adapter) {
++          result = {
++            actionId: proposal.id,
++            status: 'FAILED',
++            error: mode === 'LIVE'
++              ? `AUTH_REQUIRED: No live RPA adapter configured for LIVE mode (provider: ${context.providerId || 'default'})`
++              : `UNSUPPORTED: No RPA adapter available for ${mode} mode (provider: ${context.providerId || 'default'})`,
++            traceId,
++            durationMs: Date.now() - startTime,
++            executionEvidence: {
++              mode,
++              provider: context.providerId || 'rpa',
++              operationId,
++              phase: 'FAILED',
++              effect: 'NOT_APPLIED',
++              recovery: mode === 'LIVE' ? 'REAUTHORIZE' : 'MANUAL',
++              errorCode: mode === 'LIVE' ? 'AUTH_REQUIRED' : 'UNSUPPORTED',
++            },
++          };
++          break;
++        }
++
++        const isMockAdapter = adapter.id === 'mock-rpa' || Boolean(adapter.supportedModes?.includes('MOCK'));
++        const isLiveAdapter = adapter.id !== 'mock-rpa' && (!adapter.supportedModes || adapter.supportedModes.includes('LIVE'));
++        const isSimulatorAdapter = Boolean(adapter.supportedModes?.includes('SIMULATOR'));
++
++        // Strict pre-execution mode check: isolate mock and live providers before execute
++        if (mode === 'MOCK' && !isMockAdapter) {
++          result = {
++            actionId: proposal.id,
++            status: 'FAILED',
++            error: `INVALID_MODE: Provider '${adapter.id}' does not support MOCK mode`,
++            traceId,
++            durationMs: Date.now() - startTime,
++            executionEvidence: {
++              mode: 'MOCK',
++              provider: adapter.id,
++              operationId,
++              phase: 'FAILED',
++              effect: 'NOT_APPLIED',
++              recovery: 'MANUAL',
++              errorCode: 'INVALID_PROVIDER_FOR_MODE',
++            },
++          };
+           break;
+         }
+ 
+-        case 'API':
+-        case 'PYTHON':
+-        case 'AI':
+-        case 'BROWSER':
+-        default: {
+-          data = {
+-            executed: true,
+-            runtime: proposal.type,
+-            output: proposal.payload,
+-            timestamp: new Date().toISOString(),
++        if (mode === 'SIMULATOR' && !isSimulatorAdapter) {
++          result = {
++            actionId: proposal.id,
++            status: 'FAILED',
++            error: `UNSUPPORTED: Provider '${adapter.id}' does not support SIMULATOR mode`,
++            traceId,
++            durationMs: Date.now() - startTime,
++            executionEvidence: {
++              mode: 'SIMULATOR',
++              provider: adapter.id,
++              operationId,
++              phase: 'FAILED',
++              effect: 'NOT_APPLIED',
++              recovery: 'MANUAL',
++              errorCode: 'UNSUPPORTED',
++            },
+           };
+           break;
+         }
+-      }
+ 
+-      const result: ActionExecutionResult = {
+-        actionId: proposal.id,
+-        status: 'SUCCEEDED',
+-        data,
+-        traceId,
+-        durationMs: Date.now() - startTime,
+-      };
++        if (mode === 'LIVE' && !isLiveAdapter) {
++          result = {
++            actionId: proposal.id,
++            status: 'FAILED',
++            error: `AUTH_REQUIRED: Mock provider '${adapter.id}' cannot be executed in LIVE mode`,
++            traceId,
++            durationMs: Date.now() - startTime,
++            executionEvidence: {
++              mode: 'LIVE',
++              provider: adapter.id,
++              operationId,
++              phase: 'FAILED',
++              effect: 'NOT_APPLIED',
++              recovery: 'REAUTHORIZE',
++              errorCode: 'AUTH_REQUIRED',
++            },
++          };
++          break;
++        }
+ 
+-      if (context.operationId) {
+-        if (this.completedOperations.size > 2000) {
+-          const oldestKey = this.completedOperations.keys().next().value;
+-          if (oldestKey) this.completedOperations.delete(oldestKey);
++        try {
++          const rpaResult = await adapter.execute({
++            workflow: proposal.name,
++            params: proposal.payload as Record<string, unknown>,
++          });
++
++          const isMock = adapter.id === 'mock-rpa' || mode === 'MOCK';
++
++          if (rpaResult.status === 'SUCCESS') {
++            result = {
++              actionId: proposal.id,
++              status: 'SUCCEEDED',
++              isMock,
++              data: rpaResult as any,
++              traceId,
++              durationMs: Date.now() - startTime,
++              executionEvidence: {
++                mode: isMock ? 'MOCK' : 'LIVE',
++                provider: adapter.id,
++                operationId,
++                phase: 'COMPLETED',
++                effect: 'APPLIED',
++                recovery: 'NONE',
++                externalId: rpaResult.jobId || undefined,
++                ...(isMock ? { verifiedAt: new Date().toISOString() } : {}),
++              },
++            };
++          } else if (rpaResult.status === 'RUNNING') {
++            result = {
++              actionId: proposal.id,
++              status: 'RUNNING',
++              isMock,
++              data: rpaResult as any,
++              traceId,
++              durationMs: Date.now() - startTime,
++              executionEvidence: {
++                mode: isMock ? 'MOCK' : mode,
++                provider: adapter.id,
++                operationId,
++                phase: 'SUBMITTED',
++                effect: 'UNKNOWN',
++                recovery: 'QUERY',
++                externalId: rpaResult.jobId || undefined,
++              },
++            };
++          } else if (rpaResult.status === 'TIMEOUT') {
++            result = {
++              actionId: proposal.id,
++              status: 'FAILED',
++              isMock,
++              error: rpaResult.error || 'RPA execution timed out',
++              data: rpaResult as any,
++              traceId,
++              durationMs: Date.now() - startTime,
++              executionEvidence: {
++                mode: isMock ? 'MOCK' : mode,
++                provider: adapter.id,
++                operationId,
++                phase: 'FAILED',
++                effect: 'UNKNOWN',
++                recovery: 'QUERY',
++                externalId: rpaResult.jobId || undefined,
++                errorCode: 'TIMEOUT',
++              },
++            };
++          } else {
++            // FAILED status returned from adapter
++            const isPreDispatch = rpaResult.error?.includes('AUTH_REQUIRED') || rpaResult.error?.includes('UNSUPPORTED');
++            result = {
++              actionId: proposal.id,
++              status: 'FAILED',
++              isMock,
++              error: rpaResult.error || 'RPA execution failed',
++              data: rpaResult as any,
++              traceId,
++              durationMs: Date.now() - startTime,
++              executionEvidence: {
++                mode: isMock ? 'MOCK' : mode,
++                provider: adapter.id,
++                operationId,
++                phase: 'FAILED',
++                effect: isPreDispatch ? 'NOT_APPLIED' : 'UNKNOWN',
++                recovery: isPreDispatch ? 'REAUTHORIZE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
++                externalId: rpaResult.jobId || undefined,
++                errorCode: isPreDispatch ? 'AUTH_REQUIRED' : 'RPA_FAILED',
++              },
++            };
++          }
++        } catch (err: any) {
++          // Unexpected exception during execution (e.g. process crash, connection dropped after submit)
++          // Conservative invariant: remote effect is UNKNOWN
++          result = {
++            actionId: proposal.id,
++            status: 'FAILED',
++            error: err.message || 'RPA adapter threw an unexpected error',
++            traceId,
++            durationMs: Date.now() - startTime,
++            executionEvidence: {
++              mode,
++              provider: adapter.id,
++              operationId,
++              phase: 'FAILED',
++              effect: 'UNKNOWN',
++              recovery: adapter.getStatus ? 'QUERY' : 'MANUAL',
++            },
++          };
+         }
+-        this.completedOperations.set(context.operationId, result);
++        break;
+       }
+ 
+-      return result;
+-    } catch (err: any) {
+-      return {
++      case 'API':
++      case 'PYTHON':
++      case 'AI':
++      case 'BROWSER':
++      case 'COMPUTER_USE':
++      default: {
++        result = {
++          actionId: proposal.id,
++          status: 'FAILED',
++          error: `UNSUPPORTED: runtime ${proposal.type} is not implemented`,
++          traceId,
++          durationMs: Date.now() - startTime,
++          executionEvidence: {
++            mode,
++            provider: proposal.type,
++            operationId,
++            phase: 'FAILED',
++            effect: 'NOT_APPLIED',
++            recovery: 'MANUAL',
++            errorCode: 'UNSUPPORTED_RUNTIME',
++          },
++        };
++        break;
++      }
++    }
++
++    // Only cache successful executions. Failed or unknown attempts are never permanently cached.
++    if (cacheKey && result.status === 'SUCCEEDED') {
++      if (this.completedOperations.size > 2000) {
++        const oldestKey = this.completedOperations.keys().next().value;
++        if (oldestKey) this.completedOperations.delete(oldestKey);
++      }
++      this.completedOperations.set(cacheKey, {
+         actionId: proposal.id,
+-        status: 'FAILED',
+-        error: err.message || 'Action execution failed.',
+-        traceId,
+-        durationMs: Date.now() - startTime,
+-      };
++        mode,
++        payloadJson: JSON.stringify(proposal.payload || {}),
++        result,
++      });
+     }
++
++    return result;
+   }
+ }
+diff --git a/packages/actions/src/action.types.ts b/packages/actions/src/action.types.ts
+index f37f323..0648003 100644
+--- a/packages/actions/src/action.types.ts
++++ b/packages/actions/src/action.types.ts
+@@ -1,3 +1,5 @@
++import { AutomationMode, ExecutionEvidence } from '@crosspilot/shared';
++
+ export type ActionType =
+   | 'AI'
+   | 'API'
+@@ -37,4 +39,16 @@ export interface ActionExecutionResult<T = any> {
+   traceId: string;
+   durationMs: number;
+   approvalId?: string;
++  isMock?: boolean;
++  executionEvidence?: ExecutionEvidence;
++}
++
++export interface ActionDispatcherContext {
++  workspaceId: string;
++  userId?: string;
++  traceId?: string;
++  isApproved?: boolean;
++  operationId?: string;
++  executionMode?: AutomationMode;
++  providerId?: string;
+ }
+diff --git a/packages/actions/test/actions.spec.ts b/packages/actions/test/actions.spec.ts
+index 2bc0eec..c09018a 100644
+--- a/packages/actions/test/actions.spec.ts
++++ b/packages/actions/test/actions.spec.ts
+@@ -49,9 +49,12 @@ describe('ActionLayer Unit Tests', () => {
+     const result = await router.dispatch(proposal, {
+       workspaceId: 'ws_demo',
+       isApproved: true,
++      executionMode: 'MOCK',
++      providerId: 'mock-rpa',
+     });
+ 
+     expect(result.status).toBe('SUCCEEDED');
++    expect(result.isMock).toBe(true);
+     expect(result.data.jobId).toBeDefined();
+     expect(result.data.status).toBe('SUCCESS');
+     expect(result.data.output.skuCode).toBe('MTH-GREEN-001');
+diff --git a/packages/integrations/src/rpa/mock-rpa.adapter.ts b/packages/integrations/src/rpa/mock-rpa.adapter.ts
+index e297382..a4e3179 100644
+--- a/packages/integrations/src/rpa/mock-rpa.adapter.ts
++++ b/packages/integrations/src/rpa/mock-rpa.adapter.ts
+@@ -1,3 +1,4 @@
++import { AutomationMode } from '@crosspilot/shared';
+ import {
+   RpaAdapter,
+   RpaExecutionInput,
+@@ -6,7 +7,8 @@ import {
+ 
+ export class MockRpaAdapter implements RpaAdapter {
+   readonly id = 'mock-rpa';
+-  readonly name = 'Mock Deterministic RPA Engine';
++  readonly name = 'Mock Deterministic RPA Engine (Simulation)';
++  readonly supportedModes: AutomationMode[] = ['MOCK'];
+ 
+   async execute(input: RpaExecutionInput): Promise<RpaExecutionResult> {
+     const startTime = Date.now();
+@@ -15,33 +17,33 @@ export class MockRpaAdapter implements RpaAdapter {
+     const logs = [
+       {
+         timestamp: new Date().toISOString(),
+-        step: 'LAUNCH_BROWSER',
+-        message: 'Chromium headless session spawned successfully.',
++        step: 'MOCK_SPAWN',
++        message: '[MOCK SIMULATION] Simulated headless worker initialized.',
+       },
+       {
+         timestamp: new Date().toISOString(),
+-        step: 'AUTH_VERIFY',
+-        message: 'Seller Central session cookie valid. Region: North America.',
++        step: 'MOCK_AUTH',
++        message: '[MOCK SIMULATION] Verified simulated session token (Mock Seller Central).',
+       },
+       {
+         timestamp: new Date().toISOString(),
+-        step: 'NAVIGATE_INVENTORY',
+-        message: 'Navigated to Seller Central > Add Products via Upload.',
++        step: 'MOCK_NAVIGATE',
++        message: '[MOCK SIMULATION] Navigating simulated product upload form.',
+       },
+       {
+         timestamp: new Date().toISOString(),
+-        step: 'POPULATE_FIELDS',
+-        message: `Filled product attributes for workflow: ${input.workflow}. SKU: ${input.params.skuCode || 'N/A'}.`,
++        step: 'MOCK_POPULATE',
++        message: `[MOCK SIMULATION] Populated mock product fields for: ${input.workflow}. SKU: ${input.params.skuCode || 'N/A'}.`,
+       },
+       {
+         timestamp: new Date().toISOString(),
+-        step: 'UPLOAD_ASSETS',
+-        message: 'Uploaded 5 compliant listing images and dimension diagrams.',
++        step: 'MOCK_ASSETS',
++        message: '[MOCK SIMULATION] Attached 5 simulated listing assets and dimension diagrams.',
+       },
+       {
+         timestamp: new Date().toISOString(),
+-        step: 'SUBMIT_FEED',
+-        message: 'Batch feed submitted. Amazon Batch ID: 8192049102.',
++        step: 'MOCK_SUBMIT',
++        message: '[MOCK SIMULATION] Mock feed submitted. Demo Batch ID: 8192049102.',
+       },
+     ];
+ 
+@@ -55,7 +57,9 @@ export class MockRpaAdapter implements RpaAdapter {
+         marketplaceId: 'ATVPDKIKX0DER',
+         skuCode: input.params.skuCode,
+         draftUrl: `https://sellercentral.amazon.com/inventory/view/${input.params.skuCode || 'item'}`,
+-        verified: true,
++        verified: false,
++        isMock: true,
++        mode: 'MOCK',
+       },
+       screenshotUrls: [
+         'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop&q=80',
+@@ -73,6 +77,11 @@ export class MockRpaAdapter implements RpaAdapter {
+     return {
+       jobId,
+       status: 'SUCCESS',
++      output: {
++        isMock: true,
++        mode: 'MOCK',
++        verified: false,
++      },
+       durationMs: 120,
+     };
+   }
+diff --git a/packages/integrations/src/rpa/rpa.interface.ts b/packages/integrations/src/rpa/rpa.interface.ts
+index b1a0c09..7766c57 100644
+--- a/packages/integrations/src/rpa/rpa.interface.ts
++++ b/packages/integrations/src/rpa/rpa.interface.ts
+@@ -1,3 +1,5 @@
++import { AutomationMode } from '@crosspilot/shared';
++
+ export type RpaStatus = 'SUCCESS' | 'FAILED' | 'RUNNING' | 'TIMEOUT';
+ 
+ export interface RpaExecutionLog {
+@@ -25,6 +27,7 @@ export interface RpaExecutionResult {
+ export interface RpaAdapter {
+   readonly id: string;
+   readonly name: string;
++  readonly supportedModes?: AutomationMode[];
+   execute(input: RpaExecutionInput): Promise<RpaExecutionResult>;
+   cancel?(jobId: string): Promise<boolean>;
+   getStatus?(jobId: string): Promise<RpaExecutionResult>;
+diff --git a/packages/integrations/src/rpa/rpa.registry.ts b/packages/integrations/src/rpa/rpa.registry.ts
+index 5844a43..6115612 100644
+--- a/packages/integrations/src/rpa/rpa.registry.ts
++++ b/packages/integrations/src/rpa/rpa.registry.ts
+@@ -1,3 +1,4 @@
++import { AutomationMode } from '@crosspilot/shared';
+ import { RpaAdapter } from './rpa.interface.js';
+ import { MockRpaAdapter } from './mock-rpa.adapter.js';
+ import { YingdaoRpaAdapter } from './yingdao.adapter.js';
+@@ -18,8 +19,37 @@ export class RpaRegistry {
+     return this.adapters.get(id);
+   }
+ 
+-  getDefault(): RpaAdapter {
+-    return this.adapters.get('mock-rpa') || Array.from(this.adapters.values())[0];
++  getDefault(mode: AutomationMode = 'LIVE'): RpaAdapter | undefined {
++    if (mode === 'MOCK') {
++      const mock = this.adapters.get('mock-rpa');
++      if (mock && (!mock.supportedModes || mock.supportedModes.includes('MOCK'))) {
++        return mock;
++      }
++      for (const adapter of this.adapters.values()) {
++        if (adapter.supportedModes?.includes('MOCK')) return adapter;
++      }
++      return undefined;
++    }
++
++    if (mode === 'LIVE') {
++      const live = this.adapters.get('yingdao-rpa');
++      if (live && (!live.supportedModes || live.supportedModes.includes('LIVE'))) {
++        return live;
++      }
++      for (const adapter of this.adapters.values()) {
++        if (adapter.supportedModes?.includes('LIVE')) return adapter;
++      }
++      return undefined;
++    }
++
++    if (mode === 'SIMULATOR') {
++      for (const adapter of this.adapters.values()) {
++        if (adapter.supportedModes?.includes('SIMULATOR')) return adapter;
++      }
++      return undefined;
++    }
++
++    return undefined;
+   }
+ 
+   listAdapters(): Array<{ id: string; name: string }> {
+diff --git a/packages/integrations/src/rpa/yingdao.adapter.ts b/packages/integrations/src/rpa/yingdao.adapter.ts
+index ad405f6..858e069 100644
+--- a/packages/integrations/src/rpa/yingdao.adapter.ts
++++ b/packages/integrations/src/rpa/yingdao.adapter.ts
+@@ -1,9 +1,9 @@
++import { AutomationMode } from '@crosspilot/shared';
+ import {
+   RpaAdapter,
+   RpaExecutionInput,
+   RpaExecutionResult,
+ } from './rpa.interface.js';
+-import { MockRpaAdapter } from './mock-rpa.adapter.js';
+ 
+ export interface YingdaoConfig {
+   apiKey?: string;
+@@ -14,35 +14,24 @@ export interface YingdaoConfig {
+ export class YingdaoRpaAdapter implements RpaAdapter {
+   readonly id = 'yingdao-rpa';
+   readonly name = '影刀 (Yingdao) Enterprise RPA Adapter';
+-
+-  private fallback = new MockRpaAdapter();
++  readonly supportedModes: AutomationMode[] = ['LIVE'];
+ 
+   constructor(private readonly config: YingdaoConfig = {}) {}
+ 
+   async execute(input: RpaExecutionInput): Promise<RpaExecutionResult> {
+-    const apiKey = this.config.apiKey || process.env.YINGDAO_API_KEY;
++    const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : process.env.YINGDAO_API_KEY;
+ 
+-    // If no real API key is configured, execute via fallback mock adapter
++    // In LIVE mode, missing credentials must fail-closed. Never silently fall back to Mock!
+     if (!apiKey) {
+-      console.log(
+-        '[YingdaoRpaAdapter] No YINGDAO_API_KEY found, executing in verified sandbox simulation mode.',
+-      );
+-      const res = await this.fallback.execute(input);
+       return {
+-        ...res,
+-        logs: [
+-          {
+-            timestamp: new Date().toISOString(),
+-            step: 'YINGDAO_DISPATCH',
+-            message: 'Routed through Yingdao sandbox gateway with verified contract.',
+-          },
+-          ...(res.logs || []),
+-        ],
++        jobId: '',
++        status: 'FAILED',
++        error: 'AUTH_REQUIRED: YINGDAO_API_KEY is not configured',
++        durationMs: 0,
+       };
+     }
+ 
+     const startTime = Date.now();
+-    const jobId = `yd_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+ 
+     // Real HTTP dispatch implementation
+     try {
+@@ -59,31 +48,92 @@ export class YingdaoRpaAdapter implements RpaAdapter {
+       });
+ 
+       if (!response.ok) {
+-        throw new Error(`Yingdao HTTP ${response.status}: ${await response.text()}`);
++        return {
++          jobId: '',
++          status: 'FAILED',
++          error: `Yingdao HTTP ${response.status}: ${await response.text()}`,
++          durationMs: Date.now() - startTime,
++        };
+       }
+ 
+       const data = (await response.json()) as any;
++      if (!data || typeof data !== 'object') {
++        return {
++          jobId: '',
++          status: 'FAILED',
++          error: 'INVALID_REMOTE_RESPONSE: response is not a valid JSON object',
++          durationMs: Date.now() - startTime,
++        };
++      }
++
++      // If response is empty or missing both jobId and status, it cannot serve as proof of execution
++      if (!data.jobId && !data.status) {
++        return {
++          jobId: '',
++          status: 'FAILED',
++          error: 'INVALID_REMOTE_RESPONSE: response missing jobId and execution status',
++          durationMs: Date.now() - startTime,
++        };
++      }
++
++      // If job is accepted asynchronously (has jobId but no status, or explicitly RUNNING/SUBMITTED)
++      if (data.status === 'RUNNING' || data.status === 'SUBMITTED' || (!data.status && data.jobId)) {
++        return {
++          jobId: data.jobId || '',
++          status: 'RUNNING',
++          output: data.output,
++          durationMs: Date.now() - startTime,
++        };
++      }
++
++      if (data.status === 'TIMEOUT') {
++        return {
++          jobId: data.jobId || '',
++          status: 'TIMEOUT',
++          error: data.error || 'Remote Yingdao job timed out',
++          durationMs: Date.now() - startTime,
++        };
++      }
++
++      if (data.status === 'FAILED') {
++        return {
++          jobId: data.jobId || '',
++          status: 'FAILED',
++          error: data.error || 'Remote Yingdao execution failed',
++          durationMs: Date.now() - startTime,
++        };
++      }
++
++      if (data.status === 'SUCCESS') {
++        return {
++          jobId: data.jobId || '',
++          status: 'SUCCESS',
++          output: data.output,
++          durationMs: Date.now() - startTime,
++        };
++      }
++
+       return {
+-        jobId: data.jobId || jobId,
+-        status: 'SUCCESS',
+-        output: data.output,
++        jobId: data.jobId || '',
++        status: 'FAILED',
++        error: `UNSUPPORTED_STATUS: Unknown remote status ${data.status}`,
+         durationMs: Date.now() - startTime,
+       };
+     } catch (err: any) {
+       return {
+-        jobId,
++        jobId: '',
+         status: 'FAILED',
+-        error: err.message,
++        error: err.message || 'Yingdao HTTP dispatch failed',
+         durationMs: Date.now() - startTime,
+       };
+     }
+   }
+ 
+   async cancel(jobId: string): Promise<boolean> {
+-    return true;
++    throw new Error(`UNSUPPORTED: Yingdao cancel operation is not implemented for job ${jobId}`);
+   }
+ 
+   async getStatus(jobId: string): Promise<RpaExecutionResult> {
+-    return this.fallback.getStatus(jobId);
++    throw new Error(`UNSUPPORTED: Yingdao getStatus operation is not implemented for job ${jobId}`);
+   }
+ }
+diff --git a/packages/shared/src/index.ts b/packages/shared/src/index.ts
+index d1ea868..a2b6953 100644
+--- a/packages/shared/src/index.ts
++++ b/packages/shared/src/index.ts
+@@ -16,4 +16,5 @@ export * from './contracts/intelligence-contracts.js';
+ export * from './contracts/operations-today-contracts.js';
+ export * from './contracts/action-layer-contracts.js';
+ export * from './contracts/outcome-tracking-contracts.js';
++export * from './contracts/automation-contracts.js';
+ 

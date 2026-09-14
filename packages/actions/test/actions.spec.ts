@@ -49,9 +49,12 @@ describe('ActionLayer Unit Tests', () => {
     const result = await router.dispatch(proposal, {
       workspaceId: 'ws_demo',
       isApproved: true,
+      executionMode: 'MOCK',
+      providerId: 'mock-rpa',
     });
 
     expect(result.status).toBe('SUCCEEDED');
+    expect(result.isMock).toBe(true);
     expect(result.data.jobId).toBeDefined();
     expect(result.data.status).toBe('SUCCESS');
     expect(result.data.output.skuCode).toBe('MTH-GREEN-001');
