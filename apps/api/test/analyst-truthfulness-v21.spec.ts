@@ -17,6 +17,7 @@ describe('Analyst Truthfulness V2.1 Test Suite', () => {
       inventoryBalance: { findFirst: jest.fn() },
       sku: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn() },
       orderItem: { findMany: jest.fn().mockResolvedValue([]) },
+      purchaseOrderItem: { findMany: jest.fn().mockResolvedValue([]) },
       review: { findMany: jest.fn().mockResolvedValue([]) },
       competitor: { findMany: jest.fn().mockResolvedValue([]) },
     };
@@ -950,6 +951,14 @@ describe('Analyst Truthfulness V2.1 Test Suite', () => {
         quantity: 10,
         unitPrice: 38.0,
         sku: { sellingPrice: 50.0 },
+      },
+    ]);
+    // Raw purchase order savings: 100 units with standard cost $16 and PO cost $15 -> savings $100
+    mockPrisma.purchaseOrderItem.findMany.mockResolvedValue([
+      {
+        quantity: 100,
+        unitCost: 15.0,
+        sku: { costPrice: 16.0 },
       },
     ]);
     mockPrisma.inventorySnapshot.findMany.mockResolvedValue([]);

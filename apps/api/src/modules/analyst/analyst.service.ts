@@ -873,19 +873,36 @@ export class AnalystService {
       });
     }
 
-    // 6. Cost / Other Consistency: P&L othImpact vs raw COGS optimization / domain cost findings
-    let rawCogsBenefit: number | null = null;
-    const hasCogs = dailyProfitRecords.some((r) => Number(r.cogs) > 0);
-    if (hasCogs) {
-      const w10Cogs = dailyProfitRecords
-        .filter((r) => w10Dates.includes(getDateStr(r.date)))
-        .reduce((acc, r) => acc + (Number(r.cogs) || 0), 0);
-      const w11Cogs = dailyProfitRecords
-        .filter((r) => w11Dates.includes(getDateStr(r.date)))
-        .reduce((acc, r) => acc + (Number(r.cogs) || 0), 0);
-      const deltaCogs = roundMoney(-(w11Cogs - w10Cogs)); // COGS reduction is positive benefit
-      if (Math.abs(deltaCogs) > 0) {
-        rawCogsBenefit = deltaCogs;
+    // 6. Cost / Other Consistency: P&L othImpact vs raw procurement savings / domain cost findings
+    let rawProcurementSavings: number | null = null;
+    if (this.prisma.purchaseOrderItem?.findMany) {
+      try {
+        const poItems = await this.prisma.purchaseOrderItem.findMany({
+          where: {
+            workspaceId,
+            purchaseOrder: { orderDate: { gte: periodStart, lte: periodEnd } },
+          },
+          include: { sku: { include: { quotes: true } } },
+        });
+        if (poItems && poItems.length > 0) {
+          let totalSavings = 0;
+          let hasSavings = false;
+          for (const item of poItems) {
+            const standardCost = Number(
+              (item.sku as any)?.quotes?.[0]?.unitCost || (item.sku as any)?.costPrice || 0,
+            );
+            const poCost = Number(item.unitCost || 0);
+            if (standardCost > 0 && poCost > 0 && standardCost > poCost) {
+              totalSavings += (standardCost - poCost) * item.quantity;
+              hasSavings = true;
+            }
+          }
+          if (hasSavings) {
+            rawProcurementSavings = roundMoney(totalSavings);
+          }
+        }
+      } catch {
+        // Fallback to finding check
       }
     }
 
@@ -893,8 +910,8 @@ export class AnalystService {
       (f: any) => f.findingType === 'COST' || f.findingType === 'OTHER',
     );
 
-    if (rawCogsBenefit !== null) {
-      const domainCostBenefit = rawCogsBenefit;
+    if (rawProcurementSavings !== null) {
+      const domainCostBenefit = rawProcurementSavings;
       const costDiff = Math.abs(roundMoney(othImpact - domainCostBenefit));
       checks.push({
         domain: 'COST',
@@ -905,8 +922,8 @@ export class AnalystService {
         status: costDiff <= 1.0 ? 'PASS' : 'FAIL',
         evidenceSource: 'RAW_DATABASE_FACTS',
         independenceLevel: 'FULLY_INDEPENDENT',
-        evidenceIds: ['EV-GATE-COST-PROFIT-DAILY'],
-        details: `Cost Attribution: $${othImpact.toFixed(2)} vs Raw COGS Optimization Delta: $${domainCostBenefit.toFixed(2)}`,
+        evidenceIds: ['EV-GATE-COST-PURCHASE-ORDERS'],
+        details: `Cost Attribution: $${othImpact.toFixed(2)} vs Raw Procurement Savings: $${domainCostBenefit.toFixed(2)}`,
       });
     } else if (costFinding) {
       let cEv: any = {};
@@ -1575,19 +1592,34 @@ The variance is deterministically decomposed across 5 operational levers:
       priceImpact = priceFinding ? roundMoney(Number(priceFinding.impactAmount) || 0) : 0.0;
     }
 
-    // 5. Cost / Other Attribution: Raw COGS savings prioritized over finding
+    // 5. Cost / Other Attribution: Raw purchaseOrderItem procurement savings prioritized over finding
     let otherImpact = 0.0;
-    const hasCogs = dailyRecords.some((r) => Number(r.cogs) > 0);
-    if (hasCogs) {
-      const w10Cogs = dailyRecords
-        .filter((r) => w10Dates.includes(getDateStr(r.date)))
-        .reduce((acc, r) => acc + (Number(r.cogs) || 0), 0);
-      const w11Cogs = dailyRecords
-        .filter((r) => w11Dates.includes(getDateStr(r.date)))
-        .reduce((acc, r) => acc + (Number(r.cogs) || 0), 0);
-      const deltaCogs = roundMoney(-(w11Cogs - w10Cogs));
-      if (Math.abs(deltaCogs) > 0) {
-        otherImpact = deltaCogs;
+    if (this.prisma.purchaseOrderItem?.findMany) {
+      try {
+        const poItems = await this.prisma.purchaseOrderItem.findMany({
+          where: {
+            workspaceId,
+            purchaseOrder: { orderDate: { gte: periodStart, lte: periodEnd } },
+          },
+          include: { sku: { include: { quotes: true } } },
+        });
+        if (poItems && poItems.length > 0) {
+          let totalSavings = 0;
+          for (const item of poItems) {
+            const standardCost = Number(
+              (item.sku as any)?.quotes?.[0]?.unitCost || (item.sku as any)?.costPrice || 0,
+            );
+            const poCost = Number(item.unitCost || 0);
+            if (standardCost > 0 && poCost > 0 && standardCost > poCost) {
+              totalSavings += (standardCost - poCost) * item.quantity;
+            }
+          }
+          if (totalSavings > 0) {
+            otherImpact = roundMoney(totalSavings);
+          }
+        }
+      } catch {
+        // Fallback
       }
     }
     if (otherImpact === 0.0) {
