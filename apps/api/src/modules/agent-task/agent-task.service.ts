@@ -138,9 +138,15 @@ export class AgentTaskService {
             }
           }
 
-          // Subscribe to live events for this workspace
+          // Allocate new execution ID if no execution was found
+          const isNewExecution = !targetExecId;
+          if (!targetExecId) {
+            targetExecId = `exec_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+          }
+
+          // Subscribe specifically to targetExecId to isolate concurrent executions
           const subscription = this.traceEmitter
-            .subscribeWorkspace(actualWsId)
+            .subscribeExecution(targetExecId)
             .subscribe({
               next: (event) => {
                 emitSSE(event);
@@ -153,11 +159,12 @@ export class AgentTaskService {
               },
             });
 
-          // If no active execution existed, trigger askAnalyst to execute and emit events
-          if (!targetExecId) {
+          // If no active execution existed, trigger askAnalyst with the allocated targetExecId
+          if (isNewExecution) {
             await this.analystService.askAnalyst(
               'Why did profit drop this week?',
               actualWsId,
+              targetExecId,
             );
           }
 

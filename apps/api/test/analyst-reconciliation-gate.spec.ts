@@ -39,7 +39,15 @@ describe('AnalystService - Reconciliation Gate & Unified Source of Truth', () =>
         priceImpact: -310.0,
         otherImpact: 140.0,
         formulaExplained: 'raw formula',
-        session: { findings: [] },
+        session: {
+          findings: [
+            { findingType: 'ADVERTISING', impactAmount: -980.0 },
+            { findingType: 'RETURNS', impactAmount: -620.0 },
+            { findingType: 'INVENTORY', impactAmount: -510.0 },
+            { findingType: 'PRICING', impactAmount: -310.0 },
+            { findingType: 'OTHER', impactAmount: 140.0 },
+          ],
+        },
       });
 
       // 14 days of profitDaily: first 7 days sum to 1665.95, next 7 days sum to 1440.79
@@ -128,18 +136,29 @@ describe('AnalystService - Reconciliation Gate & Unified Source of Truth', () =>
         inventoryImpact: -510.0,
         priceImpact: -310.0,
         otherImpact: 140.0,
-        session: { findings: [] },
+        session: {
+          findings: [
+            { findingType: 'ADVERTISING', impactAmount: -980.0 },
+            { findingType: 'RETURNS', impactAmount: -620.0 },
+            { findingType: 'INVENTORY', impactAmount: -510.0 },
+            { findingType: 'PRICING', impactAmount: -310.0 },
+            { findingType: 'OTHER', impactAmount: 140.0 },
+          ],
+        },
       });
 
-      // Daily profits match exactly: 4120 in Week 10, 1840 in Week 11 -> variance = -2280
+      // Daily profits match exactly: 4120.00 in Week 10, 1840.00 in Week 11 -> variance = -2280.00
+      const w10Profits = [588.57, 588.57, 588.57, 588.57, 588.57, 588.57, 588.58]; // sum = 4120.00
+      const w11Profits = [262.86, 262.86, 262.86, 262.86, 262.86, 262.86, 262.84]; // sum = 1840.00
+
       const dailyRecords = [
-        ...Array(7).fill(null).map((_, i) => ({
+        ...w10Profits.map((p, i) => ({
           date: new Date(`2026-03-0${i + 1}`),
-          netProfit: (4120.0 / 7).toFixed(2),
+          netProfit: p,
         })),
-        ...Array(7).fill(null).map((_, i) => ({
+        ...w11Profits.map((p, i) => ({
           date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`),
-          netProfit: (1840.0 / 7).toFixed(2),
+          netProfit: p,
         })),
       ];
       mockPrisma.profitDaily.findMany.mockResolvedValue(dailyRecords);
@@ -175,7 +194,15 @@ describe('AnalystService - Reconciliation Gate & Unified Source of Truth', () =>
         inventoryImpact: -510.0,
         priceImpact: -310.0,
         otherImpact: 140.0,
-        session: { findings: [] },
+        session: {
+          findings: [
+            { findingType: 'ADVERTISING', impactAmount: -980.0, evidenceJson: JSON.stringify({ spend: 420.0 }) },
+            { findingType: 'RETURNS', impactAmount: -620.0, evidenceJson: JSON.stringify({ refundAmount: 620.0 }) },
+            { findingType: 'INVENTORY', impactAmount: -510.0, evidenceJson: JSON.stringify({ rushAirFreightCost: 315.0 }) },
+            { findingType: 'PRICING', impactAmount: -310.0, evidenceJson: JSON.stringify({ promotionalDiscount: 310.0 }) },
+            { findingType: 'OTHER', impactAmount: 140.0, evidenceJson: JSON.stringify({ supplierRebate: 100.0, packagingSaving: 40.0 }) },
+          ],
+        },
       });
 
       // Perfect reconciliation: 4120.00 - 1840.00 = -2280.00 exactly to the cent
@@ -197,9 +224,9 @@ describe('AnalystService - Reconciliation Gate & Unified Source of Truth', () =>
         searchTerm: 'bathroom organizer',
         spend: 420.0,
       });
-      // Return tool returns 620 matching -620
+      // Return tool returns 620 in W11 matching -620 delta
       mockPrisma.returnRecord.findMany.mockResolvedValue([
-        { refundAmount: 620.0, orderItem: { sku: { skuCode: 'MTH-GREY-001' } } },
+        { returnDate: new Date('2026-03-10'), refundAmount: 620.0, orderItem: { sku: { skuCode: 'MTH-GREY-001' } } },
       ]);
       mockPrisma.inventoryBalance.findFirst.mockResolvedValue({
         fulfillableQuantity: 120,

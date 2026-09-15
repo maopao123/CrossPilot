@@ -671,6 +671,30 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
             priority: 3,
             recommendation: '把安全库存阈值从 7 天提高到 14 天，覆盖爆发式增长变体。',
           },
+          {
+            analysisSessionId: session.id,
+            findingType: 'PRICING',
+            title: '大促优惠券与折价让利',
+            metricName: '客单价让利',
+            impactAmount: -310.00,
+            direction: 'NEGATIVE',
+            confidence: 0.94,
+            evidenceJson: JSON.stringify({ promotionalDiscount: 310.00, couponCount: 62, avgDiscountPerOrder: 5.00 }),
+            priority: 4,
+            recommendation: '下调非高转化渠道的优惠券面额，保护基础毛利。',
+          },
+          {
+            analysisSessionId: session.id,
+            findingType: 'OTHER',
+            title: '包材优化与供应商阶梯返利',
+            metricName: '成本与返利优化',
+            impactAmount: 140.00,
+            direction: 'POSITIVE',
+            confidence: 0.89,
+            evidenceJson: JSON.stringify({ supplierRebate: 100.00, packagingSaving: 40.00 }),
+            priority: 5,
+            recommendation: '保持与核心供应商的规模集采协议，进一步锁定 Q4 阶梯返利。',
+          },
         ],
       });
 
@@ -957,6 +981,75 @@ VOC 关键改进：孔径加大至 1.5 英寸，确保兼容 Oral-B 与 Philips 
             data: { metricDate: w11DateObj, spend: 420.0, acos: 0.9333 },
           });
         }
+
+        // Ensure all 5 findings exist and match Scenario A
+        await this.prisma.analysisFinding.deleteMany({
+          where: { analysisSessionId: waterfall.analysisSessionId },
+        });
+        await this.prisma.analysisFinding.createMany({
+          data: [
+            {
+              analysisSessionId: waterfall.analysisSessionId,
+              findingType: 'ADVERTISING',
+              title: '广泛匹配搜索词蚕食预算',
+              metricName: '广告花费',
+              impactAmount: -980.00,
+              direction: 'NEGATIVE',
+              confidence: 0.96,
+              evidenceJson: JSON.stringify({ searchTerm: 'bathroom organizer', spend: 420.00, acos: 0.933 }),
+              priority: 1,
+              recommendation: '立即把 "bathroom organizer" 加入精准否定，止住预算流失。',
+            },
+            {
+              analysisSessionId: waterfall.analysisSessionId,
+              findingType: 'RETURNS',
+              title: '米灰变体退货率飙升',
+              metricName: '退货损失',
+              impactAmount: -620.00,
+              direction: 'NEGATIVE',
+              confidence: 0.91,
+              evidenceJson: JSON.stringify({ returnRate: 0.067, reason: '电动牙刷手柄孔径不适配' }),
+              priority: 2,
+              recommendation: '更新 Listing 规格说明，并让客服明确 1.5" 兼容性。',
+            },
+            {
+              analysisSessionId: waterfall.analysisSessionId,
+              findingType: 'INVENTORY',
+              title: '绿色变体断货与加急头程运费',
+              metricName: '丢失的销售毛利',
+              impactAmount: -510.00,
+              direction: 'NEGATIVE',
+              confidence: 0.88,
+              evidenceJson: JSON.stringify({ daysStockout: 4, rushAirFreightCost: 315.00 }),
+              priority: 3,
+              recommendation: '把安全库存阈值从 7 天提高到 14 天，覆盖爆发式增长变体。',
+            },
+            {
+              analysisSessionId: waterfall.analysisSessionId,
+              findingType: 'PRICING',
+              title: '大促优惠券与折价让利',
+              metricName: '客单价让利',
+              impactAmount: -310.00,
+              direction: 'NEGATIVE',
+              confidence: 0.94,
+              evidenceJson: JSON.stringify({ promotionalDiscount: 310.00, couponCount: 62, avgDiscountPerOrder: 5.00 }),
+              priority: 4,
+              recommendation: '下调非高转化渠道的优惠券面额，保护基础毛利。',
+            },
+            {
+              analysisSessionId: waterfall.analysisSessionId,
+              findingType: 'OTHER',
+              title: '包材优化与供应商阶梯返利',
+              metricName: '成本与返利优化',
+              impactAmount: 140.00,
+              direction: 'POSITIVE',
+              confidence: 0.89,
+              evidenceJson: JSON.stringify({ supplierRebate: 100.00, packagingSaving: 40.00 }),
+              priority: 5,
+              recommendation: '保持与核心供应商的规模集采协议，进一步锁定 Q4 阶梯返利。',
+            },
+          ],
+        });
       } else {
         // Scenario B (CONFLICT_SAMPLE):
         // Week 10: $1,665.95
