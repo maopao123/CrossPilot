@@ -1,5 +1,15 @@
 # CrossPilot 交接
 
+> **2026-09-15 · 经营分析真理架构 V2.1.1 终极收口与冻结（Analyst Truthfulness V2.1.1 Final Closure & Freeze，HEAD: `c0a9b8e`）**：
+> - **P0 根除六维 Gate 全部 Self-Compare 路径**：彻底移除 `domainAdsVal = adsImpact`、`domainInvLoss = invImpact`、`domainPriceVal = prImpact`、`domainCostBenefit = othImpact` 等自比假检查。扩展 `DomainConsistencyCheck.status: 'PASS' | 'FAIL' | 'EVIDENCE_MISSING'`。当归因非零但独立业务事实缺失时，强制判定为 `EVIDENCE_MISSING` 并阻断门禁（`isReconciled = false, actionPlan = []`）。
+> - **P0 隔离并净化生产数据源**：`AnalystPrismaSku360DataSource` 显式划分 `mode: 'PRODUCTION' | 'DEMO'`。在 PRODUCTION 模式下彻底杜绝静默回退到 `ScenarioSku360DataSource`，缺数据时诚实返回 `availability: 'UNAVAILABLE'`。
+> - **P1 清理伪装成真实事实的启发式推断**：移除所有标价与流量推算硬编码（如 28.99、* 0.9、* 12、* 18、avgDailySales: 10、leadTimeDays: 15），改为真实查询 `sku.sellingPrice`、`supplier.leadTimeDays` 及 `profitDaily` 历史聚合。所有估算指标严格标记 `availability: 'PARTIAL'` 并附带公式、输入来源与假设前提，下调置信度。
+> - **全量测试套件与线上双场景实测通过**：
+>   - 新增 7 大对抗测试（A. 广告冲突、B. 库存冲突、C. 价格冲突、D. 成本冲突、E. 独立证据缺失、F. 生产模式缺数 UNAVAILABLE、G. 演示模式场景回退）；
+>   - 单元测试 24/24 PASS（`analyst-truthfulness-v21.spec.ts` 20/20 PASS + `analyst-reconciliation-gate.spec.ts` 4/4 PASS）；
+>   - 全仓库 `pnpm -r typecheck` 10/10 PASS；
+>   - 生产部署到 `root@116.198.230.217`，live 环境实测 Scenario A 6 维门禁全部 PASS（残差 $0.00，产出 3 项动作），Scenario B Fail-Closed 拦截（0 动作）。
+>
 > **2026-09-15 · 经营分析真理架构 V2 全面闭环（Analyst Truthfulness V2）**：
 > - **P0 原始业务事实推导归因**：彻底废弃把 `AnalysisWaterfall.xxxImpact` 当作真值的账目反填机制。5 个归因因子全部基于底层事实表实时计算：
 >   - Ads 杠杆：由 `profitDaily.adsCost` 周期增量与 `searchTermMetricDaily` 高 ACOS 搜索词实证；
