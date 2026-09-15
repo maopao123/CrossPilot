@@ -39,6 +39,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import type { ProductOpportunity as DomainProductOpportunity } from '@crosspilot/shared';
+import { CandidateComparisonSection } from './candidate-comparison-section';
 
 
 interface ResearchEvidenceItem {
@@ -1362,6 +1363,9 @@ export default function MarketResearchPage() {
           </div>
         </div>
       )}
+
+      {/* Product Research V2 MVP: Candidate Decision & Comparison Matrix */}
+      <CandidateComparisonSection />
 
       {/* Market Overview Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

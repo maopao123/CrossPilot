@@ -243,7 +243,7 @@ describe('OpportunityScoreEngine', () => {
     const rec = opp.opportunities.find((o) => o.level === 'RECOMMENDATION');
     expect(rec).toBeDefined();
     expect(rec?.statement).not.toContain('3.2cm');
-    expect(rec?.statement).toContain('扩大插槽兼容范围');
+    expect(rec?.statement).toContain('Bottom drainage holes');
   });
 
   it('should re-normalize weights when signals are MISSING and not treat missing as 0', () => {

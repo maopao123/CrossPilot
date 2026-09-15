@@ -129,6 +129,8 @@ export interface ResearchEvidence {
   providerId: string;
   transport?: ProviderTransportType | string;
   type: EvidenceType;
+  scope?: EvidenceScope;
+  subjectId?: string;
   sourceId?: string;
   title?: string;
   content: string;
@@ -571,3 +573,192 @@ export interface ProductOpportunity {
   costBudget: ResearchCostBudget;
   createdAt: string;
 }
+
+/**
+ * ============================================================================
+ * Product Research V2 MVP Contracts (Candidate Comparison & Truthfulness)
+ * ============================================================================
+ */
+
+export type EvidenceScope = 'PRODUCT' | 'KEYWORD' | 'CATEGORY' | 'MARKET';
+
+export interface EvidenceItem {
+  id: string;
+  scope: EvidenceScope;
+  subjectId: string;
+  source: string;
+  content: string;
+  sourceUrl?: string;
+  capturedAt?: string;
+  confidence?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export type ValueSource = 'FACT' | 'ESTIMATE' | 'ASSUMPTION' | 'UNKNOWN';
+
+export interface ProvenanceValue<T = number> {
+  value: T | null;
+  source: ValueSource;
+  basis?: string;
+  evidenceId?: string;
+  assumptionId?: string;
+}
+
+export interface Assumption {
+  id: string;
+  field: string;
+  description: string;
+  assumedValue: unknown;
+  sourceReason: string;
+  impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  validated: boolean;
+}
+
+export interface MissingRequirement {
+  id: string;
+  dimension: 'ECONOMICS' | 'RISK' | 'SPECIFICATION' | 'SUPPLIER' | 'EVIDENCE';
+  field: string;
+  description: string;
+  blockingDecision: boolean;
+}
+
+export type RiskStatus = 'UNVERIFIED' | 'PASS' | 'FAIL';
+
+export interface CandidateRisk {
+  riskId: string;
+  category: 'PATENT' | 'COMPLIANCE' | 'QUALITY' | 'SUPPLY_CHAIN' | 'COMPETITION' | 'OTHER';
+  title: string;
+  status: RiskStatus;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  evidenceIds: string[];
+  notes?: string;
+}
+
+export interface ScenarioEconomicsResult {
+  sellingPrice: number;
+  productCost: number;
+  amazonReferralFee: number;
+  fbaFee: number;
+  freight: number;
+  duty: number;
+  advertisingCost: number;
+  expectedReturnLoss: number;
+  storage: number;
+  otherCosts: number;
+  totalExpenses: number;
+  contributionProfit: number;
+  contributionMargin: number; // e.g. 0.235 -> 23.5%
+}
+
+export type CandidateEconomicsStatus = 'COMPLETE' | 'NEEDS_VALIDATION' | 'INCOMPLETE';
+
+export interface CandidateEconomicsInputs {
+  sellingPrice: ProvenanceValue<number>;
+  productCost: ProvenanceValue<number>;
+  referralFeeRate: ProvenanceValue<number>;
+  fbaFeePerUnit: ProvenanceValue<number>;
+  freightPerUnit: ProvenanceValue<number>;
+  dutyPerUnit: ProvenanceValue<number>;
+  adsCostPerUnit: ProvenanceValue<number>;
+  returnRate: ProvenanceValue<number>;
+  returnLossPerUnit: ProvenanceValue<number>;
+  storageFeePerUnit: ProvenanceValue<number>;
+  otherCostsPerUnit: ProvenanceValue<number>;
+}
+
+export interface CandidateEconomics {
+  status: CandidateEconomicsStatus;
+  currency: string;
+  inputs: CandidateEconomicsInputs;
+  scenarios: {
+    conservative: ScenarioEconomicsResult;
+    base: ScenarioEconomicsResult;
+    optimistic: ScenarioEconomicsResult;
+  };
+  missingInputs: string[];
+}
+
+export type CandidateDecision =
+  | 'INSUFFICIENT_DATA'
+  | 'NEEDS_VALIDATION'
+  | 'BLOCKED'
+  | 'WATCH'
+  | 'SHORTLIST';
+
+export interface CandidateDecisionDetail {
+  verdict: CandidateDecision;
+  reasons: string[];
+  evidenceCompleteness: number; // 0.0 - 1.0
+  hardRiskGatePassed: boolean;
+  economicsGatePassed: boolean;
+  evaluatedAt: string;
+}
+
+export interface ProductCandidateConcept {
+  productType: string;
+  targetCustomer?: string;
+  useCase?: string;
+  targetPrice?: number;
+  specifications?: Record<string, unknown>;
+  differentiationHypotheses?: string[];
+}
+
+export interface ProductCandidateMarketResearch {
+  seedKeyword?: string;
+  searchVolumeMonthly?: number | null;
+  competitiveDifficulty?: number | null;
+  opportunityScore?: number | null;
+  competitorSampleSize?: number;
+  representativeAsin?: string | null;
+}
+
+export interface ProductCandidate {
+  id: string;
+  title: string;
+  marketplace: string;
+  category?: string;
+  concept: ProductCandidateConcept;
+  marketResearch?: ProductCandidateMarketResearch;
+  economics: CandidateEconomics;
+  risks: CandidateRisk[];
+  evidence: EvidenceItem[];
+  assumptions: Assumption[];
+  missingRequirements: MissingRequirement[];
+  decision: CandidateDecision;
+  decisionDetail?: CandidateDecisionDetail;
+}
+
+export type ComparisonDimension =
+  | 'ECONOMICS'
+  | 'MARKET_DEMAND'
+  | 'COMPETITION_BARRIER'
+  | 'RISK_PROFILE'
+  | 'DIFFERENTIATION'
+  | 'EVIDENCE_CONFIDENCE';
+
+export type ComparisonConclusion =
+  | 'A_BETTER'
+  | 'B_BETTER'
+  | 'SIMILAR'
+  | 'NOT_COMPARABLE';
+
+export interface ComparisonReason {
+  candidateA: string;
+  candidateB: string;
+  dimension: ComparisonDimension;
+  conclusion: ComparisonConclusion;
+  metricIds: string[];
+  evidenceIds: string[];
+  assumptionIds: string[];
+  explanation: string;
+}
+
+export interface CandidateComparisonResult {
+  candidateIds: string[];
+  ranking: string[];
+  pairwiseReasons: Record<string, ComparisonReason[]>;
+  summary: string;
+  comparable: boolean;
+  nonComparableReason?: string;
+}
+

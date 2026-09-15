@@ -1,6 +1,7 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { MarketService } from './market.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
+import type { ProductCandidate } from '@crosspilot/shared';
 
 @Controller()
 export class MarketController {
@@ -138,5 +139,15 @@ export class MarketController {
     @Query('keyword') keyword?: string,
   ) {
     return this.marketService.getProductOpportunities(workspaceId, keyword);
+  }
+
+  @Get('market-research/candidates/defaults')
+  getDefaultCandidates() {
+    return this.marketService.getDefaultCandidates();
+  }
+
+  @Post('market-research/candidates/compare')
+  compareCandidates(@Body() body: { candidates: ProductCandidate[] }) {
+    return this.marketService.compareCandidates(body.candidates || []);
   }
 }

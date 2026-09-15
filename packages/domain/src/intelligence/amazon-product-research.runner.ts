@@ -32,9 +32,9 @@ function median(values: number[]): number | null {
 
 function decide(score: number | null): string {
   if (score === null) return 'INSUFFICIENT_DATA';
-  if (score >= 70) return 'ENTER_MARKET';
+  if (score >= 70) return 'SHORTLIST';
   if (score >= 50) return 'WATCH';
-  return 'SKIP';
+  return 'INSUFFICIENT_DATA';
 }
 
 export class AmazonProductResearchRunner {

@@ -145,7 +145,7 @@ export class OpportunityScoreEngine {
     );
 
     // 5. Generate Structured Facts & Explanation
-    const { strengths, risks, opportunities } = this.generateStructuredFacts(signals, evidences);
+    const { strengths, risks, opportunities } = this.generateStructuredFacts(signals, evidences, vocAnalysis);
 
     const explanation = this.generateDeterministicExplanation(
       keyword,
@@ -527,7 +527,7 @@ export class OpportunityScoreEngine {
   ): MarketSignal<TrendSignalMetrics> {
     const trendEvidences = evidences.filter((e) => e.type === 'TREND');
     const evidenceIds = trendEvidences.map((e) => e.evidenceId);
-    const targetAsin = representativeAsin ?? (products[0]?.asin ?? 'UNKNOWN_ASIN');
+    const targetAsin = representativeAsin ?? (products[0]?.asin ?? undefined);
 
     if (!topAsinTrend) {
       return {
@@ -535,7 +535,7 @@ export class OpportunityScoreEngine {
         label: '趋势动量信号 (Trend)',
         status: 'MISSING',
         scope: 'REPRESENTATIVE_PRODUCT',
-        subjectId: targetAsin,
+        subjectId: targetAsin ?? 'NO_REPRESENTATIVE_ASIN',
         sampleSize: 0,
         representativeAsin: targetAsin,
         rawMetrics: {
@@ -614,7 +614,7 @@ export class OpportunityScoreEngine {
   ): MarketSignal<ReviewHealthSignalMetrics> {
     const healthEvidences = evidences.filter((e) => e.type === 'REVIEW_METRIC');
     const evidenceIds = healthEvidences.map((e) => e.evidenceId);
-    const targetAsin = representativeAsin ?? (products[0]?.asin ?? 'UNKNOWN_ASIN');
+    const targetAsin = representativeAsin ?? (products[0]?.asin ?? undefined);
 
     const averageRating =
       healthResult?.averageRating !== undefined && healthResult?.averageRating !== null && !isNaN(healthResult.averageRating)
@@ -631,7 +631,7 @@ export class OpportunityScoreEngine {
         label: '评价健康度信号 (Review Health)',
         status: 'MISSING',
         scope: 'REPRESENTATIVE_PRODUCT',
-        subjectId: targetAsin,
+        subjectId: targetAsin ?? 'NO_REPRESENTATIVE_ASIN',
         sampleSize: 0,
         representativeAsin: targetAsin,
         rawMetrics: { averageRating: null, totalReviewCount: null, ratingHealthStatus: 'UNKNOWN' },
@@ -749,13 +749,25 @@ export class OpportunityScoreEngine {
     // High frequency pain points mean clear user frustration and differentiation space
     if (topPainPointPercentage >= config.voc.topPainPointHighThreshold) {
       score += config.voc.topPainPointHighBonus;
-      findings.push(`核心痛点“${topPainPoint.topic}”高频集中（提及率 ${topPainPointPercentage}%），指向明确改进方向`);
+      findings.push(
+        sampleSize > 0
+          ? `本次采集的 ${sampleSize} 条相关公开讨论中，核心痛点“${topPainPoint.topic}”涉及频次达 ${topPainPointFrequency} 次（占样本 ${topPainPointPercentage}%），指向明确改进方向`
+          : `核心痛点“${topPainPoint.topic}”高频集中（样本占比 ${topPainPointPercentage}%），指向明确改进方向`,
+      );
     } else if (topPainPointPercentage >= config.voc.topPainPointMediumThreshold && topPainPointPercentage < config.voc.topPainPointHighThreshold) {
       score += config.voc.topPainPointMediumBonus;
-      findings.push(`核心痛点“${topPainPoint.topic}”占比 ${topPainPointPercentage}%，存在结构性改良空间`);
+      findings.push(
+        sampleSize > 0
+          ? `本次采集的 ${sampleSize} 条相关公开讨论中，核心痛点“${topPainPoint.topic}”涉及频次 ${topPainPointFrequency} 次（占样本 ${topPainPointPercentage}%），存在结构性改良空间`
+          : `核心痛点“${topPainPoint.topic}”占比 ${topPainPointPercentage}%，存在结构性改良空间`,
+      );
     } else {
       score += 5;
-      findings.push(`痛点分布较为分散（最高提及率 ${topPainPointPercentage}%）`);
+      findings.push(
+        sampleSize > 0
+          ? `痛点分布较为分散（最高提及率占样本 ${topPainPointPercentage}%，共采集 ${sampleSize} 条讨论）`
+          : `痛点分布较为分散（最高提及率样本占比 ${topPainPointPercentage}%）`,
+      );
     }
 
     if (desiredFeatures.length > 0) {
@@ -868,6 +880,7 @@ export class OpportunityScoreEngine {
   private static generateStructuredFacts(
     signals: Record<'demand' | 'competition' | 'commercial' | 'trend' | 'reviewHealth' | 'voc', MarketSignal<any>>,
     evidences: ResearchEvidence[],
+    vocAnalysis?: VocProductAnalysisResult | null,
   ): { strengths: StructuredFact[]; risks: StructuredFact[]; opportunities: StructuredFact[] } {
     const strengths: StructuredFact[] = [];
     const risks: StructuredFact[] = [];
@@ -947,24 +960,43 @@ export class OpportunityScoreEngine {
       });
     }
 
-    // VOC Pain Points & Actionable Recommendations (Grounding Hardening: Removed 3.2cm, now directional)
+    // VOC Pain Points & Actionable Recommendations (Grounding: Strictly driven by candidate VOC evidence)
     const voc = signals.voc;
     if (voc.rawMetrics.painPointCount > 0) {
+      const sampleSize = voc.rawMetrics.sampleSize || 0;
+      const freq = voc.rawMetrics.topPainPointFrequency || 0;
+      const pct = voc.rawMetrics.topPainPointPercentage || 0;
+      const topTopic = vocAnalysis?.painPoints?.[0]?.topic || '相关使用痛点';
+
+      const sampleDesc = sampleSize > 0
+        ? `本次采集的 ${sampleSize} 条相关公开讨论中，有 ${freq} 条涉及“${topTopic}”（占样本 ${pct}%）`
+        : `VOC 讨论中涉及“${topTopic}”（占样本 ${pct}%）`;
+
       opportunities.push({
         code: 'INFERENCE_VOC_DIFFERENTIATION',
         level: 'INFERENCE',
-        statement: `外部 VOC 显示 ${voc.rawMetrics.topPainPointPercentage}% 的买家诟病孔槽尺寸或积水发霉，通过改良可形成降维竞争。`,
+        statement: `${sampleDesc}，若能针对性改进可形成差异化竞争优势。`,
         evidenceIds: voc.evidenceIds,
         metricName: 'topPainPointPercentage',
-        metricValue: voc.rawMetrics.topPainPointPercentage,
+        metricValue: pct,
       });
 
-      opportunities.push({
-        code: 'RECOMMENDATION_PRODUCT_DESIGN',
-        level: 'RECOMMENDATION',
-        statement: '建议在新品设计中增加底部排水孔或可拆卸清洗底托，并扩大插槽兼容范围，在打样阶段实测主流电动牙刷手柄尺寸后再确定孔径公差。',
-        evidenceIds: voc.evidenceIds,
-      });
+      // Product design recommendation MUST be grounded in actual evidence (e.g. desired features or specific pain points)
+      // Without relevant concrete feature evidence, DO NOT fabricate physical structure recommendations!
+      const desiredFeatures = vocAnalysis?.desiredFeatures || [];
+      if (desiredFeatures.length > 0) {
+        for (const feat of desiredFeatures.slice(0, 2)) {
+          const featEvidenceIds = feat.evidenceIds && feat.evidenceIds.length > 0
+            ? feat.evidenceIds
+            : voc.evidenceIds;
+          opportunities.push({
+            code: 'RECOMMENDATION_PRODUCT_DESIGN',
+            level: 'RECOMMENDATION',
+            statement: `基于真实买家诉求证据，建议在新品设计中重点评估“${feat.feature}”的可行性与工艺公差。`,
+            evidenceIds: featEvidenceIds,
+          });
+        }
+      }
     }
 
     // Evidence Quality Risk
@@ -995,10 +1027,10 @@ export class OpportunityScoreEngine {
 
     const summary =
       overallScore !== null && overallScore >= 75
-        ? `【高潜力机会】关键词 "${keyword}" 规则型机会评分 ${scoreStr}。该类目具备强劲搜索需求与健康客单价，且头部竞品存在清晰的买家痛点断层，具备高确定性切入价值。`
+        ? `【候选入围 (SHORTLIST)】关键词 "${keyword}" 规则型机会评分 ${scoreStr}。该类目具备强劲搜索需求与健康客单价，且头部竞品存在清晰的买家痛点断层，具备入围深入验证价值。`
         : overallScore !== null && overallScore >= 60
-        ? `【中等潜力机会】关键词 "${keyword}" 规则型机会评分 ${scoreStr}。需求基本盘存在，但在竞争壁垒或产品工艺改良上需平衡成本。`
-        : `【谨慎观望】关键词 "${keyword}" 规则型机会评分 ${scoreStr}。当前数据维度不足或壁垒过高。`;
+        ? `【持续观察 (WATCH)】关键词 "${keyword}" 规则型机会评分 ${scoreStr}。需求基本盘存在，但在竞争壁垒或产品工艺改良上需平衡成本。`
+        : `【数据不足或暂缓 (INSUFFICIENT_DATA)】关键词 "${keyword}" 规则型机会评分 ${scoreStr}。当前数据维度不足或壁垒过高。`;
 
     const demandAnalysis = signals.demand.findings.join('；') || '市场需求数据暂缺。';
     const competitionAnalysis = signals.competition.findings.join('；') || '竞争格局数据暂缺。';

@@ -1,5 +1,26 @@
 # CrossPilot 交接
 
+> **2026-09-15 · 选品模块 V1 真实性根治与 Product Research V2 MVP 交付（Product Research V2 MVP & Truthfulness Fixes）**：
+> - **V1 真实性根治（Truthfulness Fixes）**：
+>   - 彻底删除 `market.service.ts` 中的默认保底 ASIN `'B0BFGNSXYL'`；当无 ASIN 时，单品趋势与健康度真实返回 `MISSING`，品类 VOC 保留为 `CATEGORY` 作用域；
+>   - 移除 `OpportunityScoreEngine` 中所有牙刷架（“电动牙刷”、“插槽”、“孔径”、“排水底托”等）硬编码物理结构建议；
+>   - 确立产品物理设计建议的证据锚定铁律：仅当 `vocAnalysis.desiredFeatures` 等具备明确证据链时才生成具体物理结构特性，无证据时绝对不凭空编造；
+>   - 规范 VOC 频次与样本分母语义：明确标注 `本次采集的 ${sampleSize} 条相关公开讨论中，有 ${freq} 条涉及...`，杜绝孤立百分比造成的“全网买家”误导；
+>   - 严格收敛 V1 决策建议文案至 `SHORTLIST` / `WATCH` / `INSUFFICIENT_DATA`，杜绝任何未核算财务的“果断建仓/立即入场”煽动性指令。
+> - **Product Research V2 MVP 决策与对比引擎（Decision & Comparison Engines）**：
+>   - 落地 `PRODUCT_RESEARCH_V2_MVP_SPEC.md` 全功能规范；
+>   - 统一会计口径与三情景经济模型：基于 `ProfitCalculationService` 精确四舍五入，计算保守、基准、乐观三套净边际贡献（Contribution Profit & Margin）；
+>   - 严格缺失数据政策：关键成本（`productCost`、`sellingPrice`）缺失时，直接标记 `INCOMPLETE` / `NEEDS_VALIDATION`，严禁通过重新归一化赋予虚假排名优势；
+>   - 硬性风险门禁（`CandidateRiskGate`）：高严重度专利/合规风险立即阻断（`BLOCKED`），未尽职调查标记 `UNVERIFIED`；
+>   - 多候选横向对比引擎（`CandidateComparisonEngine`）：横向对比 3～5 个候选，跨币种/跨站点时阻断不可比；
+>   - 输出结构化因果追溯理由链（`ComparisonReason[]`）：明确关联指标差异、事实依据与底层假设，解答 "Why A > B"。
+> - **前端 UI 全功能矩阵与全链路验证**：
+>   - 前端新增 `candidate-comparison-section.tsx`，在选品工作台渲染候选卡片列表、三情景经济模型切换、成本拆解、横向对比矩阵与 "Why A > B" 追溯抽屉；
+>   - 6 大验收测试用例全部通过（`product-research-v2-acceptance.spec.ts` 6/6 PASS）；
+>   - 多品类真实性回归（水果保鲜盒、鞋靴收纳架、自动喂食器）通过（`truthfulness-multicategory-regression.spec.ts` 3/3 PASS）；
+>   - V1 历史基线回归 58 分精确复现（`real-case-regression.spec.ts` 1/1 PASS）；
+>   - 全仓库质量门禁：`pnpm -r typecheck` 10/10 PASS，`pnpm --filter @crosspilot/domain test` 38/38 PASS (362 tests)，`pnpm --filter @crosspilot/web test` 40/40 PASS，`pnpm --filter @crosspilot/web build` 24/24 static pages 生成成功。
+>
 > **2026-09-15 · 经营分析真理架构 V2.1.1 终极收口与冻结（Analyst Truthfulness V2.1.1 Final Closure & Freeze，HEAD: `c0a9b8e`）**：
 > - **P0 根除六维 Gate 全部 Self-Compare 路径**：彻底移除 `domainAdsVal = adsImpact`、`domainInvLoss = invImpact`、`domainPriceVal = prImpact`、`domainCostBenefit = othImpact` 等自比假检查。扩展 `DomainConsistencyCheck.status: 'PASS' | 'FAIL' | 'EVIDENCE_MISSING'`。当归因非零但独立业务事实缺失时，强制判定为 `EVIDENCE_MISSING` 并阻断门禁（`isReconciled = false, actionPlan = []`）。
 > - **P0 隔离并净化生产数据源**：`AnalystPrismaSku360DataSource` 显式划分 `mode: 'PRODUCTION' | 'DEMO'`。在 PRODUCTION 模式下彻底杜绝静默回退到 `ScenarioSku360DataSource`，缺数据时诚实返回 `availability: 'UNAVAILABLE'`。

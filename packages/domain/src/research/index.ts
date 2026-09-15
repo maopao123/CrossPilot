@@ -2,3 +2,8 @@ export * from './opportunity-score.config.js';
 export * from './opportunity-score.engine.js';
 export * from './opportunity-explanation.service.js';
 export * from './explanation-numeric-validator.js';
+export * from './candidate-evidence-validator.js';
+export * from './candidate-economics.service.js';
+export * from './candidate-risk-gate.js';
+export * from './candidate-decision.engine.js';
+export * from './candidate-comparison.engine.js';
