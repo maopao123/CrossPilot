@@ -1363,22 +1363,7 @@ The variance is deterministically decomposed across 5 operational levers:
     let stockoutLostMargin = 0;
     let invEvidence: any = {};
 
-    let stockouts: any[] = [];
-    if (this.prisma.inventorySnapshot?.findMany) {
-      stockouts =
-        (await this.prisma.inventorySnapshot.findMany({
-          where: {
-            workspaceId,
-            snapshotDate: { gte: periodStart, lte: periodEnd },
-            fulfillable: 0,
-          },
-        })) || [];
-    }
-
-    if (Array.isArray(stockouts) && stockouts.length > 0) {
-      // Stockout days * estimated daily loss ($48.75/day -> 4 days = $195.00)
-      stockoutLostMargin = roundMoney(stockouts.length * 48.75);
-    } else if (invFinding) {
+    if (invFinding) {
       try {
         invEvidence =
           typeof invFinding.evidenceJson === 'string'
@@ -1391,6 +1376,20 @@ The variance is deterministically decomposed across 5 operational levers:
         deltaFreight > 0 ? deltaFreight : Number(invEvidence.rushAirFreightCost) || 0;
       const totalInvLoss = Math.abs(Number(invFinding.impactAmount) || 0);
       stockoutLostMargin = Math.max(0, roundMoney(totalInvLoss - rushFreight));
+    } else if (this.prisma.inventorySnapshot?.findMany) {
+      const stockouts =
+        (await this.prisma.inventorySnapshot.findMany({
+          where: {
+            workspaceId,
+            snapshotDate: { gte: periodStart, lte: periodEnd },
+            fulfillable: 0,
+          },
+        })) || [];
+      if (Array.isArray(stockouts) && stockouts.length > 0) {
+        const baselineDailyMargin =
+          w10Dates.length > 0 ? previousProfit / (w10Dates.length * 3) : 0;
+        stockoutLostMargin = roundMoney(stockouts.length * baselineDailyMargin);
+      }
     }
     const rushFreightAmount =
       deltaFreight > 0 ? deltaFreight : Number(invEvidence.rushAirFreightCost) || 0;

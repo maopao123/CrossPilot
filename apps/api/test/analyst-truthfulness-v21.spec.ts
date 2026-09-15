@@ -566,18 +566,12 @@ describe('Analyst Truthfulness V2.1 Test Suite', () => {
       },
     });
 
-    // Ledger has otherCosts delta = 315 + stockout snapshots (4 * 48.75 = 195) -> invImpact = -510
+    // Ledger has otherCosts delta = 510 vs independent finding = -300 -> invImpact = -510 vs fact = -300
     const records = [
       ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 1000, otherCosts: 0 })),
-      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 490, otherCosts: 315 / 7 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 490, otherCosts: 510 / 7 })),
     ];
     mockPrisma.profitDaily.findMany.mockResolvedValue(records);
-    mockPrisma.inventorySnapshot.findMany.mockResolvedValue([
-      { fulfillable: 0 },
-      { fulfillable: 0 },
-      { fulfillable: 0 },
-      { fulfillable: 0 },
-    ]);
 
     const res = await service.askAnalyst('Test inventory conflict', 'ws-test');
     const check = (res.reconciliation?.checks || res.reconciliationError?.checks)?.find(
