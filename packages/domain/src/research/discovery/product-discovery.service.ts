@@ -17,6 +17,7 @@ import type {
 } from '@crosspilot/shared';
 import {
   DEFAULT_DISCOVERY_LIMITS,
+  DEFAULT_DISCOVERY_BUDGET,
 } from '@crosspilot/shared';
 import { KeywordExpansionService, CapabilityExecutor } from './keyword-expansion.service.js';
 import { KeywordClusterer } from './keyword-clusterer.js';
@@ -170,10 +171,31 @@ export class ProductDiscoveryService {
   }
 
   previewDiscovery(request: ProductDiscoveryRequest): DiscoveryDryRunPreview {
+    const maxCalls = request.budget?.maxProviderCalls ?? DEFAULT_DISCOVERY_BUDGET.maxProviderCalls;
+    const maxExpanded = request.limits?.maxExpandedKeywords ?? DEFAULT_DISCOVERY_LIMITS.maxExpandedKeywords;
+    const maxAsins = request.limits?.maxRepresentativeAsins ?? DEFAULT_DISCOVERY_LIMITS.maxRepresentativeAsins;
+
+    // Planned capabilities across the 3 rounds:
+    // Round 0: market.keyword.search
+    // Round 1: market.asin.keywords (Path A)
+    // Round 2: market.keyword.search (Path B)
+    const plannedCapabilities = ['market.keyword.search', 'market.asin.keywords'];
+
+    // Dynamic estimated call count bounded by budget:
+    // Round 0: 1 call
+    // Round 1: up to 3 calls for discovered ASINs
+    // Round 2: up to 2 calls for high-value expanded keywords
+    const targetCalls =
+      1 +
+      Math.min(3, Math.max(1, Math.floor(maxAsins / 10))) +
+      Math.min(2, Math.max(1, Math.floor(maxExpanded / 50)));
+    const estimatedCallCount = Math.min(maxCalls, targetCalls);
+    const knownCreditCost = estimatedCallCount * 1;
+
     return {
-      plannedCapabilities: ['market.keyword.search', 'market.product.search'],
-      estimatedCallCount: 2,
-      knownCreditCost: 2,
+      plannedCapabilities,
+      estimatedCallCount,
+      knownCreditCost,
       unknownCostFields: [],
     };
   }

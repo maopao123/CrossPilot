@@ -1,33 +1,40 @@
 # CrossPilot 交接
 
-> **2026-09-15 · Product Research Phase 2A — Auto Discovery MVP 正式实现与冻结（V2.1.0-FROZEN）**：
-> - **全链路探索图与数据契约（Auto Discovery Contracts & Graph Model）**：
->   - 在 `@crosspilot/shared` 导出 `ProductDiscoveryRequest`, `ProductDiscoveryRun`, `KeywordNode`, `AsinNode`, `KeywordAsinEdge`, `KeywordCluster`, `CandidateDraft`, `DiscoveryReason`, `DiscoveryGateStatus`, `CandidateDedupResult`, `DiscoveryBudgetState`, `DiscoveryDryRunPreview` 等完整核心模型；
->   - 零第二套真理，严密复用现存 `EvidenceItem`, `ValueSource`, `ProvenanceValue`；
-> - **确定性关键词归一化与意图分流（KeywordNormalizer & Intent Distinction）**：
->   - 纯确定性 NFKC、大小写与空白折叠、常见商品复数安全单数化，杜绝 LLM 自由捏造覆盖原始搜索词；
->   - 精确识别主产品、配件（`ACCESSORY`）、耗材与替换件（`REPLACEMENT`），并对纯品牌导航词（`pure brand navigation`）与品类词依赖（`brand-dependent`）建立精准分流。
-> - **预算防护与图扩展（KeywordExpansionService & Budget Guards）**：
->   - 建立有限深度探索（Round 0 Seed, Round 1 ASIN 反查, Round 2 高价值拓展词），支持 `maxProviderCalls` 熔断降级；
->   - 严格落实真实性红线：缺失时间序列时 `growth = UNKNOWN`，严禁编造默认 0%；竞品 ASIN 如实反映真实样本量（`asinSampleSize: 3`），严禁虚假包装为 Top10 全景。
-> - **意图聚类与严格证据门禁（KeywordClusterer & DiscoveryGate）**：
->   - 结合词项相似度（Token Jaccard）与竞品 ASIN 重合度（Shared ASIN Overlap），并互斥隔离不兼容细分意图（如 Fruit Keeper vs Meal Prep），防止通配词贪婪聚类；
->   - 门禁硬拦截：严格防范跨主体凭证串供（Cross-evidence contamination），无凭证、纯品牌导航、从属配件等依规拦截，无时间序列自动标记 `DEGRADED_PASS`。
-> - **规范去重与 V2 决策流水线无损交接（CandidateDeduplicator & CandidateHandoffService）**：
->   - 跨候选去重合并，聚合支撑词与竞品证据；
->   - 生成稳定候选 ID（`draft-${marketplace}-${slug}`）与可追溯 `DiscoveryReason[]`（每项必含 `metricIds` 与 `evidenceIds`）；
->   - 选定 3～5 个候选草案无损转换进入 V2 Frozen 流水线：成本与关键财务输入真实标记 `UNKNOWN`，专利与合规标记 `UNVERIFIED`，V2 决策引擎如实判定为 `NEEDS_VALIDATION`，坚决不篡改 V2 Frozen 核心语义，杜绝虚假 SHORTLIST。
-> - **API 端点与前端交互矩阵（API Endpoints & Next.js UI）**：
->   - 后端控制器新增 `POST /api/v1/market-research/discovery/run`, `POST /api/v1/market-research/discovery/preview`, `GET /api/v1/market-research/discovery/demo`, `POST /api/v1/market-research/discovery/handoff`；
->   - 前端新增 `auto-discovery-section.tsx`，嵌入选品主工作台：支持站点与种子词配置、品牌/配件过滤、开销预估、探索进度与遥测看板、候选草案卡片、因果追溯抽屉（Why Discovered）、一键交接至 V2 对比矩阵。
-> - **质量门禁与验收测试（16/16 验收测试全部 PASS，全库零回归）**：
->   - `packages/domain/test/product-discovery-acceptance.spec.ts` 16 大验收案例全部通过（16/16 PASS）；
->   - `@crosspilot/domain` 39/39 test suites 全部通过（386/386 tests PASS）；
->   - `@crosspilot/api` discovery endpoints 验收通过；
->   - `@crosspilot/web` 40/40 tests 全部通过；
->   - 全仓库 `pnpm -r typecheck` 10/10 packages 全部通过（0 errors）；
+# CrossPilot 交接
+
+> **2026-09-15 · Product Research Phase 2A — Auto Discovery MVP Live Path Closure 闭环核验与正式冻结（V2.1.0-LIVE-PATH-CLOSED）**：
+> - **P0-1 真实与演示链路物理切分（Demo vs Live Clean Separation）**：
+>   - 彻底移除 `market.service.ts` 中 `glass food storage` 种子词自动短路拦截至 Demo 的后门逻辑；
+>   - API 强制校验种子词（空词或纯空格严格抛出 400 `BadRequestException`）；
+>   - 真实种子词无条件进入真实网关 Provider 流水线，Demo 数据仅允许通过显式端点 `@Get('market-research/discovery/demo')` 或显式标明 `isDemo: true` 访问；
+>   - 明确标识内建离线数据为 `DEMO_FIXTURE`，坚决杜绝将演示夹具宣传为“真实代表竞品 ASIN”。
+> - **P0-2 多轮图扩展真实闭环（Multi-round Expansion Execution Loop）**：
+>   - 严格落地 Spec §12 规定的双路径多轮图扩展闭环：
+>     - **Round 0（Seed）**：调用 `market.keyword.search` 获取种子词核心指标与初阶竞品 ASIN；
+>     - **Round 1（ASIN Reverse Keywords）**：调用 `market.asin.keywords` / `market.keyword.asin_analysis` 对初阶 ASIN 进行反查扩展词，建立 `DISCOVERED_RELATION` 边与真实 Evidence；若无能力则如实记入 `missingCapabilities`，杜绝静默失败；
+>     - **Round 2（High-Value Keyword Enrichment）**：筛选高检索量拓展词进行二次 `market.keyword.search` ASIN 富化，双向打通图拓扑；
+>   - 全程受控于 `DiscoveryBudgetState` 熔断机制与 `limits` 容量防护（`maxProviderCalls`, `maxExpandedKeywords`, `maxRepresentativeAsins`）。
+> - **P0-3 契约规范对齐（Array Contract Handling for Keyword Search）**：
+>   - 修正 `KeywordExpansionService` 将 `market.keyword.search` 误当作单一对象的错误，精准处理真实 Provider 返回的 `KeywordMetric[]` 数组契约；
+>   - 准确提取种子词核心指标，并将返回列表中的拓展词与伴生 ASIN 完整吸纳至图中。
+> - **P0-4 坚决杜绝捏造证据（Zero Fabricated Evidence in Handoff）**：
+>   - 彻底删除 `CandidateHandoffService.toProductCandidate` 中凭空合成 `source: 'AUTO_DISCOVERY', confidence: 0.9` 占位证据的 fallback 代码；
+>   - 后端控制器与服务层 `handoffDiscovery(drafts, allEvidence)` 显式接收并透传运行时全量真实 `allEvidence`。
+> - **P0-5 严格维护证据不可变性（Strict Evidence Immutability & Scope Integrity）**：
+>   - 坚决杜绝在 Handoff 阶段对证据对象进行 `subjectId: candidateAsin || draft.id` 的隐式篡改；证据一经捕获即不可变（Immutable）；
+>   - `PRODUCT` 作用域证据严格比对原始 `subjectId`，仅当完全属于当前候选（等于候选 ID 或其代表 ASIN）时方予挂载，其他 ASIN 证据保留于全局图谱中但不予注入候选单品；
+>   - 彻底消除跨单品证据污染，`CandidateEvidenceValidator` 校验违规数严格为 0。
+> - **P1 架构与工具链硬化（Dynamic Registry & Budget Preview）**：
+>   - `IntegrationGateway` 落地动态 `hasCapability` 校验，依据实时 Adapter 注册与路由配置真实返回，废除假桩 `hasCapability: () => true`；
+>   - `ProductDiscoveryService.previewDiscovery` 基于请求中的预算限制与图容量参数进行动态调用次数与已知积分成本测算，废除硬编码常数；
+> - **质量门禁与端到端验收（18/18 验收测试全部 PASS，全库零回归）**：
+>   - 新增 **Case 17**：验证无 `preloadedData` 下纯 Live / Provider Path 完整跑通 Round 0 -> Round 1 -> Round 2 多轮扩展，图节点、边、真实证据追溯及 `CandidateEvidenceValidator` 0 违规 handoff 校验；
+>   - 新增 **Case 18**：验证种子词空值 400 校验阻断与 `previewDiscovery` 动态估算；
+>   - `packages/domain/test/product-discovery-acceptance.spec.ts` 18 大案例全部 PASS（18/18 PASS）；
+>   - `@crosspilot/domain` 39/39 test suites 全部通过（388/388 tests PASS）；
+>   - 全仓库 `pnpm -r typecheck` 10/10 packages 全部通过（0 error）；
 >   - 前端生产构建 `pnpm --filter @crosspilot/web build` 24/24 static & dynamic pages 全部生成成功；
->   - 规范文件 `docs/30_modules/product-research/PRODUCT_RESEARCH_AUTO_DISCOVERY_MVP_SPEC.md` 正式标记为 `V2.1.0-FROZEN`。
+>   - 规范文件正式更新为 `V2.1.0-LIVE-PATH-CLOSED`。
 >
 > - **数值分级与数据来源真理化（Data Provenance & Demo Tagging）**：
 >   - 数据源 `ValueSource` 正式扩展并规范 `'DEMO'`（`'FACT' | 'ESTIMATE' | 'ASSUMPTION' | 'UNKNOWN' | 'DEMO'`）；

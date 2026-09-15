@@ -41,6 +41,11 @@ export class IntegrationGateway {
     return this.adapters.get(providerId);
   }
 
+  hasCapability(capabilityId: string, context?: ProviderExecutionContext): boolean {
+    const route = this.router.resolveRoute(capabilityId, context);
+    return Boolean(route.primary && route.primaryProvider && this.adapters.has(route.primary.providerId));
+  }
+
   async executeCapability<TInput = any, TOutput = any>(
     capabilityId: string,
     input: TInput,

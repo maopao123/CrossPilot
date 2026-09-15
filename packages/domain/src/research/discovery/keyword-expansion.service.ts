@@ -183,33 +183,48 @@ export class KeywordExpansionService {
       }
     }
 
-    // Process Seed Keyword if not already expanded
-    const seedRaw = request.seed.keyword;
+    // ==========================================
+    // Multi-round Graph Expansion (Spec §12 & §13)
+    // Round 0: Seed Keyword Search (Keyword -> ASIN)
+    // Round 1: Seed ASIN Reverse Keywords (ASIN -> Keywords)
+    // Round 2: High-Value Expanded Keyword Enrichment (Keyword -> ASIN)
+    // ==========================================
+    const seedRaw = request.seed.keyword.trim();
     const seedNorm = KeywordNormalizer.normalize(seedRaw);
     const seedId = `kw-${request.marketplace.toLowerCase()}-${seedNorm.replace(/\s+/g, '-')}`;
 
     if (!keywordMap.has(seedId) && this.executor) {
       keywordsReceived++;
-      const hasCap = this.executor.hasCapability('market.keyword.search');
-      if (!hasCap) {
+      const hasKwSearch = this.executor.hasCapability('market.keyword.search');
+      if (!hasKwSearch) {
         missingCapabilities.add('market.keyword.search');
       } else if (consumeBudget(1)) {
         try {
+          // --- ROUND 0: Seed Keyword Search ---
           const callResult = await this.executor.execute('market.keyword.search', { keyword: seedRaw }, request.marketplace);
           if (callResult.success && callResult.data) {
-            const data = callResult.data as any;
-            const evidenceId = `evi-kw-${seedId}-${Date.now()}`;
+            const rawList: any[] = Array.isArray(callResult.data)
+              ? callResult.data
+              : callResult.data
+                ? [callResult.data]
+                : [];
+
+            const seedMetric =
+              rawList.find((m: any) => m?.keyword && KeywordNormalizer.normalize(m.keyword) === seedNorm) ||
+              rawList[0];
+
+            const seedEviId = `evi-kw-${seedId}-${Date.now()}`;
             evidenceList.push({
-              id: evidenceId,
+              id: seedEviId,
               scope: 'KEYWORD',
               subjectId: seedId,
               source: callResult.providerId || 'XYDC',
-              content: `Keyword search metric for ${seedRaw}: searchVolume=${data.searchVolume ?? 'UNKNOWN'}, abaRank=${data.abaRank ?? 'UNKNOWN'}`,
+              content: `Keyword search metric for "${seedRaw}": searchVolume=${seedMetric?.searchVolume ?? 'UNKNOWN'}, abaRank=${seedMetric?.abaRank ?? 'UNKNOWN'}`,
               capturedAt: new Date().toISOString(),
               confidence: 0.95,
             });
 
-            const topAsins: string[] = Array.isArray(data.topAsins) ? data.topAsins : [];
+            const topAsins: string[] = Array.isArray(seedMetric?.topAsins) ? seedMetric.topAsins : [];
             const seedNode: KeywordNode = {
               id: seedId,
               rawKeyword: seedRaw,
@@ -217,31 +232,31 @@ export class KeywordExpansionService {
               marketplace: request.marketplace,
               origin: 'SEED',
               metrics: {
-                searchVolume: data.searchVolume != null ? { value: Number(data.searchVolume), source: 'FACT', evidenceId } : undefined,
-                abaRank: data.abaRank != null ? { value: Number(data.abaRank), source: 'FACT', evidenceId } : undefined,
-                cpc: data.cpc != null ? { value: Number(data.cpc), source: 'FACT', evidenceId } : undefined,
-                competition: data.competition != null ? { value: Number(data.competition), source: 'FACT', evidenceId } : undefined,
-                growth: data.growth != null ? { value: Number(data.growth), source: 'FACT', evidenceId } : { value: null, source: 'UNKNOWN' },
-                trendDirection: data.trendDirection ? { value: data.trendDirection, source: 'FACT', evidenceId } : { value: 'UNKNOWN', source: 'UNKNOWN' },
+                searchVolume: seedMetric?.searchVolume != null ? { value: Number(seedMetric.searchVolume), source: 'FACT', evidenceId: seedEviId } : undefined,
+                abaRank: seedMetric?.abaRank != null ? { value: Number(seedMetric.abaRank), source: 'FACT', evidenceId: seedEviId } : undefined,
+                cpc: seedMetric?.cpc != null ? { value: Number(seedMetric.cpc), source: 'FACT', evidenceId: seedEviId } : undefined,
+                competition: seedMetric?.competition != null ? { value: Number(seedMetric.competition), source: 'FACT', evidenceId: seedEviId } : undefined,
+                growth: seedMetric?.growth != null ? { value: Number(seedMetric.growth), source: 'FACT', evidenceId: seedEviId } : { value: null, source: 'UNKNOWN' },
+                trendDirection: seedMetric?.trendDirection ? { value: seedMetric.trendDirection, source: 'FACT', evidenceId: seedEviId } : { value: 'UNKNOWN', source: 'UNKNOWN' },
               },
               representativeAsins: topAsins,
-              evidenceIds: [evidenceId],
+              evidenceIds: [seedEviId],
             };
             keywordMap.set(seedId, seedNode);
             keywordsAccepted++;
 
-            // Register Top ASINs
+            // Register Round 0 Top ASINs
             for (const asin of topAsins) {
               if (asinMap.size >= limits.maxRepresentativeAsins) break;
               asinsReceived++;
               if (!asinMap.has(asin)) {
-                const asinEviId = `evi-asin-${asin}`;
+                const asinEviId = `evi-asin-${asin}-${Date.now()}`;
                 evidenceList.push({
                   id: asinEviId,
                   scope: 'PRODUCT',
                   subjectId: asin,
                   source: callResult.providerId || 'XYDC',
-                  content: `Discovered representative ASIN ${asin} from keyword ${seedRaw}`,
+                  content: `Discovered representative ASIN ${asin} from seed keyword "${seedRaw}"`,
                   capturedAt: new Date().toISOString(),
                   confidence: 0.9,
                 });
@@ -258,14 +273,243 @@ export class KeywordExpansionService {
                 keywordId: seedId,
                 asin,
                 relation: 'TOP_ASIN',
-                evidenceIds: [evidenceId],
+                evidenceIds: [seedEviId],
               });
             }
-          } else {
-            // Failed call - recorded without fake fallback
+
+            // Ingest additional related keywords from Round 0 response array
+            for (const m of rawList) {
+              if (!m?.keyword) continue;
+              const mNorm = KeywordNormalizer.normalize(m.keyword);
+              if (mNorm === seedNorm) continue;
+              if (keywordMap.size >= limits.maxExpandedKeywords) break;
+
+              // Filter out brand / accessory if constraint enabled
+              if (request.constraints?.excludeBrandTerms && KeywordNormalizer.analyzeBrandTerms(m.keyword).isBrandDependent) continue;
+              if (request.constraints?.excludeAccessoryIntent && (KeywordNormalizer.detectIntent(m.keyword) === 'ACCESSORY' || KeywordNormalizer.detectIntent(m.keyword) === 'REPLACEMENT')) continue;
+
+              const mId = `kw-${request.marketplace.toLowerCase()}-${mNorm.replace(/\s+/g, '-')}`;
+              if (!keywordMap.has(mId)) {
+                keywordsReceived++;
+                const mEviId = `evi-kw-${mId}-${Date.now()}`;
+                evidenceList.push({
+                  id: mEviId,
+                  scope: 'KEYWORD',
+                  subjectId: mId,
+                  source: callResult.providerId || 'XYDC',
+                  content: `Expanded keyword from seed search: "${m.keyword}", searchVolume=${m.searchVolume ?? 'UNKNOWN'}, abaRank=${m.abaRank ?? 'UNKNOWN'}`,
+                  capturedAt: new Date().toISOString(),
+                  confidence: 0.95,
+                });
+
+                const mTopAsins = Array.isArray(m.topAsins) ? m.topAsins : [];
+                keywordMap.set(mId, {
+                  id: mId,
+                  rawKeyword: m.keyword,
+                  normalizedKeyword: mNorm,
+                  marketplace: request.marketplace,
+                  origin: 'KEYWORD_EXPANSION',
+                  metrics: {
+                    searchVolume: m.searchVolume != null ? { value: Number(m.searchVolume), source: 'FACT', evidenceId: mEviId } : undefined,
+                    abaRank: m.abaRank != null ? { value: Number(m.abaRank), source: 'FACT', evidenceId: mEviId } : undefined,
+                    cpc: m.cpc != null ? { value: Number(m.cpc), source: 'FACT', evidenceId: mEviId } : undefined,
+                    competition: m.competition != null ? { value: Number(m.competition), source: 'FACT', evidenceId: mEviId } : undefined,
+                    growth: m.growth != null ? { value: Number(m.growth), source: 'FACT', evidenceId: mEviId } : { value: null, source: 'UNKNOWN' },
+                    trendDirection: { value: 'UNKNOWN', source: 'UNKNOWN' },
+                  },
+                  representativeAsins: mTopAsins,
+                  evidenceIds: [mEviId],
+                });
+                keywordsAccepted++;
+
+                for (const asin of mTopAsins) {
+                  if (asinMap.size < limits.maxRepresentativeAsins && !asinMap.has(asin)) {
+                    asinsReceived++;
+                    const asinEviId = `evi-asin-${asin}-${Date.now()}`;
+                    evidenceList.push({
+                      id: asinEviId,
+                      scope: 'PRODUCT',
+                      subjectId: asin,
+                      source: callResult.providerId || 'XYDC',
+                      content: `Discovered representative ASIN ${asin} from expanded keyword "${m.keyword}"`,
+                      capturedAt: new Date().toISOString(),
+                      confidence: 0.9,
+                    });
+                    asinMap.set(asin, {
+                      asin,
+                      marketplace: request.marketplace,
+                      sourceKeywords: [m.keyword],
+                      discoveredKeywords: [],
+                      evidenceIds: [asinEviId],
+                    });
+                    asinsAccepted++;
+                  }
+                  edges.push({
+                    keywordId: mId,
+                    asin,
+                    relation: 'TOP_ASIN',
+                    evidenceIds: [mEviId],
+                  });
+                }
+              }
+            }
           }
-        } catch (e) {
+        } catch {
           // Failure handled gracefully
+        }
+      }
+
+      // --- ROUND 1: Seed ASIN Reverse Keywords (Spec §12: Path A) ---
+      const reverseCap = this.executor.hasCapability('market.asin.keywords')
+        ? 'market.asin.keywords'
+        : this.executor.hasCapability('market.keyword.asin_analysis')
+          ? 'market.keyword.asin_analysis'
+          : null;
+
+      if (!reverseCap) {
+        missingCapabilities.add('market.asin.keywords');
+      } else {
+        const asinsToReverse = Array.from(asinMap.values()).slice(0, 3);
+        for (const asinNode of asinsToReverse) {
+          if (budgetState.stoppedByBudget) break;
+          if (keywordMap.size >= limits.maxExpandedKeywords) break;
+          if (!consumeBudget(1)) break;
+
+          try {
+            const revResult = await this.executor.execute(reverseCap, { asin: asinNode.asin }, request.marketplace);
+            if (revResult.success && revResult.data) {
+              const revList: any[] = Array.isArray(revResult.data)
+                ? revResult.data
+                : Array.isArray((revResult.data as any)?.keywords)
+                  ? (revResult.data as any).keywords
+                  : Array.isArray((revResult.data as any)?.list)
+                    ? (revResult.data as any).list
+                    : [];
+
+              for (const item of revList) {
+                if (keywordMap.size >= limits.maxExpandedKeywords) break;
+                const rawKw = typeof item === 'string' ? item : item?.keyword || item?.rawKeyword;
+                if (!rawKw || typeof rawKw !== 'string' || !rawKw.trim()) continue;
+
+                if (request.constraints?.excludeBrandTerms && KeywordNormalizer.analyzeBrandTerms(rawKw).isBrandDependent) continue;
+                if (request.constraints?.excludeAccessoryIntent && (KeywordNormalizer.detectIntent(rawKw) === 'ACCESSORY' || KeywordNormalizer.detectIntent(rawKw) === 'REPLACEMENT')) continue;
+
+                const normKw = KeywordNormalizer.normalize(rawKw);
+                const kwId = `kw-${request.marketplace.toLowerCase()}-${normKw.replace(/\s+/g, '-')}`;
+
+                keywordsReceived++;
+                if (!keywordMap.has(kwId)) {
+                  const revEviId = `evi-kw-rev-${kwId}-${Date.now()}`;
+                  evidenceList.push({
+                    id: revEviId,
+                    scope: 'KEYWORD',
+                    subjectId: kwId,
+                    source: revResult.providerId || 'XYDC',
+                    content: `Reverse ASIN keyword from ${asinNode.asin}: "${rawKw}", searchVolume=${typeof item === 'object' ? (item.searchVolume ?? 'UNKNOWN') : 'UNKNOWN'}`,
+                    capturedAt: new Date().toISOString(),
+                    confidence: 0.92,
+                  });
+
+                  keywordMap.set(kwId, {
+                    id: kwId,
+                    rawKeyword: rawKw,
+                    normalizedKeyword: normKw,
+                    marketplace: request.marketplace,
+                    origin: 'ASIN_REVERSE_LOOKUP',
+                    metrics: {
+                      searchVolume: typeof item === 'object' && item.searchVolume != null ? { value: Number(item.searchVolume), source: 'FACT', evidenceId: revEviId } : undefined,
+                      abaRank: typeof item === 'object' && item.abaRank != null ? { value: Number(item.abaRank), source: 'FACT', evidenceId: revEviId } : undefined,
+                      cpc: typeof item === 'object' && item.cpc != null ? { value: Number(item.cpc), source: 'FACT', evidenceId: revEviId } : undefined,
+                      competition: typeof item === 'object' && item.competition != null ? { value: Number(item.competition), source: 'FACT', evidenceId: revEviId } : undefined,
+                      growth: typeof item === 'object' && item.growth != null ? { value: Number(item.growth), source: 'FACT', evidenceId: revEviId } : { value: null, source: 'UNKNOWN' },
+                      trendDirection: { value: 'UNKNOWN', source: 'UNKNOWN' },
+                    },
+                    representativeAsins: [asinNode.asin],
+                    evidenceIds: [revEviId],
+                  });
+                  keywordsAccepted++;
+                } else {
+                  keywordsDeduplicated++;
+                  const existing = keywordMap.get(kwId)!;
+                  if (!existing.representativeAsins.includes(asinNode.asin)) {
+                    existing.representativeAsins.push(asinNode.asin);
+                  }
+                }
+
+                if (!asinNode.discoveredKeywords.includes(rawKw)) {
+                  asinNode.discoveredKeywords.push(rawKw);
+                }
+
+                edges.push({
+                  keywordId: kwId,
+                  asin: asinNode.asin,
+                  relation: 'DISCOVERED_RELATION',
+                  evidenceIds: [...asinNode.evidenceIds],
+                });
+              }
+            }
+          } catch {
+            // Graceful handling
+          }
+        }
+      }
+
+      // --- ROUND 2: High-Value Expanded Keyword Enrichment (Spec §12: Path B) ---
+      if (hasKwSearch && !budgetState.stoppedByBudget) {
+        const candidateKeywordsForEnrichment = Array.from(keywordMap.values())
+          .filter((k) => k.origin !== 'SEED' && k.representativeAsins.length <= 1)
+          .sort((a, b) => (b.metrics.searchVolume?.value ?? 0) - (a.metrics.searchVolume?.value ?? 0))
+          .slice(0, 2);
+
+        for (const kwNode of candidateKeywordsForEnrichment) {
+          if (budgetState.stoppedByBudget) break;
+          if (asinMap.size >= limits.maxRepresentativeAsins) break;
+          if (!consumeBudget(1)) break;
+
+          try {
+            const enrichResult = await this.executor.execute('market.keyword.search', { keyword: kwNode.rawKeyword }, request.marketplace);
+            if (enrichResult.success && enrichResult.data) {
+              const list = Array.isArray(enrichResult.data) ? enrichResult.data : [enrichResult.data];
+              const matched = list.find((m: any) => m?.keyword && KeywordNormalizer.normalize(m.keyword) === kwNode.normalizedKeyword) || list[0];
+              if (matched) {
+                const newTopAsins: string[] = Array.isArray(matched.topAsins) ? matched.topAsins : [];
+                for (const asin of newTopAsins) {
+                  if (asinMap.size < limits.maxRepresentativeAsins && !asinMap.has(asin)) {
+                    asinsReceived++;
+                    const asinEviId = `evi-asin-${asin}-${Date.now()}`;
+                    evidenceList.push({
+                      id: asinEviId,
+                      scope: 'PRODUCT',
+                      subjectId: asin,
+                      source: enrichResult.providerId || 'XYDC',
+                      content: `Discovered representative ASIN ${asin} from secondary search "${kwNode.rawKeyword}"`,
+                      capturedAt: new Date().toISOString(),
+                      confidence: 0.9,
+                    });
+                    asinMap.set(asin, {
+                      asin,
+                      marketplace: request.marketplace,
+                      sourceKeywords: [kwNode.rawKeyword],
+                      discoveredKeywords: [],
+                      evidenceIds: [asinEviId],
+                    });
+                    asinsAccepted++;
+                  }
+                  if (!kwNode.representativeAsins.includes(asin)) {
+                    kwNode.representativeAsins.push(asin);
+                  }
+                  edges.push({
+                    keywordId: kwNode.id,
+                    asin,
+                    relation: 'TOP_ASIN',
+                    evidenceIds: [...kwNode.evidenceIds],
+                  });
+                }
+              }
+            }
+          } catch {
+            // Graceful handling
+          }
         }
       }
     }

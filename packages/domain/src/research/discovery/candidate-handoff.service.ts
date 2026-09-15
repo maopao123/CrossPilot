@@ -25,40 +25,29 @@ export class CandidateHandoffService {
     const primaryAsin = draft.representativeAsins[0];
     const candidateAsin = primaryAsin || undefined;
 
-    // Map attached evidence items, ensuring PRODUCT evidence maps to allowed candidate subjectId or ASIN
+    // Map attached evidence items truthfully:
+    // 1. Never fabricate fake stub evidence.
+    // 2. Evidence once captured is strictly immutable (do NOT mutate subjectId).
+    // 3. PRODUCT evidence is only attached if subjectId matches candidateId or candidateAsin.
     const attachedEvidence: EvidenceItem[] = [];
     const attachedIds = new Set<string>();
 
     for (const e of allEvidence) {
       if (!draft.evidenceIds.includes(e.id)) continue;
       if (attachedIds.has(e.id)) continue;
-      attachedIds.add(e.id);
 
       if (e.scope === 'PRODUCT') {
-        attachedEvidence.push({
-          ...e,
-          subjectId: candidateAsin || draft.id,
-        });
-      } else {
-        attachedEvidence.push(e);
+        const sub = (e.subjectId || '').trim();
+        const matchesCandidate = sub === draft.id || (candidateAsin && sub === candidateAsin);
+        if (!matchesCandidate) {
+          // Evidence belongs to another competitor ASIN in the cluster;
+          // do NOT rewrite subjectId or inject into this candidate's product evidence.
+          continue;
+        }
       }
-    }
 
-    // If not found in allEvidence, construct stub evidence with identical IDs and truthful scope
-    for (const eviId of draft.evidenceIds) {
-      if (!attachedIds.has(eviId)) {
-        attachedIds.add(eviId);
-        const isProduct = eviId.includes('asin');
-        attachedEvidence.push({
-          id: eviId,
-          scope: isProduct ? 'PRODUCT' : 'KEYWORD',
-          subjectId: isProduct ? (candidateAsin || draft.id) : draft.primaryKeyword,
-          source: 'AUTO_DISCOVERY',
-          content: `Evidence for discovery candidate ${draft.title}`,
-          capturedAt: new Date().toISOString(),
-          confidence: 0.9,
-        });
-      }
+      attachedIds.add(e.id);
+      attachedEvidence.push(e);
     }
 
     // Economics: Empty & Truthful UNKNOWN (Spec §36 & Case 15)

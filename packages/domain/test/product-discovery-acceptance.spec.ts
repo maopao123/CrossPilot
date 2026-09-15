@@ -8,6 +8,7 @@ import {
   CandidateDeduplicator,
   CandidateHandoffService,
   CandidateDecisionEngine,
+  CandidateEvidenceValidator,
   CapabilityExecutor,
 } from '../src/index.js';
 import type {
@@ -718,5 +719,195 @@ describe('Product Research Phase 2A — Auto Discovery Acceptance Tests (Cases 1
     expect(complianceRisk?.status).toBe('UNVERIFIED');
     expect(patentRisk?.status).not.toBe('PASS');
     expect(complianceRisk?.status).not.toBe('PASS');
+  });
+
+  // Case 17: Pure Live / Provider Path Multi-round Expansion (No preloadedData)
+  it('Case 17: Pure Live Path executes Multi-round Expansion (Round 0 -> Round 1 -> Round 2) without preloadedData', async () => {
+    const executedCalls: { capabilityId: string; input: any }[] = [];
+
+    const mockExecutor: CapabilityExecutor = {
+      hasCapability: (capabilityId: string) => {
+        return capabilityId === 'market.keyword.search' || capabilityId === 'market.asin.keywords';
+      },
+      execute: async <TInput = any, TOutput = any>(capabilityId: string, input: TInput, marketplace: string): Promise<any> => {
+        executedCalls.push({ capabilityId, input });
+        const anyInput = input as any;
+
+        if (capabilityId === 'market.keyword.search') {
+          if (anyInput?.keyword === 'glass food storage') {
+            // Round 0: Seed keyword returns Seed metric + Related expanded keyword
+            return {
+              success: true,
+              providerId: 'XYDC_LIVE',
+              data: [
+                {
+                  source: 'XYDC_LIVE',
+                  marketplace,
+                  keyword: 'glass food storage',
+                  searchVolume: 32500,
+                  abaRank: 420,
+                  cpc: 1.25,
+                  competition: 0.72,
+                  growth: '+15%',
+                  topAsins: ['B08LIVE01', 'B08LIVE02'],
+                  capturedAt: new Date().toISOString(),
+                },
+                {
+                  source: 'XYDC_LIVE',
+                  marketplace,
+                  keyword: 'glass meal prep container',
+                  searchVolume: 24000,
+                  abaRank: 610,
+                  cpc: 1.4,
+                  competition: 0.68,
+                  growth: '+22%',
+                  topAsins: ['B09LIVE01'],
+                  capturedAt: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+
+          if (anyInput?.keyword === 'glass meal prep container') {
+            // Round 2: High-value expanded keyword enrichment
+            return {
+              success: true,
+              providerId: 'XYDC_LIVE',
+              data: [
+                {
+                  source: 'XYDC_LIVE',
+                  marketplace,
+                  keyword: 'glass meal prep container',
+                  searchVolume: 24000,
+                  abaRank: 610,
+                  cpc: 1.4,
+                  competition: 0.68,
+                  growth: '+22%',
+                  topAsins: ['B09LIVE01', 'B09LIVE02'],
+                  capturedAt: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+        }
+
+        if (capabilityId === 'market.asin.keywords') {
+          // Round 1: Discovered ASIN reverse keyword lookup
+          if (anyInput?.asin === 'B08LIVE01') {
+            return {
+              success: true,
+              providerId: 'XYDC_LIVE',
+              data: [
+                {
+                  source: 'XYDC_LIVE',
+                  marketplace,
+                  keyword: 'glass berry keeper',
+                  searchVolume: 8400,
+                  abaRank: 1850,
+                  cpc: 0.95,
+                  competition: 0.45,
+                  topAsins: ['B08LIVE01'],
+                  capturedAt: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+          return { success: true, providerId: 'XYDC_LIVE', data: [] };
+        }
+
+        return { success: false, error: { code: 'UNSUPPORTED', message: 'Unsupported' } };
+      },
+    };
+
+    const service = new ProductDiscoveryService(mockExecutor);
+    const request: ProductDiscoveryRequest = {
+      marketplace: 'AMAZON_US',
+      seed: { keyword: 'glass food storage' },
+      budget: { maxProviderCalls: 10 },
+    };
+
+    // Execute WITHOUT preloadedData!
+    const run = await service.runDiscovery(request);
+
+    // 1. Verify Multi-round Execution occurred
+    expect(['COMPLETED', 'DEGRADED']).toContain(run.status);
+    expect(executedCalls.length).toBeGreaterThanOrEqual(3);
+    expect(executedCalls.some((c) => c.capabilityId === 'market.keyword.search' && c.input.keyword === 'glass food storage')).toBe(true);
+    expect(executedCalls.some((c) => c.capabilityId === 'market.asin.keywords')).toBe(true);
+    expect(run.budgetUsage.providerCalls).toBeGreaterThanOrEqual(3);
+
+    // 2. Verify Graph Nodes and Edges
+    expect(run.keywordNodes.length).toBeGreaterThanOrEqual(3);
+    const seedNode = run.keywordNodes.find((k) => k.origin === 'SEED');
+    expect(seedNode).toBeDefined();
+    expect(seedNode?.rawKeyword).toBe('glass food storage');
+
+    const reverseNode = run.keywordNodes.find((k) => k.origin === 'ASIN_REVERSE_LOOKUP');
+    expect(reverseNode).toBeDefined();
+    expect(reverseNode?.rawKeyword).toBe('glass berry keeper');
+
+    expect(run.asinNodes.length).toBeGreaterThanOrEqual(2);
+    expect(run.asinNodes.some((a) => a.asin === 'B08LIVE01')).toBe(true);
+    expect(run.edges?.length).toBeGreaterThan(0);
+
+    // 3. Verify Candidate Drafts
+    expect(run.candidateDrafts.length).toBeGreaterThan(0);
+
+    // 4. Verify Evidence Truthfulness & Immutability in Handoff
+    const candidates = CandidateHandoffService.handoffToV2(run.candidateDrafts, run.evidence);
+    expect(candidates.length).toBe(run.candidateDrafts.length);
+
+    for (const candidate of candidates) {
+      // Validate with CandidateEvidenceValidator: strictly 0 SubjectConsistencyViolation!
+      const valRes = CandidateEvidenceValidator.validateCandidateEvidence(
+        candidate.id,
+        candidate.marketResearch?.representativeAsin ?? undefined,
+        candidate.evidence,
+      );
+      expect(valRes.valid).toBe(true);
+      expect(valRes.violations).toHaveLength(0);
+
+      // Verify no synthetic stub evidence
+      for (const evi of candidate.evidence) {
+        expect(evi.source).not.toBe('AUTO_DISCOVERY');
+        expect(evi.source).toBe('XYDC_LIVE');
+      }
+
+      // Verify V2 Decision is strictly NEEDS_VALIDATION
+      const decision = CandidateDecisionEngine.evaluate(candidate);
+      expect(decision.verdict).toBe('NEEDS_VALIDATION');
+    }
+  });
+
+  // Case 18: Input Validation and Dynamic Budget Preview
+  it('Case 18: Seed validation rejects empty/whitespace seed and previewDiscovery calculates dynamic estimates', async () => {
+    const service = new ProductDiscoveryService();
+
+    // Empty seed must throw
+    await expect(service.runDiscovery({ marketplace: 'AMAZON_US', seed: { keyword: '' } })).rejects.toThrow(
+      'Seed keyword is required for Auto Discovery',
+    );
+    await expect(service.runDiscovery({ marketplace: 'AMAZON_US', seed: { keyword: '   ' } })).rejects.toThrow(
+      'Seed keyword is required for Auto Discovery',
+    );
+
+    // previewDiscovery calculates dynamic bounds based on budget
+    const preview1 = service.previewDiscovery({
+      marketplace: 'AMAZON_US',
+      seed: { keyword: 'glass food storage' },
+      budget: { maxProviderCalls: 2 },
+    });
+    expect(preview1.estimatedCallCount).toBeLessThanOrEqual(2);
+    expect(preview1.knownCreditCost).toBeLessThanOrEqual(2);
+
+    const preview2 = service.previewDiscovery({
+      marketplace: 'AMAZON_US',
+      seed: { keyword: 'glass food storage' },
+      budget: { maxProviderCalls: 20 },
+      limits: { maxExpandedKeywords: 100, maxRepresentativeAsins: 30 },
+    });
+    expect(preview2.estimatedCallCount).toBeGreaterThan(2);
+    expect(preview2.plannedCapabilities).toContain('market.keyword.search');
+    expect(preview2.plannedCapabilities).toContain('market.asin.keywords');
   });
 });

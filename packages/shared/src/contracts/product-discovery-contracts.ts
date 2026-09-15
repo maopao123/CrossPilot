@@ -8,6 +8,7 @@ import type { ProvenanceValue, EvidenceItem } from './research-contracts.js';
 
 export interface ProductDiscoveryRequest {
   marketplace: string;
+  isDemo?: boolean;
 
   seed: {
     keyword: string;

@@ -145,6 +145,7 @@ export function AutoDiscoverySection({ onHandoffToV2 }: AutoDiscoverySectionProp
     try {
       const res = await ApiClient.post<ProductCandidate[]>('/api/v1/market-research/discovery/handoff', {
         drafts: selectedDrafts,
+        allEvidence: runResult.evidence,
       });
       if (res && onHandoffToV2) {
         onHandoffToV2(res);

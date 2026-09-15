@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { MarketService } from './market.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import type { ProductCandidate, ProductDiscoveryRequest, CandidateDraft } from '@crosspilot/shared';
+import type { ProductCandidate, ProductDiscoveryRequest, CandidateDraft, EvidenceItem } from '@crosspilot/shared';
 
 @Controller()
 export class MarketController {
@@ -172,7 +172,7 @@ export class MarketController {
   }
 
   @Post('market-research/discovery/handoff')
-  handoffDiscovery(@Body() body: { drafts: CandidateDraft[] }) {
-    return this.marketService.handoffDiscovery(body.drafts || []);
+  handoffDiscovery(@Body() body: { drafts: CandidateDraft[]; allEvidence?: EvidenceItem[] }) {
+    return this.marketService.handoffDiscovery(body.drafts || [], body.allEvidence || []);
   }
 }

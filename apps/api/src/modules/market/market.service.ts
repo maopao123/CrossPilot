@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { IntegrationGateway, XydcMapper } from '@crosspilot/integrations';
 import {
@@ -920,10 +920,13 @@ export class MarketService {
    * Product Research Phase 2A — Auto Discovery MVP
    */
   async runDiscovery(request: ProductDiscoveryRequest): Promise<ProductDiscoveryRun> {
+    if (!request.seed?.keyword?.trim()) {
+      throw new BadRequestException('Seed keyword is required for Auto Discovery');
+    }
+
     const isDemo =
-      !request.seed?.keyword ||
-      request.seed.keyword.toLowerCase().includes('demo') ||
-      request.seed.keyword.toLowerCase().includes('glass food storage');
+      request.isDemo === true ||
+      request.seed.keyword.toLowerCase().includes('demo');
 
     if (isDemo) {
       return this.getDemoDiscovery();
@@ -947,7 +950,13 @@ export class MarketService {
             error: result.error,
           };
         },
-        hasCapability: (capId: string) => true,
+        hasCapability: (capId: string) => {
+          try {
+            return gateway.hasCapability(capId);
+          } catch {
+            return false;
+          }
+        },
       };
 
       const discoveryService = new ProductDiscoveryService(executor);
@@ -1094,8 +1103,8 @@ export class MarketService {
     );
   }
 
-  handoffDiscovery(drafts: CandidateDraft[]): ProductCandidate[] {
-    const candidates = CandidateHandoffService.handoffToV2(drafts);
+  handoffDiscovery(drafts: CandidateDraft[], allEvidence: EvidenceItem[] = []): ProductCandidate[] {
+    const candidates = CandidateHandoffService.handoffToV2(drafts, allEvidence);
     return candidates.map((c) => {
       const detail = CandidateDecisionEngine.evaluate(c);
       return {
