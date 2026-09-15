@@ -2,48 +2,110 @@ import {
   CandidateEconomics,
   CandidateEconomicsInputs,
   CandidateEconomicsStatus,
+  EconomicsScenarioConfig,
+  ProvenanceValue,
   ScenarioEconomicsResult,
 } from '@crosspilot/shared';
 import { ProfitCalculationService } from '../profit/profit-calculation.service.js';
 
+export const CRITICAL_ECONOMICS_INPUTS: (keyof CandidateEconomicsInputs)[] = [
+  'sellingPrice',
+  'productCost',
+  'referralFeeRate',
+  'fbaFeePerUnit',
+  'freightPerUnit',
+];
+
+export const NON_CRITICAL_ECONOMICS_INPUTS: (keyof CandidateEconomicsInputs)[] = [
+  'dutyPerUnit',
+  'adsCostPerUnit',
+  'returnRate',
+  'returnLossPerUnit',
+  'storageFeePerUnit',
+  'otherCostsPerUnit',
+];
+
+export const DEFAULT_SCENARIO_CONFIG: EconomicsScenarioConfig = {
+  conservative: {
+    sellingPriceMultiplier: 0.95,
+    productCostMultiplier: 1.05,
+    freightMultiplier: 1.10,
+    adsCostMultiplier: 1.25,
+    returnRateMultiplier: 1.30,
+    storageMultiplier: 1.20,
+    description: '保守情景: 售价-5%, 采购成本+5%, 头程运费+10%, 广告费+25%, 退货率+30%, 仓储+20%',
+  },
+  optimistic: {
+    sellingPriceMultiplier: 1.00,
+    productCostMultiplier: 0.92,
+    freightMultiplier: 0.95,
+    adsCostMultiplier: 0.85,
+    returnRateMultiplier: 0.80,
+    storageMultiplier: 1.00,
+    description: '乐观情景: 售价保持基准, 采购规模降本-8%, 头程-5%, 广告费-15%, 退货率-20%',
+  },
+};
+
 export class CandidateEconomicsService {
   /**
    * Deterministic calculation of product candidate economics without hidden default constants.
-   * Leverages ProfitCalculationService financial rounding to eliminate IEEE 754 float drift.
+   * Leverages ProfitCalculationService financial rounding (2 decimal places) for monetary consistency.
+   * UNKNOWN ≠ 0; non-provided inputs are explicitly audited into missingInputs or excludedInputs.
    */
   static calculateEconomics(
-    inputs: CandidateEconomicsInputs,
+    inputs: Partial<CandidateEconomicsInputs>,
     currency = 'USD',
+    config: EconomicsScenarioConfig = DEFAULT_SCENARIO_CONFIG,
   ): CandidateEconomics {
+    const defaultUnknown: ProvenanceValue<number> = { value: null, source: 'UNKNOWN' };
+    const normalizedInputs: CandidateEconomicsInputs = {
+      sellingPrice: inputs.sellingPrice ?? defaultUnknown,
+      productCost: inputs.productCost ?? defaultUnknown,
+      referralFeeRate: inputs.referralFeeRate ?? defaultUnknown,
+      fbaFeePerUnit: inputs.fbaFeePerUnit ?? defaultUnknown,
+      freightPerUnit: inputs.freightPerUnit ?? defaultUnknown,
+      dutyPerUnit: inputs.dutyPerUnit ?? defaultUnknown,
+      adsCostPerUnit: inputs.adsCostPerUnit ?? defaultUnknown,
+      returnRate: inputs.returnRate ?? defaultUnknown,
+      returnLossPerUnit: inputs.returnLossPerUnit ?? defaultUnknown,
+      storageFeePerUnit: inputs.storageFeePerUnit ?? defaultUnknown,
+      otherCostsPerUnit: inputs.otherCostsPerUnit ?? defaultUnknown,
+    };
+
     const missingInputs: string[] = [];
+    const criticalMissing: string[] = [];
+    const excludedInputs: string[] = [];
 
     // 1. Audit critical inputs for truthfulness & provenance
-    if (inputs.sellingPrice.value === null || inputs.sellingPrice.source === 'UNKNOWN') {
-      missingInputs.push('sellingPrice');
-    }
-    if (inputs.productCost.value === null || inputs.productCost.source === 'UNKNOWN') {
-      missingInputs.push('productCost');
-    }
-    if (inputs.referralFeeRate.value === null || inputs.referralFeeRate.source === 'UNKNOWN') {
-      missingInputs.push('referralFeeRate');
-    }
-    if (inputs.fbaFeePerUnit.value === null || inputs.fbaFeePerUnit.source === 'UNKNOWN') {
-      missingInputs.push('fbaFeePerUnit');
+    for (const key of CRITICAL_ECONOMICS_INPUTS) {
+      const field = normalizedInputs[key];
+      if (!field || field.value === null || field.source === 'UNKNOWN') {
+        missingInputs.push(key);
+        criticalMissing.push(key);
+      }
     }
 
-    // Determine completion status: if critical cost/price is missing, mark as INCOMPLETE / NEEDS_VALIDATION
+    // 2. Audit non-critical inputs (missing values are treated as EXCLUDED_FROM_CALCULATION, not real zero)
+    for (const key of NON_CRITICAL_ECONOMICS_INPUTS) {
+      const field = normalizedInputs[key];
+      if (!field || field.value === null || field.source === 'UNKNOWN') {
+        excludedInputs.push(key);
+      }
+    }
+
+    // Determine completion status:
+    // Any critical input missing -> INCOMPLETE
+    // Otherwise -> COMPLETE (with non-critical excludedInputs tracked)
     let status: CandidateEconomicsStatus = 'COMPLETE';
-    if (missingInputs.includes('sellingPrice') || missingInputs.includes('productCost')) {
+    if (criticalMissing.length > 0) {
       status = 'INCOMPLETE';
-    } else if (missingInputs.length > 0) {
-      status = 'NEEDS_VALIDATION';
     }
 
     // If critical inputs missing, return un-evaluated/zero scenarios with honest INCOMPLETE flag
     if (status === 'INCOMPLETE') {
       const emptyScenario: ScenarioEconomicsResult = {
-        sellingPrice: inputs.sellingPrice.value ?? 0,
-        productCost: inputs.productCost.value ?? 0,
+        sellingPrice: normalizedInputs.sellingPrice.value ?? 0,
+        productCost: normalizedInputs.productCost.value ?? 0,
         amazonReferralFee: 0,
         fbaFee: 0,
         freight: 0,
@@ -60,28 +122,34 @@ export class CandidateEconomicsService {
       return {
         status,
         currency,
-        inputs,
+        inputs: normalizedInputs,
         scenarios: {
           conservative: { ...emptyScenario },
           base: { ...emptyScenario },
           optimistic: { ...emptyScenario },
         },
         missingInputs,
+        criticalInputs: CRITICAL_ECONOMICS_INPUTS as string[],
+        excludedInputs,
+        scenarioAssumptions: {
+          conservative: config.conservative.description,
+          optimistic: config.optimistic.description,
+        },
       };
     }
 
-    // 2. Compute Base Scenario
-    const baseSellingPrice = inputs.sellingPrice.value!;
-    const baseProductCost = inputs.productCost.value!;
-    const referralRate = inputs.referralFeeRate.value ?? 0.15;
-    const fbaFee = inputs.fbaFeePerUnit.value ?? 4.5;
-    const freight = inputs.freightPerUnit.value ?? 0;
-    const duty = inputs.dutyPerUnit.value ?? 0;
-    const adsCost = inputs.adsCostPerUnit.value ?? 0;
-    const returnRate = inputs.returnRate.value ?? 0.05;
-    const returnLossPerUnit = inputs.returnLossPerUnit.value ?? (baseProductCost * 0.5 + 5.0);
-    const storage = inputs.storageFeePerUnit.value ?? 0.3;
-    const otherCosts = inputs.otherCostsPerUnit.value ?? 0;
+    // 3. Compute Base Scenario (strictly using provided numbers; NO HIDDEN CONSTANTS)
+    const baseSellingPrice = normalizedInputs.sellingPrice.value!;
+    const baseProductCost = normalizedInputs.productCost.value!;
+    const referralRate = normalizedInputs.referralFeeRate.value ?? 0;
+    const fbaFee = normalizedInputs.fbaFeePerUnit.value ?? 0;
+    const freight = normalizedInputs.freightPerUnit.value ?? 0;
+    const duty = normalizedInputs.dutyPerUnit.value ?? 0;
+    const adsCost = normalizedInputs.adsCostPerUnit.value ?? 0;
+    const returnRate = normalizedInputs.returnRate.value ?? 0;
+    const returnLossPerUnit = normalizedInputs.returnLossPerUnit.value ?? 0;
+    const storage = normalizedInputs.storageFeePerUnit.value ?? 0;
+    const otherCosts = normalizedInputs.otherCostsPerUnit.value ?? 0;
 
     const base = this.computeScenario({
       sellingPrice: baseSellingPrice,
@@ -97,46 +165,60 @@ export class CandidateEconomicsService {
       otherCosts,
     });
 
-    // 3. Compute Conservative Scenario (Price -5%, Cost +5%, Ads +25%, Return +30%)
+    // 4. Compute Conservative Scenario based on explicit multipliers
     const conservative = this.computeScenario({
-      sellingPrice: ProfitCalculationService.roundMoney(baseSellingPrice * 0.95),
-      productCost: ProfitCalculationService.roundMoney(baseProductCost * 1.05),
+      sellingPrice: ProfitCalculationService.roundMoney(
+        baseSellingPrice * config.conservative.sellingPriceMultiplier,
+      ),
+      productCost: ProfitCalculationService.roundMoney(
+        baseProductCost * config.conservative.productCostMultiplier,
+      ),
       referralRate,
       fbaFee,
-      freight: ProfitCalculationService.roundMoney(freight * 1.1),
+      freight: ProfitCalculationService.roundMoney(freight * config.conservative.freightMultiplier),
       duty,
-      adsCost: ProfitCalculationService.roundMoney(adsCost * 1.25),
-      returnRate: Math.min(0.25, returnRate * 1.3),
+      adsCost: ProfitCalculationService.roundMoney(adsCost * config.conservative.adsCostMultiplier),
+      returnRate: Math.min(0.25, returnRate * config.conservative.returnRateMultiplier),
       returnLossPerUnit,
-      storage: ProfitCalculationService.roundMoney(storage * 1.2),
+      storage: ProfitCalculationService.roundMoney(storage * config.conservative.storageMultiplier),
       otherCosts,
     });
 
-    // 4. Compute Optimistic Scenario (Cost -8% volume discount, Ads -15%, Return -20%)
+    // 5. Compute Optimistic Scenario based on explicit multipliers
     const optimistic = this.computeScenario({
-      sellingPrice: baseSellingPrice,
-      productCost: ProfitCalculationService.roundMoney(baseProductCost * 0.92),
+      sellingPrice: ProfitCalculationService.roundMoney(
+        baseSellingPrice * config.optimistic.sellingPriceMultiplier,
+      ),
+      productCost: ProfitCalculationService.roundMoney(
+        baseProductCost * config.optimistic.productCostMultiplier,
+      ),
       referralRate,
       fbaFee,
-      freight: ProfitCalculationService.roundMoney(freight * 0.95),
+      freight: ProfitCalculationService.roundMoney(freight * config.optimistic.freightMultiplier),
       duty,
-      adsCost: ProfitCalculationService.roundMoney(adsCost * 0.85),
-      returnRate: Math.max(0.02, returnRate * 0.8),
+      adsCost: ProfitCalculationService.roundMoney(adsCost * config.optimistic.adsCostMultiplier),
+      returnRate: Math.max(0.02, returnRate * config.optimistic.returnRateMultiplier),
       returnLossPerUnit,
-      storage,
+      storage: ProfitCalculationService.roundMoney(storage * config.optimistic.storageMultiplier),
       otherCosts,
     });
 
     return {
       status,
       currency,
-      inputs,
+      inputs: normalizedInputs,
       scenarios: {
         conservative,
         base,
         optimistic,
       },
       missingInputs,
+      criticalInputs: CRITICAL_ECONOMICS_INPUTS as string[],
+      excludedInputs,
+      scenarioAssumptions: {
+        conservative: config.conservative.description,
+        optimistic: config.optimistic.description,
+      },
     };
   }
 

@@ -3,6 +3,7 @@ import {
   CandidateDecisionEngine,
   CandidateEconomicsService,
   CandidateEvidenceValidator,
+  CandidateRiskGate,
   OpportunityScoreEngine,
 } from '../src/research/index.js';
 import {
@@ -80,6 +81,22 @@ describe('Product Research V2 MVP Mandatory Acceptance Tests', () => {
           subjectId: id,
           source: 'SUPPLIER_OFFICIAL_QUOTE',
           content: `Supplier quote FOB Ningbo $8.50/unit for ${id}`,
+          capturedAt: new Date().toISOString(),
+        },
+        {
+          id: `${id}-evi-patent-report`,
+          scope: 'PRODUCT',
+          subjectId: id,
+          source: 'USPTO_SEARCH',
+          content: `Patent clearance report for ${id} structure`,
+          capturedAt: new Date().toISOString(),
+        },
+        {
+          id: `${id}-evi-qc-report`,
+          scope: 'PRODUCT',
+          subjectId: id,
+          source: 'FACTORY_QC_AUDIT',
+          content: `Fabric anti-mold humidity testing for ${id}`,
           capturedAt: new Date().toISOString(),
         },
         {
@@ -467,5 +484,335 @@ describe('Product Research V2 MVP Mandatory Acceptance Tests', () => {
 
     // 3. Representative ASIN in scope disclosure must be null, not a fake ASIN
     expect(opp.scopeDisclosure.representativeAsin).toBeNull();
+  });
+
+  /**
+   * ==========================================================================
+   * Case 7: Demo Provenance Gate
+   * Fixtures and demo data must explicitly carry 'DEMO' ValueSource.
+   * Fake 'FACT' or unverified quotes disguised as official data are strictly prohibited.
+   * ==========================================================================
+   */
+  it('Case 7: Demo fixtures use DEMO ValueSource and do not disguise as verified FACT quotes', () => {
+    const demoInputs = {
+      sellingPrice: { value: 29.99, source: 'DEMO' as const, basis: 'Demo retail scenario target' },
+      productCost: { value: 8.5, source: 'DEMO' as const, basis: 'Demo supplier pricing assumption' },
+      referralFeeRate: { value: 0.15, source: 'DEMO' as const, basis: 'Standard Amazon demo fee rate' },
+      fbaFeePerUnit: { value: 5.2, source: 'DEMO' as const, basis: 'Demo FBA tier lookup' },
+      freightPerUnit: { value: 2.1, source: 'DEMO' as const, basis: 'Demo freight rate estimate' },
+    };
+
+    const econ = CandidateEconomicsService.calculateEconomics(demoInputs, 'USD');
+    expect(econ.inputs.sellingPrice.source).toBe('DEMO');
+    expect(econ.inputs.productCost.source).toBe('DEMO');
+    expect(econ.inputs.sellingPrice.source).not.toBe('FACT');
+    expect(econ.inputs.productCost.source).not.toBe('FACT');
+
+    const demoCandidate = createTestCandidate('CAND-DEMO', 'Demo Candidate', {
+      economics: econ,
+      evidence: [
+        {
+          id: 'demo-evi-1',
+          scope: 'PRODUCT',
+          subjectId: 'CAND-DEMO',
+          source: 'DEMO_FIXTURE',
+          content: 'Built-in test fixture representing mock specification',
+        },
+      ],
+    });
+
+    expect(demoCandidate.evidence[0].source).toBe('DEMO_FIXTURE');
+    expect(demoCandidate.evidence[0].source).not.toBe('SUPPLIER_OFFICIAL_QUOTE');
+  });
+
+  /**
+   * ==========================================================================
+   * Case 8: Economics Unknown Critical Inputs
+   * When critical input like fbaFeePerUnit is null/UNKNOWN, it is recorded in missingInputs
+   * and CandidateEconomicsService does NOT substitute 4.5.
+   * ==========================================================================
+   */
+  it('Case 8: Missing fbaFeePerUnit enters missingInputs and is not silently defaulted to 4.5', () => {
+    const inputsWithoutFba = {
+      sellingPrice: { value: 29.99, source: 'FACT' as const },
+      productCost: { value: 8.5, source: 'FACT' as const },
+      referralFeeRate: { value: 0.15, source: 'ESTIMATE' as const },
+      fbaFeePerUnit: { value: null, source: 'UNKNOWN' as const },
+      freightPerUnit: { value: 2.1, source: 'ESTIMATE' as const },
+    };
+
+    const econ = CandidateEconomicsService.calculateEconomics(inputsWithoutFba, 'USD');
+    expect(econ.status).toBe('INCOMPLETE');
+    expect(econ.missingInputs).toContain('fbaFeePerUnit');
+    expect(econ.criticalInputs).toContain('fbaFeePerUnit');
+
+    // Make sure base fba fee was not silently hardcoded to 4.5
+    expect(econ.scenarios.base.fbaFee).toBe(0);
+
+    const cand = createTestCandidate('CAND-NO-FBA', 'Missing FBA Candidate', { economics: econ });
+    const decision = CandidateDecisionEngine.evaluate(cand);
+    expect(decision.verdict).not.toBe('SHORTLIST');
+    expect(decision.verdict).toBe('NEEDS_VALIDATION');
+    expect(decision.reasons.some((r) => r.includes('关键财务数据缺失'))).toBe(true);
+  });
+
+  /**
+   * ==========================================================================
+   * Case 9: Hidden Default Prohibition
+   * Verify referralFeeRate, fbaFeePerUnit, freightPerUnit, returnRate, storageFeePerUnit
+   * are not replaced by hidden constants (?? 0.15, ?? 4.5, ?? 0.05, ?? 0.35).
+   * ==========================================================================
+   */
+  it('Case 9: All economics inputs reject hidden fallback constants when null or UNKNOWN', () => {
+    // Completely empty inputs
+    const emptyInputs = {};
+    const econ = CandidateEconomicsService.calculateEconomics(emptyInputs, 'USD');
+
+    expect(econ.status).toBe('INCOMPLETE');
+    expect(econ.missingInputs).toEqual(
+      expect.arrayContaining(['sellingPrice', 'productCost', 'referralFeeRate', 'fbaFeePerUnit', 'freightPerUnit'])
+    );
+
+    // Non-critical missing inputs are explicitly tracked in excludedInputs
+    expect(econ.excludedInputs).toEqual(
+      expect.arrayContaining(['returnRate', 'storageFeePerUnit', 'adsCostPerUnit'])
+    );
+
+    // Verify Amazon Referral Fee is not defaulted to 15% of a hidden price
+    expect(econ.scenarios.base.amazonReferralFee).toBe(0);
+    // Verify FBA is not defaulted to 4.5
+    expect(econ.scenarios.base.fbaFee).toBe(0);
+    // Verify freight is not defaulted
+    expect(econ.scenarios.base.freight).toBe(0);
+  });
+
+  /**
+   * ==========================================================================
+   * Case 10: Cross-Candidate Evidence Injection Blocks Shortlist
+   * Injecting Candidate B's PRODUCT evidence into Candidate A invalidates evidence
+   * and CandidateDecisionEngine strictly refuses SHORTLIST.
+   * ==========================================================================
+   */
+  it('Case 10: Candidate with cross-candidate evidence contamination fails validation and cannot get SHORTLIST', () => {
+    const candA = createTestCandidate('CAND-A', 'Candidate A', {
+      evidence: [
+        {
+          id: 'evi-valid-a',
+          scope: 'PRODUCT',
+          subjectId: 'CAND-A',
+          source: 'SUPPLIER_QUOTE',
+          content: 'Legitimate quote for Candidate A',
+        },
+        {
+          id: 'evi-contaminated-from-b',
+          scope: 'PRODUCT',
+          subjectId: 'CAND-B', // Belongs to B!
+          source: 'SUPPLIER_QUOTE',
+          content: 'Contaminated quote belonging to Candidate B',
+        },
+      ],
+    });
+
+    // Evidence validator check
+    const validation = CandidateEvidenceValidator.validateCandidateEvidence('CAND-A', undefined, candA.evidence);
+    expect(validation.valid).toBe(false);
+
+    // Decision engine must reject SHORTLIST
+    const decision = CandidateDecisionEngine.evaluate(candA);
+    expect(decision.verdict).not.toBe('SHORTLIST');
+    expect(['NEEDS_VALIDATION', 'INSUFFICIENT_DATA']).toContain(decision.verdict);
+    expect(decision.reasons.some((r) => r.includes('证据主体范围校验未通过'))).toBe(true);
+  });
+
+  /**
+   * ==========================================================================
+   * Case 11: Category VOC Impersonation Blocks Shortlist
+   * Category-level evidence containing single-product VOC impersonation fails
+   * validation and blocks SHORTLIST.
+   * ==========================================================================
+   */
+  it('Case 11: Category evidence attempting single-product review impersonation is caught and blocks SHORTLIST', () => {
+    const cand = createTestCandidate('CAND-CAT-IMPERSONATE', 'Impersonating Candidate', {
+      evidence: [
+        {
+          id: 'evi-impersonating',
+          scope: 'CATEGORY',
+          subjectId: 'Home & Kitchen',
+          source: 'VOC_AGGREGATOR',
+          content: '该商品买家普遍认为拉链极易损坏，本产品评论区充斥关于色差的投诉',
+        },
+      ],
+    });
+
+    const validation = CandidateEvidenceValidator.validateCandidateEvidence('CAND-CAT-IMPERSONATE', undefined, cand.evidence);
+    expect(validation.valid).toBe(false);
+    expect(validation.violations.some((v) => v.reason.includes('冒充单品买家原声'))).toBe(true);
+
+    const decision = CandidateDecisionEngine.evaluate(cand);
+    expect(decision.verdict).not.toBe('SHORTLIST');
+    expect(decision.reasons.some((r) => r.includes('证据主体范围校验未通过'))).toBe(true);
+  });
+
+  /**
+   * ==========================================================================
+   * Case 12: Market Reason Dual Provenance
+   * MARKET_DEMAND and EVIDENCE_CONFIDENCE comparison reasons must contain non-empty
+   * provenance IDs for both Candidate A and Candidate B.
+   * ==========================================================================
+   */
+  it('Case 12: Comparison reasons on market and confidence contain non-empty dual-sided evidence/assumption IDs', () => {
+    const candA = createTestCandidate('CAND-PROV-A', 'Candidate A with Provenance', {
+      marketResearch: {
+        seedKeyword: 'linen box a',
+        searchVolumeMonthly: 50000,
+        competitiveDifficulty: 30,
+        opportunityScore: 85,
+        competitorSampleSize: 5,
+        evidenceIds: ['cand-a-market-evi-1'],
+        assumptionIds: ['cand-a-market-asm-1'],
+      },
+      evidence: [
+        { id: 'cand-a-market-evi-1', scope: 'KEYWORD', subjectId: 'linen box a', source: 'XYDC_ABA', content: '50k searches' },
+      ],
+      assumptions: [
+        {
+          id: 'cand-a-market-asm-1',
+          field: 'searchVolumeGrowth',
+          description: 'Expected 10% monthly growth',
+          assumedValue: 0.1,
+          sourceReason: 'Trend analysis',
+          impactLevel: 'MEDIUM',
+          validated: false,
+        },
+      ],
+    });
+
+    const candB = createTestCandidate('CAND-PROV-B', 'Candidate B with Provenance', {
+      marketResearch: {
+        seedKeyword: 'linen box b',
+        searchVolumeMonthly: 20000,
+        competitiveDifficulty: 50,
+        opportunityScore: 65,
+        competitorSampleSize: 4,
+        evidenceIds: ['cand-b-market-evi-1'],
+        assumptionIds: ['cand-b-market-asm-1'],
+      },
+      evidence: [
+        { id: 'cand-b-market-evi-1', scope: 'KEYWORD', subjectId: 'linen box b', source: 'XYDC_ABA', content: '20k searches' },
+      ],
+      assumptions: [
+        {
+          id: 'cand-b-market-asm-1',
+          field: 'searchVolumeGrowth',
+          description: 'Expected 5% monthly growth',
+          assumedValue: 0.05,
+          sourceReason: 'Trend analysis',
+          impactLevel: 'MEDIUM',
+          validated: false,
+        },
+      ],
+    });
+
+    const comparison = CandidateComparisonEngine.compare([candA, candB]);
+    const reasons = comparison.pairwiseReasons['CAND-PROV-A_vs_CAND-PROV-B'];
+
+    const marketReason = reasons.find((r) => r.dimension === 'MARKET_DEMAND');
+    expect(marketReason).toBeDefined();
+    expect(
+      (marketReason?.candidateAEvidenceIds?.length ?? 0) + (marketReason?.candidateAAssumptionIds?.length ?? 0)
+    ).toBeGreaterThan(0);
+    expect(
+      (marketReason?.candidateBEvidenceIds?.length ?? 0) + (marketReason?.candidateBAssumptionIds?.length ?? 0)
+    ).toBeGreaterThan(0);
+
+    const confidenceReason = reasons.find((r) => r.dimension === 'EVIDENCE_CONFIDENCE');
+    expect(confidenceReason).toBeDefined();
+    expect(confidenceReason?.candidateAEvidenceIds?.length).toBeGreaterThan(0);
+    expect(confidenceReason?.candidateBEvidenceIds?.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * ==========================================================================
+   * Case 13: Risk PASS Evidence Requirement
+   * A PATENT or COMPLIANCE risk claiming PASS without valid evidence is downgraded to UNVERIFIED.
+   * ==========================================================================
+   */
+  it('Case 13: PATENT or COMPLIANCE risk claiming PASS without matching evidence is downgraded to UNVERIFIED', () => {
+    const cand = createTestCandidate('CAND-UNBACKED-PASS', 'Unbacked Risk Pass Candidate', {
+      risks: [
+        {
+          riskId: 'risk-fake-pass',
+          category: 'PATENT',
+          title: 'Alleged design patent clearance',
+          status: 'PASS',
+          severity: 'HIGH',
+          evidenceIds: ['non-existent-evi-id'], // Does not match candidate.evidence!
+        },
+      ],
+      evidence: [
+        { id: 'actual-evi-1', scope: 'KEYWORD', subjectId: 'kw', source: 'XYDC', content: 'Keyword evidence only' },
+      ],
+    });
+
+    const gateResult = CandidateRiskGate.evaluate(cand.risks, ['actual-evi-1']);
+    expect(gateResult.downgradedRisks).toHaveLength(1);
+    expect(gateResult.downgradedRisks[0]).toContain('Alleged design patent clearance');
+    expect(gateResult.unverifiedItems[0]).toContain('Alleged design patent clearance');
+
+    const decision = CandidateDecisionEngine.evaluate(cand);
+    expect(decision.verdict).not.toBe('SHORTLIST');
+    expect(decision.verdict).toBe('NEEDS_VALIDATION');
+    expect(decision.reasons.some((r) => r.includes('尚未完成充分核验'))).toBe(true);
+  });
+
+  /**
+   * ==========================================================================
+   * Case 14: Unknown Margin Not Equals Zero in Sorting
+   * Candidate with UNKNOWN margin is distinguished from 0% margin and does not game ranking.
+   * ==========================================================================
+   */
+  it('Case 14: Candidate with UNKNOWN margin does not equal 0% margin and cannot game ranking over complete candidates', () => {
+    // Cand 1: Healthy economics (25% margin)
+    const cand1 = createTestCandidate('CAND-HEALTHY', 'Healthy Candidate');
+
+    // Cand 2: Break-even economics (0% margin, complete)
+    const breakevenInputs = {
+      sellingPrice: { value: 20.0, source: 'FACT' as const },
+      productCost: { value: 10.0, source: 'FACT' as const },
+      referralFeeRate: { value: 0.15, source: 'ESTIMATE' as const }, // 3.0
+      fbaFeePerUnit: { value: 5.0, source: 'ESTIMATE' as const },
+      freightPerUnit: { value: 2.0, source: 'ESTIMATE' as const },
+      // total expenses = 20.0, margin = 0%
+    };
+    const cand2 = createTestCandidate('CAND-BREAKEVEN', 'Breakeven Candidate', {
+      economics: CandidateEconomicsService.calculateEconomics(breakevenInputs, 'USD'),
+    });
+
+    // Cand 3: Incomplete economics (UNKNOWN margin)
+    const unknownInputs = {
+      sellingPrice: { value: 20.0, source: 'FACT' as const },
+      productCost: { value: null, source: 'UNKNOWN' as const },
+      referralFeeRate: { value: 0.15, source: 'ESTIMATE' as const },
+      fbaFeePerUnit: { value: 5.0, source: 'ESTIMATE' as const },
+      freightPerUnit: { value: 2.0, source: 'ESTIMATE' as const },
+    };
+    const cand3 = createTestCandidate('CAND-UNKNOWN', 'Unknown Margin Candidate', {
+      economics: CandidateEconomicsService.calculateEconomics(unknownInputs, 'USD'),
+    });
+
+    expect(cand2.economics.status).toBe('COMPLETE');
+    expect(cand3.economics.status).toBe('INCOMPLETE');
+    expect(cand2.economics.scenarios.base.contributionMargin).toBe(0);
+
+    const comparison = CandidateComparisonEngine.compare([cand1, cand2, cand3]);
+    // cand1 (healthy) > cand2 (complete breakeven) > cand3 (incomplete unknown)
+    expect(comparison.ranking[0]).toBe('CAND-HEALTHY');
+    expect(comparison.ranking[1]).toBe('CAND-BREAKEVEN');
+    expect(comparison.ranking[2]).toBe('CAND-UNKNOWN');
+
+    const pairReason = comparison.pairwiseReasons['CAND-UNKNOWN_vs_CAND-BREAKEVEN'];
+    const econReason = pairReason.find((r) => r.dimension === 'ECONOMICS');
+    expect(econReason?.conclusion).toBe('B_BETTER');
+    expect(econReason?.explanation).toContain('缺失关键财务数据');
   });
 });

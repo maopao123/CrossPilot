@@ -30,6 +30,7 @@ import type {
   ComparisonReason,
   CandidateDecision,
   ScenarioEconomicsResult,
+  CandidateDefaultsResponse,
 } from '@crosspilot/shared';
 import { ApiClient } from '../../../lib/api-client';
 
@@ -40,6 +41,7 @@ interface CandidateComparisonSectionProps {
 export function CandidateComparisonSection({ onCandidateSelect }: CandidateComparisonSectionProps) {
   const [candidates, setCandidates] = useState<ProductCandidate[]>([]);
   const [comparison, setComparison] = useState<CandidateComparisonResult | null>(null);
+  const [defaultsMeta, setDefaultsMeta] = useState<CandidateDefaultsResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [scenarioTab, setScenarioTab] = useState<'conservative' | 'base' | 'optimistic'>('base');
@@ -55,13 +57,11 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
     setLoading(true);
     setError(null);
     try {
-      const res = await ApiClient.get<{
-        candidates: ProductCandidate[];
-        comparison: CandidateComparisonResult;
-      }>('/api/v1/market-research/candidates/defaults');
+      const res = await ApiClient.get<CandidateDefaultsResponse>('/api/v1/market-research/candidates/defaults');
       if (res && res.candidates) {
         setCandidates(res.candidates);
         setComparison(res.comparison);
+        setDefaultsMeta(res);
         if (res.candidates.length >= 2) {
           setSelectedPairKey(`${res.candidates[0].id}_vs_${res.candidates[1].id}`);
         }
@@ -81,27 +81,63 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
     setExpandedCosts((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const getDecisionBadge = (decision: CandidateDecision) => {
+  const getSourceBadge = (source?: string) => {
+    switch (source) {
+      case 'FACT':
+        return (
+          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            FACT
+          </span>
+        );
+      case 'ESTIMATE':
+        return (
+          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+            ESTIMATE
+          </span>
+        );
+      case 'ASSUMPTION':
+        return (
+          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            ASSUMPTION
+          </span>
+        );
+      case 'DEMO':
+        return (
+          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            DEMO
+          </span>
+        );
+      case 'UNKNOWN':
+      default:
+        return (
+          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-gray-500/20 text-gray-300 border border-gray-500/30">
+            UNKNOWN
+          </span>
+        );
+    }
+  };
+
+  const getDecisionBadge = (decision: CandidateDecision, isDemo = false) => {
     switch (decision) {
       case 'SHORTLIST':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>建议入围 (SHORTLIST)</span>
+            <span>{isDemo ? 'Demo Decision: SHORTLIST (示例演练)' : '建议入围 (SHORTLIST)'}</span>
           </span>
         );
       case 'WATCH':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
             <Eye className="w-3.5 h-3.5" />
-            <span>密切观察 (WATCH)</span>
+            <span>{isDemo ? 'Demo Decision: WATCH (示例演练)' : '密切观察 (WATCH)'}</span>
           </span>
         );
       case 'NEEDS_VALIDATION':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30">
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>待验证 (NEEDS_VALIDATION)</span>
+            <span>{isDemo ? 'Demo Decision: NEEDS_VALIDATION (待验)' : '待验证 (NEEDS_VALIDATION)'}</span>
           </span>
         );
       case 'BLOCKED':
@@ -221,7 +257,7 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
             </span>
           </div>
           <p className="text-xs text-gray-400">
-            支持 3～5 个具体候选产品多维横向比较 • 门禁流水线评估 • 消除 IEEE 754 浮点漂移 • 缺失数据诚实拦截绝不伪造优势
+            支持 3～5 个具体候选产品多维横向比较 • 门禁流水线评估 • 按货币精度进行确定性舍入 • 缺失数据诚实拦截绝不伪造优势
           </p>
         </div>
 
@@ -297,6 +333,24 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
 
       {!loading && !error && comparison && (
         <>
+          {/* Demo Data Disclaimer Banner */}
+          {(defaultsMeta?.mode === 'DEMO' || candidates.some((c) => c.economics?.inputs?.sellingPrice?.source === 'DEMO')) && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3 text-xs text-amber-200">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="font-bold text-amber-300 flex items-center gap-2">
+                  <span>DEMO DATA: 示例演练数据提示</span>
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    BUILT_IN_FIXTURE
+                  </span>
+                </div>
+                <p className="text-amber-200/90 leading-relaxed">
+                  当前候选、市场数据、供应商报价与风险结果均为示例数据，仅用于演示 Product Research V2 的比较与决策链路。系统已严格将示例数据标记为 DEMO 来源，禁止伪装为 FACT。
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 2. Ranking Summary Banner */}
           <div className="bg-surface-elevated border border-emerald-500/20 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-inner">
             <div className="flex items-center space-x-3">
@@ -347,6 +401,11 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
               const isProfitPositive = scenario.contributionProfit > 0;
               const marginPercent = (scenario.contributionMargin * 100).toFixed(1);
               const isExpanded = !!expandedCosts[candidate.id];
+              const isDemo =
+                defaultsMeta?.mode === 'DEMO' ||
+                candidate.economics?.inputs?.sellingPrice?.source === 'DEMO' ||
+                candidate.economics?.inputs?.productCost?.source === 'DEMO' ||
+                candidate.id.startsWith('cand_');
 
               return (
                 <div
@@ -365,7 +424,7 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
                       <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-surface border border-border text-gray-400 font-semibold">
                         候选 #{idx + 1} • {candidate.id}
                       </span>
-                      {getDecisionBadge(candidate.decision)}
+                      {getDecisionBadge(candidate.decision, isDemo)}
                     </div>
 
                     <h3 className="text-sm font-bold text-white leading-snug line-clamp-2">
@@ -395,8 +454,9 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
                           : '基准情景'}{' '}
                         净边际贡献
                       </span>
-                      <span className="text-[10px] text-gray-500 font-mono">
+                      <span className="text-[10px] text-gray-500 font-mono flex items-center gap-1">
                         售价: ${scenario.sellingPrice.toFixed(2)}
+                        {getSourceBadge(candidate.economics?.inputs?.sellingPrice?.source)}
                       </span>
                     </div>
 
@@ -436,28 +496,40 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
 
                     {isExpanded && (
                       <div className="text-[11px] text-gray-300 space-y-1.5 pt-1.5 font-mono">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">头程采购 (COGS):</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400 flex items-center gap-1">
+                            头程采购 (COGS): {getSourceBadge(candidate.economics?.inputs?.productCost?.source)}
+                          </span>
                           <span>${scenario.productCost.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">头程海运 (Freight):</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400 flex items-center gap-1">
+                            头程海运 (Freight): {getSourceBadge(candidate.economics?.inputs?.freightPerUnit?.source)}
+                          </span>
                           <span>${scenario.freight.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">FBA 配送费:</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400 flex items-center gap-1">
+                            FBA 配送费: {getSourceBadge(candidate.economics?.inputs?.fbaFeePerUnit?.source)}
+                          </span>
                           <span>${scenario.fbaFee.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">平台佣金 (15%):</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400 flex items-center gap-1">
+                            平台佣金: {getSourceBadge(candidate.economics?.inputs?.referralFeeRate?.source)}
+                          </span>
                           <span>${scenario.amazonReferralFee.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">广告营销预估 (Ads):</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400 flex items-center gap-1">
+                            广告营销预估 (Ads): {getSourceBadge(candidate.economics?.inputs?.adsCostPerUnit?.source)}
+                          </span>
                           <span>${scenario.advertisingCost.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">退货破损折损:</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400 flex items-center gap-1">
+                            退货破损折损: {getSourceBadge(candidate.economics?.inputs?.returnRate?.source)}
+                          </span>
                           <span>${scenario.expectedReturnLoss.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between font-bold border-t border-border/60 pt-1 text-gray-200">
@@ -702,22 +774,56 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
 
                         <div className="pt-2 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                           <div>
-                            <span className="text-gray-400 block mb-1">方案 A 支撑依据:</span>
-                            {activeReasonDetail.candA.evidence.map((evi) => (
-                              <div key={evi.id} className="bg-surface-elevated p-2 rounded border border-border text-gray-300 space-y-0.5 mb-1">
-                                <span className="font-mono text-[10px] text-blue-300 font-bold block">{evi.id} ({evi.scope})</span>
-                                <p className="line-clamp-2">{evi.content}</p>
-                              </div>
-                            ))}
+                            <span className="text-gray-400 block mb-1">
+                              方案 A 支撑依据 {r.candidateAEvidenceIds?.length ? `(${r.candidateAEvidenceIds.length} 项直接归因)` : ''}:
+                            </span>
+                            {activeReasonDetail.candA.evidence.map((evi) => {
+                              const isCited = r.candidateAEvidenceIds?.includes(evi.id);
+                              return (
+                                <div
+                                  key={evi.id}
+                                  className={`p-2 rounded border space-y-0.5 mb-1 ${
+                                    isCited
+                                      ? 'bg-blue-500/10 border-blue-500/40 text-blue-100'
+                                      : 'bg-surface-elevated border-border text-gray-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-mono text-[10px] text-blue-300 font-bold block">
+                                      {evi.id} ({evi.scope}) {isCited && '★ 直接引用'}
+                                    </span>
+                                    {getSourceBadge(evi.source)}
+                                  </div>
+                                  <p className="line-clamp-2">{evi.content}</p>
+                                </div>
+                              );
+                            })}
                           </div>
                           <div>
-                            <span className="text-gray-400 block mb-1">方案 B 支撑依据:</span>
-                            {activeReasonDetail.candB.evidence.map((evi) => (
-                              <div key={evi.id} className="bg-surface-elevated p-2 rounded border border-border text-gray-300 space-y-0.5 mb-1">
-                                <span className="font-mono text-[10px] text-purple-300 font-bold block">{evi.id} ({evi.scope})</span>
-                                <p className="line-clamp-2">{evi.content}</p>
-                              </div>
-                            ))}
+                            <span className="text-gray-400 block mb-1">
+                              方案 B 支撑依据 {r.candidateBEvidenceIds?.length ? `(${r.candidateBEvidenceIds.length} 项直接归因)` : ''}:
+                            </span>
+                            {activeReasonDetail.candB.evidence.map((evi) => {
+                              const isCited = r.candidateBEvidenceIds?.includes(evi.id);
+                              return (
+                                <div
+                                  key={evi.id}
+                                  className={`p-2 rounded border space-y-0.5 mb-1 ${
+                                    isCited
+                                      ? 'bg-purple-500/10 border-purple-500/40 text-purple-100'
+                                      : 'bg-surface-elevated border-border text-gray-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-mono text-[10px] text-purple-300 font-bold block">
+                                      {evi.id} ({evi.scope}) {isCited && '★ 直接引用'}
+                                    </span>
+                                    {getSourceBadge(evi.source)}
+                                  </div>
+                                  <p className="line-clamp-2">{evi.content}</p>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
 

@@ -85,16 +85,27 @@ export class CandidateComparisonEngine {
         return weightB - weightA;
       }
 
-      // Within same decision tier, rank by Contribution Margin descending
-      const marginA = a.economics.scenarios.base.contributionMargin;
-      const marginB = b.economics.scenarios.base.contributionMargin;
-      if (Math.abs(marginA - marginB) > 0.0001) {
-        return marginB - marginA;
+      // Within same decision tier, complete economics rank ahead of incomplete
+      const aEconComplete = a.economics.status === 'COMPLETE';
+      const bEconComplete = b.economics.status === 'COMPLETE';
+      if (aEconComplete !== bEconComplete) {
+        return bEconComplete ? 1 : -1;
       }
 
-      // Then by Evidence Completeness
-      const compA = a.decisionDetail?.evidenceCompleteness ?? 0;
-      const compB = b.decisionDetail?.evidenceCompleteness ?? 0;
+      // If both complete, rank by Contribution Margin descending
+      if (aEconComplete && bEconComplete) {
+        const marginA = a.economics.scenarios.base.contributionMargin;
+        const marginB = b.economics.scenarios.base.contributionMargin;
+        if (Math.abs(marginA - marginB) > 0.0001) {
+          return marginB - marginA;
+        }
+      }
+
+      // Then by Evidence Coverage Heuristic
+      const compA =
+        a.decisionDetail?.evidenceCoverageHeuristic ?? a.decisionDetail?.evidenceCompleteness ?? 0;
+      const compB =
+        b.decisionDetail?.evidenceCoverageHeuristic ?? b.decisionDetail?.evidenceCompleteness ?? 0;
       if (Math.abs(compA - compB) > 0.0001) {
         return compB - compA;
       }
@@ -106,7 +117,12 @@ export class CandidateComparisonEngine {
     const ranking = sorted.map((c) => c.id);
     const topCandidate = sorted[0];
 
-    const summary = `在 ${candidates.length} 个候选方案的同口径测算中，当前最优先推荐【${topCandidate.title} (${topCandidate.id})】(决策状态: ${topCandidate.decision}，贡献利润率 ${(topCandidate.economics.scenarios.base.contributionMargin * 100).toFixed(1)}%)。完整因果链条支持逐项下钻溯源。`;
+    const isTopEconComplete = topCandidate.economics.status === 'COMPLETE';
+    const topMarginText = isTopEconComplete
+      ? `贡献利润率 ${(topCandidate.economics.scenarios.base.contributionMargin * 100).toFixed(1)}%`
+      : '财务待核验 (无完整边际数据)';
+
+    const summary = `在 ${candidates.length} 个候选方案的同口径测算中，当前最优先推荐【${topCandidate.title} (${topCandidate.id})】(决策状态: ${topCandidate.decision}，${topMarginText})。完整因果链条支持逐项下钻溯源。`;
 
     return {
       candidateIds,
@@ -118,7 +134,8 @@ export class CandidateComparisonEngine {
   }
 
   /**
-   * Evaluates pairwise differences across 5 core dimensions for candidate pair (A, B).
+   * Evaluates pairwise differences across 4 core dimensions for candidate pair (A, B).
+   * Ensures complete dual-sided traceability: candidateAEvidenceIds & candidateBEvidenceIds.
    */
   static comparePair(candA: ProductCandidate, candB: ProductCandidate): ComparisonReason[] {
     const reasons: ComparisonReason[] = [];
@@ -132,13 +149,26 @@ export class CandidateComparisonEngine {
     let econConclusion: ComparisonConclusion = 'SIMILAR';
     let econExplanation = '';
     const econMetricIds = ['contributionMargin', 'contributionProfit', 'sellingPrice', 'productCost'];
-    const econEvidenceIds: string[] = [];
-    const econAssumptionIds: string[] = [];
 
-    if (econA.inputs.productCost.evidenceId) econEvidenceIds.push(econA.inputs.productCost.evidenceId);
-    if (econB.inputs.productCost.evidenceId) econEvidenceIds.push(econB.inputs.productCost.evidenceId);
-    if (econA.inputs.productCost.assumptionId) econAssumptionIds.push(econA.inputs.productCost.assumptionId);
-    if (econB.inputs.productCost.assumptionId) econAssumptionIds.push(econB.inputs.productCost.assumptionId);
+    const aEconEvi = [
+      econA.inputs.productCost.evidenceId,
+      econA.inputs.sellingPrice.evidenceId,
+    ].filter(Boolean) as string[];
+    const bEconEvi = [
+      econB.inputs.productCost.evidenceId,
+      econB.inputs.sellingPrice.evidenceId,
+    ].filter(Boolean) as string[];
+
+    const aEconAsm = [
+      econA.inputs.productCost.assumptionId,
+      econA.inputs.adsCostPerUnit.assumptionId,
+      econA.inputs.returnRate.assumptionId,
+    ].filter(Boolean) as string[];
+    const bEconAsm = [
+      econB.inputs.productCost.assumptionId,
+      econB.inputs.adsCostPerUnit.assumptionId,
+      econB.inputs.returnRate.assumptionId,
+    ].filter(Boolean) as string[];
 
     if (!isEconAComplete && isEconBComplete) {
       econConclusion = 'B_BETTER';
@@ -173,8 +203,12 @@ export class CandidateComparisonEngine {
       dimension: 'ECONOMICS',
       conclusion: econConclusion,
       metricIds: econMetricIds,
-      evidenceIds: Array.from(new Set(econEvidenceIds)),
-      assumptionIds: Array.from(new Set(econAssumptionIds)),
+      evidenceIds: Array.from(new Set([...aEconEvi, ...bEconEvi])),
+      assumptionIds: Array.from(new Set([...aEconAsm, ...bEconAsm])),
+      candidateAEvidenceIds: aEconEvi,
+      candidateBEvidenceIds: bEconEvi,
+      candidateAAssumptionIds: aEconAsm,
+      candidateBAssumptionIds: bEconAsm,
       explanation: econExplanation,
     });
 
@@ -188,10 +222,9 @@ export class CandidateComparisonEngine {
 
     let riskConclusion: ComparisonConclusion = 'SIMILAR';
     let riskExplanation = '';
-    const riskEvidenceIds = [
-      ...candA.risks.flatMap((r: CandidateRisk) => r.evidenceIds),
-      ...candB.risks.flatMap((r: CandidateRisk) => r.evidenceIds),
-    ];
+
+    const aRiskEvi = candA.risks.flatMap((r: CandidateRisk) => r.evidenceIds || []);
+    const bRiskEvi = candB.risks.flatMap((r: CandidateRisk) => r.evidenceIds || []);
 
     if (hasFailA && !hasFailB) {
       riskConclusion = 'B_BETTER';
@@ -216,40 +249,53 @@ export class CandidateComparisonEngine {
       dimension: 'RISK_PROFILE',
       conclusion: riskConclusion,
       metricIds: ['riskFailCount', 'riskUnverifiedCount'],
-      evidenceIds: Array.from(new Set(riskEvidenceIds)),
+      evidenceIds: Array.from(new Set([...aRiskEvi, ...bRiskEvi])),
       assumptionIds: [],
+      candidateAEvidenceIds: aRiskEvi,
+      candidateBEvidenceIds: bRiskEvi,
       explanation: riskExplanation,
     });
 
     // Dimension 3: EVIDENCE_CONFIDENCE & PROVENANCE
-    const compA = candA.decisionDetail?.evidenceCompleteness ?? 0.5;
-    const compB = candB.decisionDetail?.evidenceCompleteness ?? 0.5;
+    const compA =
+      candA.decisionDetail?.evidenceCoverageHeuristic ?? candA.decisionDetail?.evidenceCompleteness ?? 0.5;
+    const compB =
+      candB.decisionDetail?.evidenceCoverageHeuristic ?? candB.decisionDetail?.evidenceCompleteness ?? 0.5;
     let evidenceConclusion: ComparisonConclusion = 'SIMILAR';
     let evidenceExplanation = '';
 
     if (compA > compB + 0.15) {
       evidenceConclusion = 'A_BETTER';
-      evidenceExplanation = `Candidate A 事实凭证完整度 (${(compA * 100).toFixed(0)}%) 显著高于 Candidate B (${(compB * 100).toFixed(0)}%)。`;
+      evidenceExplanation = `Candidate A 事实凭证覆盖度 (${(compA * 100).toFixed(0)}%) 显著高于 Candidate B (${(compB * 100).toFixed(0)}%)。`;
     } else if (compB > compA + 0.15) {
       evidenceConclusion = 'B_BETTER';
-      evidenceExplanation = `Candidate B 事实凭证完整度 (${(compB * 100).toFixed(0)}%) 显著高于 Candidate A (${(compA * 100).toFixed(0)}%)。`;
+      evidenceExplanation = `Candidate B 事实凭证覆盖度 (${(compB * 100).toFixed(0)}%) 显著高于 Candidate A (${(compA * 100).toFixed(0)}%)。`;
     } else {
       evidenceConclusion = 'SIMILAR';
-      evidenceExplanation = `双方证据依据链完备度相近 (${(compA * 100).toFixed(0)}% vs ${(compB * 100).toFixed(0)}%)。`;
+      evidenceExplanation = `双方证据依据链覆盖度相近 (${(compA * 100).toFixed(0)}% vs ${(compB * 100).toFixed(0)}%)。`;
     }
+
+    const aConfEvi = candA.evidence.map((e: EvidenceItem) => e.id);
+    const bConfEvi = candB.evidence.map((e: EvidenceItem) => e.id);
+    const aConfAsm = candA.assumptions.map((a: Assumption) => a.id);
+    const bConfAsm = candB.assumptions.map((a: Assumption) => a.id);
 
     reasons.push({
       candidateA: candA.id,
       candidateB: candB.id,
       dimension: 'EVIDENCE_CONFIDENCE',
       conclusion: evidenceConclusion,
-      metricIds: ['evidenceCompleteness'],
-      evidenceIds: candA.evidence.map((e: EvidenceItem) => e.id),
-      assumptionIds: candA.assumptions.map((a: Assumption) => a.id),
+      metricIds: ['evidenceCoverageHeuristic'],
+      evidenceIds: Array.from(new Set([...aConfEvi, ...bConfEvi])),
+      assumptionIds: Array.from(new Set([...aConfAsm, ...bConfAsm])),
+      candidateAEvidenceIds: aConfEvi,
+      candidateBEvidenceIds: bConfEvi,
+      candidateAAssumptionIds: aConfAsm,
+      candidateBAssumptionIds: bConfAsm,
       explanation: evidenceExplanation,
     });
 
-    // Dimension 4: MARKET_DEMAND (if marketResearch is present)
+    // Dimension 4: MARKET_DEMAND (with dual-sided evidence/assumption provenance)
     if (candA.marketResearch && candB.marketResearch) {
       const volA = candA.marketResearch.searchVolumeMonthly ?? 0;
       const volB = candB.marketResearch.searchVolumeMonthly ?? 0;
@@ -267,14 +313,46 @@ export class CandidateComparisonEngine {
         mktExplanation = `双方所属关键词市场体量相近 (${volA.toLocaleString()} vs ${volB.toLocaleString()})。`;
       }
 
+      // Collect market demand evidence from both candidates
+      const aMktEvi = [
+        ...(candA.marketResearch.evidenceIds || []),
+        ...candA.evidence.filter((e) => e.scope === 'KEYWORD' || e.scope === 'MARKET').map((e) => e.id),
+      ];
+      const bMktEvi = [
+        ...(candB.marketResearch.evidenceIds || []),
+        ...candB.evidence.filter((e) => e.scope === 'KEYWORD' || e.scope === 'MARKET').map((e) => e.id),
+      ];
+      const aMktAsm = [
+        ...(candA.marketResearch.assumptionIds || []),
+        ...candA.assumptions
+          .filter(
+            (a) =>
+              a.field.toLowerCase().includes('demand') || a.field.toLowerCase().includes('search'),
+          )
+          .map((a) => a.id),
+      ];
+      const bMktAsm = [
+        ...(candB.marketResearch.assumptionIds || []),
+        ...candB.assumptions
+          .filter(
+            (a) =>
+              a.field.toLowerCase().includes('demand') || a.field.toLowerCase().includes('search'),
+          )
+          .map((a) => a.id),
+      ];
+
       reasons.push({
         candidateA: candA.id,
         candidateB: candB.id,
         dimension: 'MARKET_DEMAND',
         conclusion: mktConclusion,
         metricIds: ['searchVolumeMonthly'],
-        evidenceIds: [],
-        assumptionIds: [],
+        evidenceIds: Array.from(new Set([...aMktEvi, ...bMktEvi])),
+        assumptionIds: Array.from(new Set([...aMktAsm, ...bMktAsm])),
+        candidateAEvidenceIds: Array.from(new Set(aMktEvi)),
+        candidateBEvidenceIds: Array.from(new Set(bMktEvi)),
+        candidateAAssumptionIds: Array.from(new Set(aMktAsm)),
+        candidateBAssumptionIds: Array.from(new Set(bMktAsm)),
         explanation: mktExplanation,
       });
     }

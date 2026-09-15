@@ -594,7 +594,7 @@ export interface EvidenceItem {
   metadata?: Record<string, unknown>;
 }
 
-export type ValueSource = 'FACT' | 'ESTIMATE' | 'ASSUMPTION' | 'UNKNOWN';
+export type ValueSource = 'FACT' | 'ESTIMATE' | 'ASSUMPTION' | 'UNKNOWN' | 'DEMO';
 
 export interface ProvenanceValue<T = number> {
   value: T | null;
@@ -650,6 +650,21 @@ export interface ScenarioEconomicsResult {
   contributionMargin: number; // e.g. 0.235 -> 23.5%
 }
 
+export interface EconomicsScenarioMultipliers {
+  sellingPriceMultiplier: number;
+  productCostMultiplier: number;
+  freightMultiplier: number;
+  adsCostMultiplier: number;
+  returnRateMultiplier: number;
+  storageMultiplier: number;
+  description: string;
+}
+
+export interface EconomicsScenarioConfig {
+  conservative: EconomicsScenarioMultipliers;
+  optimistic: EconomicsScenarioMultipliers;
+}
+
 export type CandidateEconomicsStatus = 'COMPLETE' | 'NEEDS_VALIDATION' | 'INCOMPLETE';
 
 export interface CandidateEconomicsInputs {
@@ -676,6 +691,12 @@ export interface CandidateEconomics {
     optimistic: ScenarioEconomicsResult;
   };
   missingInputs: string[];
+  criticalInputs?: string[];
+  excludedInputs?: string[];
+  scenarioAssumptions?: {
+    conservative: string;
+    optimistic: string;
+  };
 }
 
 export type CandidateDecision =
@@ -688,7 +709,9 @@ export type CandidateDecision =
 export interface CandidateDecisionDetail {
   verdict: CandidateDecision;
   reasons: string[];
-  evidenceCompleteness: number; // 0.0 - 1.0
+  evidenceCoverageHeuristic: number; // 0.0 - 1.0 (Dimensional coverage across concept, market, economics, risk)
+  /** @deprecated Kept for backwards compatibility */
+  evidenceCompleteness?: number;
   hardRiskGatePassed: boolean;
   economicsGatePassed: boolean;
   evaluatedAt: string;
@@ -710,6 +733,8 @@ export interface ProductCandidateMarketResearch {
   opportunityScore?: number | null;
   competitorSampleSize?: number;
   representativeAsin?: string | null;
+  evidenceIds?: string[];
+  assumptionIds?: string[];
 }
 
 export interface ProductCandidate {
@@ -750,6 +775,10 @@ export interface ComparisonReason {
   metricIds: string[];
   evidenceIds: string[];
   assumptionIds: string[];
+  candidateAEvidenceIds?: string[];
+  candidateBEvidenceIds?: string[];
+  candidateAAssumptionIds?: string[];
+  candidateBAssumptionIds?: string[];
   explanation: string;
 }
 
@@ -760,5 +789,14 @@ export interface CandidateComparisonResult {
   summary: string;
   comparable: boolean;
   nonComparableReason?: string;
+}
+
+export interface CandidateDefaultsResponse {
+  mode: 'DEMO' | 'LIVE';
+  dataSource: string;
+  isRealData: boolean;
+  disclaimer: string;
+  candidates: ProductCandidate[];
+  comparison: CandidateComparisonResult;
 }
 

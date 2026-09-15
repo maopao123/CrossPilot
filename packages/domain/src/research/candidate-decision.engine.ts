@@ -10,38 +10,111 @@ import { CandidateRiskGate } from './candidate-risk-gate.js';
 
 export class CandidateDecisionEngine {
   /**
-   * Deterministic evaluation of candidate decision adhering to the strict gate pipeline:
-   * Evidence Completeness -> Hard Risk Gate -> Economics Gate -> Comparable Metrics -> Decision
-   *
-   * Enforces Missing Data Policy:
-   * Missing critical economics (e.g. productCost) MUST result in NEEDS_VALIDATION,
-   * regardless of how high market opportunity score may be.
+   * Deterministic evaluation of candidate decision adhering to the hardened 6-stage gate pipeline:
+   * 1. Evidence Validation Gate (Subject consistency & scope impersonation)
+   * 2. Critical Missing Data Gate (Anti-gaming policy for missing cost/price)
+   * 3. Hard Risk Gate (Severe compliance/patent failures and unverified PASS downgrades)
+   * 4. Economics Gate (Positive contribution margin & profit hurdle)
+   * 5. Assumption & Unverified Due Diligence Gate
+   * 6. Decision Verdict (WATCH / SHORTLIST)
    */
   static evaluate(candidate: ProductCandidate): CandidateDecisionDetail {
     const reasons: string[] = [];
     const now = new Date().toISOString();
 
-    // 1. Evidence Completeness & Subject Consistency Gate
+    // 1. Evidence Validation Gate
     const evidenceValidation = CandidateEvidenceValidator.validateCandidateEvidence(
       candidate.id,
       candidate.marketResearch?.representativeAsin ?? undefined,
       candidate.evidence,
     );
 
+    const validEvidenceIds = new Set(evidenceValidation.validEvidences.map((e) => e.id));
+
+    // Calculate dimensional evidence coverage heuristic (Concept, Market, Economics, Risk)
+    let coveredDimensions = 0;
+    const hasConceptEvidence =
+      candidate.concept.specifications !== undefined ||
+      evidenceValidation.validEvidences.some((e) => e.scope === 'PRODUCT');
+    if (hasConceptEvidence) coveredDimensions++;
+
+    const hasMarketEvidence =
+      candidate.marketResearch?.searchVolumeMonthly != null ||
+      evidenceValidation.validEvidences.some((e) => e.scope === 'KEYWORD' || e.scope === 'MARKET');
+    if (hasMarketEvidence) coveredDimensions++;
+
+    const hasEconomicsEvidence =
+      candidate.economics.status === 'COMPLETE' ||
+      candidate.economics.inputs.productCost.source !== 'UNKNOWN';
+    if (hasEconomicsEvidence) coveredDimensions++;
+
+    const hasRiskEvidence = candidate.risks.length > 0;
+    if (hasRiskEvidence) coveredDimensions++;
+
+    const evidenceCoverageHeuristic = Number((coveredDimensions / 4).toFixed(2));
+
+    // Enforce Evidence Integrity Gate: Validation violations MUST block SHORTLIST
     if (!evidenceValidation.valid) {
       for (const v of evidenceValidation.violations) {
-        reasons.push(`证据主体不一致: ${v.reason}`);
+        reasons.push(`证据主体范围校验未通过: ${v.reason}`);
       }
+
+      // Check if product-level evidence was completely rejected
+      const remainingProductEvidences = evidenceValidation.validEvidences.filter(
+        (e) => e.scope === 'PRODUCT',
+      );
+      const isProductEvidenceMissing =
+        candidate.evidence.some((e) => e.scope === 'PRODUCT') &&
+        remainingProductEvidences.length === 0;
+
+      const verdict: CandidateDecision = isProductEvidenceMissing
+        ? 'INSUFFICIENT_DATA'
+        : 'NEEDS_VALIDATION';
+
+      return {
+        verdict,
+        reasons,
+        evidenceCoverageHeuristic,
+        evidenceCompleteness: evidenceCoverageHeuristic,
+        hardRiskGatePassed: false,
+        economicsGatePassed: false,
+        evaluatedAt: now,
+      };
     }
 
-    const validEvidenceCount = evidenceValidation.validEvidences.length;
-    const requiredEvidenceTarget = 4; // Concept, market, price, voc
-    const evidenceCompleteness = Number(
-      Math.min(1.0, Math.max(0.1, validEvidenceCount / requiredEvidenceTarget)).toFixed(2),
+    // 2. Critical Missing Data Gate (Strict Missing Data Policy)
+    const economics = candidate.economics;
+    const missingCriticalInputs = economics.missingInputs.filter(
+      (m) =>
+        m === 'sellingPrice' ||
+        m === 'productCost' ||
+        m === 'referralFeeRate' ||
+        m === 'fbaFeePerUnit' ||
+        m === 'freightPerUnit',
     );
 
-    // 2. Hard Risk Gate
-    const riskEval = CandidateRiskGate.evaluate(candidate.risks);
+    if (economics.status === 'INCOMPLETE' || missingCriticalInputs.length > 0) {
+      const isCriticalCostOrPriceMissing =
+        missingCriticalInputs.includes('productCost') ||
+        missingCriticalInputs.includes('sellingPrice');
+
+      reasons.push(
+        `关键财务数据缺失: [${missingCriticalInputs.join(', ')}]，触发缺失数据门禁，判定为待验证 (NEEDS_VALIDATION)`,
+      );
+
+      return {
+        verdict: isCriticalCostOrPriceMissing ? 'NEEDS_VALIDATION' : 'NEEDS_VALIDATION',
+        reasons,
+        evidenceCoverageHeuristic,
+        evidenceCompleteness: evidenceCoverageHeuristic,
+        hardRiskGatePassed: true,
+        economicsGatePassed: false,
+        evaluatedAt: now,
+      };
+    }
+
+    // 3. Hard Risk Gate (with PASS evidence verification)
+    const riskEval = CandidateRiskGate.evaluate(candidate.risks, validEvidenceIds);
     const hardRiskGatePassed = riskEval.gatePassed;
 
     if (riskEval.blocked) {
@@ -49,46 +122,37 @@ export class CandidateDecisionEngine {
       return {
         verdict: 'BLOCKED',
         reasons,
-        evidenceCompleteness,
+        evidenceCoverageHeuristic,
+        evidenceCompleteness: evidenceCoverageHeuristic,
         hardRiskGatePassed: false,
         economicsGatePassed: false,
         evaluatedAt: now,
       };
     }
 
-    // 3. Economics Gate (Strict Missing Data Policy)
-    const economics = candidate.economics;
-    const hasMissingCriticalCost =
-      economics.status === 'INCOMPLETE' ||
-      economics.missingInputs.includes('productCost') ||
-      economics.missingInputs.includes('sellingPrice');
-
-    if (hasMissingCriticalCost) {
+    // Record any automatic risk downgrades
+    if (riskEval.downgradedRisks.length > 0) {
       reasons.push(
-        `关键财务数据缺失: [${economics.missingInputs.join(', ')}]，触发缺失门禁，判定为待验证 (NEEDS_VALIDATION)`,
+        ...riskEval.downgradedRisks.map(
+          (d) => `合规风险降级: ${d} 因缺乏有效核验凭证，已由 PASS 自动降级为 UNVERIFIED`,
+        ),
       );
-      return {
-        verdict: 'NEEDS_VALIDATION',
-        reasons,
-        evidenceCompleteness,
-        hardRiskGatePassed: true,
-        economicsGatePassed: false,
-        evaluatedAt: now,
-      };
     }
 
+    // 4. Economics Gate
     const baseMargin = economics.scenarios.base.contributionMargin;
     const baseProfit = economics.scenarios.base.contributionProfit;
     const conservativeProfit = economics.scenarios.conservative.contributionProfit;
 
-    if (baseProfit <= 0 || baseMargin <= 0) {
+    if (baseProfit < 0 || baseMargin < 0) {
       reasons.push(
         `基准财务测算亏损: 边际贡献 $${baseProfit.toFixed(2)} (利润率 ${(baseMargin * 100).toFixed(1)}%)，财务不可行`,
       );
       return {
         verdict: 'BLOCKED',
         reasons,
-        evidenceCompleteness,
+        evidenceCoverageHeuristic,
+        evidenceCompleteness: evidenceCoverageHeuristic,
         hardRiskGatePassed: true,
         economicsGatePassed: false,
         evaluatedAt: now,
@@ -97,15 +161,16 @@ export class CandidateDecisionEngine {
 
     const economicsGatePassed = true;
 
-    // 4. Check Unverified Risks & Assumptions
+    // 5. Assumption & Unverified Due Diligence Gate
     if (riskEval.hasUnverified) {
       reasons.push(
-        ...riskEval.unverifiedItems.map((u) => `未核验风险项: ${u} (需完成尽调方可决定是否入围)`),
+        ...riskEval.unverifiedItems.map((u) => `未核验风险项: ${u} (尚未完成充分核验，需完成尽调方可决定是否入围)`),
       );
       return {
         verdict: 'NEEDS_VALIDATION',
         reasons,
-        evidenceCompleteness,
+        evidenceCoverageHeuristic,
+        evidenceCompleteness: evidenceCoverageHeuristic,
         hardRiskGatePassed: true,
         economicsGatePassed: true,
         evaluatedAt: now,
@@ -123,7 +188,8 @@ export class CandidateDecisionEngine {
       return {
         verdict: 'NEEDS_VALIDATION',
         reasons,
-        evidenceCompleteness,
+        evidenceCoverageHeuristic,
+        evidenceCompleteness: evidenceCoverageHeuristic,
         hardRiskGatePassed: true,
         economicsGatePassed: true,
         evaluatedAt: now,
@@ -138,14 +204,15 @@ export class CandidateDecisionEngine {
       return {
         verdict: 'NEEDS_VALIDATION',
         reasons,
-        evidenceCompleteness,
+        evidenceCoverageHeuristic,
+        evidenceCompleteness: evidenceCoverageHeuristic,
         hardRiskGatePassed: true,
         economicsGatePassed: true,
         evaluatedAt: now,
       };
     }
 
-    // 5. Margin Thresholds: Thin Margin -> WATCH
+    // 6. Margin Thresholds: Thin Margin -> WATCH
     if (baseMargin < 0.12 || conservativeProfit < 0) {
       reasons.push(
         `财务空间较窄: 基准利润率 ${(baseMargin * 100).toFixed(1)}% 偏低，或悲观情景亏损 ($${conservativeProfit.toFixed(2)})，建议保持观察 (WATCH)`,
@@ -153,14 +220,15 @@ export class CandidateDecisionEngine {
       return {
         verdict: 'WATCH',
         reasons,
-        evidenceCompleteness,
+        evidenceCoverageHeuristic,
+        evidenceCompleteness: evidenceCoverageHeuristic,
         hardRiskGatePassed: true,
         economicsGatePassed: true,
         evaluatedAt: now,
       };
     }
 
-    // 6. Healthy Financials & Evidence Completeness -> SHORTLIST
+    // 7. Healthy Financials & Evidence Integrity -> SHORTLIST
     reasons.push(
       `财务健康: 基准贡献利润 $${baseProfit.toFixed(2)} (利润率 ${(baseMargin * 100).toFixed(1)}%)，悲观情景留存 $${conservativeProfit.toFixed(2)}`,
     );
@@ -169,7 +237,8 @@ export class CandidateDecisionEngine {
     return {
       verdict: 'SHORTLIST',
       reasons,
-      evidenceCompleteness,
+      evidenceCoverageHeuristic,
+      evidenceCompleteness: evidenceCoverageHeuristic,
       hardRiskGatePassed: true,
       economicsGatePassed: true,
       evaluatedAt: now,

@@ -9,6 +9,7 @@ import {
 } from '@crosspilot/domain';
 import {
   CandidateComparisonResult,
+  CandidateDefaultsResponse,
   MarketOverviewSnapshot,
   MarketProduct,
   ProductCandidate,
@@ -604,51 +605,51 @@ export class MarketService {
   buildDefaultCandidates(): ProductCandidate[] {
     const cand1Economics = CandidateEconomicsService.calculateEconomics(
       {
-        sellingPrice: { value: 29.99, source: 'FACT', basis: 'Amazon target price point' },
-        productCost: { value: 6.2, source: 'FACT', basis: 'Supplier verified invoice quote' },
-        referralFeeRate: { value: 0.15, source: 'ESTIMATE', basis: 'Amazon 15% standard commission' },
+        sellingPrice: { value: 29.99, source: 'DEMO', basis: 'Built-in demo fixture for Product Research V2 UI' },
+        productCost: { value: 6.2, source: 'DEMO', basis: 'Built-in demo fixture for Product Research V2 UI' },
+        referralFeeRate: { value: 0.15, source: 'ESTIMATE', basis: 'Amazon 15% standard commission tier' },
         fbaFeePerUnit: { value: 5.2, source: 'ESTIMATE', basis: 'FBA large standard tier' },
-        freightPerUnit: { value: 2.1, source: 'ESTIMATE', basis: 'Sea freight DDP per unit' },
-        dutyPerUnit: { value: 0.6, source: 'ESTIMATE', basis: 'Tariff classification 7%' },
-        adsCostPerUnit: { value: 3.5, source: 'ASSUMPTION', basis: 'Target PPC ACOS ~11.6%' },
-        returnRate: { value: 0.02, source: 'ASSUMPTION', basis: 'Category fabric box return benchmark 2%' },
-        returnLossPerUnit: { value: 7.0, source: 'ESTIMATE', basis: 'Inspection and repack loss' },
-        storageFeePerUnit: { value: 0.35, source: 'ESTIMATE', basis: 'Standard monthly inventory fee' },
-        otherCostsPerUnit: { value: 0.5, source: 'ESTIMATE', basis: 'Custom barcode and polybag' },
+        freightPerUnit: { value: 2.1, source: 'ESTIMATE', basis: 'Estimated sea freight DDP per unit' },
+        dutyPerUnit: { value: 0.6, source: 'ESTIMATE', basis: 'Estimated tariff 7%' },
+        adsCostPerUnit: { value: 3.5, source: 'ASSUMPTION', basis: 'Demo ad budget allocation' },
+        returnRate: { value: 0.02, source: 'ASSUMPTION', basis: 'Demo return rate benchmark' },
+        returnLossPerUnit: { value: 7.0, source: 'ESTIMATE', basis: 'Estimated inspection and repack loss' },
+        storageFeePerUnit: { value: 0.35, source: 'ESTIMATE', basis: 'Estimated monthly inventory fee' },
+        otherCostsPerUnit: { value: 0.5, source: 'ESTIMATE', basis: 'Estimated barcode and polybag' },
       },
       'USD',
     );
 
     const cand2Economics = CandidateEconomicsService.calculateEconomics(
       {
-        sellingPrice: { value: 34.99, source: 'FACT', basis: 'Amazon premium desktop pricing' },
-        productCost: { value: 9.8, source: 'FACT', basis: 'Acrylic factory quotation' },
-        referralFeeRate: { value: 0.15, source: 'ESTIMATE', basis: 'Amazon 15% standard commission' },
+        sellingPrice: { value: 34.99, source: 'DEMO', basis: 'Built-in demo fixture for Product Research V2 UI' },
+        productCost: { value: 9.8, source: 'DEMO', basis: 'Built-in demo fixture for Product Research V2 UI' },
+        referralFeeRate: { value: 0.15, source: 'ESTIMATE', basis: 'Amazon 15% standard commission tier' },
         fbaFeePerUnit: { value: 6.8, source: 'ESTIMATE', basis: 'FBA oversize standard tier' },
-        freightPerUnit: { value: 3.6, source: 'ESTIMATE', basis: 'Rigid protective freight' },
-        dutyPerUnit: { value: 0.8, source: 'ESTIMATE', basis: 'Tariff classification' },
-        adsCostPerUnit: { value: 5.25, source: 'ASSUMPTION', basis: 'PPC target ACOS 15%' },
-        returnRate: { value: 0.06, source: 'ASSUMPTION', basis: 'Fragile acrylic return benchmark 6%' },
-        returnLossPerUnit: { value: 12.0, source: 'ESTIMATE', basis: 'Cracked returns non-resellable loss' },
-        storageFeePerUnit: { value: 0.45, source: 'ESTIMATE', basis: 'Standard storage tier' },
-        otherCostsPerUnit: { value: 0.8, source: 'ESTIMATE', basis: 'Bubble wrap pack' },
+        freightPerUnit: { value: 3.6, source: 'ESTIMATE', basis: 'Estimated protective freight' },
+        dutyPerUnit: { value: 0.8, source: 'ESTIMATE', basis: 'Estimated tariff' },
+        adsCostPerUnit: { value: 5.25, source: 'ASSUMPTION', basis: 'Demo ad budget allocation' },
+        returnRate: { value: 0.06, source: 'ASSUMPTION', basis: 'Demo return rate benchmark' },
+        returnLossPerUnit: { value: 12.0, source: 'ESTIMATE', basis: 'Estimated return loss' },
+        storageFeePerUnit: { value: 0.45, source: 'ESTIMATE', basis: 'Estimated standard storage' },
+        otherCostsPerUnit: { value: 0.8, source: 'ESTIMATE', basis: 'Estimated protective wrap' },
       },
       'USD',
     );
 
     const cand3Economics = CandidateEconomicsService.calculateEconomics(
       {
-        sellingPrice: { value: 42.99, source: 'FACT', basis: 'Amazon retail target' },
-        productCost: { value: 21.0, source: 'FACT', basis: 'Metal fabrication quotation' },
+        sellingPrice: { value: 42.99, source: 'DEMO', basis: 'Built-in demo fixture for Product Research V2 UI' },
+        productCost: { value: 21.0, source: 'DEMO', basis: 'Built-in demo fixture for Product Research V2 UI' },
         referralFeeRate: { value: 0.15, source: 'ESTIMATE', basis: 'Amazon standard fee' },
         fbaFeePerUnit: { value: 11.5, source: 'ESTIMATE', basis: 'Heavy oversize FBA tier' },
         freightPerUnit: { value: 8.5, source: 'ESTIMATE', basis: 'Heavyweight ocean freight' },
-        dutyPerUnit: { value: 1.5, source: 'ESTIMATE', basis: 'Steel goods tariff classification' },
-        adsCostPerUnit: { value: 6.0, source: 'ASSUMPTION', basis: 'PPC ad allocation' },
-        returnRate: { value: 0.03, source: 'ASSUMPTION', basis: 'Return rate benchmark 3%' },
-        returnLossPerUnit: { value: 18.0, source: 'ESTIMATE', basis: 'Oversize return fee' },
-        storageFeePerUnit: { value: 1.2, source: 'ESTIMATE', basis: 'Oversize cubic storage' },
-        otherCostsPerUnit: { value: 1.0, source: 'ESTIMATE', basis: 'Caster assembly box' },
+        dutyPerUnit: { value: 1.5, source: 'ESTIMATE', basis: 'Steel tariff classification' },
+        adsCostPerUnit: { value: 6.0, source: 'ASSUMPTION', basis: 'Demo ad budget allocation' },
+        returnRate: { value: 0.03, source: 'ASSUMPTION', basis: 'Demo return rate benchmark' },
+        returnLossPerUnit: { value: 18.0, source: 'ESTIMATE', basis: 'Estimated oversize return fee' },
+        storageFeePerUnit: { value: 1.2, source: 'ESTIMATE', basis: 'Estimated oversize cubic storage' },
+        otherCostsPerUnit: { value: 1.0, source: 'ESTIMATE', basis: 'Estimated caster assembly' },
       },
       'USD',
     );
@@ -656,7 +657,7 @@ export class MarketService {
     const defaultCandidates: ProductCandidate[] = [
       {
         id: 'cand-linen-box',
-        title: 'Foldable Linen Storage File Box with Lid & Wood Handles',
+        title: 'Foldable Linen Storage File Box with Lid (Demo)',
         marketplace: 'AMAZON_US',
         category: 'Home & Kitchen > Storage & Organization',
         concept: {
@@ -667,39 +668,48 @@ export class MarketService {
           differentiationHypotheses: ['Solid wood handles', 'Non-woven fabric reinforcement', 'Lid with label tag'],
         },
         marketResearch: {
-          seedKeyword: 'linen file box',
+          seedKeyword: 'linen file box (demo)',
           searchVolumeMonthly: 28000,
           competitiveDifficulty: 38,
           opportunityScore: 78,
           competitorSampleSize: 5,
-          representativeAsin: 'B08XY12345',
+          representativeAsin: 'DEMO-ASIN-01',
+          evidenceIds: ['evi-demo-linen-kw'],
         },
         economics: cand1Economics,
         risks: [
           {
             riskId: 'cand-linen-risk-patent',
             category: 'PATENT',
-            title: 'Handle & folding joint patent clearance',
+            title: 'Handle & folding joint clearance (Demo)',
             status: 'PASS',
             severity: 'HIGH',
-            evidenceIds: ['evi-linen-patent'],
+            evidenceIds: ['evi-demo-linen-patent'],
           },
         ],
         evidence: [
           {
-            id: 'evi-linen-quote',
+            id: 'evi-demo-linen-quote',
             scope: 'PRODUCT',
             subjectId: 'cand-linen-box',
-            source: 'SUPPLIER_OFFICIAL_QUOTE',
-            content: '1688 verified factory quote FOB Ningbo $6.20/unit with lid',
+            source: 'DEMO_FIXTURE',
+            content: 'Demo fixture product cost quote $6.20/unit with lid',
             capturedAt: '2026-09-15T00:00:00Z',
           },
           {
-            id: 'evi-linen-kw',
+            id: 'evi-demo-linen-kw',
             scope: 'KEYWORD',
-            subjectId: 'linen file box',
-            source: 'XYDC_ABA',
-            content: 'Monthly search volume 28,000, steady growth YoY',
+            subjectId: 'linen file box (demo)',
+            source: 'DEMO_FIXTURE',
+            content: 'Demo fixture search volume metric 28,000',
+            capturedAt: '2026-09-15T00:00:00Z',
+          },
+          {
+            id: 'evi-demo-linen-patent',
+            scope: 'PRODUCT',
+            subjectId: 'cand-linen-box',
+            source: 'DEMO_FIXTURE',
+            content: 'Demo patent search clearance report fixture',
             capturedAt: '2026-09-15T00:00:00Z',
           },
         ],
@@ -719,7 +729,7 @@ export class MarketService {
       },
       {
         id: 'cand-acrylic-box',
-        title: 'Crystal Clear Acrylic Desktop File Organizer with Gold Brackets',
+        title: 'Crystal Clear Acrylic Desktop File Organizer (Demo)',
         marketplace: 'AMAZON_US',
         category: 'Office Products > Filing Products',
         concept: {
@@ -730,12 +740,13 @@ export class MarketService {
           differentiationHypotheses: ['Scratch-resistant coating', 'Brushed brass bracket handles'],
         },
         marketResearch: {
-          seedKeyword: 'acrylic file organizer',
+          seedKeyword: 'acrylic file organizer (demo)',
           searchVolumeMonthly: 16500,
           competitiveDifficulty: 52,
           opportunityScore: 64,
           competitorSampleSize: 4,
-          representativeAsin: 'B09ZZ87654',
+          representativeAsin: 'DEMO-ASIN-02',
+          evidenceIds: ['evi-demo-acrylic-kw'],
         },
         economics: cand2Economics,
         risks: [
@@ -758,11 +769,19 @@ export class MarketService {
         ],
         evidence: [
           {
-            id: 'evi-acrylic-quote',
+            id: 'evi-demo-acrylic-quote',
             scope: 'PRODUCT',
             subjectId: 'cand-acrylic-box',
-            source: 'SUPPLIER_OFFICIAL_QUOTE',
-            content: 'Acrylic injection molding factory quote $9.80/unit',
+            source: 'DEMO_FIXTURE',
+            content: 'Demo fixture acrylic quote $9.80/unit',
+            capturedAt: '2026-09-15T00:00:00Z',
+          },
+          {
+            id: 'evi-demo-acrylic-kw',
+            scope: 'KEYWORD',
+            subjectId: 'acrylic file organizer (demo)',
+            source: 'DEMO_FIXTURE',
+            content: 'Demo fixture search volume metric 16,500',
             capturedAt: '2026-09-15T00:00:00Z',
           },
         ],
@@ -790,7 +809,7 @@ export class MarketService {
       },
       {
         id: 'cand-steel-cart',
-        title: 'Rolling Heavy-Duty Steel Mesh Hanging File Cart with Wheels',
+        title: 'Rolling Heavy-Duty Steel Mesh Hanging File Cart (Demo)',
         marketplace: 'AMAZON_US',
         category: 'Office Products > Filing Products',
         concept: {
@@ -801,12 +820,13 @@ export class MarketService {
           differentiationHypotheses: ['Lockable swivel casters', 'Heavy-gauge steel frame'],
         },
         marketResearch: {
-          seedKeyword: 'rolling file cart',
+          seedKeyword: 'rolling file cart (demo)',
           searchVolumeMonthly: 12000,
           competitiveDifficulty: 65,
           opportunityScore: 48,
           competitorSampleSize: 3,
-          representativeAsin: 'B07AA11223',
+          representativeAsin: 'DEMO-ASIN-03',
+          evidenceIds: ['evi-demo-steel-kw'],
         },
         economics: cand3Economics,
         risks: [
@@ -821,11 +841,19 @@ export class MarketService {
         ],
         evidence: [
           {
-            id: 'evi-steel-quote',
+            id: 'evi-demo-steel-quote',
             scope: 'PRODUCT',
             subjectId: 'cand-steel-cart',
-            source: 'SUPPLIER_OFFICIAL_QUOTE',
-            content: 'Metal welding factory quotation $21.00/unit EXW',
+            source: 'DEMO_FIXTURE',
+            content: 'Demo fixture steel fabrication quote $21.00/unit EXW',
+            capturedAt: '2026-09-15T00:00:00Z',
+          },
+          {
+            id: 'evi-demo-steel-kw',
+            scope: 'KEYWORD',
+            subjectId: 'rolling file cart (demo)',
+            source: 'DEMO_FIXTURE',
+            content: 'Demo fixture search volume metric 12,000',
             capturedAt: '2026-09-15T00:00:00Z',
           },
         ],
@@ -845,10 +873,15 @@ export class MarketService {
     });
   }
 
-  getDefaultCandidates(): { candidates: ProductCandidate[]; comparison: CandidateComparisonResult } {
+  getDefaultCandidates(): CandidateDefaultsResponse {
     const candidates = this.buildDefaultCandidates();
     const comparison = CandidateComparisonEngine.compare(candidates);
     return {
+      mode: 'DEMO',
+      dataSource: 'BUILT_IN_FIXTURE',
+      isRealData: false,
+      disclaimer:
+        '当前候选仅用于演示 V2 比较能力，不代表真实 Amazon 市场、供应商报价或选品建议。',
       candidates,
       comparison,
     };

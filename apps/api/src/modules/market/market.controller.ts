@@ -146,6 +146,11 @@ export class MarketController {
     return this.marketService.getDefaultCandidates();
   }
 
+  @Get('market-research/candidates/demo')
+  getDemoCandidates() {
+    return this.marketService.getDefaultCandidates();
+  }
+
   @Post('market-research/candidates/compare')
   compareCandidates(@Body() body: { candidates: ProductCandidate[] }) {
     return this.marketService.compareCandidates(body.candidates || []);

@@ -1,5 +1,33 @@
 # CrossPilot 交接
 
+> **2026-09-15 · Product Research V2 MVP 冻结前硬化与正式冻结（Product Research V2 MVP Hardened & Frozen）**：
+> - **数值分级与数据来源真理化（Data Provenance & Demo Tagging）**：
+>   - 数据源 `ValueSource` 正式扩展并规范 `'DEMO'`（`'FACT' | 'ESTIMATE' | 'ASSUMPTION' | 'UNKNOWN' | 'DEMO'`）；
+>   - API 内建默认演示数据（`market.service.ts`）严格剔除虚假 `FACT` 与 `SUPPLIER_OFFICIAL_QUOTE`，全面标记为 `DEMO` / `DEMO_FIXTURE`，接口增加透明包裹层 `mode: 'DEMO', dataSource: 'BUILT_IN_FIXTURE', isRealData: false`；
+>   - API 控制器新增 `@Get('market-research/candidates/demo')` 显式路由；
+>   - 前端 UI 顶部展示显式 DEMO DATA 提示横幅，卡片标记 `Demo Decision: SHORTLIST (示例演练)`，成本明细附带 `DEMO/FACT/ESTIMATE/ASSUMPTION/UNKNOWN` 来源标签。
+> - **财务测算杜绝隐式魔法默认值（No Hidden Economics Defaults）**：
+>   - 彻底删除 `candidate-economics.service.ts` 中的所有隐式兜底常量（如 `?? 0.15`, `?? 4.5`, `?? 0.05`, `?? 0.3` 等）；
+>   - 显式划分 5 大关键财务输入（`CRITICAL_ECONOMICS_INPUTS`: `sellingPrice`, `productCost`, `referralFeeRate`, `fbaFeePerUnit`, `freightPerUnit`），任一缺失即入 `missingInputs` 并置 `status: 'INCOMPLETE'`；
+>   - 非关键缺失输入显式进入 `excludedInputs`（标记为 `EXCLUDED_FROM_CALCULATION`），不伪充为真实 0 成本；
+>   - 显式定义并固定三情景乘数（`DEFAULT_SCENARIO_CONFIG`）：Conservative（售价 0.95, 采购 1.05, 运费 1.10, 广告 1.25, 退货 1.30, 仓储 1.20）；Base（各乘数 1.00）；Optimistic（售价 1.00, 采购 0.92, 运费 0.95, 广告 0.85, 退货 0.80, 仓储 1.00）；
+>   - 前端措辞由“消除 IEEE 754 浮点漂移”修正为“按货币精度进行确定性舍入”。
+> - **证据防冒充与严格门禁（Evidence Scope Gate & Anti-Impersonation）**：
+>   - `CandidateEvidenceValidator` 深度集成 `checkCategoryImpersonation`，类目级证据出现“该商品买家”、“该asin用户”、“本产品评论”、“单品评价”等冒充单品原声表述时直接判定违规（`valid: false`）；
+>   - `CandidateDecisionEngine` 建立 6 级门禁流水线，任一证据主体范围冲突或冒充直接阻断 `SHORTLIST`，强制降级为 `NEEDS_VALIDATION` 或 `INSUFFICIENT_DATA`。
+> - **风险核验真实凭证保障（Risk PASS Evidence Requirement）**：
+>   - `CandidateRiskGate` 强制核验 `PATENT` 与 `COMPLIANCE` 类风险的 `PASS` 状态，必须在有效凭证集合中存在支撑凭据，无凭据的空头 PASS 自动降级为 `UNVERIFIED`，阻断 `SHORTLIST`。
+> - **横向比较双向全溯源与 UNKNOWN ≠ 0 准则**：
+>   - `ComparisonReason` 全面对齐双边事实证据链：显式输出 `candidateAEvidenceIds`, `candidateBEvidenceIds`, `candidateAAssumptionIds`, `candidateBAssumptionIds`，覆盖 `ECONOMICS`, `RISK_PROFILE`, `MARKET_DEMAND`, `EVIDENCE_CONFIDENCE` 全维度；
+>   - 确定性排序严格区分 UNKNOWN 利润率与真实 0% 利润率，缺失财务数据的候选劣后于完整数据候选，杜绝以虚充好。
+> - **全量硬化验收测试（Cases 1～14 全部 100% PASS）**：
+>   - `packages/domain/test/product-research-v2-acceptance.spec.ts` 覆盖完整 14 大验收案例（Cases 1～14 全部 PASS）；
+>   - `@crosspilot/domain`: 38/38 test suites 全部通过（370/370 tests PASS）；
+>   - `@crosspilot/web`: 40/40 tests 全部通过；
+>   - 全仓库类型检查 `pnpm -r typecheck`: 10/10 packages 0 error 全部通过；
+>   - 前端生产优化构建 `pnpm --filter @crosspilot/web build`: 24/24 static & dynamic pages 成功生成；
+>   - 规范规范文档 `PRODUCT_RESEARCH_V2_MVP_SPEC.md` 与代码、单测完全对齐，Product Research V2 MVP 正式冻结 (FROZEN)。
+>
 > **2026-09-15 · 选品模块 V1 真实性根治与 Product Research V2 MVP 交付（Product Research V2 MVP & Truthfulness Fixes）**：
 > - **V1 真实性根治（Truthfulness Fixes）**：
 >   - 彻底删除 `market.service.ts` 中的默认保底 ASIN `'B0BFGNSXYL'`；当无 ASIN 时，单品趋势与健康度真实返回 `MISSING`，品类 VOC 保留为 `CATEGORY` 作用域；

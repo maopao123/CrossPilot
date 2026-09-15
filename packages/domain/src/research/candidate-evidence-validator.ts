@@ -17,10 +17,11 @@ export interface EvidenceValidationResult {
 
 export class CandidateEvidenceValidator {
   /**
-   * Validates evidence subject consistency:
+   * Validates evidence subject consistency and scope integrity:
    * 1. PRODUCT evidence MUST have subjectId matching the target candidateId or candidate's ASIN.
    *    Candidate B's PRODUCT evidence CANNOT be attributed to Candidate A.
-   * 2. CATEGORY evidence supports category-level conclusions, but cannot be treated as a single product's review.
+   * 2. CATEGORY evidence supports category-level conclusions, but CANNOT impersonate a single product's reviews
+   *    (e.g. phrases like "该商品买家", "该ASIN用户", "本产品评论").
    * 3. KEYWORD evidence supports keyword market conclusions.
    * 4. MARKET evidence supports marketplace-level conclusions.
    */
@@ -38,6 +39,7 @@ export class CandidateEvidenceValidator {
     if (candidateAsin && candidateAsin.trim()) allowedSubjectIds.add(candidateAsin.trim());
 
     for (const evi of evidences) {
+      // 1. PRODUCT scope subject consistency
       if (evi.scope === 'PRODUCT') {
         const sub = (evi.subjectId || '').trim();
         if (!allowedSubjectIds.has(sub)) {
@@ -49,6 +51,16 @@ export class CandidateEvidenceValidator {
             reason: `PRODUCT-level evidence with subjectId "${evi.subjectId}" cannot be attributed to Candidate "${candidateId}". Cross-candidate evidence injection is forbidden.`,
           };
           violations.push(violation);
+          rejectedEvidences.push(evi);
+          continue;
+        }
+      }
+
+      // 2. CATEGORY scope impersonation check
+      if (evi.scope === 'CATEGORY') {
+        const impersonationViolation = this.checkCategoryImpersonation(evi);
+        if (impersonationViolation) {
+          violations.push(impersonationViolation);
           rejectedEvidences.push(evi);
           continue;
         }
@@ -67,16 +79,39 @@ export class CandidateEvidenceValidator {
   }
 
   /**
-   * Asserts that CATEGORY scope evidence is not being mislabeled as single-product review evidence.
+   * Asserts that CATEGORY scope evidence does not impersonate single-product review evidence.
    */
-  static assertCategoryVocNotImpersonatingProduct(evidence: EvidenceItem): boolean {
-    if (evidence.scope === 'CATEGORY') {
-      const lower = evidence.content.toLowerCase();
-      // If category evidence claims to be a specific ASIN's feedback, flag violation
-      if (lower.includes('单品评价') || lower.includes('该商品买家评价')) {
-        return false;
+  static checkCategoryImpersonation(evidence: EvidenceItem): SubjectConsistencyViolation | null {
+    if (evidence.scope !== 'CATEGORY') return null;
+    const lower = (evidence.content || '').toLowerCase();
+    const prohibitedPhrases = [
+      '该商品买家',
+      '该asin用户',
+      '本产品评论',
+      '单品评价',
+      '该商品买家评价',
+      '该商品用户',
+      '该单品用户',
+    ];
+
+    for (const phrase of prohibitedPhrases) {
+      if (lower.includes(phrase)) {
+        return {
+          evidenceId: evidence.id,
+          scope: 'CATEGORY',
+          subjectId: evidence.subjectId,
+          expectedSubjectId: 'CATEGORY_LEVEL_BENCHMARK',
+          reason: `CATEGORY 作用域证据文案含有冒充单品买家原声表述 ("${phrase}")，禁止将品类原声伪装为该商品的直接评价。`,
+        };
       }
     }
-    return true;
+    return null;
+  }
+
+  /**
+   * @deprecated Kept for backwards compatibility
+   */
+  static assertCategoryVocNotImpersonatingProduct(evidence: EvidenceItem): boolean {
+    return this.checkCategoryImpersonation(evidence) === null;
   }
 }
