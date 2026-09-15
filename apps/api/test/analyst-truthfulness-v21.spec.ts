@@ -179,13 +179,30 @@ describe('Analyst Truthfulness V2.1 Test Suite', () => {
     const wf1 = await service.getWaterfall('ws-test');
     expect(wf1!.breakdown.inventory).toBe(-210);
 
-    // With 2 stockouts detected
+    // Stockout snapshots alone without financial finding must NOT fabricate dollar amounts
     mockPrisma.inventorySnapshot.findMany.mockResolvedValue([
       { skuId: 'sku-1', fulfillable: 0 },
       { skuId: 'sku-1', fulfillable: 0 },
     ]);
     const wf2 = await service.getWaterfall('ws-test');
-    expect(wf2!.breakdown.inventory).toBeLessThan(-210);
+    expect(wf2!.breakdown.inventory).toBe(-210);
+
+    // When quantified inventory finding is provided, attribution reflects total loss
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: {
+        findings: [
+          {
+            findingType: 'INVENTORY',
+            impactAmount: -350,
+            evidenceJson: JSON.stringify({ rushAirFreightCost: 210, stockoutLostMargin: 140 }),
+          },
+        ],
+      },
+    });
+    const wf3 = await service.getWaterfall('ws-test');
+    expect(wf3!.breakdown.inventory).toBe(-350);
   });
 
   // 5. 成本与供应商返利事实推导 (无 waterfall.otherImpact fallback)
@@ -793,5 +810,196 @@ describe('Analyst Truthfulness V2.1 Test Suite', () => {
     const inv = await demoDs.getInventory(params);
     expect(inv.availability).toBe('AVAILABLE');
     expect(inv.data.fulfillableQuantity).toBeGreaterThan(0);
+  });
+
+  // 21. [Closure A] Stockout snapshots only without quantified financial loss finding must NOT fabricate dollar amounts, mark check as PARTIAL and BLOCK gate
+  it('21. [Closure A] should mark Inventory as PARTIAL and BLOCK gate when only stockout snapshots exist without financial finding', async () => {
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: { findings: [] },
+    });
+
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 100, otherCosts: 0 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 100, otherCosts: 0 })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+
+    mockPrisma.inventorySnapshot.findMany.mockResolvedValue([
+      { id: 'snap-1', fulfillable: 0, snapshotDate: new Date('2026-03-09') },
+      { id: 'snap-2', fulfillable: 0, snapshotDate: new Date('2026-03-10') },
+      { id: 'snap-3', fulfillable: 0, snapshotDate: new Date('2026-03-11') },
+    ]);
+
+    const res = await service.askAnalyst('Check inventory risk', 'ws-test');
+
+    const checks = res.reconciliation?.checks || res.reconciliationError?.checks;
+    const invCheck = checks?.find((c: any) => c.domain === 'INVENTORY');
+    expect(invCheck).toBeDefined();
+    // Attribution must NOT fabricate lost margin
+    expect(invCheck.attributionValue).toBe(0.0);
+    expect(invCheck.status).toBe('PARTIAL');
+    expect(invCheck.evidenceSource).toBe('RAW_DATABASE_FACTS');
+    expect(invCheck.independenceLevel).toBe('FULLY_INDEPENDENT');
+    expect(invCheck.details).toContain('Stockout risk detected');
+    expect(invCheck.details).toContain('PARTIAL');
+
+    const wf = await service.getWaterfall('ws-test');
+    expect(wf!.breakdown.inventory).toBe(0.0);
+
+    expect(res.status).toBe('RECONCILIATION_FAILED');
+    expect(res.isReconciled).toBe(false);
+    expect(res.actionPlan).toEqual([]);
+  });
+
+  // 22. [Closure B] Dynamic SKUs (5-10 SKUs) in workspace must never be divided by 3 heuristic
+  it('22. [Closure B] should discover 8 dynamic workspace SKUs and never apply divide-by-3 heuristic to inventory', async () => {
+    const dynamicSkus = Array(8).fill(null).map((_, i) => ({
+      id: `sku-id-${i + 1}`,
+      skuCode: `DYNAMIC-SKU-00${i + 1}`,
+      product: { id: `prod-${i + 1}`, title: `Product ${i + 1}` },
+    }));
+    mockPrisma.sku.findMany.mockResolvedValue(dynamicSkus);
+
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: {
+        findings: [
+          {
+            findingType: 'INVENTORY',
+            impactAmount: -450.0,
+            evidenceJson: JSON.stringify({ rushAirFreightCost: 350.0, stockoutLostMargin: 100.0 }),
+          },
+        ],
+      },
+    });
+
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 1050 / 7, otherCosts: 0 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 600 / 7, otherCosts: 50 })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+
+    mockPrisma.inventorySnapshot.findMany.mockResolvedValue(
+      Array(5).fill({ fulfillable: 0 }),
+    );
+
+    const wf = await service.getWaterfall('ws-test');
+    expect(wf!.breakdown.inventory).toBe(-450.0);
+  });
+
+  // 23. [Closure C] Price / Cost when supported only by AnalysisFinding must be marked as SUPPORTED_BY_FINDING and DERIVED_FROM_SAME_FINDING, never disguised as FULLY_INDEPENDENT
+  it('23. [Closure C] should mark Price and Cost checks as SUPPORTED_BY_FINDING and DERIVED_FROM_SAME_FINDING when only findings exist', async () => {
+    mockPrisma.orderItem.findMany.mockResolvedValue([]);
+    mockPrisma.inventorySnapshot.findMany.mockResolvedValue([]);
+
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      totalVariance: -20.0,
+      session: {
+        findings: [
+          {
+            id: 'FINDING-PRICE-01',
+            findingType: 'PRICING',
+            impactAmount: -120.0,
+            evidenceJson: JSON.stringify({ promotionalDiscountTotal: 120.0 }),
+          },
+          {
+            id: 'FINDING-COST-01',
+            findingType: 'COST',
+            impactAmount: 100.0,
+            evidenceJson: JSON.stringify({ supplierRebate: 100.0 }),
+          },
+        ],
+      },
+    });
+
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 1000 / 7, adsCost: 0, returnLoss: 0, otherCosts: 0, cogs: 0 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 980 / 7, adsCost: 0, returnLoss: 0, otherCosts: 0, cogs: 0 })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+
+    const res = await service.askAnalyst('Reconcile finding-only scenario', 'ws-test');
+    expect(res.status).toBe('RECONCILED');
+    expect(res.isReconciled).toBe(true);
+
+    const checks = res.reconciliation?.checks;
+    const priceCheck = checks?.find((c: any) => c.domain === 'PRICE');
+    expect(priceCheck).toBeDefined();
+    expect(priceCheck.status).toBe('SUPPORTED_BY_FINDING');
+    expect(priceCheck.evidenceSource).toBe('ANALYSIS_FINDING');
+    expect(priceCheck.independenceLevel).toBe('DERIVED_FROM_SAME_FINDING');
+    expect(priceCheck.details).toContain('supported by AnalysisFinding');
+
+    const costCheck = checks?.find((c: any) => c.domain === 'COST');
+    expect(costCheck).toBeDefined();
+    expect(costCheck.status).toBe('SUPPORTED_BY_FINDING');
+    expect(costCheck.evidenceSource).toBe('ANALYSIS_FINDING');
+    expect(costCheck.independenceLevel).toBe('DERIVED_FROM_SAME_FINDING');
+    expect(costCheck.details).toContain('supported by AnalysisFinding');
+  });
+
+  // 24. [Closure D] When real raw database facts exist (OrderItem discounts / COGS delta), Price and Cost checks must pass as RAW_DATABASE_FACTS with FULLY_INDEPENDENT
+  it('24. [Closure D] should verify Price and Cost against RAW_DATABASE_FACTS with FULLY_INDEPENDENT when raw order items and COGS exist', async () => {
+    mockPrisma.orderItem.findMany.mockResolvedValue([
+      {
+        quantity: 10,
+        unitPrice: 38.0,
+        sku: { sellingPrice: 50.0 },
+      },
+    ]);
+    mockPrisma.inventorySnapshot.findMany.mockResolvedValue([]);
+
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({
+        date: new Date(`2026-03-0${i + 1}`),
+        netProfit: 1000 / 7,
+        cogs: 100,
+        adsCost: 0,
+        returnLoss: 0,
+        otherCosts: 0,
+      })),
+      ...Array(7).fill(null).map((_, i) => ({
+        date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`),
+        netProfit: 980 / 7,
+        cogs: 600 / 7,
+        adsCost: 0,
+        returnLoss: 0,
+        otherCosts: 0,
+      })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      totalVariance: -20.0,
+      session: { findings: [] },
+    });
+
+    const res = await service.askAnalyst('Verify raw facts', 'ws-test');
+    expect(res.status).toBe('RECONCILED');
+    expect(res.isReconciled).toBe(true);
+
+    const checks = res.reconciliation?.checks;
+    const priceCheck = checks?.find((c: any) => c.domain === 'PRICE');
+    expect(priceCheck).toBeDefined();
+    expect(priceCheck.status).toBe('PASS');
+    expect(priceCheck.evidenceSource).toBe('RAW_DATABASE_FACTS');
+    expect(priceCheck.independenceLevel).toBe('FULLY_INDEPENDENT');
+    expect(priceCheck.attributionValue).toBe(-120);
+    expect(priceCheck.domainFactCalculatedValue).toBe(-120);
+
+    const costCheck = checks?.find((c: any) => c.domain === 'COST');
+    expect(costCheck).toBeDefined();
+    expect(costCheck.status).toBe('PASS');
+    expect(costCheck.evidenceSource).toBe('RAW_DATABASE_FACTS');
+    expect(costCheck.independenceLevel).toBe('FULLY_INDEPENDENT');
+    expect(costCheck.attributionValue).toBe(100);
+    expect(costCheck.domainFactCalculatedValue).toBe(100);
   });
 });

@@ -627,16 +627,50 @@ export default function BusinessAnalystPage() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] mt-2">
-                      <div className="bg-surface p-2 rounded border border-border/70 text-gray-400">
-                        <span className="text-gray-500 font-bold block mb-0.5">输入参数:</span>
-                        <code>{JSON.stringify(trace.input)}</code>
+                    {trace.tool === 'cross_domain_consistency_gate' ? (
+                      <div className="space-y-2 text-[11px] mt-2">
+                        <div className="bg-surface p-2.5 rounded border border-border/70 text-gray-400">
+                          <span className="text-gray-500 font-bold block mb-1">输入参数 (6-Domain Input Flags):</span>
+                          <pre className="font-mono text-[11px] whitespace-pre-wrap break-words overflow-x-auto max-h-[120px] overflow-y-auto leading-relaxed text-gray-300">
+                            {JSON.stringify(trace.input, null, 2)}
+                          </pre>
+                        </div>
+                        <div className="bg-surface p-2.5 rounded border border-border/70 text-emerald-400">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-gray-500 font-bold">对账六维检验结果 (6-Domain Gate Output & Checks):</span>
+                            {trace.output?.status && (
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                  trace.output.status === 'PASS'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                                }`}
+                              >
+                                {trace.output.status}
+                              </span>
+                            )}
+                          </div>
+                          <pre className="font-mono text-[11px] whitespace-pre-wrap break-words overflow-x-auto max-h-[360px] overflow-y-auto leading-relaxed bg-surface-elevated/50 p-2 rounded border border-border/40 text-emerald-300">
+                            {JSON.stringify(trace.output, null, 2)}
+                          </pre>
+                        </div>
                       </div>
-                      <div className="bg-surface p-2 rounded border border-border/70 text-emerald-400">
-                        <span className="text-gray-500 font-bold block mb-0.5">输出结果:</span>
-                        <code>{JSON.stringify(trace.output)}</code>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] mt-2">
+                        <div className="bg-surface p-2 rounded border border-border/70 text-gray-400">
+                          <span className="text-gray-500 font-bold block mb-0.5">输入参数:</span>
+                          <pre className="font-mono text-[11px] whitespace-pre-wrap break-words overflow-x-auto max-h-[180px] overflow-y-auto leading-relaxed text-gray-300">
+                            {JSON.stringify(trace.input, null, 2)}
+                          </pre>
+                        </div>
+                        <div className="bg-surface p-2 rounded border border-border/70 text-emerald-400">
+                          <span className="text-gray-500 font-bold block mb-0.5">输出结果:</span>
+                          <pre className="font-mono text-[11px] whitespace-pre-wrap break-words overflow-x-auto max-h-[180px] overflow-y-auto leading-relaxed text-emerald-300">
+                            {JSON.stringify(trace.output, null, 2)}
+                          </pre>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
