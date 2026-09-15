@@ -24,6 +24,36 @@ function readNum(value: unknown): number | null {
   return null;
 }
 
+function keywordSlugs(draft: { primaryKeyword?: string; supportingKeywords?: string[] }): string[] {
+  return [draft.primaryKeyword, ...(draft.supportingKeywords || [])]
+    .filter((k): k is string => Boolean(k && k.trim()))
+    .map((k) => k.toLowerCase().trim())
+    .flatMap((k) => [k, k.replace(/\s+/g, '-')]);
+}
+
+function isBoundExtraEvidence(
+  evi: EvidenceItem,
+  draft: CandidateEnrichmentRequest['draft'],
+  allowedProductSubjects: Set<string>,
+): boolean {
+  const subjectId = (evi.subjectId || '').trim();
+  if (evi.scope === 'PRODUCT') {
+    return allowedProductSubjects.has(subjectId);
+  }
+  if (evi.scope === 'CATEGORY') return false;
+  if (evi.scope === 'KEYWORD' || evi.scope === 'MARKET') {
+    if ((draft.evidenceIds || []).includes(evi.id)) return true;
+    if (subjectId === draft.id || subjectId === draft.clusterId) return true;
+    const sub = subjectId.toLowerCase();
+    return keywordSlugs(draft).some((slug) => sub.includes(slug));
+  }
+  return false;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
 function trendDirection(raw: any): 'UP' | 'DOWN' | 'FLAT' | 'UNKNOWN' {
   const value = Array.isArray(raw) ? raw[0]?.direction || raw[0]?.trendDirection : raw?.direction || raw?.trendDirection;
   const upper = String(value || 'UNKNOWN').toUpperCase();
@@ -77,10 +107,7 @@ export class CandidateEnrichmentService {
     const allowedProductSubjects = new Set<string>([draft.id, ...selectedAsins]);
 
     for (const extra of request.extraEvidence || []) {
-      if (extra.scope === 'PRODUCT' && !allowedProductSubjects.has((extra.subjectId || '').trim())) {
-        continue;
-      }
-      if (extra.scope === 'CATEGORY') continue;
+      if (!isBoundExtraEvidence(extra, draft, allowedProductSubjects)) continue;
       evidence.push(extra);
     }
 
@@ -105,7 +132,7 @@ export class CandidateEnrichmentService {
         subjectId: asin,
         source: result.providerId || 'UNKNOWN',
         content: `Competitor detail ${asin}: title=${data.title ?? 'UNKNOWN'} price=${data.price ?? 'UNKNOWN'} rating=${data.rating ?? 'UNKNOWN'}`,
-        capturedAt: '2026-09-15T00:00:00Z',
+        capturedAt: nowIso(),
       });
 
       let rating = readNum(data.rating);
@@ -125,7 +152,7 @@ export class CandidateEnrichmentService {
             subjectId: asin,
             source: health.providerId || 'UNKNOWN',
             content: `Review health ${asin}: rating=${h.averageRating ?? 'UNKNOWN'} reviews=${h.totalReviewCount ?? 'UNKNOWN'} analyzedText=${h.analyzedReviewCount ?? 'null'}`,
-            capturedAt: '2026-09-15T00:00:00Z',
+            capturedAt: nowIso(),
           });
         }
       } else if (enableReview && !this.executor?.hasCapability('review.product.health')) {
@@ -146,7 +173,7 @@ export class CandidateEnrichmentService {
             subjectId: asin,
             source: trend.providerId || 'UNKNOWN',
             content: `Trend ${asin}: direction=${trendDir}`,
-            capturedAt: '2026-09-15T00:00:00Z',
+            capturedAt: nowIso(),
           });
         }
       } else if (enableTrend && !this.executor?.hasCapability('market.product.trend')) {

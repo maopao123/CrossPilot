@@ -493,4 +493,141 @@ describe('Product Research Phase 2B — Candidate Enrichment Acceptance (Cases 1
     expect(val.valid).toBe(true);
     expect(val.violations).toHaveLength(0);
   });
+
+  it('Case 19: KEYWORD/MARKET evidence from other candidates is not attached or handed off', async () => {
+    const foreignKeyword: EvidenceItem = {
+      id: 'evi-kw-other-candidate',
+      scope: 'KEYWORD',
+      subjectId: 'kw-amazon_us-electric-toothbrush-stand',
+      source: 'xydc',
+      content: 'Keyword metric for electric toothbrush stand',
+      capturedAt: '2026-09-15T00:00:00Z',
+    };
+    const foreignMarket: EvidenceItem = {
+      id: 'evi-mkt-other-candidate',
+      scope: 'MARKET',
+      subjectId: 'draft-amazon_us-bathroom-organizer',
+      source: 'xydc',
+      content: 'Market overview for bathroom organizer',
+      capturedAt: '2026-09-15T00:00:00Z',
+    };
+    const service = new CandidateEnrichmentService(
+      detailExecutor({ B0BFGNSXYL: 9.99 }, { failAsins: ['B08LIVE02', 'B08LIVE03', 'B08LIVE04', 'B08LIVE05'] }),
+    );
+    const run = await service.enrich({
+      draft: baseDraft({ representativeAsins: ['B0BFGNSXYL'] }),
+      marketplace: 'AMAZON_US',
+      extraEvidence: [seedEvidence, foreignKeyword, foreignMarket],
+      options: { maxCompetitors: 1, enableTextVoc: false, enableReviewHealth: false, enableProductTrend: false },
+    });
+    expect(run.enriched.evidenceIds).toContain('evi-kw-seed');
+    expect(run.enriched.evidenceIds).not.toContain('evi-kw-other-candidate');
+    expect(run.enriched.evidenceIds).not.toContain('evi-mkt-other-candidate');
+
+    const candidate = EnrichedCandidateHandoffService.toProductCandidate(
+      run.enriched,
+      [...run.evidence, foreignKeyword, foreignMarket],
+    );
+    expect(candidate.evidence.some((e) => e.id === 'evi-kw-other-candidate')).toBe(false);
+    expect(candidate.evidence.some((e) => e.id === 'evi-mkt-other-candidate')).toBe(false);
+    expect(candidate.evidence.some((e) => e.id === 'evi-kw-seed')).toBe(true);
+  });
+
+  it('Case 20: PRODUCT_PLUS_CATEGORY VOC scope is preserved and not upgraded to PRODUCT', async () => {
+    const voc: VocProductAnalysisResult = {
+      asin: 'B0BFGNSXYL',
+      marketplace: 'AMAZON_US',
+      vocSourceType: 'EXTERNAL_VOC',
+      analysisScope: { type: 'PRODUCT_PLUS_CATEGORY', totalAnalyzedItems: 22 } as any,
+      totalReviewCount: null,
+      analyzedReviewCount: 22,
+      averageRating: null,
+      painPoints: [
+        {
+          topic: 'drainage',
+          frequency: 11,
+          sampleSize: 22,
+          scope: 'PRODUCT_PLUS_CATEGORY',
+          quotes: [{ quoteText: 'water sits at the bottom' }],
+        },
+      ],
+      praisePoints: [],
+      buyerMotivations: [],
+      summary: 'External public discussions',
+      evidenceNotice: 'EXTERNAL_VOC',
+    };
+    const service = new CandidateEnrichmentService(
+      detailExecutor({ B0BFGNSXYL: 9.99 }, { voc, failAsins: ['B08LIVE02', 'B08LIVE03', 'B08LIVE04', 'B08LIVE05'] }),
+    );
+    const run = await service.enrich({
+      draft: baseDraft({ representativeAsins: ['B0BFGNSXYL'] }),
+      marketplace: 'AMAZON_US',
+      extraEvidence: [seedEvidence],
+      options: { maxCompetitors: 1, enableReviewHealth: false, enableProductTrend: false, enableTextVoc: true },
+    });
+    const drainage = run.enriched.voc.painPoints.find((p) => p.label.toLowerCase().includes('drainage'));
+    expect(drainage).toBeDefined();
+    expect(drainage?.scope).toBe('PRODUCT_PLUS_CATEGORY');
+    expect(drainage?.scope).not.toBe('PRODUCT');
+    const vocEvidence = run.evidence.filter((e) => drainage!.evidenceIds.includes(e.id));
+    expect(vocEvidence.some((e) => e.scope === 'PRODUCT')).toBe(false);
+  });
+
+  it('Case 21: manual economics provenance is not auto-upgraded to FACT', async () => {
+    const service = new CandidateEnrichmentService(
+      detailExecutor({ B0BFGNSXYL: 9.99 }, { failAsins: ['B08LIVE02', 'B08LIVE03', 'B08LIVE04', 'B08LIVE05'] }),
+    );
+    const run = await service.enrich({
+      draft: baseDraft({ representativeAsins: ['B0BFGNSXYL'] }),
+      marketplace: 'AMAZON_US',
+      extraEvidence: [seedEvidence],
+      options: { maxCompetitors: 1, enableTextVoc: false, enableReviewHealth: false, enableProductTrend: false },
+      manualInputs: { productCost: { value: 8, source: 'ESTIMATE', basis: 'user estimate' } },
+    });
+    const candidate = EnrichedCandidateHandoffService.toProductCandidate(
+      run.enriched,
+      run.evidence,
+      run.request.manualInputs,
+    );
+    expect(candidate.economics.inputs.productCost.value).toBe(8);
+    expect(candidate.economics.inputs.productCost.source).toBe('ESTIMATE');
+    expect(candidate.economics.inputs.productCost.source).not.toBe('FACT');
+  });
+
+  it('Case 22: generated evidence capturedAt is realtime, not a frozen fixture timestamp', async () => {
+    const before = Date.now();
+    const service = new CandidateEnrichmentService(
+      detailExecutor({ B0BFGNSXYL: 9.99 }, { failAsins: ['B08LIVE02', 'B08LIVE03', 'B08LIVE04', 'B08LIVE05'] }),
+    );
+    const run = await service.enrich({
+      draft: baseDraft({ representativeAsins: ['B0BFGNSXYL'] }),
+      marketplace: 'AMAZON_US',
+      extraEvidence: [seedEvidence],
+      options: { maxCompetitors: 1, enableTextVoc: false, enableReviewHealth: false, enableProductTrend: false },
+    });
+    const generated = run.evidence.filter((e) => e.id.startsWith('evi-comp-'));
+    expect(generated.length).toBeGreaterThan(0);
+    for (const evi of generated) {
+      expect(evi.capturedAt).not.toBe('2026-09-15T00:00:00Z');
+      const ts = Date.parse(evi.capturedAt || '');
+      expect(Number.isFinite(ts)).toBe(true);
+      expect(ts).toBeGreaterThanOrEqual(before - 1000);
+    }
+  });
+
+  it('Case 23: sampleSize=1 does not claim MAINSTREAM positioning', async () => {
+    const service = new CandidateEnrichmentService(
+      detailExecutor({ B0BFGNSXYL: 9.99 }, { failAsins: ['B08LIVE02', 'B08LIVE03', 'B08LIVE04', 'B08LIVE05'] }),
+    );
+    const run = await service.enrich({
+      draft: baseDraft({ representativeAsins: ['B0BFGNSXYL'] }),
+      marketplace: 'AMAZON_US',
+      extraEvidence: [seedEvidence],
+      options: { maxCompetitors: 1, enableTextVoc: false, enableReviewHealth: false, enableProductTrend: false },
+    });
+    expect(run.enriched.pricePositioning.sampleSize).toBe(1);
+    expect(run.enriched.pricePositioning.positioning).toBe('UNKNOWN');
+    expect(run.enriched.pricePositioning.suggestedTargetPrice?.source).toBe('ESTIMATE');
+    expect(run.enriched.pricePositioning.suggestedTargetPrice?.value).toBe(9.99);
+  });
 });

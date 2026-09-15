@@ -26,23 +26,10 @@ export class EnrichedCandidateHandoffService {
     const attached: EvidenceItem[] = [];
     const seen = new Set<string>();
     for (const evi of allEvidence) {
-      if (!enriched.evidenceIds.includes(evi.id) && evi.scope === 'PRODUCT') {
-        continue;
-      }
-      if (seen.has(evi.id)) continue;
-      if (evi.scope === 'PRODUCT') {
-        if (!allowedProductSubjects.has((evi.subjectId || '').trim())) continue;
-      }
-      if (evi.scope === 'CATEGORY') continue;
-      if (!enriched.evidenceIds.includes(evi.id) && evi.scope !== 'KEYWORD' && evi.scope !== 'MARKET') {
-        continue;
-      }
-      if (!enriched.evidenceIds.includes(evi.id) && (evi.scope === 'KEYWORD' || evi.scope === 'MARKET')) {
-        attached.push(evi);
-        seen.add(evi.id);
-        continue;
-      }
       if (!enriched.evidenceIds.includes(evi.id)) continue;
+      if (seen.has(evi.id)) continue;
+      if (evi.scope === 'PRODUCT' && !allowedProductSubjects.has((evi.subjectId || '').trim())) continue;
+      if (evi.scope === 'CATEGORY') continue;
       seen.add(evi.id);
       attached.push(evi);
     }

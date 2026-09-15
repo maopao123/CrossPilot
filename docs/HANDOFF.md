@@ -1,6 +1,13 @@
 # CrossPilot 交接
 
-> **2026-09-15 · Product Research Phase 2B Candidate Enrichment（V2.2.0-FROZEN）**：
+> **2026-09-15 · Product Research Phase 2B Truthfulness Closure（V2.2.0-FROZEN）**：
+> - P0：KEYWORD/MARKET 按 Draft evidenceIds/keyword 收口；Handoff 不再挂载不在 `enriched.evidenceIds` 的证据。
+> - P0：VOC `PRODUCT_PLUS_CATEGORY` 不再升级为 `PRODUCT`。
+> - P0：手工成本默认 ESTIMATE，由用户显式选择 FACT/ESTIMATE/ASSUMPTION。
+> - P1：`capturedAt` 改为实时；`sampleSize=1` 时 positioning=UNKNOWN，建议价仍为 ESTIMATE。
+> - Cases 1–23 PASS。未改 Competitor/Gate/Differentiation/V2 核心。
+>
+> **2026-09-15 · Product Research Phase 2B Candidate Enrichment（V2.2.0-RC → 现已 FROZEN）**：
 > - Draft → Competitor Enrichment → VOC → Price Positioning → Concept / Differentiation → Enrichment Gate → V2 Adapter。
 > - Live：`Toothbrush Holder` / ASIN `B0BFGNSXYL`，actualSampleSize=1，price $9.99 FACT，VOC EXTERNAL_VOC n=22 且无伪造痛点，Gate READY_FOR_HANDOFF，V2 = NEEDS_VALIDATION。
 > - Cases 1–18 PASS；未改 V2.0/V2.1 Frozen 核心。

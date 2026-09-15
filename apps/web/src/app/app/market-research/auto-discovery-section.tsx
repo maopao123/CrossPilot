@@ -64,6 +64,7 @@ export function AutoDiscoverySection({ onHandoffToV2 }: AutoDiscoverySectionProp
   const [enrichingDraftId, setEnrichingDraftId] = useState<string | null>(null);
   const [enrichRun, setEnrichRun] = useState<CandidateEnrichmentRun | null>(null);
   const [manualCost, setManualCost] = useState('');
+  const [manualCostSource, setManualCostSource] = useState<'FACT' | 'ESTIMATE' | 'ASSUMPTION'>('ESTIMATE');
   const [manualPrice, setManualPrice] = useState('');
 
   async function handleRunDiscovery(isDemo = false) {
@@ -145,7 +146,11 @@ export function AutoDiscoverySection({ onHandoffToV2 }: AutoDiscoverySectionProp
     try {
       const manualInputs: Record<string, { value: number; source: 'FACT' | 'ESTIMATE' | 'ASSUMPTION'; basis: string }> = {};
       if (manualCost.trim()) {
-        manualInputs.productCost = { value: Number(manualCost), source: 'FACT', basis: 'user input' };
+        manualInputs.productCost = {
+          value: Number(manualCost),
+          source: manualCostSource,
+          basis: `user ${manualCostSource.toLowerCase()} input`,
+        };
       }
       if (manualPrice.trim()) {
         manualInputs.targetSellingPrice = { value: Number(manualPrice), source: 'ESTIMATE', basis: 'user input' };
@@ -652,11 +657,20 @@ export function AutoDiscoverySection({ onHandoffToV2 }: AutoDiscoverySectionProp
               </div>
               <div className="flex items-center gap-2">
                 <input
-                  placeholder="手工产品成本 FACT"
+                  placeholder="手工产品成本"
                   value={manualCost}
                   onChange={(e) => setManualCost(e.target.value)}
-                  className="bg-background border border-border text-xs rounded px-2 py-1 w-40"
+                  className="bg-background border border-border text-xs rounded px-2 py-1 w-32"
                 />
+                <select
+                  value={manualCostSource}
+                  onChange={(e) => setManualCostSource(e.target.value as 'FACT' | 'ESTIMATE' | 'ASSUMPTION')}
+                  className="bg-background border border-border text-xs rounded px-2 py-1"
+                >
+                  <option value="ESTIMATE">ESTIMATE</option>
+                  <option value="ASSUMPTION">ASSUMPTION</option>
+                  <option value="FACT">FACT</option>
+                </select>
                 <input
                   placeholder="手工目标售价 ESTIMATE"
                   value={manualPrice}

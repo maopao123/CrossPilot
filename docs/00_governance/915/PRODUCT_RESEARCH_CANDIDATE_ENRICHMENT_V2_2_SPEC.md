@@ -2,9 +2,10 @@
 
 > **版本**：V2.2.0-FROZEN  
 > **阶段**：Phase 2B — Candidate Enrichment  
-> **状态**：VERIFIED & FROZEN  
+> **状态**：VERIFIED & FROZEN（Truthfulness Closure）  
 > **前置基线**：Product Research V2.0.0-FROZEN + Auto Discovery V2.1.0-FROZEN  
-> **本地冻结基线**：`580ceff` → 本次 Phase 2B Provider/Domain Closure
+> **实现 Commit**：`2853942`  
+> **Truthfulness Closure**：本轮修复 Cross-Candidate KEYWORD/MARKET 过滤、VOC Scope 保真、手工成本来源选择器、realtime capturedAt、n=1 positioning=UNKNOWN
 
 ## 1. 核心目标
 

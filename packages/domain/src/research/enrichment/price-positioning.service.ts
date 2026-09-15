@@ -31,10 +31,11 @@ export class PricePositioningService {
     const min = prices[0];
     const max = prices[prices.length - 1];
     const median = this.median(prices);
-    const positioning = this.positioningOf(min, median, max);
+    const sampleSize = observed.length;
+    const positioning = sampleSize < 2 ? 'UNKNOWN' : this.positioningOf(min, median, max);
 
     return {
-      sampleSize: observed.length,
+      sampleSize,
       observedPrices: observed,
       min,
       median,
@@ -42,7 +43,10 @@ export class PricePositioningService {
       suggestedTargetPrice: {
         value: median,
         source: 'ESTIMATE',
-        basis: `median of ${observed.length} observed competitor FACT prices`,
+        basis:
+          sampleSize < 2
+            ? `single observed competitor FACT price; sample too small for market positioning`
+            : `median of ${sampleSize} observed competitor FACT prices`,
       },
       positioning,
       evidenceIds: observed.map((o) => o.evidenceId),

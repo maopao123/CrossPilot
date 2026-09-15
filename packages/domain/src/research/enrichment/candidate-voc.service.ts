@@ -1,9 +1,10 @@
 import type {
   CandidateVocSummary,
   EvidenceItem,
+  EvidenceScope,
   VocProductAnalysisResult,
   VocTheme,
-  EvidenceScope,
+  VocThemeScope,
 } from '@crosspilot/shared';
 
 function slug(label: string): string {
@@ -15,9 +16,20 @@ function percentageOf(count?: number | null, denominator?: number | null): numbe
   return Math.round((count / denominator) * 100);
 }
 
-function asScope(raw: unknown): EvidenceScope {
-  if (raw === 'PRODUCT' || raw === 'KEYWORD' || raw === 'CATEGORY' || raw === 'MARKET') return raw;
-  return 'PRODUCT';
+const EVIDENCE_SCOPES: EvidenceScope[] = ['PRODUCT', 'KEYWORD', 'CATEGORY', 'MARKET'];
+
+function preserveVocScope(raw: unknown): VocThemeScope {
+  if (typeof raw !== 'string' || !raw.trim()) return 'UNKNOWN';
+  return raw.trim() as VocThemeScope;
+}
+
+function toEvidenceScope(vocScope: VocThemeScope): EvidenceScope {
+  if ((EVIDENCE_SCOPES as string[]).includes(vocScope)) return vocScope as EvidenceScope;
+  return 'CATEGORY';
+}
+
+function isProductFactScope(scope: VocThemeScope): boolean {
+  return scope === 'PRODUCT' || scope === 'EXACT_PRODUCT';
 }
 
 export class CandidateVocService {
@@ -72,21 +84,23 @@ export class CandidateVocService {
       items.forEach((item, index) => {
         const label = (item?.topic || item?.useCase || item?.feature || item?.question || item?.label || '').toString().trim();
         if (!label) return;
-        const scope = asScope(item?.scope);
-        if (scope === 'CATEGORY') return;
+        const scope = preserveVocScope(item?.scope);
+        if (scope === 'CATEGORY' || scope === 'GENERIC') return;
         const subjectIds = (item?.subjectIds || [data.asin]).filter((id: string) => params.allowedSubjectIds.has(id) || id === data.asin);
         const observationCount = item?.frequency ?? item?.observationCount ?? null;
         const denominator = item?.sampleSize ?? item?.denominator ?? null;
         const eviId = `evi-voc-${kind}-${slug(label)}-${index}`;
         const quote = item?.quotes?.[0]?.quoteText || item?.quotes?.[0] || '';
+        const evidenceScope = isProductFactScope(scope) ? 'PRODUCT' : toEvidenceScope(scope);
         params.evidenceSink.push({
           id: eviId,
-          scope,
+          scope: evidenceScope,
           subjectId: subjectIds[0] || data.asin,
           source: params.providerId || 'UNKNOWN',
-          content: `VOC ${kind}: ${label}${quote ? ` | quote: ${quote}` : ''} | n=${observationCount ?? 'UNKNOWN'}/${denominator ?? 'UNKNOWN'}`,
+          content: `VOC ${kind}: ${label}${quote ? ` | quote: ${quote}` : ''} | n=${observationCount ?? 'UNKNOWN'}/${denominator ?? 'UNKNOWN'} | vocScope=${scope}`,
           sourceUrl: item?.quotes?.[0]?.url,
-          capturedAt: '2026-09-15T00:00:00Z',
+          capturedAt: new Date().toISOString(),
+          metadata: { vocScope: scope },
         });
         themes.push({
           id: `voc-${kind}-${slug(label)}`,

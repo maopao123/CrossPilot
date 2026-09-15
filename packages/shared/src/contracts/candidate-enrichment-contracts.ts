@@ -4,7 +4,13 @@
  */
 
 import type { CandidateDraft } from './product-discovery-contracts.js';
-import type { EvidenceItem, EvidenceScope, ProvenanceValue } from './research-contracts.js';
+import type {
+  EvidenceItem,
+  EvidenceScope,
+  ProvenanceValue,
+  VocAnalysisScopeType,
+  VocItemScope,
+} from './research-contracts.js';
 
 export const DEFAULT_ENRICHMENT_BUDGET = {
   maxProviderCalls: 20,
@@ -59,13 +65,15 @@ export interface CompetitorSnapshot {
 
 
 
+export type VocThemeScope = EvidenceScope | VocAnalysisScopeType | VocItemScope | 'UNKNOWN';
+
 export interface VocTheme {
   id: string;
   label: string;
   observationCount?: number | null;
   denominator?: number | null;
   percentage?: number | null;
-  scope: EvidenceScope;
+  scope: VocThemeScope;
   subjectIds: string[];
   evidenceIds: string[];
   confidence?: number;
