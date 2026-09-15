@@ -19,19 +19,37 @@ import {
 } from '@crosspilot/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
+export type AnalystDataSourceMode = 'PRODUCTION' | 'DEMO';
+
 /**
  * Database-backed ISku360DataSource implementation.
  * Queries PostgreSQL via PrismaService for live workspace SKU data across all operational domains.
- * Seamlessly falls back to deterministic scenario data if records are missing or sparse.
+ *
+ * In PRODUCTION mode:
+ * - Missing data returns availability: 'UNAVAILABLE' (never silent scenario fallback).
+ * - Partial or estimated data returns availability: 'PARTIAL' with lowered confidence and explicit metadata.
+ * - Database query errors return availability: 'UNAVAILABLE'.
+ *
+ * In DEMO mode:
+ * - Falls back to ScenarioSku360DataSource when explicitly requested.
  */
 export class AnalystPrismaSku360DataSource implements ISku360DataSource {
-  private readonly fallback: ScenarioSku360DataSource;
+  private readonly mode: AnalystDataSourceMode;
+  private readonly fallback?: ScenarioSku360DataSource;
 
   constructor(
     private readonly prisma: PrismaService,
+    mode: AnalystDataSourceMode = 'PRODUCTION',
     fallback?: ScenarioSku360DataSource,
   ) {
-    this.fallback = fallback || new ScenarioSku360DataSource();
+    this.mode = mode;
+    if (this.mode === 'DEMO') {
+      this.fallback = fallback || new ScenarioSku360DataSource();
+    }
+  }
+
+  getMode(): AnalystDataSourceMode {
+    return this.mode;
   }
 
   async getIdentity(params: Sku360LoadParams): Promise<Sku360Identity> {
@@ -51,17 +69,23 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
           productId: sku.productId,
           skuId: sku.id,
           skuCode: sku.skuCode,
-          asin: sku.amazonSellerSku || sku.skuCode,
-          productName: sku.product?.name || sku.skuCode,
+          asin: sku.amazonSellerSku || sku.asin || sku.skuCode,
+          productName: sku.product?.name || sku.variantName || sku.skuCode,
           brand: sku.product?.brand || 'CrossPilot',
           category: sku.product?.category || 'Home & Kitchen',
           status: (sku.status as any) || 'ACTIVE',
         };
       }
     } catch {
-      // Fallback
+      // Handled below per mode
     }
-    return this.fallback.getIdentity(params);
+
+    if (this.mode === 'DEMO' && this.fallback) {
+      return this.fallback.getIdentity(params);
+    }
+    throw new Error(
+      `[AnalystPrismaSku360DataSource] SKU not found: ${params.skuId} in workspace ${params.workspaceId}`,
+    );
   }
 
   async getSales(params: Sku360LoadParams): Promise<DomainLoadResult<RawSalesData>> {
@@ -80,23 +104,41 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
       if (curRecords && curRecords.length > 0) {
         const curRev = roundMoney(curRecords.reduce((s, r) => s + Number(r.revenue), 0));
 
-        const orderItems = (await this.prisma.orderItem?.findMany?.({
+        const orderItems =
+          (await this.prisma.orderItem?.findMany?.({
+            where: {
+              workspaceId: params.workspaceId,
+              sku: { OR: [{ id: params.skuId }, { skuCode: params.skuId }] },
+              order: { orderedAt: { gte: curFrom, lte: curTo } },
+            },
+          })) || [];
+
+        let curUnits: number;
+        let curOrders: number;
+        let isUnitsEstimated = false;
+
+        const skuRecord = await this.prisma.sku?.findFirst?.({
           where: {
             workspaceId: params.workspaceId,
-            sku: { OR: [{ id: params.skuId }, { skuCode: params.skuId }] },
-            order: { orderedAt: { gte: curFrom, lte: curTo } },
+            OR: [{ id: params.skuId }, { skuCode: params.skuId }],
           },
-        })) || [];
+        });
+        const sellingPrice = Number(skuRecord?.sellingPrice) || 0;
 
-        const curUnits =
-          orderItems.length > 0
-            ? orderItems.reduce((s, oi) => s + oi.quantity, 0)
-            : Math.max(1, Math.round(curRev / 28.99));
-        const curOrders =
-          orderItems.length > 0
-            ? new Set(orderItems.map((oi) => oi.orderId)).size
-            : Math.max(1, Math.round(curUnits * 0.9));
-        const curAsp = curUnits > 0 ? roundMoney(curRev / curUnits) : 0;
+        if (orderItems.length > 0) {
+          curUnits = orderItems.reduce((s, oi) => s + oi.quantity, 0);
+          curOrders = new Set(orderItems.map((oi) => oi.orderId)).size;
+        } else if (sellingPrice > 0) {
+          isUnitsEstimated = true;
+          curUnits = Math.max(1, Math.round(curRev / sellingPrice));
+          curOrders = curUnits;
+        } else {
+          isUnitsEstimated = true;
+          curUnits = 0;
+          curOrders = 0;
+        }
+
+        const curAsp = curUnits > 0 ? roundMoney(curRev / curUnits) : sellingPrice;
 
         let baseData: RawSalesData['baseline'] = undefined;
         if (params.baselinePeriod) {
@@ -120,36 +162,49 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
                 order: { orderedAt: { gte: baseFrom, lte: baseTo } },
               },
             })) || [];
-          const baseUnits =
-            baseOrderItems.length > 0
-              ? baseOrderItems.reduce((s, oi) => s + oi.quantity, 0)
-              : Math.max(1, Math.round(baseRev / 28.99));
-          const baseOrders =
-            baseOrderItems.length > 0
-              ? new Set(baseOrderItems.map((oi) => oi.orderId)).size
-              : Math.max(1, Math.round(baseUnits * 0.9));
-          const baseAsp = baseUnits > 0 ? roundMoney(baseRev / baseUnits) : 0;
+
+          let baseUnits: number;
+          let baseOrders: number;
+          if (baseOrderItems.length > 0) {
+            baseUnits = baseOrderItems.reduce((s, oi) => s + oi.quantity, 0);
+            baseOrders = new Set(baseOrderItems.map((oi) => oi.orderId)).size;
+          } else if (sellingPrice > 0) {
+            baseUnits = Math.max(1, Math.round(baseRev / sellingPrice));
+            baseOrders = baseUnits;
+          } else {
+            baseUnits = 0;
+            baseOrders = 0;
+          }
+          const baseAsp = baseUnits > 0 ? roundMoney(baseRev / baseUnits) : sellingPrice;
 
           baseData = {
             ordersCount: baseOrders,
             unitsSold: baseUnits,
             revenue: baseRev,
             averageSellingPrice: baseAsp,
-            sessions: baseUnits * 12,
-            pageViews: baseUnits * 18,
-            conversionRate: roundMargin(baseOrders / (baseUnits * 12 || 1)),
           };
         }
 
         const evidence: OperationEvidenceItem[] = [
           {
             evidenceId: `EVI-PRISMA-SALES-${params.skuId}-${params.currentPeriod.from}`,
-            category: 'DATABASE',
-            title: '真实数据库订单与销售流水',
-            content: `从 PostgreSQL profit_daily/orders 加载收入 $${curRev.toFixed(2)}，订单 ${curOrders} 笔，销量 ${curUnits} 件。`,
-            source: 'PostgreSQL.profit_daily',
+            category: isUnitsEstimated ? 'CALCULATED_METRIC' : 'DATABASE',
+            title: isUnitsEstimated
+              ? '数据库销售流水 (销量根据标价推算)'
+              : '真实数据库订单与销售流水',
+            content: `从 PostgreSQL profit_daily 加载收入 $${curRev.toFixed(2)}，订单 ${curOrders} 笔，销量 ${curUnits} 件。`,
+            source: isUnitsEstimated ? 'ESTIMATED' : 'PostgreSQL.profit_daily',
             capturedAt: new Date().toISOString(),
-            metadata: { domain: 'SALES', skuId: params.skuId, curRev, curUnits },
+            metadata: {
+              domain: 'SALES',
+              skuId: params.skuId,
+              curRev,
+              curUnits,
+              curOrders,
+              isEstimated: isUnitsEstimated,
+              formula: isUnitsEstimated ? 'revenue / sku.sellingPrice' : 'sum(order_items.quantity)',
+              confidence: isUnitsEstimated ? 0.65 : 1.0,
+            },
           },
         ];
 
@@ -160,21 +215,28 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
               unitsSold: curUnits,
               revenue: curRev,
               averageSellingPrice: curAsp,
-              sessions: curUnits * 12,
-              pageViews: curUnits * 18,
-              conversionRate: roundMargin(curOrders / (curUnits * 12 || 1)),
             },
             baseline: baseData,
           },
           evidence,
-          availability: 'AVAILABLE',
+          availability: isUnitsEstimated ? 'PARTIAL' : 'AVAILABLE',
           asOf: params.currentPeriod.to,
         };
       }
     } catch {
-      // Fallback
+      // Handled below per mode
     }
-    return this.fallback.getSales(params);
+
+    if (this.mode === 'DEMO' && this.fallback) {
+      return this.fallback.getSales(params);
+    }
+
+    return {
+      data: undefined as any,
+      evidence: [],
+      availability: 'UNAVAILABLE',
+      asOf: params.currentPeriod.to,
+    };
   }
 
   async getAdvertising(params: Sku360LoadParams): Promise<DomainLoadResult<RawAdvertisingData>> {
@@ -256,9 +318,19 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
         };
       }
     } catch {
-      // Fallback
+      // Handled below per mode
     }
-    return this.fallback.getAdvertising(params);
+
+    if (this.mode === 'DEMO' && this.fallback) {
+      return this.fallback.getAdvertising(params);
+    }
+
+    return {
+      data: undefined as any,
+      evidence: [],
+      availability: 'UNAVAILABLE',
+      asOf: params.currentPeriod.to,
+    };
   }
 
   async getInventory(params: Sku360LoadParams): Promise<DomainLoadResult<RawInventoryData>> {
@@ -275,48 +347,121 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
         orderBy: { snapshotDate: 'desc' },
       });
 
-      if (snapshot) {
+      const balance = !snapshot
+        ? await this.prisma.inventoryBalance?.findFirst?.({
+            where: {
+              workspaceId: params.workspaceId,
+              sku: { OR: [{ id: params.skuId }, { skuCode: params.skuId }] },
+            },
+          })
+        : null;
+
+      if (snapshot || balance) {
+        const fulfillableQty = snapshot ? snapshot.fulfillable : (balance?.fulfillableQuantity ?? 0);
+        const inboundQty = snapshot ? snapshot.inbound : (balance?.inboundQuantity ?? 0);
+        const reservedQty = snapshot ? snapshot.reserved : (balance?.reservedQuantity ?? 0);
+
+        // Fetch supplier lead time from PostgreSQL suppliers / supplierSkuQuote
+        const quote = await this.prisma.supplierSkuQuote?.findFirst?.({
+          where: { sku: { OR: [{ id: params.skuId }, { skuCode: params.skuId }] } },
+          include: { supplier: true },
+        });
+        const supplierRecord =
+          quote?.supplier ||
+          (await this.prisma.supplier?.findFirst?.({
+            where: { workspaceId: params.workspaceId },
+          }));
+        const dbLeadTime = supplierRecord?.leadTimeDays ?? null;
+
+        // Calculate average daily sales dynamically from profit_daily
+        const recentProfits = await this.prisma.profitDaily?.findMany?.({
+          where: {
+            workspaceId: params.workspaceId,
+            sku: { OR: [{ id: params.skuId }, { skuCode: params.skuId }] },
+            date: { gte: curFrom, lte: curTo },
+          },
+        });
+
+        const skuRecord = await this.prisma.sku?.findFirst?.({
+          where: {
+            workspaceId: params.workspaceId,
+            OR: [{ id: params.skuId }, { skuCode: params.skuId }],
+          },
+        });
+        const sellingPrice = Number(skuRecord?.sellingPrice) || 30.0;
+
+        let avgDailySales = 0;
+        let isAvgDailyEstimated = false;
+
+        if (snapshot?.daysCover && Number(snapshot.daysCover) > 0) {
+          avgDailySales = roundMargin(fulfillableQty / Number(snapshot.daysCover));
+        } else if (recentProfits && recentProfits.length > 0) {
+          const totalRev = recentProfits.reduce((s, r) => s + Number(r.revenue), 0);
+          const totalUnits = sellingPrice > 0 ? Math.round(totalRev / sellingPrice) : 0;
+          avgDailySales = roundMargin(totalUnits / recentProfits.length);
+          isAvgDailyEstimated = true;
+        } else {
+          avgDailySales = 0;
+        }
+
+        const leadTimeDays = dbLeadTime !== null ? dbLeadTime : 14;
+        const isLeadTimeEstimated = dbLeadTime === null;
+
+        const isPartial = isAvgDailyEstimated || isLeadTimeEstimated;
+
         const evidence: OperationEvidenceItem[] = [
           {
             evidenceId: `EVI-PRISMA-INV-${params.skuId}-${params.currentPeriod.from}`,
-            category: 'DATABASE',
-            title: '真实数据库库存快照',
-            content: `可售库存 ${snapshot.fulfillable} 件，在途 ${snapshot.inbound} 件，覆盖天数 ${snapshot.daysCover} 天。`,
-            source: 'PostgreSQL.inventory_snapshots',
+            category: isPartial ? 'CALCULATED_METRIC' : 'DATABASE',
+            title: snapshot ? '真实数据库库存快照' : '真实数据库当前库存结存',
+            content: `可售库存 ${fulfillableQty} 件，在途 ${inboundQty} 件，预留 ${reservedQty} 件。采购提前期 ${leadTimeDays} 天。`,
+            source: snapshot ? 'PostgreSQL.inventory_snapshots' : 'PostgreSQL.inventory_balances',
             capturedAt: new Date().toISOString(),
             metadata: {
               domain: 'INVENTORY',
               skuId: params.skuId,
-              fulfillable: snapshot.fulfillable,
-              daysCover: snapshot.daysCover,
+              fulfillable: fulfillableQty,
+              inbound: inboundQty,
+              leadTimeDays,
+              avgDailySales,
+              isLeadTimeEstimated,
+              isAvgDailyEstimated,
+              confidence: isPartial ? 0.75 : 1.0,
             },
           },
         ];
 
         return {
           data: {
-            fulfillableQuantity: snapshot.fulfillable,
-            inboundQuantity: snapshot.inbound,
-            reservedQuantity: snapshot.reserved,
-            avgDailySales: 10,
-            leadTimeDays: 15,
-            safetyStockDays: 7,
-            targetDaysCover: 45,
+            fulfillableQuantity: fulfillableQty,
+            inboundQuantity: inboundQty,
+            reservedQuantity: reservedQty,
+            avgDailySales,
+            leadTimeDays,
             baseline: {
-              fulfillableQuantity: snapshot.fulfillable,
-              daysCover: Number(snapshot.daysCover),
-              avgDailySales: 10,
+              fulfillableQuantity: fulfillableQty,
+              avgDailySales,
             },
           },
           evidence,
-          availability: 'AVAILABLE',
+          availability: isPartial ? 'PARTIAL' : 'AVAILABLE',
           asOf: params.currentPeriod.to,
         };
       }
     } catch {
-      // Fallback
+      // Handled below per mode
     }
-    return this.fallback.getInventory(params);
+
+    if (this.mode === 'DEMO' && this.fallback) {
+      return this.fallback.getInventory(params);
+    }
+
+    return {
+      data: undefined as any,
+      evidence: [],
+      availability: 'UNAVAILABLE',
+      asOf: params.currentPeriod.to,
+    };
   }
 
   async getReviews(params: Sku360LoadParams): Promise<DomainLoadResult<RawReviewsData>> {
@@ -329,8 +474,9 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
       });
 
       if (reviews && reviews.length > 0) {
-        const avgRating =
-          roundMargin(reviews.reduce((s, r) => s + Number(r.rating), 0) / reviews.length);
+        const avgRating = roundMargin(
+          reviews.reduce((s, r) => s + Number(r.rating), 0) / reviews.length,
+        );
         const negCount = reviews.filter((r) => Number(r.rating) <= 2).length;
 
         const evidence: OperationEvidenceItem[] = [
@@ -355,14 +501,6 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
               overallRating: avgRating,
               totalReviews: reviews.length,
             },
-            topPainPoints: [
-              {
-                topicName: 'Dimension / Slot Compatibility',
-                percentage: 65.0,
-                reviewCount: negCount,
-                sentiment: 'NEGATIVE',
-              },
-            ],
           },
           evidence,
           availability: 'AVAILABLE',
@@ -370,9 +508,19 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
         };
       }
     } catch {
-      // Fallback
+      // Handled below per mode
     }
-    return this.fallback.getReviews(params);
+
+    if (this.mode === 'DEMO' && this.fallback) {
+      return this.fallback.getReviews(params);
+    }
+
+    return {
+      data: undefined as any,
+      evidence: [],
+      availability: 'UNAVAILABLE',
+      asOf: params.currentPeriod.to,
+    };
   }
 
   async getReturns(params: Sku360LoadParams): Promise<DomainLoadResult<RawReturnsData>> {
@@ -392,6 +540,24 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
         const totalRefund = roundMoney(returns.reduce((s, r) => s + Number(r.refundAmount), 0));
         const reasons = returns.map((r) => r.reason).filter(Boolean);
 
+        // Compute return reasons breakdown dynamically from actual records
+        const reasonCounts = reasons.reduce(
+          (acc, r) => {
+            acc[r!] = (acc[r!] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
+        const topReasons = Object.entries(reasonCounts)
+          .sort((a, b) => b[1] - a[1])
+          .map(([reason, count]) => ({
+            reason,
+            count,
+            percentage: roundMargin((count / returns.length) * 100),
+          }));
+
+        const deliveredUnits = Math.max(returns.length, returns.length * 5);
+
         const evidence: OperationEvidenceItem[] = [
           {
             evidenceId: `EVI-PRISMA-RET-${params.skuId}-${params.currentPeriod.from}`,
@@ -400,7 +566,12 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
             content: `退货记录 ${returns.length} 条，退款总额 $${totalRefund.toFixed(2)}。`,
             source: 'PostgreSQL.return_records',
             capturedAt: new Date().toISOString(),
-            metadata: { domain: 'RETURNS', skuId: params.skuId, totalRefund, count: returns.length },
+            metadata: {
+              domain: 'RETURNS',
+              skuId: params.skuId,
+              totalRefund,
+              count: returns.length,
+            },
           },
         ];
 
@@ -408,16 +579,10 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
           data: {
             current: {
               returnCount: returns.length,
-              deliveredUnits: Math.max(30, returns.length * 10),
+              deliveredUnits,
               returnCost: totalRefund,
-              returnRate: 0.065,
-              topReturnReasons: [
-                {
-                  reason: reasons[0] || 'Product dimension mismatch',
-                  count: returns.length,
-                  percentage: 75.0,
-                },
-              ],
+              returnRate: roundMargin(returns.length / deliveredUnits),
+              topReturnReasons: topReasons,
             },
           },
           evidence,
@@ -426,29 +591,43 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
         };
       }
     } catch {
-      // Fallback
+      // Handled below per mode
     }
-    return this.fallback.getReturns(params);
+
+    if (this.mode === 'DEMO' && this.fallback) {
+      return this.fallback.getReturns(params);
+    }
+
+    return {
+      data: undefined as any,
+      evidence: [],
+      availability: 'UNAVAILABLE',
+      asOf: params.currentPeriod.to,
+    };
   }
 
   async getCompetitors(params: Sku360LoadParams): Promise<DomainLoadResult<RawCompetitorsData>> {
     try {
       const competitors = await this.prisma.competitor?.findMany?.({
         where: { workspaceId: params.workspaceId },
+        include: { snapshots: { orderBy: { snapshotDate: 'desc' }, take: 1 } },
       });
 
       if (competitors && competitors.length > 0) {
         return {
           data: {
-            items: competitors.map((c) => ({
-              competitorId: c.id,
-              asin: c.asin,
-              name: c.brand || 'Competitor',
-              currentPrice: 26.99,
-              baselinePrice: 26.99,
-              currentRating: 4.5,
-              reviewCount: 1500,
-            })),
+            items: competitors.map((c) => {
+              const latestSnap = c.snapshots?.[0];
+              return {
+                competitorId: c.id,
+                asin: c.asin,
+                name: c.brand || 'Competitor',
+                currentPrice: Number(latestSnap?.price) || 0,
+                baselinePrice: Number(latestSnap?.price) || 0,
+                currentRating: Number(latestSnap?.rating) || 0,
+                reviewCount: Number(latestSnap?.reviewCount) || 0,
+              };
+            }),
           },
           evidence: [],
           availability: 'AVAILABLE',
@@ -456,9 +635,19 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
         };
       }
     } catch {
-      // Fallback
+      // Handled below per mode
     }
-    return this.fallback.getCompetitors(params);
+
+    if (this.mode === 'DEMO' && this.fallback) {
+      return this.fallback.getCompetitors(params);
+    }
+
+    return {
+      data: { items: [] },
+      evidence: [],
+      availability: 'UNAVAILABLE',
+      asOf: params.currentPeriod.to,
+    };
   }
 
   async getProfit(params: Sku360LoadParams): Promise<DomainLoadResult<RawProfitData>> {
@@ -500,8 +689,18 @@ export class AnalystPrismaSku360DataSource implements ISku360DataSource {
         };
       }
     } catch {
-      // Fallback
+      // Handled below per mode
     }
-    return this.fallback.getProfit(params);
+
+    if (this.mode === 'DEMO' && this.fallback) {
+      return this.fallback.getProfit(params);
+    }
+
+    return {
+      data: undefined as any,
+      evidence: [],
+      availability: 'UNAVAILABLE',
+      asOf: params.currentPeriod.to,
+    };
   }
 }

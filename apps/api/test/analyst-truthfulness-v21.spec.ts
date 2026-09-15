@@ -1,5 +1,6 @@
 import { AnalystService } from '../src/modules/analyst/analyst.service';
 import { AnalystTraceEmitter } from '../src/modules/analyst/analyst-trace.emitter';
+import { AnalystPrismaSku360DataSource } from '../src/modules/analyst/analyst-sku360-data-source';
 
 describe('Analyst Truthfulness V2.1 Test Suite', () => {
   let service: AnalystService;
@@ -510,5 +511,293 @@ describe('Analyst Truthfulness V2.1 Test Suite', () => {
         }
       }
     }
+  });
+
+  // 14. [Adversarial A] Ads: attributionValue = -980, independent fact = -700 -> ADVERTISING = FAIL -> Gate BLOCK
+  it('14. [Adversarial A] should mark ADVERTISING as FAIL and BLOCK gate when Ads attribution contradicts independent fact', async () => {
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: {
+        findings: [
+          { findingType: 'ADVERTISING', impactAmount: -700.0 }, // Independent fact is -700
+          { findingType: 'RETURNS', impactAmount: 0.0 },
+          { findingType: 'INVENTORY', impactAmount: 0.0 },
+          { findingType: 'PRICING', impactAmount: 0.0 },
+          { findingType: 'OTHER', impactAmount: 0.0 },
+        ],
+      },
+    });
+
+    // Ledger has adsCost delta = 980 -> adsImpact = -980
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 1000, adsCost: 0 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 20, adsCost: 980 / 7 })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+
+    const res = await service.askAnalyst('Test ads conflict', 'ws-test');
+    const check = (res.reconciliation?.checks || res.reconciliationError?.checks)?.find(
+      (c: any) => c.domain === 'ADVERTISING',
+    );
+
+    expect(check).toBeDefined();
+    expect(check.status).toBe('FAIL');
+    expect(check.attributionValue).toBe(-980);
+    expect(check.domainFactCalculatedValue).toBe(-700);
+    expect(check.difference).toBe(280);
+    expect(res.status).toBe('RECONCILIATION_FAILED');
+    expect(res.actionPlan).toEqual([]);
+  });
+
+  // 15. [Adversarial B] Inventory: attributionValue = -510, independent fact = -300 -> INVENTORY = FAIL -> Gate BLOCK
+  it('15. [Adversarial B] should mark INVENTORY as FAIL and BLOCK gate when Inventory attribution contradicts independent fact', async () => {
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: {
+        findings: [
+          { findingType: 'ADVERTISING', impactAmount: 0.0 },
+          { findingType: 'RETURNS', impactAmount: 0.0 },
+          { findingType: 'INVENTORY', impactAmount: -300.0 }, // Independent fact is -300
+          { findingType: 'PRICING', impactAmount: 0.0 },
+          { findingType: 'OTHER', impactAmount: 0.0 },
+        ],
+      },
+    });
+
+    // Ledger has otherCosts delta = 315 + stockout snapshots (4 * 48.75 = 195) -> invImpact = -510
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 1000, otherCosts: 0 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 490, otherCosts: 315 / 7 })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+    mockPrisma.inventorySnapshot.findMany.mockResolvedValue([
+      { fulfillable: 0 },
+      { fulfillable: 0 },
+      { fulfillable: 0 },
+      { fulfillable: 0 },
+    ]);
+
+    const res = await service.askAnalyst('Test inventory conflict', 'ws-test');
+    const check = (res.reconciliation?.checks || res.reconciliationError?.checks)?.find(
+      (c: any) => c.domain === 'INVENTORY',
+    );
+
+    expect(check).toBeDefined();
+    expect(check.status).toBe('FAIL');
+    expect(check.attributionValue).toBe(-510);
+    expect(check.domainFactCalculatedValue).toBe(-300);
+    expect(check.difference).toBe(210);
+    expect(res.status).toBe('RECONCILIATION_FAILED');
+    expect(res.actionPlan).toEqual([]);
+  });
+
+  // 16. [Adversarial C] Price: attributionValue = -310, promotional discount fact = -150 -> PRICE = FAIL -> Gate BLOCK
+  it('16. [Adversarial C] should mark PRICE as FAIL when promotional discount fact is -150 vs attribution -310', async () => {
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: {
+        findings: [
+          // Finding impactAmount is -310 (so attribution derives -310), but promo discount fact in evidence is 150
+          { findingType: 'PRICING', impactAmount: -310.0, evidenceJson: JSON.stringify({ promotionalDiscount: 150.0 }) },
+        ],
+      },
+    });
+
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 1000 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 690 })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+
+    const res = await service.askAnalyst('Test price conflict', 'ws-test');
+    const check = (res.reconciliation?.checks || res.reconciliationError?.checks)?.find(
+      (c: any) => c.domain === 'PRICE',
+    );
+
+    expect(check).toBeDefined();
+    expect(check.status).toBe('FAIL');
+    expect(check.attributionValue).toBe(-310);
+    expect(check.domainFactCalculatedValue).toBe(-150);
+    expect(check.difference).toBe(160);
+    expect(res.status).toBe('RECONCILIATION_FAILED');
+    expect(res.actionPlan).toEqual([]);
+  });
+
+  // 17. [Adversarial D] Cost: attributionValue = +140, independent fact = +60 -> COST = FAIL -> Gate BLOCK
+  it('17. [Adversarial D] should mark COST as FAIL and BLOCK gate when Cost attribution contradicts independent fact', async () => {
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: {
+        findings: [
+          // Finding impact is 140 (so attribution derives 140), but supplier rebate fact is 40 + 20 = 60
+          { findingType: 'COST', impactAmount: 140.0, evidenceJson: JSON.stringify({ supplierRebate: 40.0, packagingSaving: 20.0 }) },
+        ],
+      },
+    });
+
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 1000 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 1140 })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+
+    const res = await service.askAnalyst('Test cost conflict', 'ws-test');
+    const check = (res.reconciliation?.checks || res.reconciliationError?.checks)?.find(
+      (c: any) => c.domain === 'COST',
+    );
+
+    expect(check).toBeDefined();
+    expect(check.status).toBe('FAIL');
+    expect(check.attributionValue).toBe(140);
+    expect(check.domainFactCalculatedValue).toBe(60);
+    expect(check.difference).toBe(80);
+    expect(res.status).toBe('RECONCILIATION_FAILED');
+    expect(res.actionPlan).toEqual([]);
+  });
+
+  // 18. [Adversarial E] Missing Independent Evidence: Price Attribution != 0, but no Price Finding -> EVIDENCE_MISSING
+  it('18. [Adversarial E] should mark check as EVIDENCE_MISSING and BLOCK gate when attribution is non-zero but fact is missing', async () => {
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: {
+        findings: [
+          // Advertising finding exists, but NO PRICING finding
+          { findingType: 'ADVERTISING', impactAmount: -100.0 },
+        ],
+      },
+    });
+
+    const records = [
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-0${i + 1}`), netProfit: 1000, adsCost: 0 })),
+      ...Array(7).fill(null).map((_, i) => ({ date: new Date(`2026-03-${i + 8 < 10 ? '0' + (i + 8) : i + 8}`), netProfit: 900, adsCost: 100 / 7 })),
+    ];
+    mockPrisma.profitDaily.findMany.mockResolvedValue(records);
+
+    // Let's test that if Inventory finding is missing while otherCosts delta != 0:
+    // Here otherCosts is 0, so invImpact = 0 -> PASS.
+    // But what if Ads finding is missing while adsCost delta != 0?
+    // Let's omit ADVERTISING finding completely:
+    mockPrisma.analysisWaterfall.findFirst.mockResolvedValue({
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-14'),
+      session: { findings: [] }, // NO findings at all!
+    });
+
+    const res = await service.askAnalyst('Test missing evidence', 'ws-test');
+    const adsCheck = (res.reconciliation?.checks || res.reconciliationError?.checks)?.find(
+      (c: any) => c.domain === 'ADVERTISING',
+    );
+
+    expect(adsCheck).toBeDefined();
+    expect(adsCheck.status).toBe('EVIDENCE_MISSING');
+    expect(adsCheck.attributionValue).toBe(-100);
+    expect(adsCheck.domainFactCalculatedValue).toBe(0);
+    expect(res.status).toBe('RECONCILIATION_FAILED');
+    expect(res.actionPlan).toEqual([]);
+  });
+
+  // 19. [Adversarial F] Production DataSource: Missing data must return UNAVAILABLE and never scenario fallback
+  it('19. [Adversarial F] should return UNAVAILABLE in PRODUCTION mode when data is missing and never fallback to Scenario', async () => {
+    const emptyPrisma: any = {
+      sku: { findFirst: jest.fn().mockResolvedValue(null) },
+      profitDaily: { findMany: jest.fn().mockResolvedValue([]) },
+      searchTermMetricDaily: { findMany: jest.fn().mockResolvedValue([]) },
+      adMetricDaily: { findMany: jest.fn().mockResolvedValue([]) },
+      inventorySnapshot: { findFirst: jest.fn().mockResolvedValue(null) },
+      inventoryBalance: { findFirst: jest.fn().mockResolvedValue(null) },
+      review: { findMany: jest.fn().mockResolvedValue([]) },
+      returnRecord: { findMany: jest.fn().mockResolvedValue([]) },
+      competitor: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+
+    const prodDs = new AnalystPrismaSku360DataSource(emptyPrisma, 'PRODUCTION');
+    expect(prodDs.getMode()).toBe('PRODUCTION');
+
+    const params = {
+      workspaceId: 'ws-empty',
+      skuId: 'SKU-EMPTY',
+      currentPeriod: { from: '2026-03-08', to: '2026-03-14' },
+    };
+
+    // getIdentity must throw error in PRODUCTION
+    await expect(prodDs.getIdentity(params)).rejects.toThrow('SKU not found');
+
+    // getSales must return UNAVAILABLE
+    const sales = await prodDs.getSales(params);
+    expect(sales.availability).toBe('UNAVAILABLE');
+
+    // getAdvertising must return UNAVAILABLE
+    const ads = await prodDs.getAdvertising(params);
+    expect(ads.availability).toBe('UNAVAILABLE');
+
+    // getInventory must return UNAVAILABLE
+    const inv = await prodDs.getInventory(params);
+    expect(inv.availability).toBe('UNAVAILABLE');
+
+    // getReviews must return UNAVAILABLE
+    const rev = await prodDs.getReviews(params);
+    expect(rev.availability).toBe('UNAVAILABLE');
+
+    // getReturns must return UNAVAILABLE
+    const ret = await prodDs.getReturns(params);
+    expect(ret.availability).toBe('UNAVAILABLE');
+
+    // getCompetitors must return UNAVAILABLE
+    const comp = await prodDs.getCompetitors(params);
+    expect(comp.availability).toBe('UNAVAILABLE');
+
+    // getProfit must return UNAVAILABLE
+    const profit = await prodDs.getProfit(params);
+    expect(profit.availability).toBe('UNAVAILABLE');
+  });
+
+  // 20. [Adversarial G] Demo Mode: Allows Scenario fallback when explicitly enabled
+  it('20. [Adversarial G] should allow Scenario fallback ONLY in DEMO mode', async () => {
+    const emptyPrisma: any = {
+      sku: { findFirst: jest.fn().mockResolvedValue(null) },
+      profitDaily: { findMany: jest.fn().mockResolvedValue([]) },
+      searchTermMetricDaily: { findMany: jest.fn().mockResolvedValue([]) },
+      inventorySnapshot: { findFirst: jest.fn().mockResolvedValue(null) },
+      inventoryBalance: { findFirst: jest.fn().mockResolvedValue(null) },
+      review: { findMany: jest.fn().mockResolvedValue([]) },
+      returnRecord: { findMany: jest.fn().mockResolvedValue([]) },
+      competitor: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+
+    const demoDs = new AnalystPrismaSku360DataSource(emptyPrisma, 'DEMO');
+    expect(demoDs.getMode()).toBe('DEMO');
+
+    const sampleDates = (demoDs as any).fallback.scenarioData.skuMetrics.map((m: any) => m.date);
+    const fromDate = sampleDates[14];
+    const toDate = sampleDates[20];
+    const baseFromDate = sampleDates[0];
+    const baseToDate = sampleDates[6];
+
+    const params = {
+      workspaceId: 'ws-demo',
+      skuId: 'MTH-WHITE-001',
+      currentPeriod: { from: fromDate, to: toDate },
+      baselinePeriod: { from: baseFromDate, to: baseToDate },
+    };
+
+    // getIdentity succeeds from Scenario fallback
+    const identity = await demoDs.getIdentity(params);
+    expect(identity).toBeDefined();
+    expect(identity.skuCode).toBe('MTH-WHITE-001');
+
+    // getSales succeeds from Scenario fallback
+    const sales = await demoDs.getSales(params);
+    expect(sales.availability).toBe('AVAILABLE');
+    expect(sales.data.current.revenue).toBeGreaterThan(0);
+
+    // getInventory succeeds from Scenario fallback
+    const inv = await demoDs.getInventory(params);
+    expect(inv.availability).toBe('AVAILABLE');
+    expect(inv.data.fulfillableQuantity).toBeGreaterThan(0);
   });
 });
