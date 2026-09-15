@@ -38,8 +38,9 @@ import {
   Award,
   AlertCircle,
 } from 'lucide-react';
-import type { ProductOpportunity as DomainProductOpportunity } from '@crosspilot/shared';
+import type { ProductOpportunity as DomainProductOpportunity, ProductCandidate } from '@crosspilot/shared';
 import { CandidateComparisonSection } from './candidate-comparison-section';
+import { AutoDiscoverySection } from './auto-discovery-section';
 
 
 interface ResearchEvidenceItem {
@@ -302,6 +303,7 @@ export default function MarketResearchPage() {
   const [keywordInput, setKeywordInput] = useState('toothbrush holder');
   const [marketplaceInput, setMarketplaceInput] = useState('AMAZON_US');
   const [showEvidence, setShowEvidence] = useState(false);
+  const [handoffCandidates, setHandoffCandidates] = useState<ProductCandidate[] | undefined>(undefined);
 
   // Phase 4: On-demand Product Trend Modal state
   const [trendModalAsin, setTrendModalAsin] = useState<string | null>(null);
@@ -1364,8 +1366,11 @@ export default function MarketResearchPage() {
         </div>
       )}
 
+      {/* Product Research Phase 2A: Auto Discovery MVP */}
+      <AutoDiscoverySection onHandoffToV2={setHandoffCandidates} />
+
       {/* Product Research V2 MVP: Candidate Decision & Comparison Matrix */}
-      <CandidateComparisonSection />
+      <CandidateComparisonSection externalCandidates={handoffCandidates} />
 
       {/* Market Overview Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

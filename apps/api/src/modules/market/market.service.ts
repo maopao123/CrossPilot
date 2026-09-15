@@ -6,6 +6,9 @@ import {
   CandidateDecisionEngine,
   CandidateEconomicsService,
   OpportunityScoreEngine,
+  ProductDiscoveryService,
+  CandidateHandoffService,
+  CapabilityExecutor,
 } from '@crosspilot/domain';
 import {
   CandidateComparisonResult,
@@ -19,6 +22,13 @@ import {
   ResearchEvidence,
   TrendSummary,
   VocProductAnalysisResult,
+  ProductDiscoveryRequest,
+  ProductDiscoveryRun,
+  DiscoveryDryRunPreview,
+  CandidateDraft,
+  EvidenceItem,
+  KeywordNode,
+  AsinNode,
 } from '@crosspilot/shared';
 
 @Injectable()
@@ -904,6 +914,196 @@ export class MarketService {
       candidates: evaluatedCandidates,
       comparison,
     };
+  }
+
+  /**
+   * Product Research Phase 2A — Auto Discovery MVP
+   */
+  async runDiscovery(request: ProductDiscoveryRequest): Promise<ProductDiscoveryRun> {
+    const isDemo =
+      !request.seed?.keyword ||
+      request.seed.keyword.toLowerCase().includes('demo') ||
+      request.seed.keyword.toLowerCase().includes('glass food storage');
+
+    if (isDemo) {
+      return this.getDemoDiscovery();
+    }
+
+    try {
+      const gateway = IntegrationGateway.getInstance();
+      const executor: CapabilityExecutor = {
+        execute: async <TInput, TOutput>(capabilityId: string, input: TInput, marketplace: string) => {
+          const result = await gateway.executeCapability<TInput, TOutput>(capabilityId, input, {
+            workspaceId: 'default-workspace',
+            traceId: `req-disc-${Date.now()}`,
+            marketplace,
+            source: 'AUTO_DISCOVERY',
+          });
+          return {
+            success: result.success,
+            data: result.data,
+            providerId: result.providerId,
+            costCredits: result.credits,
+            error: result.error,
+          };
+        },
+        hasCapability: (capId: string) => true,
+      };
+
+      const discoveryService = new ProductDiscoveryService(executor);
+      return await discoveryService.runDiscovery(request);
+    } catch (e) {
+      // Degraded fallback if gateway not initialized in test environment
+      const discoveryService = new ProductDiscoveryService();
+      return await discoveryService.runDiscovery(request);
+    }
+  }
+
+  previewDiscovery(request: ProductDiscoveryRequest): DiscoveryDryRunPreview {
+    const discoveryService = new ProductDiscoveryService();
+    return discoveryService.previewDiscovery(request);
+  }
+
+  async getDemoDiscovery(): Promise<ProductDiscoveryRun> {
+    const demoKeywords: Partial<KeywordNode>[] = [
+      {
+        id: 'kw-amazon_us-glass-food-storage',
+        rawKeyword: 'glass food storage',
+        origin: 'SEED',
+        representativeAsins: ['B08FRUIT01', 'B09MEAL01'],
+        evidenceIds: ['evi-kw-seed-demo'],
+        metrics: {
+          searchVolume: { value: 32500, source: 'DEMO', evidenceId: 'evi-kw-seed-demo' },
+          abaRank: { value: 420, source: 'DEMO', evidenceId: 'evi-kw-seed-demo' },
+          cpc: { value: 1.25, source: 'DEMO', evidenceId: 'evi-kw-seed-demo' },
+          growth: { value: null, source: 'UNKNOWN' },
+        },
+      },
+      {
+        id: 'kw-amazon_us-glass-berry-keeper',
+        rawKeyword: 'glass berry keeper',
+        origin: 'KEYWORD_EXPANSION',
+        representativeAsins: ['B08FRUIT01', 'B08FRUIT02', 'B08FRUIT03'],
+        evidenceIds: ['evi-kw-berry-demo'],
+        metrics: {
+          searchVolume: { value: 8400, source: 'DEMO', evidenceId: 'evi-kw-berry-demo' },
+          abaRank: { value: 1850, source: 'DEMO', evidenceId: 'evi-kw-berry-demo' },
+          cpc: { value: 0.95, source: 'DEMO', evidenceId: 'evi-kw-berry-demo' },
+          growth: { value: null, source: 'UNKNOWN' },
+        },
+      },
+      {
+        id: 'kw-amazon_us-glass-meal-prep-container',
+        rawKeyword: 'glass meal prep container',
+        origin: 'KEYWORD_EXPANSION',
+        representativeAsins: ['B09MEAL01', 'B09MEAL02'],
+        evidenceIds: ['evi-kw-meal-demo'],
+        metrics: {
+          searchVolume: { value: 24000, source: 'DEMO', evidenceId: 'evi-kw-meal-demo' },
+          abaRank: { value: 610, source: 'DEMO', evidenceId: 'evi-kw-meal-demo' },
+          cpc: { value: 1.4, source: 'DEMO', evidenceId: 'evi-kw-meal-demo' },
+          growth: { value: null, source: 'UNKNOWN' },
+        },
+      },
+      {
+        id: 'kw-amazon_us-glass-flour-and-sugar-container',
+        rawKeyword: 'glass flour and sugar container',
+        origin: 'KEYWORD_EXPANSION',
+        representativeAsins: ['B07PANTRY01', 'B07PANTRY02'],
+        evidenceIds: ['evi-kw-pantry-demo'],
+        metrics: {
+          searchVolume: { value: 11200, source: 'DEMO', evidenceId: 'evi-kw-pantry-demo' },
+          abaRank: { value: 1240, source: 'DEMO', evidenceId: 'evi-kw-pantry-demo' },
+          cpc: { value: 1.1, source: 'DEMO', evidenceId: 'evi-kw-pantry-demo' },
+          growth: { value: null, source: 'UNKNOWN' },
+        },
+      },
+      {
+        id: 'kw-amazon_us-glass-baking-dish-with-lid',
+        rawKeyword: 'glass baking dish with lid',
+        origin: 'KEYWORD_EXPANSION',
+        representativeAsins: ['B06BAKE01', 'B06BAKE02'],
+        evidenceIds: ['evi-kw-baking-demo'],
+        metrics: {
+          searchVolume: { value: 9800, source: 'DEMO', evidenceId: 'evi-kw-baking-demo' },
+          abaRank: { value: 1420, source: 'DEMO', evidenceId: 'evi-kw-baking-demo' },
+          cpc: { value: 1.05, source: 'DEMO', evidenceId: 'evi-kw-baking-demo' },
+          growth: { value: null, source: 'UNKNOWN' },
+        },
+      },
+      {
+        id: 'kw-amazon_us-glass-baby-food-storage-jars',
+        rawKeyword: 'glass baby food storage jars',
+        origin: 'KEYWORD_EXPANSION',
+        representativeAsins: ['B05BABY01', 'B05BABY02'],
+        evidenceIds: ['evi-kw-baby-demo'],
+        metrics: {
+          searchVolume: { value: 7600, source: 'DEMO', evidenceId: 'evi-kw-baby-demo' },
+          abaRank: { value: 1980, source: 'DEMO', evidenceId: 'evi-kw-baby-demo' },
+          cpc: { value: 0.85, source: 'DEMO', evidenceId: 'evi-kw-baby-demo' },
+          growth: { value: null, source: 'UNKNOWN' },
+        },
+      },
+    ];
+
+    const demoAsins: Partial<AsinNode>[] = [
+      { asin: 'B08FRUIT01', evidenceIds: ['evi-asin-b08fruit01-demo'], sourceKeywords: ['glass food storage', 'glass berry keeper'] },
+      { asin: 'B08FRUIT02', evidenceIds: ['evi-asin-b08fruit02-demo'], sourceKeywords: ['glass berry keeper'] },
+      { asin: 'B08FRUIT03', evidenceIds: ['evi-asin-b08fruit03-demo'], sourceKeywords: ['glass berry keeper'] },
+      { asin: 'B09MEAL01', evidenceIds: ['evi-asin-b09meal01-demo'], sourceKeywords: ['glass food storage', 'glass meal prep container'] },
+      { asin: 'B09MEAL02', evidenceIds: ['evi-asin-b09meal02-demo'], sourceKeywords: ['glass meal prep container'] },
+      { asin: 'B07PANTRY01', evidenceIds: ['evi-asin-b07pantry01-demo'], sourceKeywords: ['glass flour and sugar container'] },
+      { asin: 'B07PANTRY02', evidenceIds: ['evi-asin-b07pantry02-demo'], sourceKeywords: ['glass flour and sugar container'] },
+      { asin: 'B06BAKE01', evidenceIds: ['evi-asin-b06bake01-demo'], sourceKeywords: ['glass baking dish with lid'] },
+      { asin: 'B06BAKE02', evidenceIds: ['evi-asin-b06bake02-demo'], sourceKeywords: ['glass baking dish with lid'] },
+      { asin: 'B05BABY01', evidenceIds: ['evi-asin-b05baby01-demo'], sourceKeywords: ['glass baby food storage jars'] },
+      { asin: 'B05BABY02', evidenceIds: ['evi-asin-b05baby02-demo'], sourceKeywords: ['glass baby food storage jars'] },
+    ];
+
+    const demoEvidence: EvidenceItem[] = [
+      { id: 'evi-kw-seed-demo', scope: 'KEYWORD', subjectId: 'kw-amazon_us-glass-food-storage', source: 'DEMO_FIXTURE', content: 'Demo fixture search volume 32,500', confidence: 0.95 },
+      { id: 'evi-kw-berry-demo', scope: 'KEYWORD', subjectId: 'kw-amazon_us-glass-berry-keeper', source: 'DEMO_FIXTURE', content: 'Demo fixture search volume 8,400', confidence: 0.95 },
+      { id: 'evi-kw-meal-demo', scope: 'KEYWORD', subjectId: 'kw-amazon_us-glass-meal-prep-container', source: 'DEMO_FIXTURE', content: 'Demo fixture search volume 24,000', confidence: 0.95 },
+      { id: 'evi-kw-pantry-demo', scope: 'KEYWORD', subjectId: 'kw-amazon_us-glass-flour-and-sugar-container', source: 'DEMO_FIXTURE', content: 'Demo fixture search volume 11,200', confidence: 0.95 },
+      { id: 'evi-kw-baking-demo', scope: 'KEYWORD', subjectId: 'kw-amazon_us-glass-baking-dish-with-lid', source: 'DEMO_FIXTURE', content: 'Demo fixture search volume 9,800', confidence: 0.95 },
+      { id: 'evi-kw-baby-demo', scope: 'KEYWORD', subjectId: 'kw-amazon_us-glass-baby-food-storage-jars', source: 'DEMO_FIXTURE', content: 'Demo fixture search volume 7,600', confidence: 0.95 },
+      { id: 'evi-asin-b08fruit01-demo', scope: 'PRODUCT', subjectId: 'B08FRUIT01', source: 'DEMO_FIXTURE', content: 'Demo fixture fruit keeper ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b08fruit02-demo', scope: 'PRODUCT', subjectId: 'B08FRUIT02', source: 'DEMO_FIXTURE', content: 'Demo fixture berry keeper ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b08fruit03-demo', scope: 'PRODUCT', subjectId: 'B08FRUIT03', source: 'DEMO_FIXTURE', content: 'Demo fixture fruit saver ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b09meal01-demo', scope: 'PRODUCT', subjectId: 'B09MEAL01', source: 'DEMO_FIXTURE', content: 'Demo fixture meal prep ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b09meal02-demo', scope: 'PRODUCT', subjectId: 'B09MEAL02', source: 'DEMO_FIXTURE', content: 'Demo fixture bento ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b07pantry01-demo', scope: 'PRODUCT', subjectId: 'B07PANTRY01', source: 'DEMO_FIXTURE', content: 'Demo fixture pantry canister ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b07pantry02-demo', scope: 'PRODUCT', subjectId: 'B07PANTRY02', source: 'DEMO_FIXTURE', content: 'Demo fixture storage canister ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b06bake01-demo', scope: 'PRODUCT', subjectId: 'B06BAKE01', source: 'DEMO_FIXTURE', content: 'Demo fixture baking dish ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b06bake02-demo', scope: 'PRODUCT', subjectId: 'B06BAKE02', source: 'DEMO_FIXTURE', content: 'Demo fixture lasagna pan ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b05baby01-demo', scope: 'PRODUCT', subjectId: 'B05BABY01', source: 'DEMO_FIXTURE', content: 'Demo fixture baby food jar ASIN', confidence: 0.9 },
+      { id: 'evi-asin-b05baby02-demo', scope: 'PRODUCT', subjectId: 'B05BABY02', source: 'DEMO_FIXTURE', content: 'Demo fixture freezer pot ASIN', confidence: 0.9 },
+    ];
+
+    const discoveryService = new ProductDiscoveryService();
+    return await discoveryService.runDiscovery(
+      {
+        marketplace: 'AMAZON_US',
+        seed: { keyword: 'glass food storage (demo)' },
+      },
+      {
+        keywords: demoKeywords,
+        asins: demoAsins,
+        evidence: demoEvidence,
+      },
+    );
+  }
+
+  handoffDiscovery(drafts: CandidateDraft[]): ProductCandidate[] {
+    const candidates = CandidateHandoffService.handoffToV2(drafts);
+    return candidates.map((c) => {
+      const detail = CandidateDecisionEngine.evaluate(c);
+      return {
+        ...c,
+        decision: detail.verdict,
+        decisionDetail: detail,
+      };
+    });
   }
 }
 

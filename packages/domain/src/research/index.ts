@@ -7,3 +7,4 @@ export * from './candidate-economics.service.js';
 export * from './candidate-risk-gate.js';
 export * from './candidate-decision.engine.js';
 export * from './candidate-comparison.engine.js';
+export * from './discovery/index.js';

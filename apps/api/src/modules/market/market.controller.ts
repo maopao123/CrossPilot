@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { MarketService } from './market.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
-import type { ProductCandidate } from '@crosspilot/shared';
+import type { ProductCandidate, ProductDiscoveryRequest, CandidateDraft } from '@crosspilot/shared';
 
 @Controller()
 export class MarketController {
@@ -154,5 +154,25 @@ export class MarketController {
   @Post('market-research/candidates/compare')
   compareCandidates(@Body() body: { candidates: ProductCandidate[] }) {
     return this.marketService.compareCandidates(body.candidates || []);
+  }
+
+  @Post('market-research/discovery/run')
+  runDiscovery(@Body() request: ProductDiscoveryRequest) {
+    return this.marketService.runDiscovery(request);
+  }
+
+  @Post('market-research/discovery/preview')
+  previewDiscovery(@Body() request: ProductDiscoveryRequest) {
+    return this.marketService.previewDiscovery(request);
+  }
+
+  @Get('market-research/discovery/demo')
+  getDemoDiscovery() {
+    return this.marketService.getDemoDiscovery();
+  }
+
+  @Post('market-research/discovery/handoff')
+  handoffDiscovery(@Body() body: { drafts: CandidateDraft[] }) {
+    return this.marketService.handoffDiscovery(body.drafts || []);
   }
 }

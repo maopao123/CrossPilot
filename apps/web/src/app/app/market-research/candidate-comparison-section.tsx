@@ -36,9 +36,10 @@ import { ApiClient } from '../../../lib/api-client';
 
 interface CandidateComparisonSectionProps {
   onCandidateSelect?: (candidate: ProductCandidate) => void;
+  externalCandidates?: ProductCandidate[];
 }
 
-export function CandidateComparisonSection({ onCandidateSelect }: CandidateComparisonSectionProps) {
+export function CandidateComparisonSection({ onCandidateSelect, externalCandidates }: CandidateComparisonSectionProps) {
   const [candidates, setCandidates] = useState<ProductCandidate[]>([]);
   const [comparison, setComparison] = useState<CandidateComparisonResult | null>(null);
   const [defaultsMeta, setDefaultsMeta] = useState<CandidateDefaultsResponse | null>(null);
@@ -74,8 +75,25 @@ export function CandidateComparisonSection({ onCandidateSelect }: CandidateCompa
   }
 
   useEffect(() => {
-    loadDefaultCandidates();
-  }, []);
+    if (externalCandidates && externalCandidates.length > 0) {
+      setCandidates(externalCandidates);
+      ApiClient.post<{ candidates: ProductCandidate[]; comparison: CandidateComparisonResult }>(
+        '/api/v1/market-research/candidates/compare',
+        { candidates: externalCandidates },
+      )
+        .then((res) => {
+          if (res && res.comparison) {
+            setComparison(res.comparison);
+            if (res.candidates.length >= 2) {
+              setSelectedPairKey(`${res.candidates[0].id}_vs_${res.candidates[1].id}`);
+            }
+          }
+        })
+        .catch((e) => setError(e?.message));
+    } else {
+      loadDefaultCandidates();
+    }
+  }, [externalCandidates]);
 
   const toggleCostExpansion = (id: string) => {
     setExpandedCosts((prev) => ({ ...prev, [id]: !prev[id] }));

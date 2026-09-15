@@ -20,3 +20,4 @@ export * from './contracts/automation-contracts.js';
 export * from './contracts/erp-contracts.js';
 export * from './contracts/evidence-contracts.js';
 export * from './contracts/approval-contracts.js';
+export * from './contracts/product-discovery-contracts.js';

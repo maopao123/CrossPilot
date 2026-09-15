@@ -1,6 +1,34 @@
 # CrossPilot 交接
 
-> **2026-09-15 · Product Research V2 MVP 冻结前硬化与正式冻结（Product Research V2 MVP Hardened & Frozen）**：
+> **2026-09-15 · Product Research Phase 2A — Auto Discovery MVP 正式实现与冻结（V2.1.0-FROZEN）**：
+> - **全链路探索图与数据契约（Auto Discovery Contracts & Graph Model）**：
+>   - 在 `@crosspilot/shared` 导出 `ProductDiscoveryRequest`, `ProductDiscoveryRun`, `KeywordNode`, `AsinNode`, `KeywordAsinEdge`, `KeywordCluster`, `CandidateDraft`, `DiscoveryReason`, `DiscoveryGateStatus`, `CandidateDedupResult`, `DiscoveryBudgetState`, `DiscoveryDryRunPreview` 等完整核心模型；
+>   - 零第二套真理，严密复用现存 `EvidenceItem`, `ValueSource`, `ProvenanceValue`；
+> - **确定性关键词归一化与意图分流（KeywordNormalizer & Intent Distinction）**：
+>   - 纯确定性 NFKC、大小写与空白折叠、常见商品复数安全单数化，杜绝 LLM 自由捏造覆盖原始搜索词；
+>   - 精确识别主产品、配件（`ACCESSORY`）、耗材与替换件（`REPLACEMENT`），并对纯品牌导航词（`pure brand navigation`）与品类词依赖（`brand-dependent`）建立精准分流。
+> - **预算防护与图扩展（KeywordExpansionService & Budget Guards）**：
+>   - 建立有限深度探索（Round 0 Seed, Round 1 ASIN 反查, Round 2 高价值拓展词），支持 `maxProviderCalls` 熔断降级；
+>   - 严格落实真实性红线：缺失时间序列时 `growth = UNKNOWN`，严禁编造默认 0%；竞品 ASIN 如实反映真实样本量（`asinSampleSize: 3`），严禁虚假包装为 Top10 全景。
+> - **意图聚类与严格证据门禁（KeywordClusterer & DiscoveryGate）**：
+>   - 结合词项相似度（Token Jaccard）与竞品 ASIN 重合度（Shared ASIN Overlap），并互斥隔离不兼容细分意图（如 Fruit Keeper vs Meal Prep），防止通配词贪婪聚类；
+>   - 门禁硬拦截：严格防范跨主体凭证串供（Cross-evidence contamination），无凭证、纯品牌导航、从属配件等依规拦截，无时间序列自动标记 `DEGRADED_PASS`。
+> - **规范去重与 V2 决策流水线无损交接（CandidateDeduplicator & CandidateHandoffService）**：
+>   - 跨候选去重合并，聚合支撑词与竞品证据；
+>   - 生成稳定候选 ID（`draft-${marketplace}-${slug}`）与可追溯 `DiscoveryReason[]`（每项必含 `metricIds` 与 `evidenceIds`）；
+>   - 选定 3～5 个候选草案无损转换进入 V2 Frozen 流水线：成本与关键财务输入真实标记 `UNKNOWN`，专利与合规标记 `UNVERIFIED`，V2 决策引擎如实判定为 `NEEDS_VALIDATION`，坚决不篡改 V2 Frozen 核心语义，杜绝虚假 SHORTLIST。
+> - **API 端点与前端交互矩阵（API Endpoints & Next.js UI）**：
+>   - 后端控制器新增 `POST /api/v1/market-research/discovery/run`, `POST /api/v1/market-research/discovery/preview`, `GET /api/v1/market-research/discovery/demo`, `POST /api/v1/market-research/discovery/handoff`；
+>   - 前端新增 `auto-discovery-section.tsx`，嵌入选品主工作台：支持站点与种子词配置、品牌/配件过滤、开销预估、探索进度与遥测看板、候选草案卡片、因果追溯抽屉（Why Discovered）、一键交接至 V2 对比矩阵。
+> - **质量门禁与验收测试（16/16 验收测试全部 PASS，全库零回归）**：
+>   - `packages/domain/test/product-discovery-acceptance.spec.ts` 16 大验收案例全部通过（16/16 PASS）；
+>   - `@crosspilot/domain` 39/39 test suites 全部通过（386/386 tests PASS）；
+>   - `@crosspilot/api` discovery endpoints 验收通过；
+>   - `@crosspilot/web` 40/40 tests 全部通过；
+>   - 全仓库 `pnpm -r typecheck` 10/10 packages 全部通过（0 errors）；
+>   - 前端生产构建 `pnpm --filter @crosspilot/web build` 24/24 static & dynamic pages 全部生成成功；
+>   - 规范文件 `docs/30_modules/product-research/PRODUCT_RESEARCH_AUTO_DISCOVERY_MVP_SPEC.md` 正式标记为 `V2.1.0-FROZEN`。
+>
 > - **数值分级与数据来源真理化（Data Provenance & Demo Tagging）**：
 >   - 数据源 `ValueSource` 正式扩展并规范 `'DEMO'`（`'FACT' | 'ESTIMATE' | 'ASSUMPTION' | 'UNKNOWN' | 'DEMO'`）；
 >   - API 内建默认演示数据（`market.service.ts`）严格剔除虚假 `FACT` 与 `SUPPLIER_OFFICIAL_QUOTE`，全面标记为 `DEMO` / `DEMO_FIXTURE`，接口增加透明包裹层 `mode: 'DEMO', dataSource: 'BUILT_IN_FIXTURE', isRealData: false`；
