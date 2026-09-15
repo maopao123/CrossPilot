@@ -29,6 +29,7 @@ import type {
   CandidateDraft,
   DiscoveryDryRunPreview,
   ProductCandidate,
+  CandidateEnrichmentRun,
 } from '@crosspilot/shared';
 import { ApiClient } from '../../../lib/api-client';
 
@@ -60,6 +61,10 @@ export function AutoDiscoverySection({ onHandoffToV2 }: AutoDiscoverySectionProp
 
   // Drawer state for "Why Discovered"
   const [activeDrawerDraft, setActiveDrawerDraft] = useState<CandidateDraft | null>(null);
+  const [enrichingDraftId, setEnrichingDraftId] = useState<string | null>(null);
+  const [enrichRun, setEnrichRun] = useState<CandidateEnrichmentRun | null>(null);
+  const [manualCost, setManualCost] = useState('');
+  const [manualPrice, setManualPrice] = useState('');
 
   async function handleRunDiscovery(isDemo = false) {
     setLoading(true);
@@ -132,6 +137,50 @@ export function AutoDiscoverySection({ onHandoffToV2 }: AutoDiscoverySectionProp
       return next;
     });
   };
+
+  async function handleEnrich(draft: CandidateDraft) {
+    if (!runResult) return;
+    setEnrichingDraftId(draft.id);
+    setError(null);
+    try {
+      const manualInputs: Record<string, { value: number; source: 'FACT' | 'ESTIMATE' | 'ASSUMPTION'; basis: string }> = {};
+      if (manualCost.trim()) {
+        manualInputs.productCost = { value: Number(manualCost), source: 'FACT', basis: 'user input' };
+      }
+      if (manualPrice.trim()) {
+        manualInputs.targetSellingPrice = { value: Number(manualPrice), source: 'ESTIMATE', basis: 'user input' };
+      }
+      const res = await ApiClient.post<CandidateEnrichmentRun>('/api/v1/market-research/enrichment/run', {
+        draft,
+        marketplace,
+        extraEvidence: runResult.evidence,
+        options: { maxCompetitors: 3, enableTextVoc: true, enableReviewHealth: true, enableProductTrend: false },
+        budget: { maxProviderCalls: 12, maxExpensiveCalls: 1, maxCredits: 20 },
+        manualInputs: Object.keys(manualInputs).length ? manualInputs : undefined,
+      });
+      setEnrichRun(res);
+    } catch (err: any) {
+      setError(err?.message || '候选深研失败');
+    } finally {
+      setEnrichingDraftId(null);
+    }
+  }
+
+  async function handleEnrichHandoff() {
+    if (!enrichRun) return;
+    setHandoffLoading(true);
+    try {
+      const res = await ApiClient.post<ProductCandidate>('/api/v1/market-research/enrichment/handoff', { run: enrichRun });
+      if (res && onHandoffToV2) {
+        onHandoffToV2([res]);
+        setHandoffSuccessMsg(`已将深研候选交接至 V2，当前判定 ${res.decision}。`);
+      }
+    } catch (err: any) {
+      setError(err?.message || '深研交接失败');
+    } finally {
+      setHandoffLoading(false);
+    }
+  }
 
   async function handleHandoff() {
     if (!runResult) return;
@@ -552,15 +601,79 @@ export function AutoDiscoverySection({ onHandoffToV2 }: AutoDiscoverySectionProp
                         <HelpCircle className="w-3.5 h-3.5" />
                         <span>为什么发现该方向?</span>
                       </button>
-                      <span className="text-[10px] text-gray-500 font-mono">
-                        {draft.evidenceIds.length} 项证据
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleEnrich(draft)}
+                        disabled={enrichingDraftId === draft.id}
+                        className="text-emerald-400 hover:text-emerald-300 font-medium flex items-center space-x-1 transition cursor-pointer disabled:opacity-50"
+                      >
+                        {enrichingDraftId === draft.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                        <span>Deep Research / Enrich</span>
+                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {enrichRun && (
+            <div className="mt-6 p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-bold text-white">Enrichment Panel · {enrichRun.enriched.title}</h4>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/40 text-emerald-300">{enrichRun.enriched.gate.status}</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-gray-300">
+                <div>竞品样本: {enrichRun.enriched.competitorSample.actualSampleSize}/{enrichRun.enriched.competitorSample.requestedSampleSize}</div>
+                <div>VOC: {enrichRun.enriched.voc.sourceType === 'EXTERNAL_VOC' ? 'External Public Discussions' : enrichRun.enriched.voc.sourceType}</div>
+                <div>VOC n: {enrichRun.enriched.voc.analyzedItemCount ?? 'UNKNOWN'}</div>
+                <div>价格样本: {enrichRun.enriched.pricePositioning.sampleSize} · {enrichRun.enriched.pricePositioning.positioning}</div>
+              </div>
+              <div className="text-[11px] text-gray-400">
+                min/median/max: {enrichRun.enriched.pricePositioning.min ?? '—'} / {enrichRun.enriched.pricePositioning.median ?? '—'} / {enrichRun.enriched.pricePositioning.max ?? '—'}
+                {enrichRun.enriched.pricePositioning.suggestedTargetPrice?.value != null && (
+                  <span> · 建议价 {enrichRun.enriched.pricePositioning.suggestedTargetPrice.value} ({enrichRun.enriched.pricePositioning.suggestedTargetPrice.source})</span>
+                )}
+              </div>
+              {enrichRun.enriched.voc.painPoints.length > 0 && (
+                <div className="text-[11px] text-gray-300">
+                  Pain Points:{' '}
+                  {enrichRun.enriched.voc.painPoints.map((p) => `${p.label}${p.percentage != null ? ` ${p.percentage}% (${p.observationCount}/${p.denominator})` : ''}`).join('；')}
+                </div>
+              )}
+              <div className="text-[11px] text-gray-300">Concept: {enrichRun.enriched.concept.productType} / {enrichRun.enriched.concept.useCase}</div>
+              <div className="text-[11px] text-gray-400">FACT specs: {(enrichRun.enriched.concept.specifications || []).filter((s) => s.status === 'FACT').length} · HYPOTHESIS: {(enrichRun.enriched.concept.specifications || []).filter((s) => s.status === 'HYPOTHESIS').length}</div>
+              <div className="flex flex-wrap gap-2">
+                {enrichRun.enriched.competitors.map((c) => (
+                  <span key={c.asin} className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40 text-gray-300">
+                    {c.asin} {c.price?.value != null ? `$${c.price.value}` : 'price UNKNOWN'}
+                  </span>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  placeholder="手工产品成本 FACT"
+                  value={manualCost}
+                  onChange={(e) => setManualCost(e.target.value)}
+                  className="bg-background border border-border text-xs rounded px-2 py-1 w-40"
+                />
+                <input
+                  placeholder="手工目标售价 ESTIMATE"
+                  value={manualPrice}
+                  onChange={(e) => setManualPrice(e.target.value)}
+                  className="bg-background border border-border text-xs rounded px-2 py-1 w-44"
+                />
+                <button
+                  type="button"
+                  onClick={handleEnrichHandoff}
+                  disabled={handoffLoading}
+                  className="px-3 py-1.5 text-xs rounded bg-emerald-600 text-white cursor-pointer disabled:opacity-50"
+                >
+                  交接深研结果到 V2
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Handoff Step 5 */}
           <div className="mt-8 p-5 rounded-xl bg-gradient-to-r from-purple-950/40 via-surface to-purple-950/40 border border-purple-500/40 flex flex-col md:flex-row items-center justify-between gap-4">

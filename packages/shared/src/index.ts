@@ -21,3 +21,4 @@ export * from './contracts/erp-contracts.js';
 export * from './contracts/evidence-contracts.js';
 export * from './contracts/approval-contracts.js';
 export * from './contracts/product-discovery-contracts.js';
+export * from './contracts/candidate-enrichment-contracts.js';

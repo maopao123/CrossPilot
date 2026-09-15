@@ -1,5 +1,10 @@
 # CrossPilot 交接
 
+> **2026-09-15 · Product Research Phase 2B Candidate Enrichment（V2.2.0-FROZEN）**：
+> - Draft → Competitor Enrichment → VOC → Price Positioning → Concept / Differentiation → Enrichment Gate → V2 Adapter。
+> - Live：`Toothbrush Holder` / ASIN `B0BFGNSXYL`，actualSampleSize=1，price $9.99 FACT，VOC EXTERNAL_VOC n=22 且无伪造痛点，Gate READY_FOR_HANDOFF，V2 = NEEDS_VALIDATION。
+> - Cases 1–18 PASS；未改 V2.0/V2.1 Frozen 核心。
+>
 > **2026-09-15 · Product Research Phase 2A Provider Closure（V2.1.0-FROZEN）**：
 > - 正式注册 `market.asin.keywords` → XYDC `get_asin_keywords`（ASIN → Keywords）。
 > - 删除 Round 1 错误 fallback：`market.keyword.asin_analysis` 不得替代 ASIN 反查。

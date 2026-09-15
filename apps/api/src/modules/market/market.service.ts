@@ -8,6 +8,8 @@ import {
   OpportunityScoreEngine,
   ProductDiscoveryService,
   CandidateHandoffService,
+  CandidateEnrichmentService,
+  EnrichedCandidateHandoffService,
   CapabilityExecutor,
 } from '@crosspilot/domain';
 import {
@@ -29,6 +31,8 @@ import {
   EvidenceItem,
   KeywordNode,
   AsinNode,
+  CandidateEnrichmentRequest,
+  CandidateEnrichmentRun,
 } from '@crosspilot/shared';
 
 @Injectable()
@@ -1128,6 +1132,32 @@ export class MarketService {
         decisionDetail: detail,
       };
     });
+  }
+
+  async runEnrichment(request: CandidateEnrichmentRequest): Promise<CandidateEnrichmentRun> {
+    if (!request?.draft?.id) {
+      throw new BadRequestException('Candidate draft is required for enrichment');
+    }
+    try {
+      const executor = this.createDiscoveryExecutor();
+      return await new CandidateEnrichmentService(executor).enrich(request);
+    } catch {
+      return await new CandidateEnrichmentService().enrich(request);
+    }
+  }
+
+  handoffEnrichment(run: CandidateEnrichmentRun): ProductCandidate {
+    const candidate = EnrichedCandidateHandoffService.toProductCandidate(
+      run.enriched,
+      run.evidence,
+      run.request?.manualInputs,
+    );
+    const detail = CandidateDecisionEngine.evaluate(candidate);
+    return {
+      ...candidate,
+      decision: detail.verdict,
+      decisionDetail: detail,
+    };
   }
 }
 
