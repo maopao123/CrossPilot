@@ -1,11 +1,11 @@
 # Product Research Auto Discovery MVP Specification
 
 > **文件名**：`PRODUCT_RESEARCH_AUTO_DISCOVERY_MVP_SPEC.md`  
-> **版本**：V2.1.0-LIVE-PATH-CLOSED  
-> **阶段**：Phase 2A — Auto Discovery MVP Live Path Closure  
-> **状态**：VERIFIED & FROZEN / 真实链路闭环核验通过并正式冻结  
+> **版本**：V2.1.0-FROZEN  
+> **阶段**：Phase 2A — Provider Closure（ASIN → Keywords / `get_asin_keywords`）  
+> **状态**：VERIFIED & FROZEN / 真实 XYDC ASIN 反查关键词接入并通过 Live E2E  
 > **依赖基线**：Product Research V2.0.0-FROZEN  
-> **冻结基线 Commit**：`d3e2603` (V2.0.0-FROZEN) -> `76b116f` (V2.1.0-RC) -> 本次 Live Path Closure  
+> **冻结基线 Commit**：`d3e2603` (V2.0.0-FROZEN) -> `76b116f` (V2.1.0-RC) -> `d1e0c18` (Live Path Closure) -> 本次 Provider Closure  
 > **所属模块建议**：`packages/domain/src/research/`、`packages/shared/src/contracts/`、`apps/api/src/modules/market/`、`apps/web/src/app/app/market-research/`  
 > **前置规范**：`docs/30_modules/product-research/PRODUCT_RESEARCH_V2_MVP_SPEC.md`
 

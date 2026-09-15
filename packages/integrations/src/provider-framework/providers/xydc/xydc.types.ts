@@ -153,6 +153,61 @@ export interface XydcGetKeywordInfoResponse {
 }
 
 /**
+ * Real Schema DTOs for XYDC MCP Remote Tool: get_asin_keywords
+ * Verified against docs/30_modules/provider/XYDC_TOOLS_SCHEMA.json
+ */
+export interface XydcAsinKeywordRankInfo {
+  position: string;
+  totalRank?: number | null;
+  page: number;
+  pageRank?: number | null;
+  rankTime: string;
+}
+
+export interface XydcAsinResearchTrafficData {
+  total: number;
+  organic: number;
+  advertising: number;
+  totalGrowthRate?: string;
+  organicGrowthRate?: string;
+  advertisingGrowthRate?: string;
+}
+
+export interface XydcAsinResearchTrafficAcquisitionRate {
+  total: string | null;
+  organic: string | null;
+  advertising: string | null;
+  totalGrowthRate?: string;
+  organicGrowthRate?: string;
+  advertisingGrowthRate?: string;
+}
+
+export interface XydcAsinResearchTrafficSummary {
+  traffic: XydcAsinResearchTrafficData | null;
+  trafficAcquisitionRate: XydcAsinResearchTrafficAcquisitionRate | null;
+}
+
+export interface XydcAsinResearchItem {
+  country: string;
+  searchTerm: string;
+  ranks: XydcAsinKeywordRankInfo[];
+  trafficSummary: XydcAsinResearchTrafficSummary;
+}
+
+export interface XydcGetAsinKeywordsResponse {
+  status: number;
+  cost_credits: number;
+  data: {
+    list?: XydcAsinResearchItem[];
+    total?: number;
+    searchTermCount?: Array<{ type: 'organic' | 'advertising' | 'all'; count: number }>;
+    error?: boolean;
+    reason?: string;
+    message?: string;
+  };
+}
+
+/**
  * Real Schema DTOs for XYDC MCP Remote Tool: get_asin_bsr_trends
  * Verified via live MCP discovery against https://mcp.xydc.com/mcp
  */

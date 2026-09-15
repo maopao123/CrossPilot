@@ -314,4 +314,5 @@ export interface DiscoveryDryRunPreview {
   estimatedCallCount: number;
   knownCreditCost: number | null;
   unknownCostFields: string[];
+  capabilityAvailability?: Record<string, 'AVAILABLE' | 'UNAVAILABLE'>;
 }

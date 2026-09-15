@@ -27,8 +27,10 @@ import { CandidateDeduplicator } from './candidate-deduplicator.js';
 
 export class ProductDiscoveryService {
   private readonly expansionService: KeywordExpansionService;
+  private readonly executor?: CapabilityExecutor;
 
   constructor(executor?: CapabilityExecutor) {
+    this.executor = executor;
     this.expansionService = new KeywordExpansionService(executor);
   }
 
@@ -177,26 +179,50 @@ export class ProductDiscoveryService {
 
     // Planned capabilities across the 3 rounds:
     // Round 0: market.keyword.search
-    // Round 1: market.asin.keywords (Path A)
-    // Round 2: market.keyword.search (Path B)
+    // Round 1: market.asin.keywords (ASIN → Keywords only)
+    // Round 2: market.keyword.search
     const plannedCapabilities = ['market.keyword.search', 'market.asin.keywords'];
+    const hasExecutor = Boolean(this.executor);
+    const capabilityAvailability: Record<string, 'AVAILABLE' | 'UNAVAILABLE'> = {};
 
-    // Dynamic estimated call count bounded by budget:
-    // Round 0: 1 call
-    // Round 1: up to 3 calls for discovered ASINs
-    // Round 2: up to 2 calls for high-value expanded keywords
-    const targetCalls =
-      1 +
-      Math.min(3, Math.max(1, Math.floor(maxAsins / 10))) +
-      Math.min(2, Math.max(1, Math.floor(maxExpanded / 50)));
-    const estimatedCallCount = Math.min(maxCalls, targetCalls);
-    const knownCreditCost = estimatedCallCount * 1;
+    if (hasExecutor) {
+      for (const cap of plannedCapabilities) {
+        capabilityAvailability[cap] = this.executor!.hasCapability(cap) ? 'AVAILABLE' : 'UNAVAILABLE';
+      }
+    }
+
+    const kwAvailable = !hasExecutor || this.executor!.hasCapability('market.keyword.search');
+    const asinKwAvailable = !hasExecutor || this.executor!.hasCapability('market.asin.keywords');
+
+    const round0Calls = kwAvailable ? 1 : 0;
+    const round1Calls = asinKwAvailable ? Math.min(3, Math.max(1, Math.floor(maxAsins / 10))) : 0;
+    const round2Calls = kwAvailable ? Math.min(2, Math.max(1, Math.floor(maxExpanded / 50))) : 0;
+    const estimatedCallCount = Math.min(maxCalls, round0Calls + round1Calls + round2Calls);
+
+    const unknownCostFields: string[] = [];
+    let knownSum = 0;
+    let hasKnownCost = false;
+
+    const addCost = (capabilityId: string, calls: number) => {
+      if (calls <= 0) return;
+      const unit = this.executor?.getCapabilityCost?.(capabilityId) ?? null;
+      if (unit == null) {
+        if (!unknownCostFields.includes(capabilityId)) unknownCostFields.push(capabilityId);
+        return;
+      }
+      knownSum += unit * calls;
+      hasKnownCost = true;
+    };
+
+    addCost('market.keyword.search', round0Calls + round2Calls);
+    addCost('market.asin.keywords', round1Calls);
 
     return {
       plannedCapabilities,
       estimatedCallCount,
-      knownCreditCost,
-      unknownCostFields: [],
+      knownCreditCost: hasKnownCost ? knownSum : null,
+      unknownCostFields,
+      capabilityAvailability: hasExecutor ? capabilityAvailability : undefined,
     };
   }
 }

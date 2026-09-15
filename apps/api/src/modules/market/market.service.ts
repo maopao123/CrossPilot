@@ -933,32 +933,7 @@ export class MarketService {
     }
 
     try {
-      const gateway = IntegrationGateway.getInstance();
-      const executor: CapabilityExecutor = {
-        execute: async <TInput, TOutput>(capabilityId: string, input: TInput, marketplace: string) => {
-          const result = await gateway.executeCapability<TInput, TOutput>(capabilityId, input, {
-            workspaceId: 'default-workspace',
-            traceId: `req-disc-${Date.now()}`,
-            marketplace,
-            source: 'AUTO_DISCOVERY',
-          });
-          return {
-            success: result.success,
-            data: result.data,
-            providerId: result.providerId,
-            costCredits: result.credits,
-            error: result.error,
-          };
-        },
-        hasCapability: (capId: string) => {
-          try {
-            return gateway.hasCapability(capId);
-          } catch {
-            return false;
-          }
-        },
-      };
-
+      const executor = this.createDiscoveryExecutor();
       const discoveryService = new ProductDiscoveryService(executor);
       return await discoveryService.runDiscovery(request);
     } catch (e) {
@@ -969,8 +944,48 @@ export class MarketService {
   }
 
   previewDiscovery(request: ProductDiscoveryRequest): DiscoveryDryRunPreview {
-    const discoveryService = new ProductDiscoveryService();
-    return discoveryService.previewDiscovery(request);
+    try {
+      const executor = this.createDiscoveryExecutor();
+      return new ProductDiscoveryService(executor).previewDiscovery(request);
+    } catch {
+      return new ProductDiscoveryService().previewDiscovery(request);
+    }
+  }
+
+  private createDiscoveryExecutor(): CapabilityExecutor {
+    const gateway = IntegrationGateway.getInstance();
+    return {
+      execute: async <TInput, TOutput>(capabilityId: string, input: TInput, marketplace: string) => {
+        const result = await gateway.executeCapability<TInput, TOutput>(capabilityId, input, {
+          workspaceId: 'default-workspace',
+          traceId: `req-disc-${Date.now()}`,
+          marketplace,
+          source: 'AUTO_DISCOVERY',
+          metadata: { skipProviderFallback: true },
+        });
+        return {
+          success: result.success,
+          data: result.data,
+          providerId: result.providerId,
+          costCredits: result.credits,
+          error: result.error,
+        };
+      },
+      hasCapability: (capId: string) => {
+        try {
+          return gateway.hasCapability(capId);
+        } catch {
+          return false;
+        }
+      },
+      getCapabilityCost: (capId: string) => {
+        try {
+          return gateway.getCapabilityCost(capId);
+        } catch {
+          return null;
+        }
+      },
+    };
   }
 
   async getDemoDiscovery(): Promise<ProductDiscoveryRun> {

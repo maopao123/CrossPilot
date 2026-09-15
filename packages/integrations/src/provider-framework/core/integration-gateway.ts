@@ -46,6 +46,12 @@ export class IntegrationGateway {
     return Boolean(route.primary && route.primaryProvider && this.adapters.has(route.primary.providerId));
   }
 
+  getCapabilityCost(capabilityId: string, context?: ProviderExecutionContext): number | null {
+    const route = this.router.resolveRoute(capabilityId, context);
+    const cost = route.primary?.metadata?.costCredits;
+    return typeof cost === 'number' && Number.isFinite(cost) ? cost : null;
+  }
+
   async executeCapability<TInput = any, TOutput = any>(
     capabilityId: string,
     input: TInput,

@@ -114,6 +114,17 @@ export class XydcProvider implements ProviderAdapter {
           intent_summary: `Query market metrics for keyword ${kw}`,
           user_task: `CrossPilot keyword research for ${kw}`,
         };
+      } else if (remoteToolName === 'get_asin_keywords') {
+        const asin = (input?.asin || input?.externalId || '').toString().trim();
+        remoteArgs = {
+          asin,
+          country: this.toCountry(input?.marketplace || marketplace),
+          intent_summary: `Query recent 7-day traffic keywords for ASIN ${asin}`,
+          user_task: `CrossPilot ASIN reverse keyword lookup for ${asin}`,
+        };
+        if (typeof input?.page === 'number') remoteArgs.page = input.page;
+        if (typeof input?.page_size === 'number') remoteArgs.page_size = input.page_size;
+        if (typeof input?.limit === 'number') remoteArgs.page_size = input.limit;
       }
 
       // 2. Invoke remote MCP tool
@@ -203,6 +214,12 @@ export class XydcProvider implements ProviderAdapter {
           break;
         }
 
+        case 'market.asin.keywords': {
+          const asin = (input?.asin || input?.externalId || '').toString().trim();
+          normalizedData = XydcMapper.toAsinKeywordResult(rawParsed, asin, marketplace);
+          break;
+        }
+
         case 'market.product.trend':
           normalizedData = XydcMapper.toMarketTrend(rawParsed?.trend || rawParsed, marketplace);
           break;
@@ -210,6 +227,11 @@ export class XydcProvider implements ProviderAdapter {
         default:
           normalizedData = rawParsed;
       }
+
+      const credits =
+        typeof rawParsed?.cost_credits === 'number' && Number.isFinite(rawParsed.cost_credits)
+          ? rawParsed.cost_credits
+          : undefined;
 
       return {
         success: true,
@@ -220,6 +242,7 @@ export class XydcProvider implements ProviderAdapter {
         capabilityId,
         durationMs: durationMs || Date.now() - startTime,
         mode: 'LIVE',
+        credits,
         capturedAt: new Date().toISOString(),
       };
     } catch (err: any) {

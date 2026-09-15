@@ -1,4 +1,6 @@
 import {
+  AsinKeywordHit,
+  AsinKeywordResult,
   KeywordMetric,
   MarketOverviewSnapshot,
   MarketProduct,
@@ -27,6 +29,9 @@ import {
   XydcGetBsrTrendsResponse,
   XydcInfoTrendPoint,
   XydcGetInfoTrendsResponse,
+  XydcAsinKeywordRankInfo,
+  XydcGetAsinKeywordsResponse,
+  XydcAsinResearchItem,
 } from './xydc.types.js';
 
 export class XydcMapper {
@@ -317,6 +322,83 @@ export class XydcMapper {
         capturedAt: new Date().toISOString(),
       };
     });
+  }
+
+  /**
+   * Map real XYDC get_asin_keywords payload to CrossPilot AsinKeywordResult.
+   * Missing rank / traffic / ad fields stay null. Never invent 0 or placeholders.
+   */
+  static toAsinKeywordResult(
+    raw: XydcGetAsinKeywordsResponse | Record<string, unknown> | null | undefined,
+    asin: string,
+    _marketplace = 'AMAZON_US',
+  ): AsinKeywordResult {
+    const payload = this.unwrapAsinKeywordPayload(raw);
+    const list = Array.isArray(payload?.list) ? payload.list : [];
+    const keywords: AsinKeywordHit[] = [];
+
+    for (const item of list) {
+      const keyword = this.readKeywordText(item);
+      if (!keyword) continue;
+      const ranks = Array.isArray(item?.ranks) ? item.ranks : [];
+      keywords.push({
+        keyword,
+        searchRank: this.readSearchRank(ranks),
+        trafficShare: this.toNullableNumber(item?.trafficSummary?.trafficAcquisitionRate?.total),
+        adPosition: this.readAdPosition(ranks),
+      });
+    }
+
+    return {
+      asin,
+      keywords,
+      total: this.toNullableNumber(payload?.total),
+    };
+  }
+
+  private static unwrapAsinKeywordPayload(raw: any): { list?: XydcAsinResearchItem[]; total?: number } | null {
+    if (!raw || typeof raw !== 'object') return null;
+    if (Array.isArray(raw.list) || raw.total != null) return raw;
+    if (raw.data && typeof raw.data === 'object') return raw.data;
+    return raw;
+  }
+
+  private static readKeywordText(item: any): string | null {
+    if (typeof item?.searchTerm === 'string' && item.searchTerm.trim()) return item.searchTerm.trim();
+    if (typeof item?.keyword === 'string' && item.keyword.trim()) return item.keyword.trim();
+    if (typeof item?.rawKeyword === 'string' && item.rawKeyword.trim()) return item.rawKeyword.trim();
+    return null;
+  }
+
+  private static readSearchRank(ranks: XydcAsinKeywordRankInfo[]): number | null {
+    const organic = ranks.find((r) => this.isOrganicPosition(r?.position));
+    if (organic?.totalRank != null) return this.toNullableNumber(organic.totalRank);
+    const firstWithRank = ranks.find((r) => r?.totalRank != null);
+    return this.toNullableNumber(firstWithRank?.totalRank);
+  }
+
+  private static readAdPosition(ranks: XydcAsinKeywordRankInfo[]): string | null {
+    const ads = ranks.find((r) => this.isAdPosition(r?.position));
+    if (typeof ads?.position === 'string' && ads.position.trim()) return ads.position.trim();
+    return null;
+  }
+
+  private static isOrganicPosition(position: unknown): boolean {
+    return typeof position === 'string' && /^(or|organic|自然)/i.test(position.trim());
+  }
+
+  private static isAdPosition(position: unknown): boolean {
+    return typeof position === 'string' && /^(sp|sb|sd|ads?|advertis|sponsored|广告)/i.test(position.trim());
+  }
+
+  private static toNullableNumber(value: unknown): number | null {
+    if (value == null || value === '') return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value.replace('%', '').trim());
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
   }
 
   static toKeywordEvidence(

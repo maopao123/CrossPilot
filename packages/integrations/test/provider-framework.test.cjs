@@ -177,6 +177,66 @@ async function testXydcMapper() {
   assert.strictEqual(kwEvidence.transport, 'MCP');
   assert.strictEqual(kwEvidence.type, 'KEYWORD');
 
+  // Test Real XYDC get_asin_keywords entity mapping (ASIN → Keywords)
+  const realAsinKeywordPayload = {
+    status: 200,
+    cost_credits: 1,
+    data: {
+      total: 1,
+      list: [
+        {
+          country: 'US',
+          searchTerm: 'glass food storage containers',
+          ranks: [
+            { position: 'OR', totalRank: 4, page: 1, pageRank: 4, rankTime: '2026-09-14T00:00:00Z' },
+            { position: 'SP', totalRank: 2, page: 1, pageRank: 2, rankTime: '2026-09-14T00:00:00Z' },
+          ],
+          trafficSummary: {
+            traffic: { total: 1200, organic: 800, advertising: 400 },
+            trafficAcquisitionRate: {
+              total: '0.12',
+              organic: '0.08',
+              advertising: '0.04',
+            },
+          },
+        },
+      ],
+      searchTermCount: [{ type: 'all', count: 1 }],
+    },
+  };
+
+  const asinKwResult = XydcMapper.toAsinKeywordResult(realAsinKeywordPayload, 'B08LIVE01', 'AMAZON_US');
+  assert.strictEqual(asinKwResult.asin, 'B08LIVE01');
+  assert.strictEqual(asinKwResult.keywords.length, 1);
+  assert.strictEqual(asinKwResult.keywords[0].keyword, 'glass food storage containers');
+  assert.strictEqual(asinKwResult.keywords[0].searchRank, 4);
+  assert.strictEqual(asinKwResult.keywords[0].trafficShare, 0.12);
+  assert.strictEqual(asinKwResult.keywords[0].adPosition, 'SP');
+  assert.ok(!JSON.stringify(asinKwResult).toLowerCase().includes('demo'));
+  assert.ok(!JSON.stringify(asinKwResult).toLowerCase().includes('mock'));
+
+  const missingFieldsPayload = {
+    status: 200,
+    cost_credits: 1,
+    data: {
+      total: 1,
+      list: [
+        {
+          country: 'US',
+          searchTerm: 'only keyword present',
+          ranks: [],
+          trafficSummary: { traffic: null, trafficAcquisitionRate: null },
+        },
+      ],
+      searchTermCount: [{ type: 'all', count: 1 }],
+    },
+  };
+  const sparse = XydcMapper.toAsinKeywordResult(missingFieldsPayload, 'B08LIVE01', 'AMAZON_US');
+  assert.strictEqual(sparse.keywords[0].keyword, 'only keyword present');
+  assert.strictEqual(sparse.keywords[0].searchRank, null);
+  assert.strictEqual(sparse.keywords[0].trafficShare, null);
+  assert.strictEqual(sparse.keywords[0].adPosition, null);
+
   console.log('✓ XydcMapper passed');
 }
 
@@ -240,6 +300,17 @@ async function testProviderRouterAndGateway() {
   assert.ok(detailRes.data.asin, 'Product ASIN should be returned');
   assert.ok(['xydc', 'mock'].includes(detailRes.providerId));
   assert.ok(['LIVE', 'DEGRADED', 'MOCK'].includes(detailRes.mode));
+
+  // Case 19 contract: market.asin.keywords → xydc / get_asin_keywords
+  const asinKwRoute = bundle.router.resolveRoute('market.asin.keywords', { marketplace: 'AMAZON_US' });
+  assert.strictEqual(asinKwRoute.primary?.providerId, 'xydc');
+  assert.strictEqual(asinKwRoute.primary?.remoteToolName, 'get_asin_keywords');
+  assert.strictEqual(asinKwRoute.primary?.transport, 'MCP');
+  assert.strictEqual(gateway.hasCapability('market.asin.keywords'), true);
+  assert.ok(
+    !asinKwRoute.fallback || asinKwRoute.fallback.providerId !== 'mock' || asinKwRoute.fallback.remoteToolName !== 'get_asin_keywords',
+    'ASIN → Keywords must not silently depend on a mock remote tool alias',
+  );
 
   console.log('✓ ProviderRouter & IntegrationGateway passed');
 }
@@ -453,9 +524,14 @@ async function testPhase5ProviderCacheAndVoc() {
   );
   assert.strictEqual(resHealth.success, true);
   assert.strictEqual(resHealth.data.asin, 'B0BFGNSXYL');
-  assert.strictEqual(resHealth.data.averageRating, 4.6);
-  assert.strictEqual(resHealth.data.totalReviewCount, 5147);
   assert.strictEqual(resHealth.data.analyzedReviewCount, null);
+  if (resHealth.mode === 'LIVE') {
+    assert.ok(typeof resHealth.data.averageRating === 'number');
+    assert.ok(typeof resHealth.data.totalReviewCount === 'number' && resHealth.data.totalReviewCount > 0);
+  } else {
+    assert.strictEqual(resHealth.data.averageRating, 4.6);
+    assert.strictEqual(resHealth.data.totalReviewCount, 5147);
+  }
 
   // 7. Gateway execution of voc.product.analyze (Mock Fallback)
   const resVoc = await bundle.gateway.executeCapability(

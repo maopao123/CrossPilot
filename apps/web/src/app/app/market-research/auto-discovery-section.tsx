@@ -344,7 +344,15 @@ export function AutoDiscoverySection({ onHandoffToV2 }: AutoDiscoverySectionProp
           <div className="text-[11px] text-gray-300 flex items-center space-x-2 px-3 py-1.5 rounded bg-purple-500/10 border border-purple-500/20">
             <Info className="w-3.5 h-3.5 text-purple-400" />
             <span>
-              预计调用能力: {previewResult.plannedCapabilities.join(', ')} | 估算调用: {previewResult.estimatedCallCount} 次 | 预估积分: {previewResult.knownCreditCost ?? '未知'}
+              预计调用能力:{' '}
+              {previewResult.plannedCapabilities
+                .map((cap) => `${cap} ${previewResult.capabilityAvailability?.[cap] ?? ''}`.trim())
+                .join(', ')}{' '}
+              | 估算调用: {previewResult.estimatedCallCount} 次 | 预估积分:{' '}
+              {previewResult.knownCreditCost ?? '未知'}
+              {previewResult.unknownCostFields.length > 0
+                ? ` | 未知成本字段: ${previewResult.unknownCostFields.join(', ')}`
+                : ''}
             </span>
           </div>
         )}

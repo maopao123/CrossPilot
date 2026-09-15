@@ -89,6 +89,20 @@ export const XYDC_CAPABILITY_BINDINGS: CapabilityBinding[] = [
     },
   },
   {
+    capabilityId: 'market.asin.keywords',
+    providerId: XYDC_PROVIDER_ID,
+    transport: 'MCP',
+    remoteToolName: 'get_asin_keywords',
+    enabled: true,
+    priority: 100,
+    metadata: {
+      status: 'VERIFIED_LIVE',
+      description: 'ASIN 反查近 7 天流量关键词 (get_asin_keywords, 1 Credit; 2026-09-15 live verified on B0BFGNSXYL)',
+      direction: 'ASIN_TO_KEYWORDS',
+      costCredits: 1,
+    },
+  },
+  {
     capabilityId: 'market.product.trend',
     providerId: XYDC_PROVIDER_ID,
     transport: 'MCP',

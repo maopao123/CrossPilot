@@ -33,6 +33,7 @@ export interface CapabilityExecutor {
     error?: { code: string; message: string };
   }>;
   hasCapability(capabilityId: string): boolean;
+  getCapabilityCost?(capabilityId: string): number | null;
 }
 
 export interface ExpansionGraphResult {
@@ -359,14 +360,9 @@ export class KeywordExpansionService {
         }
       }
 
-      // --- ROUND 1: Seed ASIN Reverse Keywords (Spec §12: Path A) ---
-      const reverseCap = this.executor.hasCapability('market.asin.keywords')
-        ? 'market.asin.keywords'
-        : this.executor.hasCapability('market.keyword.asin_analysis')
-          ? 'market.keyword.asin_analysis'
-          : null;
-
-      if (!reverseCap) {
+      // --- ROUND 1: Seed ASIN Reverse Keywords (ASIN → Keywords only) ---
+      // market.keyword.asin_analysis is Keyword → ASINs and must never substitute this path.
+      if (!this.executor.hasCapability('market.asin.keywords')) {
         missingCapabilities.add('market.asin.keywords');
       } else {
         const asinsToReverse = Array.from(asinMap.values()).slice(0, 3);
@@ -376,7 +372,11 @@ export class KeywordExpansionService {
           if (!consumeBudget(1)) break;
 
           try {
-            const revResult = await this.executor.execute(reverseCap, { asin: asinNode.asin }, request.marketplace);
+            const revResult = await this.executor.execute(
+              'market.asin.keywords',
+              { asin: asinNode.asin },
+              request.marketplace,
+            );
             if (revResult.success && revResult.data) {
               const revList: any[] = Array.isArray(revResult.data)
                 ? revResult.data
@@ -388,7 +388,7 @@ export class KeywordExpansionService {
 
               for (const item of revList) {
                 if (keywordMap.size >= limits.maxExpandedKeywords) break;
-                const rawKw = typeof item === 'string' ? item : item?.keyword || item?.rawKeyword;
+                const rawKw = typeof item === 'string' ? item : item?.keyword || item?.rawKeyword || item?.searchTerm;
                 if (!rawKw || typeof rawKw !== 'string' || !rawKw.trim()) continue;
 
                 if (request.constraints?.excludeBrandTerms && KeywordNormalizer.analyzeBrandTerms(rawKw).isBrandDependent) continue;
@@ -396,20 +396,23 @@ export class KeywordExpansionService {
 
                 const normKw = KeywordNormalizer.normalize(rawKw);
                 const kwId = `kw-${request.marketplace.toLowerCase()}-${normKw.replace(/\s+/g, '-')}`;
+                const providerSource = revResult.providerId || 'UNKNOWN';
+                const searchRank = typeof item === 'object' ? item.searchRank : undefined;
+                const trafficShare = typeof item === 'object' ? item.trafficShare : undefined;
+                const adPosition = typeof item === 'object' ? item.adPosition : undefined;
+                const revEviId = `evi-kw-rev-${kwId}-${Date.now()}`;
+                evidenceList.push({
+                  id: revEviId,
+                  scope: 'KEYWORD',
+                  subjectId: kwId,
+                  source: providerSource,
+                  content: `Reverse ASIN keyword from ${asinNode.asin}: "${rawKw}" via market.asin.keywords (searchRank=${searchRank ?? 'UNKNOWN'}, trafficShare=${trafficShare ?? 'UNKNOWN'}, adPosition=${adPosition ?? 'UNKNOWN'})`,
+                  capturedAt: new Date().toISOString(),
+                  confidence: 0.92,
+                });
 
                 keywordsReceived++;
                 if (!keywordMap.has(kwId)) {
-                  const revEviId = `evi-kw-rev-${kwId}-${Date.now()}`;
-                  evidenceList.push({
-                    id: revEviId,
-                    scope: 'KEYWORD',
-                    subjectId: kwId,
-                    source: revResult.providerId || 'XYDC',
-                    content: `Reverse ASIN keyword from ${asinNode.asin}: "${rawKw}", searchVolume=${typeof item === 'object' ? (item.searchVolume ?? 'UNKNOWN') : 'UNKNOWN'}`,
-                    capturedAt: new Date().toISOString(),
-                    confidence: 0.92,
-                  });
-
                   keywordMap.set(kwId, {
                     id: kwId,
                     rawKeyword: rawKw,
@@ -434,6 +437,9 @@ export class KeywordExpansionService {
                   if (!existing.representativeAsins.includes(asinNode.asin)) {
                     existing.representativeAsins.push(asinNode.asin);
                   }
+                  if (!existing.evidenceIds.includes(revEviId)) {
+                    existing.evidenceIds.push(revEviId);
+                  }
                 }
 
                 if (!asinNode.discoveredKeywords.includes(rawKw)) {
@@ -444,7 +450,7 @@ export class KeywordExpansionService {
                   keywordId: kwId,
                   asin: asinNode.asin,
                   relation: 'DISCOVERED_RELATION',
-                  evidenceIds: [...asinNode.evidenceIds],
+                  evidenceIds: [revEviId],
                 });
               }
             }

@@ -1,7 +1,14 @@
 # CrossPilot 交接
 
-# CrossPilot 交接
-
+> **2026-09-15 · Product Research Phase 2A Provider Closure（V2.1.0-FROZEN）**：
+> - 正式注册 `market.asin.keywords` → XYDC `get_asin_keywords`（ASIN → Keywords）。
+> - 删除 Round 1 错误 fallback：`market.keyword.asin_analysis` 不得替代 ASIN 反查。
+> - Round 1 真实调用链：Seed → `market.keyword.search` → Top ASIN → `market.asin.keywords` → Reverse Keywords + Evidence → Round 2。
+> - Live Verification：ASIN `B0BFGNSXYL`，`get_asin_keywords` 返回 20 个真实词（provider total 1180），1 Credit。
+> - Live Seed E2E：`toothbrush holder` → Top ASIN `B0BFGNSXYL` → Reverse Keywords 19 → Expanded 20 → Provider Calls 5 / Credits 5 → Candidate Draft **2**（未补 Demo）。
+> - Cases 1–22 PASS；Domain 39/39 (392 tests)；Integrations PASS；Web 40/40；typecheck 10/10；web build 24/24。
+> - 未改 Frozen V2 核心：`CandidateHandoffService` / `CandidateEvidenceValidator` / `CandidateDecisionEngine` / `CandidateEconomicsService` / `CandidateComparisonEngine`。
+>
 > **2026-09-15 · Product Research Phase 2A — Auto Discovery MVP Live Path Closure 闭环核验与正式冻结（V2.1.0-LIVE-PATH-CLOSED）**：
 > - **P0-1 真实与演示链路物理切分（Demo vs Live Clean Separation）**：
 >   - 彻底移除 `market.service.ts` 中 `glass food storage` 种子词自动短路拦截至 Demo 的后门逻辑；

@@ -58,6 +58,23 @@ export interface KeywordMetric {
   capturedAt: string;
 }
 
+/**
+ * Normalized ASIN → Keywords result (market.asin.keywords).
+ * Missing provider fields stay null; callers must not invent defaults.
+ */
+export interface AsinKeywordHit {
+  keyword: string;
+  searchRank?: number | null;
+  trafficShare?: number | null;
+  adPosition?: string | null;
+}
+
+export interface AsinKeywordResult {
+  asin: string;
+  keywords: AsinKeywordHit[];
+  total?: number | null;
+}
+
 export type TrendMetricType =
   | 'PRICE'
   | 'SALES'

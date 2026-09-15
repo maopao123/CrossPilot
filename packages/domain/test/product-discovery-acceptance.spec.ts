@@ -11,6 +11,7 @@ import {
   CandidateEvidenceValidator,
   CapabilityExecutor,
 } from '../src/index.js';
+import { XYDC_CAPABILITY_BINDINGS } from '@crosspilot/integrations';
 import type {
   ProductDiscoveryRequest,
   KeywordNode,
@@ -19,7 +20,7 @@ import type {
   KeywordAsinEdge,
 } from '@crosspilot/shared';
 
-describe('Product Research Phase 2A — Auto Discovery Acceptance Tests (Cases 1-16)', () => {
+describe('Product Research Phase 2A — Auto Discovery Acceptance Tests (Cases 1-22)', () => {
   // Common Fixtures for Glass Food Storage Category
   const sampleEvidence: EvidenceItem[] = [
     {
@@ -898,7 +899,12 @@ describe('Product Research Phase 2A — Auto Discovery Acceptance Tests (Cases 1
       budget: { maxProviderCalls: 2 },
     });
     expect(preview1.estimatedCallCount).toBeLessThanOrEqual(2);
-    expect(preview1.knownCreditCost).toBeLessThanOrEqual(2);
+    // Without a live Capability Registry, credits are unknown — never invent estimatedCallCount × 1.
+    if (preview1.knownCreditCost == null) {
+      expect(preview1.unknownCostFields.length).toBeGreaterThan(0);
+    } else {
+      expect(preview1.knownCreditCost).toBeLessThanOrEqual(2);
+    }
 
     const preview2 = service.previewDiscovery({
       marketplace: 'AMAZON_US',
@@ -909,5 +915,192 @@ describe('Product Research Phase 2A — Auto Discovery Acceptance Tests (Cases 1
     expect(preview2.estimatedCallCount).toBeGreaterThan(2);
     expect(preview2.plannedCapabilities).toContain('market.keyword.search');
     expect(preview2.plannedCapabilities).toContain('market.asin.keywords');
+  });
+
+  // Case 19: Real Capability Mapping
+  it('Case 19: market.asin.keywords maps to xydc get_asin_keywords', () => {
+    const binding = XYDC_CAPABILITY_BINDINGS.find((b) => b.capabilityId === 'market.asin.keywords');
+    expect(binding).toBeDefined();
+    expect(binding?.providerId).toBe('xydc');
+    expect(binding?.remoteToolName).toBe('get_asin_keywords');
+    expect(binding?.enabled).toBe(true);
+    expect(binding?.transport).toBe('MCP');
+  });
+
+  // Case 20: Direction Integrity — keyword.asin_analysis must not substitute ASIN → Keywords
+  it('Case 20: market.keyword.asin_analysis is not used as ASIN → Keywords fallback', async () => {
+    const executedCalls: { capabilityId: string; input: any }[] = [];
+
+    const mockExecutor: CapabilityExecutor = {
+      hasCapability: (capabilityId: string) => {
+        return capabilityId === 'market.keyword.search' || capabilityId === 'market.keyword.asin_analysis';
+      },
+      execute: async <TInput = any, TOutput = any>(capabilityId: string, input: TInput): Promise<any> => {
+        executedCalls.push({ capabilityId, input });
+        if (capabilityId === 'market.keyword.search') {
+          return {
+            success: true,
+            providerId: 'xydc',
+            data: [
+              {
+                keyword: 'glass food storage',
+                searchVolume: 32500,
+                abaRank: 420,
+                topAsins: ['B08LIVE01'],
+              },
+            ],
+          };
+        }
+        if (capabilityId === 'market.keyword.asin_analysis') {
+          return {
+            success: true,
+            providerId: 'xydc',
+            data: [{ asin: 'B08FAKE01', keyword: 'should-not-appear-as-reverse-keyword' }],
+          };
+        }
+        return { success: false, error: { code: 'UNSUPPORTED', message: 'Unsupported' } };
+      },
+    };
+
+    const service = new ProductDiscoveryService(mockExecutor);
+    const run = await service.runDiscovery({
+      marketplace: 'AMAZON_US',
+      seed: { keyword: 'glass food storage' },
+      budget: { maxProviderCalls: 10 },
+    });
+
+    expect(executedCalls.some((c) => c.capabilityId === 'market.keyword.asin_analysis')).toBe(false);
+    expect(executedCalls.some((c) => c.capabilityId === 'market.asin.keywords')).toBe(false);
+    expect(executedCalls.some((c) => c.capabilityId === 'market.keyword.asin_analysis' && c.input?.asin)).toBe(false);
+    expect(run.keywordNodes.some((k) => k.origin === 'ASIN_REVERSE_LOOKUP')).toBe(false);
+    expect(run.keywordNodes.some((k) => k.rawKeyword === 'should-not-appear-as-reverse-keyword')).toBe(false);
+    expect(run.missingCapabilities).toContain('market.asin.keywords');
+    expect(run.status).toBe('DEGRADED');
+  });
+
+  // Case 21: Missing Capability Degradation
+  it('Case 21: missing market.asin.keywords degrades the run without fake reverse keywords', async () => {
+    const executedCalls: { capabilityId: string; input: any }[] = [];
+
+    const mockExecutor: CapabilityExecutor = {
+      hasCapability: (capabilityId: string) => capabilityId === 'market.keyword.search',
+      execute: async <TInput = any, TOutput = any>(capabilityId: string, input: TInput): Promise<any> => {
+        executedCalls.push({ capabilityId, input });
+        if (capabilityId === 'market.keyword.search') {
+          return {
+            success: true,
+            providerId: 'xydc',
+            data: [
+              {
+                keyword: 'glass food storage',
+                searchVolume: 32500,
+                abaRank: 420,
+                topAsins: ['B08LIVE01', 'B08LIVE02'],
+              },
+            ],
+          };
+        }
+        return {
+          success: true,
+          providerId: 'FAKE',
+          data: [{ keyword: 'fabricated reverse keyword' }],
+        };
+      },
+    };
+
+    const service = new ProductDiscoveryService(mockExecutor);
+    const request: ProductDiscoveryRequest = {
+      marketplace: 'AMAZON_US',
+      seed: { keyword: 'glass food storage' },
+      budget: { maxProviderCalls: 10 },
+    };
+
+    const run = await service.runDiscovery(request);
+    const preview = service.previewDiscovery(request);
+
+    expect(run.missingCapabilities).toContain('market.asin.keywords');
+    expect(run.status).toBe('DEGRADED');
+    expect(run.keywordNodes.some((k) => k.origin === 'ASIN_REVERSE_LOOKUP')).toBe(false);
+    expect(run.keywordNodes.some((k) => k.rawKeyword === 'fabricated reverse keyword')).toBe(false);
+    expect(executedCalls.some((c) => c.capabilityId === 'market.asin.keywords')).toBe(false);
+    expect(executedCalls.some((c) => c.capabilityId === 'market.keyword.asin_analysis')).toBe(false);
+    expect(preview.capabilityAvailability?.['market.keyword.search']).toBe('AVAILABLE');
+    expect(preview.capabilityAvailability?.['market.asin.keywords']).toBe('UNAVAILABLE');
+  });
+
+  // Case 22: Evidence Provenance for reverse keywords
+  it('Case 22: reverse keywords carry ASIN_REVERSE_LOOKUP origin and provider evidence', async () => {
+    const mockExecutor: CapabilityExecutor = {
+      hasCapability: (capabilityId: string) => {
+        return capabilityId === 'market.keyword.search' || capabilityId === 'market.asin.keywords';
+      },
+      execute: async <TInput = any, TOutput = any>(capabilityId: string, input: TInput): Promise<any> => {
+        const anyInput = input as any;
+        if (capabilityId === 'market.keyword.search') {
+          return {
+            success: true,
+            providerId: 'xydc',
+            data: [
+              {
+                keyword: 'glass food storage',
+                searchVolume: 32500,
+                abaRank: 420,
+                topAsins: ['B08LIVE01'],
+              },
+            ],
+          };
+        }
+        if (capabilityId === 'market.asin.keywords') {
+          expect(anyInput?.asin).toBe('B08LIVE01');
+          return {
+            success: true,
+            providerId: 'xydc',
+            data: {
+              asin: 'B08LIVE01',
+              keywords: [
+                {
+                  keyword: 'glass berry keeper',
+                  searchRank: 4,
+                  trafficShare: 0.12,
+                  adPosition: 'SP',
+                },
+              ],
+            },
+          };
+        }
+        return { success: false, error: { code: 'UNSUPPORTED', message: 'Unsupported' } };
+      },
+    };
+
+    const service = new ProductDiscoveryService(mockExecutor);
+    const run = await service.runDiscovery({
+      marketplace: 'AMAZON_US',
+      seed: { keyword: 'glass food storage' },
+      budget: { maxProviderCalls: 10 },
+    });
+
+    const reverseNode = run.keywordNodes.find((k) => k.origin === 'ASIN_REVERSE_LOOKUP');
+    expect(reverseNode).toBeDefined();
+    expect(reverseNode?.rawKeyword).toBe('glass berry keeper');
+    expect(reverseNode!.evidenceIds.length).toBeGreaterThan(0);
+
+    const reverseEvidence = run.evidence.filter((e) => reverseNode!.evidenceIds.includes(e.id));
+    expect(reverseEvidence.length).toBeGreaterThan(0);
+    for (const evi of reverseEvidence) {
+      expect(evi.scope).toBe('KEYWORD');
+      expect(evi.subjectId).toBe(reverseNode!.id);
+      expect(evi.source).toBe('xydc');
+      expect(evi.source).not.toBe('AUTO_DISCOVERY');
+      expect(evi.content).toContain('B08LIVE01');
+      expect(evi.content.toLowerCase()).not.toContain('demo');
+      expect(evi.content.toLowerCase()).not.toContain('mock');
+    }
+
+    const reverseEdge = run.edges?.find(
+      (e) => e.keywordId === reverseNode!.id && e.asin === 'B08LIVE01' && e.relation === 'DISCOVERED_RELATION',
+    );
+    expect(reverseEdge).toBeDefined();
+    expect(reverseEdge!.evidenceIds.length).toBeGreaterThan(0);
+    expect(reverseEdge!.evidenceIds.some((id) => reverseNode!.evidenceIds.includes(id))).toBe(true);
   });
 });
