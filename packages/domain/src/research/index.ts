@@ -9,3 +9,11 @@ export * from './candidate-decision.engine.js';
 export * from './candidate-comparison.engine.js';
 export * from './discovery/index.js';
 export * from './enrichment/index.js';
+export * from './specification-manager.service.js';
+export * from './rfq-generator.service.js';
+export * from './supplier-quote.service.js';
+export * from './initial-cash.service.js';
+export * from './risk-applicability.policy.js';
+export * from './next-best-action.engine.js';
+export * from './decision-packet.service.js';
+

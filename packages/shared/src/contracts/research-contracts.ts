@@ -768,6 +768,13 @@ export interface ProductCandidate {
   missingRequirements: MissingRequirement[];
   decision: CandidateDecision;
   decisionDetail?: CandidateDecisionDetail;
+  specifications?: ProductSpecification[];
+  activeSpecVersionId?: string;
+  supplierQuotes?: SupplierQuote[];
+  primaryQuoteId?: string;
+  fxSnapshot?: FxSnapshot;
+  initialCash?: InitialCashRequirement;
+  decisionPacket?: OnePageDecisionPacket;
 }
 
 export type ComparisonDimension =
@@ -816,4 +823,278 @@ export interface CandidateDefaultsResponse {
   candidates: ProductCandidate[];
   comparison: CandidateComparisonResult;
 }
+
+/**
+ * ============================================================================
+ * Phase 3: Single Product Research V1 Contracts (V1 最终冻结版 · 工程增强修订)
+ * ============================================================================
+ */
+
+/**
+ * P0-1: 核心规格字段严格定义
+ * 字段级 diff 依据: 只要 CORE_SPEC_FIELDS 任一变更，旧 Quote 全部失效变为 STALE，旧 FBA/Freight 变为 UNKNOWN
+ */
+export const CORE_SPEC_FIELDS = [
+  'material',
+  'capacity',
+  'dimensions',
+  'targetSellingPrice',
+] as const;
+
+export type CoreSpecField = (typeof CORE_SPEC_FIELDS)[number];
+
+export type SpecificationStatus = 'DRAFT' | 'FROZEN';
+
+export interface ProductSpecification {
+  id: string;
+  candidateId: string;
+  version: number;
+  status: SpecificationStatus;
+
+  // 核心 4 大规格（询价前必填）
+  material: string;
+  capacity: string;
+  dimensions: string;
+  targetSellingPrice: number;
+
+  // 非核心规格（初次可未知或估算，工厂报价后自动回填）
+  netWeight?: ProvenanceValue<number>;
+  packagingDimensions?: ProvenanceValue<string>;
+  packagedWeight?: ProvenanceValue<number>;
+  unitsPerCarton?: ProvenanceValue<number>;
+  cartonDimensions?: ProvenanceValue<string>;
+  cartonGrossWeight?: ProvenanceValue<number>;
+
+  specialRequirements?: string[];
+  frozenAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * P0-2: 可复制询价单
+ */
+export interface GeneratedRfq {
+  candidateId: string;
+  specVersionId: string;
+  productTitle: string;
+  specifications: {
+    material: string;
+    capacity: string;
+    dimensions: string;
+    targetSellingPrice?: number;
+    specialRequirements?: string[];
+  };
+  inquiryItems: string[];
+  copyableText: string;
+  generatedAt: string;
+}
+
+/**
+ * P0-3 & P0-4: 供应商报价与来源维度拆分
+ */
+export type QuoteCaptureMethod = 'MANUAL' | 'API' | 'IMPORT';
+export type QuoteSourceChannel = '1688' | 'ALIBABA' | 'WECHAT' | 'EMAIL' | 'OTHER';
+export type SupplierQuoteStatus = 'ACTIVE' | 'STALE' | 'DRAFT';
+
+export interface ReturnedPhysicalSpecs {
+  netWeight?: number;
+  packagingDimensions?: string;
+  packagedWeight?: number;
+  unitsPerCarton?: number;
+  cartonDimensions?: string;
+  cartonGrossWeight?: number;
+}
+
+export interface SupplierQuote {
+  id: string;
+  candidateId: string;
+  specVersionId: string;
+  supplierName: string;
+  status: SupplierQuoteStatus;
+
+  unitPrice: number;
+  packagingCost: ProvenanceValue<number>;
+  logoCost: ProvenanceValue<number>;
+  moq: number;
+  sampleCost?: number | null;
+  toolingCost?: number | null;
+  leadTimeDays?: number | null;
+
+  returnedSpecs?: ReturnedPhysicalSpecs;
+
+  captureMethod: QuoteCaptureMethod;
+  sourceChannel: QuoteSourceChannel;
+  currency: string;
+  capturedAt: string;
+  notes?: string;
+}
+
+/**
+ * P0-3: 事实标签（禁止“综合最优”或隐形评分，仅展示事实最值）
+ */
+export type SupplierQuoteBadgeType = 'LOWEST_PRICE' | 'LOWEST_MOQ' | 'SHORTEST_LEAD_TIME';
+
+export interface SupplierQuoteFactBadge {
+  quoteId: string;
+  badgeType: SupplierQuoteBadgeType;
+  labelZh: string;
+}
+
+/**
+ * P0-6: 汇率快照
+ */
+export interface FxSnapshot {
+  currencyPair: string;
+  rate: number;
+  source: string;
+  capturedAt: string;
+}
+
+/**
+ * P0-11: 首单最低现金需求模型（与单件 Unit Economics 严格领域层分离）
+ */
+export interface InitialCashItem {
+  item: string;
+  amount: number;
+  currency: string;
+  description?: string;
+  isOneTime: boolean;
+}
+
+export type InitialCashStatus = 'COMPLETE' | 'INCOMPLETE';
+
+export interface InitialCashRequirement {
+  status: InitialCashStatus;
+  moq: number;
+  productCostPerUnit: number;
+  inventoryCost: number;
+  sampleCost: number | null;
+  firstFreightCost: number | null;
+  toolingCost: number;
+  packagingSetupCost: number;
+  otherOneTimeCosts: number;
+  totalInitialCash: number | null;
+  currency: string;
+  missingItems?: string[];
+  displaySummaryZh: string;
+  breakdown: InitialCashItem[];
+}
+
+/**
+ * P0-14: Next Best Action 确定性规则优先级与模型
+ */
+export type NextBestActionCategory =
+  | 'BLOCKED_STOP'
+  | 'RISK_VERIFICATION'
+  | 'CRITICAL_INPUT'
+  | 'LAUNCH_CASH'
+  | 'NON_BLOCKING_IMPROVEMENT';
+
+export interface NextBestAction {
+  id: string;
+  priority: number; // 1 to 5
+  title: string;
+  category: NextBestActionCategory;
+  targetField?: string;
+  description: string;
+  actionType: 'STOP' | 'VERIFY_RISK' | 'FILL_CRITICAL_INPUT' | 'CONFIRM_LAUNCH_CASH' | 'OPTIMIZE';
+  buttonText: string;
+}
+
+/**
+ * 敏感度因素分析（什么变化会改变当前结论）
+ */
+export interface DecisionSensitivityFactor {
+  factorName: string;
+  currentValue: string | number;
+  triggerThreshold: string | number;
+  projectedVerdict: CandidateDecision;
+  explanation: string;
+}
+
+/**
+ * P0-15: 一页决策结论包 (OnePageDecisionPacket)
+ */
+export interface OnePageDecisionPacket {
+  verdict: CandidateDecision;
+  verdictTitleZh: string;
+  adviceZh: string;
+  unitContributionProfitUsd: number | null;
+  unitContributionMargin: number | null;
+  initialCashRequired: {
+    status: InitialCashStatus;
+    amount: number | null;
+    currency: string;
+    formattedTextZh: string;
+    missingItems?: string[];
+  };
+  confirmedChecklistZh: string[];
+  missingChecklistZh: string[];
+  nextBestAction: NextBestAction | null;
+  conservativeScenarioSummary: {
+    unitContributionProfitUsd: number | null;
+    unitContributionMargin: number | null;
+    explanationZh: string;
+  };
+  decisionSensitivities: DecisionSensitivityFactor[];
+  costBreakdown: {
+    productCost: number;
+    referralFee: number;
+    fbaFee: number;
+    freightFee: number;
+    duty: number;
+    advertisingCost: number;
+    expectedReturnLoss: number;
+    storage: number;
+    otherCosts: number;
+    totalExpenses: number;
+  };
+  riskAndEvidenceSummary: {
+    totalRisks: number;
+    unverifiedCount: number;
+    passCount: number;
+    failCount: number;
+    applicableRisks: CandidateRisk[];
+  };
+  evaluatedAt: string;
+}
+
+/**
+ * 状态机前后台术语统一字典（Spec §29）
+ */
+export const RESEARCH_STATUS_TRANSLATIONS: Record<string, string> = {
+  DRAFT: '还在修改',
+  FROZEN: '已按这个去询价',
+  STALE: '规格变了，需要重新问',
+  FACT: '工厂正式报价 / 已确认',
+  ESTIMATE: '估算值',
+  ASSUMPTION: '暂时按这个算',
+  UNKNOWN: '还不知道',
+  INCOMPLETE: '还差一项才能算',
+  NEEDS_VALIDATION: '先补这份材料',
+  WATCH: '先观察',
+  SHORTLIST: '建议继续打样',
+  BLOCKED: '不建议做',
+  ACTIVE: '生效中',
+};
+
+/**
+ * 埋点事件定义（Spec §35）
+ */
+export type ResearchFunnelEvent =
+  | 'RFQ_GENERATED'
+  | 'QUOTE_ENTERED'
+  | 'CRITICAL_FEES_COMPLETED'
+  | 'DECISION_PACKET_VIEWED'
+  | 'NEXT_BEST_ACTION_CLICKED'
+  | 'COLLAPSIBLE_SECTION_EXPANDED';
+
+export interface ResearchAnalyticsEvent {
+  eventName: ResearchFunnelEvent;
+  candidateId: string;
+  metadata?: Record<string, unknown>;
+  timestamp: string;
+}
+
 

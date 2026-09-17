@@ -41,6 +41,7 @@ import {
 import type { ProductOpportunity as DomainProductOpportunity, ProductCandidate } from '@crosspilot/shared';
 import { CandidateComparisonSection } from './candidate-comparison-section';
 import { AutoDiscoverySection } from './auto-discovery-section';
+import { SingleProductResearchSection } from './single-product-research-section';
 
 
 interface ResearchEvidenceItem {
@@ -304,6 +305,7 @@ export default function MarketResearchPage() {
   const [marketplaceInput, setMarketplaceInput] = useState('AMAZON_US');
   const [showEvidence, setShowEvidence] = useState(false);
   const [handoffCandidates, setHandoffCandidates] = useState<ProductCandidate[] | undefined>(undefined);
+  const [activeWorkspaceMode, setActiveWorkspaceMode] = useState<'singleProduct' | 'macroMatrix'>('singleProduct');
 
   // Phase 4: On-demand Product Trend Modal state
   const [trendModalAsin, setTrendModalAsin] = useState<string | null>(null);
@@ -511,8 +513,42 @@ export default function MarketResearchPage() {
         </div>
       </div>
 
-      {/* Integration Provider & Governance Status Banner */}
-      <div className="bg-surface border border-border rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm">
+      {/* 顶层选品工作台切换: 单产品选品 (V1 最终冻结版 · 工程增强修订) vs 宏观市场大盘 */}
+      <div className="flex items-center space-x-2 bg-surface p-1.5 rounded-2xl border border-border">
+        <button
+          onClick={() => setActiveWorkspaceMode('singleProduct')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center space-x-2 ${
+            activeWorkspaceMode === 'singleProduct'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+              : 'text-gray-400 hover:text-gray-200 hover:bg-surface-elevated'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-300" />
+          <span>CrossPilot 单产品选品 (V1 最终冻结版 · 工程增强修订)</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+            全新主工作台
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveWorkspaceMode('macroMatrix')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center space-x-2 ${
+            activeWorkspaceMode === 'macroMatrix'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+              : 'text-gray-400 hover:text-gray-200 hover:bg-surface-elevated'
+          }`}
+        >
+          <Database className="w-4 h-4 text-purple-400" />
+          <span>宏观市场大盘与类目探索 (Market Overview)</span>
+        </button>
+      </div>
+
+      {activeWorkspaceMode === 'singleProduct' ? (
+        <SingleProductResearchSection />
+      ) : (
+        <>
+          {/* Integration Provider & Governance Status Banner */}
+          <div className="bg-surface border border-border rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
             <Server className="w-5 h-5" />
@@ -2408,6 +2444,8 @@ export default function MarketResearchPage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

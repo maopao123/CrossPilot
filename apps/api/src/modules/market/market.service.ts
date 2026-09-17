@@ -11,6 +11,13 @@ import {
   CandidateEnrichmentService,
   EnrichedCandidateHandoffService,
   CapabilityExecutor,
+  SpecificationManager,
+  RfqGeneratorService,
+  SupplierQuoteService,
+  InitialCashService,
+  RiskApplicabilityPolicy,
+  NextBestActionEngine,
+  DecisionPacketService,
 } from '@crosspilot/domain';
 import {
   CandidateComparisonResult,
@@ -33,6 +40,11 @@ import {
   AsinNode,
   CandidateEnrichmentRequest,
   CandidateEnrichmentRun,
+  ProductSpecification,
+  SupplierQuote,
+  GeneratedRfq,
+  InitialCashRequirement,
+  OnePageDecisionPacket,
 } from '@crosspilot/shared';
 
 @Injectable()
@@ -1158,6 +1170,476 @@ export class MarketService {
       decision: detail.verdict,
       decisionDetail: detail,
     };
+  }
+
+  // ==========================================================================
+  // Single Product Research V1 Methods (V1 最终冻结版 · 工程增强修订)
+  // ==========================================================================
+
+  /**
+   * 黄金验收案例样本 (玻璃水果盒 + 沥水篮)
+   */
+  getDemoFruitBoxCandidate(): ProductCandidate {
+    const candidateId = 'cand-glass-fruit-box-001';
+    const spec = SpecificationManager.createDraftSpecification(candidateId, {
+      material: '高硼硅玻璃主体 + 食品级 PP 沥水篮',
+      capacity: '约 1.5L',
+      dimensions: '25 × 15 × 10 cm',
+      targetSellingPrice: 29.99,
+      specialRequirements: ['可拆卸沥水篮', '易清洁无死角结构', '耐温差 -20℃ ~ 120℃'],
+    });
+
+    const frozenSpec = SpecificationManager.freezeSpecification(spec);
+
+    const quoteA: SupplierQuote = {
+      id: 'quote-a',
+      candidateId,
+      specVersionId: frozenSpec.id,
+      supplierName: 'A厂 (浙江某工贸一体模具制品厂)',
+      status: 'ACTIVE',
+      unitPrice: 42,
+      packagingCost: { value: 3, source: 'FACT' },
+      logoCost: { value: 1, source: 'FACT' },
+      moq: 500,
+      sampleCost: 100,
+      toolingCost: 0,
+      leadTimeDays: 25,
+      captureMethod: 'MANUAL',
+      sourceChannel: '1688',
+      currency: 'CNY',
+      capturedAt: new Date().toISOString(),
+      returnedSpecs: {
+        netWeight: 650,
+        packagingDimensions: '26 × 16 × 11 cm',
+        packagedWeight: 780,
+        unitsPerCarton: 16,
+        cartonDimensions: '54 × 34 × 46 cm',
+        cartonGrossWeight: 13.5,
+      },
+    };
+
+    const quoteB: SupplierQuote = {
+      id: 'quote-b',
+      candidateId,
+      specVersionId: frozenSpec.id,
+      supplierName: 'B厂 (广东潮州高硼硅玻璃厂)',
+      status: 'ACTIVE',
+      unitPrice: 45,
+      packagingCost: { value: 2, source: 'FACT' },
+      logoCost: { value: 1, source: 'FACT' },
+      moq: 300,
+      sampleCost: 150,
+      toolingCost: 0,
+      leadTimeDays: 30,
+      captureMethod: 'MANUAL',
+      sourceChannel: 'WECHAT',
+      currency: 'CNY',
+      capturedAt: new Date().toISOString(),
+    };
+
+    const quoteC: SupplierQuote = {
+      id: 'quote-c',
+      candidateId,
+      specVersionId: frozenSpec.id,
+      supplierName: 'C厂 (江苏南通外贸日用品厂)',
+      status: 'ACTIVE',
+      unitPrice: 39,
+      packagingCost: { value: 4, source: 'FACT' },
+      logoCost: { value: 1, source: 'FACT' },
+      moq: 1000,
+      sampleCost: 80,
+      toolingCost: 0,
+      leadTimeDays: 20,
+      captureMethod: 'MANUAL',
+      sourceChannel: 'ALIBABA',
+      currency: 'CNY',
+      capturedAt: new Date().toISOString(),
+    };
+
+    const backfilledSpec = SpecificationManager.backfillFromQuote(
+      frozenSpec,
+      quoteA.returnedSpecs!,
+    );
+
+    let candidate: ProductCandidate = {
+      id: candidateId,
+      title: '玻璃水果保鲜盒 + 沥水篮',
+      marketplace: 'amazon-us',
+      category: 'Home & Kitchen > Kitchen & Dining > Storage & Organization > Food Storage',
+      concept: {
+        productType: '玻璃水果保鲜盒 + 沥水篮',
+        targetCustomer: '重视食品健康、追求高品质蔬果保鲜与极简收纳的北美家庭',
+        useCase: '洗净沥水、冰箱保鲜冷藏、餐桌健康伺服三合一',
+        targetPrice: 29.99,
+        specifications: {
+          material: '高硼硅玻璃 + 食品级 PP',
+          capacity: '1.5L',
+          dimensions: '25 × 15 × 10 cm',
+        },
+        differentiationHypotheses: [
+          '高硼硅玻璃耐酸耐碱无异味，彻底解决塑料水果盒易泛黄、吸附异味的痛点',
+          '悬空滤水篮结构洗完直接放冰箱，避免底部泡水腐烂',
+        ],
+      },
+      specifications: [backfilledSpec],
+      activeSpecVersionId: backfilledSpec.id,
+      supplierQuotes: [quoteA, quoteB, quoteC],
+      primaryQuoteId: 'quote-a',
+      fxSnapshot: {
+        currencyPair: 'CNY_USD',
+        rate: 0.14,
+        source: 'PBOC_BENCHMARK',
+        capturedAt: new Date().toISOString(),
+      },
+      marketResearch: {
+        seedKeyword: 'glass fruit container with colander',
+        searchVolumeMonthly: 28500,
+        competitiveDifficulty: 42,
+        opportunityScore: 78,
+        representativeAsin: 'B08FRUIT01',
+      },
+      economics: {
+        status: 'COMPLETE',
+        currency: 'USD',
+        inputs: {
+          sellingPrice: { value: 29.99, source: 'FACT' },
+          productCost: { value: 6.44, source: 'FACT', basis: 'PRIMARY_QUOTE_A厂_CNY_46' },
+          referralFeeRate: { value: 0.15, source: 'FACT' },
+          fbaFeePerUnit: { value: 4.8, source: 'ESTIMATE' },
+          freightPerUnit: { value: 1.8, source: 'ESTIMATE' },
+          dutyPerUnit: { value: 0.4, source: 'ESTIMATE' },
+          adsCostPerUnit: { value: 3.0, source: 'ESTIMATE' },
+          returnRate: { value: 0.05, source: 'ASSUMPTION' },
+          returnLossPerUnit: { value: 4.8, source: 'ESTIMATE' },
+          storageFeePerUnit: { value: 0.17, source: 'ESTIMATE' },
+          otherCostsPerUnit: { value: 0, source: 'FACT' },
+        },
+        scenarios: {
+          conservative: {} as any,
+          base: {} as any,
+          optimistic: {} as any,
+        },
+        missingInputs: [],
+      },
+      risks: [],
+      evidence: [
+        {
+          id: 'evi-market-fruit-saver',
+          scope: 'KEYWORD',
+          subjectId: 'glass fruit container with colander',
+          source: 'XYDC_ABA',
+          content: 'ABA 周搜索量 6,800，月度预估 28,500，主流价格带 $26.99 ~ $32.99',
+        },
+      ],
+      assumptions: [],
+      missingRequirements: [],
+      decision: 'INSUFFICIENT_DATA',
+    };
+
+    // 重新计算经济模型
+    candidate.economics = CandidateEconomicsService.calculateEconomics(
+      candidate.economics.inputs,
+      'USD',
+    );
+
+    // 计算启动资金 (MOQ 500 * ¥46.00 + 样品 ¥100 + 首批头程海运 500件*($1.8/0.14)≈¥6,429 = ¥29,529)
+    candidate.initialCash = InitialCashService.calculateInitialCash({
+      moq: 500,
+      productCostPerUnit: 46.0,
+      sampleCost: 100,
+      firstFreightCost: 6429,
+      toolingCost: 0,
+      currency: 'CNY',
+    });
+
+    // 映射适用风险
+    const { applicableRisks, assumptions } = RiskApplicabilityPolicy.determineApplicability(
+      candidate.concept,
+      candidate.category,
+    );
+    candidate.risks = applicableRisks;
+    candidate.assumptions = assumptions;
+
+    // 决策门禁评估
+    const decisionDetail = CandidateDecisionEngine.evaluate(candidate);
+    candidate.decision = decisionDetail.verdict;
+    candidate.decisionDetail = decisionDetail;
+
+    // 组装一页决策结论包
+    candidate.decisionPacket = DecisionPacketService.buildDecisionPacket(candidate);
+
+    return candidate;
+  }
+
+  /**
+   * 初始化单产品候选对象 (支持多入口)
+   */
+  initSingleProductCandidate(params: {
+    title: string;
+    marketplace?: string;
+    category?: string;
+    targetSellingPrice?: number;
+    material?: string;
+    capacity?: string;
+    dimensions?: string;
+    entryPoint?: string;
+  }): ProductCandidate {
+    const candidateId = `cand-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const marketplace = params.marketplace || 'amazon-us';
+    const title = params.title || '新产品企划';
+
+    const spec = SpecificationManager.createDraftSpecification(candidateId, {
+      material: params.material || '待定材质',
+      capacity: params.capacity || '待定规格',
+      dimensions: params.dimensions || '待定尺寸',
+      targetSellingPrice: params.targetSellingPrice || 29.99,
+      specialRequirements: [],
+    });
+
+    const candidate: ProductCandidate = {
+      id: candidateId,
+      title,
+      marketplace,
+      category: params.category || 'General',
+      concept: {
+        productType: title,
+        targetPrice: params.targetSellingPrice || 29.99,
+        specifications: {
+          material: spec.material,
+          capacity: spec.capacity,
+          dimensions: spec.dimensions,
+        },
+      },
+      specifications: [spec],
+      activeSpecVersionId: spec.id,
+      supplierQuotes: [],
+      fxSnapshot: {
+        currencyPair: 'CNY_USD',
+        rate: 0.14,
+        source: 'SYSTEM_DEFAULT',
+        capturedAt: new Date().toISOString(),
+      },
+      economics: {
+        status: 'INCOMPLETE',
+        currency: 'USD',
+        inputs: {
+          sellingPrice: { value: params.targetSellingPrice || 29.99, source: 'FACT' },
+          productCost: { value: null, source: 'UNKNOWN' },
+          referralFeeRate: { value: 0.15, source: 'FACT' },
+          fbaFeePerUnit: { value: null, source: 'UNKNOWN' },
+          freightPerUnit: { value: null, source: 'UNKNOWN' },
+          dutyPerUnit: { value: null, source: 'UNKNOWN' },
+          adsCostPerUnit: { value: null, source: 'UNKNOWN' },
+          returnRate: { value: null, source: 'UNKNOWN' },
+          returnLossPerUnit: { value: null, source: 'UNKNOWN' },
+          storageFeePerUnit: { value: null, source: 'UNKNOWN' },
+          otherCostsPerUnit: { value: 0, source: 'FACT' },
+        },
+        scenarios: {
+          conservative: {} as any,
+          base: {} as any,
+          optimistic: {} as any,
+        },
+        missingInputs: ['productCost', 'fbaFeePerUnit', 'freightPerUnit'],
+      },
+      risks: [],
+      evidence: [],
+      assumptions: [],
+      missingRequirements: [],
+      decision: 'INSUFFICIENT_DATA',
+    };
+
+    // 映射适用风险
+    const { applicableRisks, assumptions } = RiskApplicabilityPolicy.determineApplicability(
+      candidate.concept,
+      candidate.category,
+    );
+    candidate.risks = applicableRisks;
+    candidate.assumptions = assumptions;
+
+    candidate.decisionPacket = DecisionPacketService.buildDecisionPacket(candidate);
+    return candidate;
+  }
+
+  /**
+   * 冻结规格
+   */
+  freezeSingleProductSpec(
+    candidate: ProductCandidate,
+    spec: ProductSpecification,
+  ): ProductCandidate {
+    const frozen = SpecificationManager.freezeSpecification(spec);
+    const specs = (candidate.specifications || []).map((s) => (s.id === frozen.id ? frozen : s));
+    if (!specs.some((s) => s.id === frozen.id)) {
+      specs.push(frozen);
+    }
+
+    const updated = {
+      ...candidate,
+      specifications: specs,
+      activeSpecVersionId: frozen.id,
+    };
+    updated.decisionPacket = DecisionPacketService.buildDecisionPacket(updated);
+    return updated;
+  }
+
+  /**
+   * 生成询价单
+   */
+  generateSingleProductRfq(
+    candidate: ProductCandidate,
+    specId?: string,
+  ): GeneratedRfq {
+    const targetSpecId = specId || candidate.activeSpecVersionId;
+    const spec = candidate.specifications?.find((s) => s.id === targetSpecId);
+    if (!spec) {
+      throw new BadRequestException('未找到对应规格版本');
+    }
+    return RfqGeneratorService.generateRfq(candidate, spec);
+  }
+
+  /**
+   * 保存工厂报价
+   */
+  saveSingleProductQuote(
+    candidate: ProductCandidate,
+    quote: Partial<SupplierQuote>,
+  ): ProductCandidate {
+    const validation = SupplierQuoteService.validateDraft(quote);
+    if (!validation.valid) {
+      throw new BadRequestException(`报价草稿不合法: ${validation.errors.join(', ')}`);
+    }
+
+    const specId = quote.specVersionId || candidate.activeSpecVersionId!;
+    const quoteId = quote.id || `quote-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+
+    const fullQuote: SupplierQuote = {
+      id: quoteId,
+      candidateId: candidate.id,
+      specVersionId: specId,
+      supplierName: quote.supplierName || '新供应商',
+      status: quote.status || 'ACTIVE',
+      unitPrice: Number(quote.unitPrice),
+      packagingCost: quote.packagingCost || { value: null, source: 'UNKNOWN' },
+      logoCost: quote.logoCost || { value: null, source: 'UNKNOWN' },
+      moq: Number(quote.moq),
+      sampleCost: quote.sampleCost ?? null,
+      toolingCost: quote.toolingCost ?? null,
+      leadTimeDays: quote.leadTimeDays ?? null,
+      returnedSpecs: quote.returnedSpecs,
+      captureMethod: quote.captureMethod || 'MANUAL',
+      sourceChannel: quote.sourceChannel || '1688',
+      currency: quote.currency || 'CNY',
+      capturedAt: quote.capturedAt || new Date().toISOString(),
+      notes: quote.notes,
+    };
+
+    let quotes = candidate.supplierQuotes || [];
+    const index = quotes.findIndex((q) => q.id === quoteId);
+    if (index >= 0) {
+      quotes[index] = fullQuote;
+    } else {
+      quotes = [...quotes, fullQuote];
+    }
+
+    let updatedSpecs = candidate.specifications || [];
+    if (fullQuote.returnedSpecs) {
+      const activeSpec = updatedSpecs.find((s) => s.id === specId);
+      if (activeSpec) {
+        const backfilled = SpecificationManager.backfillFromQuote(activeSpec, fullQuote.returnedSpecs);
+        updatedSpecs = updatedSpecs.map((s) => (s.id === backfilled.id ? backfilled : s));
+      }
+    }
+
+    const updated: ProductCandidate = {
+      ...candidate,
+      supplierQuotes: quotes,
+      specifications: updatedSpecs,
+    };
+
+    updated.decisionPacket = DecisionPacketService.buildDecisionPacket(updated);
+    return updated;
+  }
+
+  /**
+   * 选择主选算账工厂
+   */
+  selectSingleProductPrimaryQuote(
+    candidate: ProductCandidate,
+    quoteId: string,
+    confirmedUnknownCharges?: { packagingCost?: number; logoCost?: number },
+  ): ProductCandidate {
+    const result = SupplierQuoteService.selectPrimaryQuote(
+      candidate,
+      quoteId,
+      confirmedUnknownCharges,
+    );
+
+    const updated = result.candidate;
+    // 重新计算经济模型
+    updated.economics = CandidateEconomicsService.calculateEconomics(
+      updated.economics.inputs,
+      'USD',
+    );
+
+    // 重新核算现金 (保留已有头程或待录入)
+    const existingFreight = updated.initialCash?.firstFreightCost ?? undefined;
+    updated.initialCash = InitialCashService.calculateInitialCash({
+      moq: result.primaryQuote.moq,
+      productCostPerUnit: result.productCostCny,
+      sampleCost: result.primaryQuote.sampleCost,
+      firstFreightCost: existingFreight,
+      currency: result.primaryQuote.currency,
+    });
+
+    const detail = CandidateDecisionEngine.evaluate(updated);
+    updated.decision = detail.verdict;
+    updated.decisionDetail = detail;
+
+    updated.decisionPacket = DecisionPacketService.buildDecisionPacket(updated);
+    return updated;
+  }
+
+  /**
+   * 测算闭环
+   */
+  evaluateSingleProduct(
+    candidate: ProductCandidate,
+    feeInputs?: Partial<ProductCandidate['economics']['inputs']>,
+    initialCashParams?: { sampleCost?: number; firstFreightCost?: number; toolingCost?: number },
+  ): ProductCandidate {
+    let updated = { ...candidate };
+
+    if (feeInputs) {
+      updated.economics = CandidateEconomicsService.calculateEconomics(
+        {
+          ...updated.economics.inputs,
+          ...feeInputs,
+        },
+        'USD',
+      );
+    }
+
+    if (updated.primaryQuoteId) {
+      const primaryQuote = updated.supplierQuotes?.find((q) => q.id === updated.primaryQuoteId);
+      if (primaryQuote) {
+        updated.initialCash = InitialCashService.calculateInitialCash({
+          moq: primaryQuote.moq,
+          productCostPerUnit: primaryQuote.unitPrice + (primaryQuote.packagingCost?.value || 0) + (primaryQuote.logoCost?.value || 0),
+          sampleCost: initialCashParams?.sampleCost !== undefined ? initialCashParams.sampleCost : primaryQuote.sampleCost,
+          firstFreightCost: initialCashParams?.firstFreightCost !== undefined ? initialCashParams.firstFreightCost : updated.initialCash?.firstFreightCost,
+          toolingCost: initialCashParams?.toolingCost !== undefined ? initialCashParams.toolingCost : primaryQuote.toolingCost,
+          currency: primaryQuote.currency,
+        });
+      }
+    }
+
+    const detail = CandidateDecisionEngine.evaluate(updated);
+    updated.decision = detail.verdict;
+    updated.decisionDetail = detail;
+    updated.decisionPacket = DecisionPacketService.buildDecisionPacket(updated);
+
+    return updated;
   }
 }
 

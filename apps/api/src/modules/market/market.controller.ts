@@ -8,6 +8,8 @@ import type {
   EvidenceItem,
   CandidateEnrichmentRequest,
   CandidateEnrichmentRun,
+  ProductSpecification,
+  SupplierQuote,
 } from '@crosspilot/shared';
 
 @Controller()
@@ -191,5 +193,100 @@ export class MarketController {
   @Post('market-research/enrichment/handoff')
   handoffEnrichment(@Body() body: { run: CandidateEnrichmentRun }) {
     return this.marketService.handoffEnrichment(body.run);
+  }
+
+  // ==========================================================================
+  // Single-Product Research V1 Endpoints (工程增强修订)
+  // ==========================================================================
+
+  @Get('market-research/single-product/demo-fruit-box')
+  getDemoFruitBox() {
+    return this.marketService.getDemoFruitBoxCandidate();
+  }
+
+  @Post('market-research/single-product/init')
+  initSingleProduct(
+    @Body()
+    body: {
+      title: string;
+      marketplace?: string;
+      category?: string;
+      targetSellingPrice?: number;
+      material?: string;
+      capacity?: string;
+      dimensions?: string;
+      entryPoint?: string;
+    },
+  ) {
+    return this.marketService.initSingleProductCandidate(body);
+  }
+
+  @Post('market-research/single-product/spec/freeze')
+  freezeSpec(
+    @Body()
+    body: {
+      candidate: ProductCandidate;
+      spec: ProductSpecification;
+    },
+  ) {
+    return this.marketService.freezeSingleProductSpec(body.candidate, body.spec);
+  }
+
+  @Post('market-research/single-product/rfq')
+  generateRfq(
+    @Body()
+    body: {
+      candidate: ProductCandidate;
+      specId?: string;
+    },
+  ) {
+    return this.marketService.generateSingleProductRfq(body.candidate, body.specId);
+  }
+
+  @Post('market-research/single-product/quote/save')
+  saveQuote(
+    @Body()
+    body: {
+      candidate: ProductCandidate;
+      quote: Partial<SupplierQuote>;
+    },
+  ) {
+    return this.marketService.saveSingleProductQuote(body.candidate, body.quote);
+  }
+
+  @Post('market-research/single-product/quote/select-primary')
+  selectPrimaryQuote(
+    @Body()
+    body: {
+      candidate: ProductCandidate;
+      quoteId: string;
+      confirmedUnknownCharges?: { packagingCost?: number; logoCost?: number };
+    },
+  ) {
+    return this.marketService.selectSingleProductPrimaryQuote(
+      body.candidate,
+      body.quoteId,
+      body.confirmedUnknownCharges,
+    );
+  }
+
+  @Post('market-research/single-product/evaluate')
+  evaluateSingleProduct(
+    @Body()
+    body: {
+      candidate: ProductCandidate;
+      feeInputs?: Partial<ProductCandidate['economics']['inputs']>;
+      initialCashParams?: {
+        sampleCost?: number;
+        firstFreightCost?: number;
+        toolingCost?: number;
+      };
+    },
+  ) {
+    return this.marketService.evaluateSingleProduct(
+      body.candidate,
+      body.feeInputs,
+      body.initialCashParams,
+    );
   }
 }
