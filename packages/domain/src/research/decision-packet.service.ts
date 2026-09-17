@@ -1,9 +1,11 @@
 import {
   CandidateDecision,
+  DecisionCostItem,
   DecisionSensitivityFactor,
   InitialCashStatus,
   OnePageDecisionPacket,
   ProductCandidate,
+  ValueSource,
 } from '@crosspilot/shared';
 import { NextBestActionEngine } from './next-best-action.engine.js';
 import { ProfitCalculationService } from '../profit/profit-calculation.service.js';
@@ -124,18 +126,94 @@ export class DecisionPacketService {
     // 生成决策敏感度分析 (Sensitivity Factors)
     const decisionSensitivities = this.computeSensitivities(candidate, verdict);
 
-    // 完整成本分项
+    // 完整成本分项（P0-4 规约: UNKNOWN ≠ 0，严格区分真实 0 与未知 null）
+    const inputs = candidate.economics?.inputs;
+
+    const buildCostItem = (
+      inputValue: number | null | undefined,
+      inputSource: ValueSource | undefined,
+      computedValue: number | undefined,
+    ): DecisionCostItem => {
+      // 区分 FACT 0 与 UNKNOWN null
+      const isFactZero = inputSource === 'FACT' && inputValue === 0;
+      if (isFactZero) {
+        return {
+          value: 0,
+          source: 'FACT',
+          included: true,
+        };
+      }
+
+      const hasValidInput =
+        inputValue !== null && inputValue !== undefined && inputSource !== 'UNKNOWN';
+      if (!hasValidInput) {
+        return {
+          value: null,
+          source: inputSource ?? 'UNKNOWN',
+          included: false,
+        };
+      }
+
+      return {
+        value: computedValue ?? inputValue ?? null,
+        source: inputSource ?? 'ESTIMATE',
+        included: true,
+      };
+    };
+
+    const totalExpensesItem: DecisionCostItem = {
+      value: baseScenario?.totalExpenses ?? null,
+      source: baseScenario?.totalExpenses ? 'ESTIMATE' : 'UNKNOWN',
+      included: baseScenario?.totalExpenses != null && baseScenario.totalExpenses > 0,
+    };
+
     const costBreakdown = {
-      productCost: baseScenario?.productCost ?? 0,
-      referralFee: baseScenario?.amazonReferralFee ?? 0,
-      fbaFee: baseScenario?.fbaFee ?? 0,
-      freightFee: baseScenario?.freight ?? 0,
-      duty: baseScenario?.duty ?? 0,
-      advertisingCost: baseScenario?.advertisingCost ?? 0,
-      expectedReturnLoss: baseScenario?.expectedReturnLoss ?? 0,
-      storage: baseScenario?.storage ?? 0,
-      otherCosts: baseScenario?.otherCosts ?? 0,
-      totalExpenses: baseScenario?.totalExpenses ?? 0,
+      productCost: buildCostItem(
+        inputs?.productCost?.value,
+        inputs?.productCost?.source,
+        baseScenario?.productCost,
+      ),
+      referralFee: buildCostItem(
+        inputs?.referralFeeRate?.value,
+        inputs?.referralFeeRate?.source,
+        baseScenario?.amazonReferralFee,
+      ),
+      fbaFee: buildCostItem(
+        inputs?.fbaFeePerUnit?.value,
+        inputs?.fbaFeePerUnit?.source,
+        baseScenario?.fbaFee,
+      ),
+      freightFee: buildCostItem(
+        inputs?.freightPerUnit?.value,
+        inputs?.freightPerUnit?.source,
+        baseScenario?.freight,
+      ),
+      duty: buildCostItem(
+        inputs?.dutyPerUnit?.value,
+        inputs?.dutyPerUnit?.source,
+        baseScenario?.duty,
+      ),
+      advertisingCost: buildCostItem(
+        inputs?.adsCostPerUnit?.value,
+        inputs?.adsCostPerUnit?.source,
+        baseScenario?.advertisingCost,
+      ),
+      expectedReturnLoss: buildCostItem(
+        inputs?.returnLossPerUnit?.value ?? inputs?.returnRate?.value,
+        inputs?.returnLossPerUnit?.source ?? inputs?.returnRate?.source,
+        baseScenario?.expectedReturnLoss,
+      ),
+      storage: buildCostItem(
+        inputs?.storageFeePerUnit?.value,
+        inputs?.storageFeePerUnit?.source,
+        baseScenario?.storage,
+      ),
+      otherCosts: buildCostItem(
+        inputs?.otherCostsPerUnit?.value,
+        inputs?.otherCostsPerUnit?.source,
+        baseScenario?.otherCosts,
+      ),
+      totalExpenses: totalExpensesItem,
     };
 
     // 风险概况

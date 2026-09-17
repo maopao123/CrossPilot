@@ -1,18 +1,21 @@
 import {
   FxSnapshot,
+  MissingRequirement,
   ProductCandidate,
   SupplierQuote,
   SupplierQuoteBadgeType,
   SupplierQuoteFactBadge,
+  ValueSource,
 } from '@crosspilot/shared';
 import { ProfitCalculationService } from '../profit/profit-calculation.service.js';
 
 export interface SelectPrimaryQuoteResult {
   candidate: ProductCandidate;
   primaryQuote: SupplierQuote;
+  productCostQuoteCurrency: number;
   productCostCny: number;
-  productCostUsd: number;
-  fxRate: number;
+  productCostUsd: number | null;
+  fxRate: number | null;
   breakdown: {
     unitPrice: number;
     packagingCost: number;
@@ -176,25 +179,58 @@ export class SupplierQuoteService {
       },
     };
 
-    // productCost = unitPrice + packagingCost + logoCost (均为单件分项)
-    const productCostCny = ProfitCalculationService.roundMoney(
+    // 原始币种单件采购成本 = unitPrice + packagingCost + logoCost
+    const productCostOriginal = ProfitCalculationService.roundMoney(
       updatedQuote.unitPrice + (finalPackagingCost ?? 0) + (finalLogoCost ?? 0),
     );
+    const productCostCny = updatedQuote.currency === 'CNY' ? productCostOriginal : 0;
+    const productCostQuoteCurrency = productCostOriginal;
 
-    // 确定汇率（优先 Candidate 快照，默认 0.14）
-    const fxRate = candidate.fxSnapshot?.rate ?? 0.14;
-    const fxSnapshot: FxSnapshot = candidate.fxSnapshot ?? {
-      currencyPair: 'CNY_USD',
-      rate: fxRate,
-      source: 'SYSTEM_DEFAULT',
-      capturedAt: new Date().toISOString(),
-    };
+    const economicsCurrency = candidate.economics?.currency || 'USD';
+    const isSameCurrency = updatedQuote.currency === economicsCurrency;
 
-    // 转换为 USD ProductCost
-    const productCostUsd =
-      quote.currency === 'USD'
-        ? productCostCny
-        : ProfitCalculationService.roundMoney(productCostCny * fxRate);
+    let fxRate: number | null = null;
+    let fxSnapshot: FxSnapshot | undefined = candidate.fxSnapshot;
+    let productCostUsd: number | null = null;
+    let productCostSource: ValueSource = 'UNKNOWN';
+    let productCostBasis = '';
+
+    const FX_MISSING_REQ = '还差人民币兑美元汇率，确认后才能完成成本换算。';
+
+    if (isSameCurrency) {
+      // 情况 A: Quote 币种与 Economics 币种一致，不需要 FX，直接使用原始金额
+      productCostUsd = productCostOriginal;
+      productCostSource = 'FACT';
+      productCostBasis = `PRIMARY_QUOTE_${updatedQuote.supplierName}_${updatedQuote.currency}_${productCostOriginal}`;
+    } else {
+      // 情况 B: Quote 币种与 Economics 币种不同（如 CNY vs USD）
+      // P0-2 铁律: 必须存在有效 fxSnapshot，禁止默认 0.14，禁止将缺少 FX 的成本标记为 FACT
+      const hasValidFx =
+        candidate.fxSnapshot &&
+        typeof candidate.fxSnapshot.rate === 'number' &&
+        candidate.fxSnapshot.rate > 0;
+
+      if (hasValidFx) {
+        fxRate = candidate.fxSnapshot!.rate;
+        fxSnapshot = candidate.fxSnapshot;
+        productCostUsd = ProfitCalculationService.roundMoney(productCostOriginal * fxRate);
+        const fxSource = candidate.fxSnapshot!.source;
+        productCostSource =
+          fxSource === 'FACT' || (fxSource as string) === 'PBOC_BENCHMARK'
+            ? 'FACT'
+            : fxSource === 'ASSUMPTION'
+            ? 'ASSUMPTION'
+            : 'ESTIMATE';
+        productCostBasis = `PRIMARY_QUOTE_${updatedQuote.supplierName}_${updatedQuote.currency}_${productCostOriginal}_FX_${fxRate}_${productCostSource}`;
+      } else {
+        // 无有效汇率快照，禁止使用 0.14 或隐藏默认值，禁止标为 FACT
+        fxRate = null;
+        fxSnapshot = undefined;
+        productCostUsd = null;
+        productCostSource = 'UNKNOWN';
+        productCostBasis = `MISSING_FX_RATE_${updatedQuote.currency}_${economicsCurrency}`;
+      }
+    }
 
     // 更新 candidate 中的 quotes 列表及主要报价标记
     const updatedQuotes = quotes.map((q) => (q.id === quoteId ? updatedQuote : q));
@@ -204,21 +240,48 @@ export class SupplierQuoteService {
       ...candidate.economics.inputs,
       productCost: {
         value: productCostUsd,
-        source: 'FACT' as const,
-        basis: `PRIMARY_QUOTE_${updatedQuote.supplierName}_CNY_${productCostCny}`,
+        source: productCostSource,
+        basis: productCostBasis,
       },
     };
 
     // 刷新 missingInputs
-    const updatedMissingInputs = candidate.economics.missingInputs.filter(
+    let updatedMissingInputs = candidate.economics.missingInputs.filter(
       (m) => m !== 'productCost',
     );
+    if (productCostUsd === null) {
+      if (!updatedMissingInputs.includes('productCost')) {
+        updatedMissingInputs.push('productCost');
+      }
+    }
+
+    // 刷新 missingRequirements
+    const fxMissingReq: MissingRequirement = {
+      id: 'req-missing-fx-rate',
+      dimension: 'ECONOMICS',
+      field: 'fxRate',
+      description: '还差人民币兑美元汇率，确认后才能完成成本换算。',
+      blockingDecision: true,
+    };
+
+    const missingRequirements = [
+      ...(candidate.missingRequirements || []).filter(
+        (r) =>
+          r.id !== 'req-missing-fx-rate' &&
+          r.field !== 'fxRate' &&
+          !r.description?.includes('汇率'),
+      ),
+    ];
+    if (!isSameCurrency && productCostUsd === null) {
+      missingRequirements.push(fxMissingReq);
+    }
 
     const updatedCandidate: ProductCandidate = {
       ...candidate,
       supplierQuotes: updatedQuotes,
       primaryQuoteId: quoteId,
       fxSnapshot,
+      missingRequirements,
       economics: {
         ...candidate.economics,
         inputs: updatedInputs,
@@ -229,6 +292,7 @@ export class SupplierQuoteService {
     return {
       candidate: updatedCandidate,
       primaryQuote: updatedQuote,
+      productCostQuoteCurrency,
       productCostCny,
       productCostUsd,
       fxRate,

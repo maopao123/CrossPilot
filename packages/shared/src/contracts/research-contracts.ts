@@ -1039,16 +1039,16 @@ export interface OnePageDecisionPacket {
   };
   decisionSensitivities: DecisionSensitivityFactor[];
   costBreakdown: {
-    productCost: number;
-    referralFee: number;
-    fbaFee: number;
-    freightFee: number;
-    duty: number;
-    advertisingCost: number;
-    expectedReturnLoss: number;
-    storage: number;
-    otherCosts: number;
-    totalExpenses: number;
+    productCost: DecisionCostItem;
+    referralFee: DecisionCostItem;
+    fbaFee: DecisionCostItem;
+    freightFee: DecisionCostItem;
+    duty: DecisionCostItem;
+    advertisingCost: DecisionCostItem;
+    expectedReturnLoss: DecisionCostItem;
+    storage: DecisionCostItem;
+    otherCosts: DecisionCostItem;
+    totalExpenses: DecisionCostItem;
   };
   riskAndEvidenceSummary: {
     totalRisks: number;
@@ -1058,6 +1058,15 @@ export interface OnePageDecisionPacket {
     applicableRisks: CandidateRisk[];
   };
   evaluatedAt: string;
+}
+
+/**
+ * 决策包成本明细项（P0-4 规约: UNKNOWN ≠ 0，严格保留来源凭据与区分 FACT 0）
+ */
+export interface DecisionCostItem {
+  value: number | null;
+  source: ValueSource;
+  included: boolean;
 }
 
 /**
@@ -1091,6 +1100,7 @@ export type ResearchFunnelEvent =
   | 'COLLAPSIBLE_SECTION_EXPANDED';
 
 export interface ResearchAnalyticsEvent {
+  workspaceId?: string;
   eventName: ResearchFunnelEvent;
   candidateId: string;
   metadata?: Record<string, unknown>;

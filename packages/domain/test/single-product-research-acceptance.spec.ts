@@ -785,7 +785,256 @@ describe('CrossPilot Single-Product Research V1 Acceptance Suite (工程增强�
 
       // 折叠区数据完备
       expect(packet.conservativeScenarioSummary.unitContributionProfitUsd).toBeGreaterThan(0);
-      expect(packet.costBreakdown.productCost).toBe(6.44);
+      expect(packet.costBreakdown.productCost.value).toBe(6.44);
+      expect(packet.costBreakdown.productCost.included).toBe(true);
+      expect(packet.costBreakdown.productCost.source).toBe('FACT');
+    });
+  });
+
+  describe('Phase 3 V1 Truthfulness & Data Consistency Closure (真实性闭环强化验收)', () => {
+    it('P0-2 汇率真实性: CNY 报价在缺失 fxSnapshot 时严禁默认 0.14，必须产出 productCostUsd=null 与汇率缺失需求', () => {
+      const candidate = createTestCandidate();
+      const quoteCny: SupplierQuote = {
+        id: 'quote-cny-1',
+        candidateId: candidate.id,
+        specVersionId: candidate.activeSpecVersionId!,
+        supplierName: '义乌市某日用品厂',
+        status: 'ACTIVE',
+        unitPrice: 42,
+        packagingCost: { value: 3, source: 'FACT' },
+        logoCost: { value: 1, source: 'FACT' },
+        moq: 500,
+        sampleCost: 100,
+        toolingCost: 0,
+        leadTimeDays: 20,
+        captureMethod: 'MANUAL',
+        sourceChannel: '1688',
+        currency: 'CNY',
+        capturedAt: new Date().toISOString(),
+      };
+      candidate.supplierQuotes = [quoteCny];
+      candidate.fxSnapshot = undefined; // 显式无汇率快照
+
+      const result = SupplierQuoteService.selectPrimaryQuote(candidate, 'quote-cny-1');
+
+      // 绝对不能有默认的 0.14
+      expect(result.fxRate).toBeNull();
+      expect(result.productCostUsd).toBeNull();
+      expect(result.productCostCny).toBe(46.0);
+      expect(result.productCostQuoteCurrency).toBe(46.0);
+
+      // Economics inputs 必须为 null 与 UNKNOWN
+      expect(result.candidate.economics.inputs.productCost.value).toBeNull();
+      expect(result.candidate.economics.inputs.productCost.source).toBe('UNKNOWN');
+
+      // 必须加入汇率缺失项
+      const fxReq = result.candidate.missingRequirements?.find(
+        (r) => r.field === 'fxRate' || r.description.includes('汇率'),
+      );
+      expect(fxReq).toBeDefined();
+      expect(fxReq?.description).toContain('汇率');
+
+      // NBA 必须提示补充汇率
+      const nba = NextBestActionEngine.getNextBestAction(result.candidate);
+      expect(nba).not.toBeNull();
+      expect(nba!.category).toBe('CRITICAL_INPUT');
+      expect(nba!.title).toContain('汇率');
+    });
+
+    it('P0-2 汇率真实性: 录入有效 fxSnapshot 时正确完成换算并继承来源凭据', () => {
+      const candidate = createTestCandidate();
+      const quoteCny: SupplierQuote = {
+        id: 'quote-cny-2',
+        candidateId: candidate.id,
+        specVersionId: candidate.activeSpecVersionId!,
+        supplierName: '宁波某工贸公司',
+        status: 'ACTIVE',
+        unitPrice: 40,
+        packagingCost: { value: 2, source: 'FACT' },
+        logoCost: { value: 0, source: 'FACT' },
+        moq: 1000,
+        sampleCost: 80,
+        toolingCost: 0,
+        leadTimeDays: 15,
+        captureMethod: 'MANUAL',
+        sourceChannel: '1688',
+        currency: 'CNY',
+        capturedAt: new Date().toISOString(),
+      };
+      candidate.supplierQuotes = [quoteCny];
+      candidate.fxSnapshot = {
+        currencyPair: 'CNY_USD',
+        rate: 0.138,
+        source: 'ESTIMATE',
+        capturedAt: new Date().toISOString(),
+      };
+
+      const result = SupplierQuoteService.selectPrimaryQuote(candidate, 'quote-cny-2');
+
+      // 42 CNY * 0.138 = 5.796 -> 5.80 USD
+      expect(result.fxRate).toBe(0.138);
+      expect(result.productCostUsd).toBe(5.8);
+      expect(result.candidate.economics.inputs.productCost.value).toBe(5.8);
+      expect(result.candidate.economics.inputs.productCost.source).toBe('ESTIMATE');
+
+      // 汇率缺失项应不存在
+      const fxReq = result.candidate.missingRequirements?.find(
+        (r) => r.field === 'fxRate' || r.description.includes('汇率'),
+      );
+      expect(fxReq).toBeUndefined();
+    });
+
+    it('P0-2 汇率真实性: USD 报价与 USD 经济模型完全同币种，无需 FX 换算直接为 FACT', () => {
+      const candidate = createTestCandidate();
+      const quoteUsd: SupplierQuote = {
+        id: 'quote-usd-1',
+        candidateId: candidate.id,
+        specVersionId: candidate.activeSpecVersionId!,
+        supplierName: 'Vietnam Global Supply Co',
+        status: 'ACTIVE',
+        unitPrice: 7.5,
+        packagingCost: { value: 0.5, source: 'FACT' },
+        logoCost: { value: 0.2, source: 'FACT' },
+        moq: 500,
+        sampleCost: 50,
+        toolingCost: 0,
+        leadTimeDays: 30,
+        captureMethod: 'MANUAL',
+        sourceChannel: 'ALIBABA',
+        currency: 'USD',
+        capturedAt: new Date().toISOString(),
+      };
+      candidate.supplierQuotes = [quoteUsd];
+      candidate.fxSnapshot = undefined; // 同币种无需汇率快照
+
+      const result = SupplierQuoteService.selectPrimaryQuote(candidate, 'quote-usd-1');
+
+      // 7.5 + 0.5 + 0.2 = 8.20 USD
+      expect(result.fxRate).toBeNull();
+      expect(result.productCostUsd).toBe(8.2);
+      expect(result.candidate.economics.inputs.productCost.value).toBe(8.2);
+      expect(result.candidate.economics.inputs.productCost.source).toBe('FACT');
+    });
+
+    it('P0-4 决策包成本分项: UNKNOWN 成本严格标记 included: false, value: null, source: UNKNOWN，绝不伪装为 $0', () => {
+      const candidate = createTestCandidate();
+      candidate.economics = CandidateEconomicsService.calculateEconomics({
+        sellingPrice: { value: 29.99, source: 'FACT' },
+        productCost: { value: 6.44, source: 'FACT' },
+        referralFeeRate: { value: 0.15, source: 'FACT' },
+        fbaFeePerUnit: { value: 4.8, source: 'FACT' },
+        freightPerUnit: { value: 1.8, source: 'FACT' },
+        dutyPerUnit: { value: null, source: 'UNKNOWN' }, // 未知关税
+        adsCostPerUnit: { value: null, source: 'UNKNOWN' }, // 未知广告
+        storageFeePerUnit: { value: null, source: 'UNKNOWN' }, // 未知仓储
+      });
+
+      const packet = DecisionPacketService.buildDecisionPacket(candidate);
+
+      // 已确认项
+      expect(packet.costBreakdown.productCost).toEqual({
+        value: 6.44,
+        source: 'FACT',
+        included: true,
+      });
+      expect(packet.costBreakdown.referralFee).toEqual({
+        value: 4.5,
+        source: 'FACT',
+        included: true,
+      });
+
+      // UNKNOWN 缺失项: 严禁伪装为 included: true, value: 0
+      expect(packet.costBreakdown.duty).toEqual({
+        value: null,
+        source: 'UNKNOWN',
+        included: false,
+      });
+      expect(packet.costBreakdown.advertisingCost).toEqual({
+        value: null,
+        source: 'UNKNOWN',
+        included: false,
+      });
+      expect(packet.costBreakdown.storage).toEqual({
+        value: null,
+        source: 'UNKNOWN',
+        included: false,
+      });
+    });
+
+    it('P0-4 决策包成本分项: 真实 FACT 0 费用 (例如工厂免收包装费与关税为0) 准确标为 included: true, value: 0, source: FACT', () => {
+      const candidate = createTestCandidate();
+      candidate.economics = CandidateEconomicsService.calculateEconomics({
+        sellingPrice: { value: 29.99, source: 'FACT' },
+        productCost: { value: 6.44, source: 'FACT' },
+        referralFeeRate: { value: 0.15, source: 'FACT' },
+        fbaFeePerUnit: { value: 4.8, source: 'FACT' },
+        freightPerUnit: { value: 1.8, source: 'FACT' },
+        dutyPerUnit: { value: 0, source: 'FACT' }, // 真实免税
+        adsCostPerUnit: { value: 3.0, source: 'ESTIMATE' },
+        storageFeePerUnit: { value: 0, source: 'FACT' },
+      });
+
+      const packet = DecisionPacketService.buildDecisionPacket(candidate);
+
+      // 真正为 0 的费用必须被包含且保留 FACT
+      expect(packet.costBreakdown.duty).toEqual({
+        value: 0,
+        source: 'FACT',
+        included: true,
+      });
+      expect(packet.costBreakdown.storage).toEqual({
+        value: 0,
+        source: 'FACT',
+        included: true,
+      });
+    });
+
+    it('P0-5 启动资金币种对齐: 确保 CNY 报价产出 CNY 启动资金，USD 报价产出 USD 启动资金', () => {
+      // 场景 1: CNY
+      const cnyCash = InitialCashService.calculateInitialCash({
+        moq: 500,
+        productCostPerUnit: 46.0,
+        sampleCost: 100,
+        firstFreightCost: 6429,
+        toolingCost: 0,
+        packagingSetupCost: 0,
+        currency: 'CNY',
+      });
+      expect(cnyCash.currency).toBe('CNY');
+      expect(cnyCash.inventoryCost).toBe(23000);
+      expect(cnyCash.totalInitialCash).toBe(29529);
+      expect(cnyCash.displaySummaryZh).toBe('¥2.95 万 (含货款、样品、头程)');
+
+      // 场景 2: USD
+      const usdCash = InitialCashService.calculateInitialCash({
+        moq: 300,
+        productCostPerUnit: 12.0,
+        sampleCost: 50,
+        firstFreightCost: 800,
+        toolingCost: 0,
+        packagingSetupCost: 0,
+        currency: 'USD',
+      });
+      expect(usdCash.currency).toBe('USD');
+      expect(usdCash.inventoryCost).toBe(3600);
+      expect(usdCash.totalInitialCash).toBe(4450);
+      expect(usdCash.displaySummaryZh).toBe('$4,450 (含货款、样品、头程)');
+    });
+
+    it('P0-5 启动资金边界校验: 当出厂单价或 MOQ 缺失时，inventoryCost 为 0 且 status 为 INCOMPLETE', () => {
+      const incompleteCash = InitialCashService.calculateInitialCash({
+        moq: 0,
+        productCostPerUnit: 0,
+        sampleCost: 100,
+        firstFreightCost: 2000,
+        currency: 'CNY',
+      });
+      expect(incompleteCash.status).toBe('INCOMPLETE');
+      expect(incompleteCash.inventoryCost).toBe(0);
+      expect(incompleteCash.totalInitialCash).toBeNull();
+      expect(incompleteCash.missingItems).toContain('起订量');
+      expect(incompleteCash.missingItems).toContain('出厂单价');
+      expect(incompleteCash.displaySummaryZh).toContain('缺起订量');
     });
   });
 });

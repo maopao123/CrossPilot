@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   CheckCircle2,
@@ -32,6 +32,7 @@ import type {
   SupplierQuote,
   SupplierQuoteFactBadge,
   OnePageDecisionPacket,
+  DecisionCostItem,
   ResearchFunnelEvent,
 } from '@crosspilot/shared';
 import { ApiClient } from '../../../lib/api-client';
@@ -46,6 +47,7 @@ export function SingleProductResearchSection({
   onCandidateChange,
 }: SingleProductResearchSectionProps) {
   const [candidate, setCandidate] = useState<ProductCandidate | null>(initialCandidate ?? null);
+  const packet: OnePageDecisionPacket | undefined = candidate?.decisionPacket;
   const [loading, setLoading] = useState<boolean>(false);
   const [activeModule, setActiveModule] = useState<'market' | 'competitors' | 'specs' | 'quotes' | 'economics' | 'decision'>('decision');
   const [copiedRfq, setCopiedRfq] = useState<boolean>(false);
@@ -63,12 +65,12 @@ export function SingleProductResearchSection({
   const [showAddQuoteModal, setShowAddQuoteModal] = useState<boolean>(false);
   const [newQuoteForm, setNewQuoteForm] = useState({
     supplierName: '',
-    unitPrice: 42,
-    packagingCost: 3,
-    logoCost: 1,
-    moq: 500,
-    leadTimeDays: 25,
-    sampleCost: 100,
+    unitPrice: 0,
+    packagingCost: 0,
+    logoCost: 0,
+    moq: 0,
+    leadTimeDays: 0,
+    sampleCost: 0,
     sourceChannel: '1688' as const,
   });
 
@@ -82,20 +84,39 @@ export function SingleProductResearchSection({
 
   // 规格编辑草稿表单
   const [specForm, setSpecForm] = useState({
-    material: '高硼硅玻璃主体 + 食品级 PP 沥水篮',
-    capacity: '约 1.5L',
-    dimensions: '25 × 15 × 10 cm',
-    targetSellingPrice: 29.99,
+    material: '',
+    capacity: '',
+    dimensions: '',
+    targetSellingPrice: 0,
   });
 
-  // 启动资金补全/调整弹窗 (P0-1 完整性闭环)
+  // 埋点去重引用 (P1-3 & P1-4)
+  const viewedPacketKeyRef = useRef<string | null>(null);
+  const criticalFeesCompletedRef = useRef<string | null>(null);
+
+  // 启动资金补全/调整弹窗 (P0-1 完整性闭环: 禁止预填 100/6429 假数值)
   const [showInitialCashModal, setShowInitialCashModal] = useState<boolean>(false);
-  const [initialCashForm, setInitialCashForm] = useState({
-    sampleCost: 100,
-    firstFreightCost: 6429,
-    toolingCost: 0,
-    packagingSetupCost: 0,
+  const [initialCashForm, setInitialCashForm] = useState<{
+    sampleCost: number | '';
+    firstFreightCost: number | '';
+    toolingCost: number | '';
+    packagingSetupCost: number | '';
+  }>({
+    sampleCost: '',
+    firstFreightCost: '',
+    toolingCost: '',
+    packagingSetupCost: '',
   });
+
+  function openInitialCashModal() {
+    setInitialCashForm({
+      sampleCost: candidate?.initialCash?.sampleCost ?? '',
+      firstFreightCost: candidate?.initialCash?.firstFreightCost ?? '',
+      toolingCost: candidate?.initialCash?.toolingCost ?? '',
+      packagingSetupCost: candidate?.initialCash?.packagingSetupCost ?? '',
+    });
+    setShowInitialCashModal(true);
+  }
 
   // 核心漏斗埋点上报 (Spec §35 & §38)
   function trackFunnel(eventName: ResearchFunnelEvent, metadata?: Record<string, unknown>) {
@@ -136,6 +157,59 @@ export function SingleProductResearchSection({
       setLoading(false);
     }
   }
+
+  // 埋点: 真实浏览决策结论包 (P1-3)
+  useEffect(() => {
+    if (activeModule === 'decision' && packet && candidate?.id) {
+      const key = `${candidate.id}_${packet.verdict}_${packet.evaluatedAt}`;
+      if (viewedPacketKeyRef.current !== key) {
+        viewedPacketKeyRef.current = key;
+        trackFunnel('DECISION_PACKET_VIEWED', {
+          verdict: packet.verdict,
+          economicsStatus: candidate.economics?.status,
+          initialCashStatus: candidate.initialCash?.status,
+        });
+      }
+    }
+  }, [activeModule, packet, candidate?.id]);
+
+  // 埋点: 5项关键财务输入真正齐备时触发 (P1-4)
+  useEffect(() => {
+    if (candidate?.id && candidate.economics?.status === 'COMPLETE') {
+      const inputs = candidate.economics.inputs;
+      const all5Present =
+        inputs?.sellingPrice?.value != null &&
+        inputs?.productCost?.value != null &&
+        inputs?.referralFeeRate?.value != null &&
+        inputs?.fbaFeePerUnit?.value != null &&
+        inputs?.freightPerUnit?.value != null;
+      if (all5Present && criticalFeesCompletedRef.current !== candidate.id) {
+        criticalFeesCompletedRef.current = candidate.id;
+        trackFunnel('CRITICAL_FEES_COMPLETED', {
+          sellingPrice: inputs.sellingPrice.value,
+          productCost: inputs.productCost.value,
+          referralFeeRate: inputs.referralFeeRate.value,
+          fbaFeePerUnit: inputs.fbaFeePerUnit.value,
+          freightPerUnit: inputs.freightPerUnit.value,
+        });
+      }
+    }
+  }, [candidate?.id, candidate?.economics?.status]);
+
+  // 同步当前 Candidate 规格至表单
+  useEffect(() => {
+    if (candidate) {
+      const active = candidate.specifications?.find((s) => s.id === candidate.activeSpecVersionId);
+      if (active) {
+        setSpecForm({
+          material: active.material || '',
+          capacity: active.capacity || '',
+          dimensions: active.dimensions || '',
+          targetSellingPrice: active.targetSellingPrice || 0,
+        });
+      }
+    }
+  }, [candidate?.id, candidate?.activeSpecVersionId]);
 
   // 多入口快速跳转 (Spec §3)
   function handleEntryPointSelect(entry: 'idea' | 'market' | 'quotes' | 'decision') {
@@ -231,7 +305,6 @@ export function SingleProductResearchSection({
       });
       setCandidate(res);
       onCandidateChange?.(res);
-      trackFunnel('CRITICAL_FEES_COMPLETED', { primaryQuoteId: quoteId });
     } catch (e: any) {
       alert(e?.message || '选择算账工厂失败');
     } finally {
@@ -253,7 +326,6 @@ export function SingleProductResearchSection({
       onCandidateChange?.(res);
       setShowUnknownChargeModal(false);
       setPendingPrimaryQuoteId(null);
-      trackFunnel('CRITICAL_FEES_COMPLETED', { primaryQuoteId: pendingPrimaryQuoteId });
     } catch (e: any) {
       alert(e?.message || '确认费用失败');
     } finally {
@@ -292,27 +364,29 @@ export function SingleProductResearchSection({
     }
   }
 
-  // 保存启动资金补全/调整 (P0-1)
+  // 保存启动资金补全/调整 (P0-1: 严禁把空值偷偷当 0 处理)
   async function handleSaveInitialCash() {
     if (!candidate) return;
     setLoading(true);
     try {
+      const parseOptional = (val: number | string | undefined | null) => {
+        if (val === '' || val === undefined || val === null) return undefined;
+        const num = typeof val === 'number' ? val : parseFloat(String(val));
+        return isNaN(num) ? undefined : num;
+      };
+
       const res = await ApiClient.post<ProductCandidate>('/api/v1/market-research/single-product/evaluate', {
         candidate,
         initialCashParams: {
-          sampleCost: Number(initialCashForm.sampleCost),
-          firstFreightCost: Number(initialCashForm.firstFreightCost),
-          toolingCost: Number(initialCashForm.toolingCost),
-          packagingSetupCost: Number(initialCashForm.packagingSetupCost),
+          sampleCost: parseOptional(initialCashForm.sampleCost),
+          firstFreightCost: parseOptional(initialCashForm.firstFreightCost),
+          toolingCost: parseOptional(initialCashForm.toolingCost) ?? 0,
+          packagingSetupCost: parseOptional(initialCashForm.packagingSetupCost) ?? 0,
         },
       });
       setCandidate(res);
       onCandidateChange?.(res);
       setShowInitialCashModal(false);
-      trackFunnel('CRITICAL_FEES_COMPLETED', {
-        totalInitialCash: res.initialCash?.totalInitialCash,
-        status: res.initialCash?.status,
-      });
     } catch (e: any) {
       alert(e?.message || '更新启动资金失败');
     } finally {
@@ -344,7 +418,6 @@ export function SingleProductResearchSection({
   }
 
   const activeSpec = candidate?.specifications?.find((s) => s.id === candidate.activeSpecVersionId) || candidate?.specifications?.[0];
-  const packet: OnePageDecisionPacket | undefined = candidate?.decisionPacket;
   const quotes: SupplierQuote[] = candidate?.supplierQuotes || [];
   const primaryQuote = quotes.find((q) => q.id === candidate?.primaryQuoteId);
 
@@ -525,11 +598,11 @@ export function SingleProductResearchSection({
                     </span>
                   ) : (
                     <span className="text-2xl font-black text-white font-mono">
-                      {packet?.initialCashRequired?.formattedTextZh || '¥2.95 万'}
+                      {packet?.initialCashRequired?.formattedTextZh || '还不能计算'}
                     </span>
                   )}
                   <span className="text-[11px] text-gray-400">
-                    (MOQ: {candidate?.initialCash?.moq || 500} 件)
+                    (MOQ: {candidate?.initialCash?.moq ? `${candidate.initialCash.moq} 件` : '未确定'})
                   </span>
                 </div>
               </div>
@@ -543,7 +616,7 @@ export function SingleProductResearchSection({
                   <span>下一步只做一件事</span>
                 </span>
                 <p className="text-xs font-bold text-white line-clamp-2">
-                  → {packet?.nextBestAction?.title || '向工厂索取食品接触材料报告 (FDA/合规证明)'}
+                  → {packet?.nextBestAction?.title || '暂无待办'}
                 </p>
               </div>
 
@@ -560,13 +633,7 @@ export function SingleProductResearchSection({
                       category: packet?.nextBestAction?.category,
                     });
                     if (packet?.nextBestAction?.category === 'LAUNCH_CASH') {
-                      setInitialCashForm({
-                        sampleCost: candidate?.initialCash?.sampleCost ?? 100,
-                        firstFreightCost: candidate?.initialCash?.firstFreightCost ?? 6429,
-                        toolingCost: candidate?.initialCash?.toolingCost ?? 0,
-                        packagingSetupCost: candidate?.initialCash?.packagingSetupCost ?? 0,
-                      });
-                      setShowInitialCashModal(true);
+                      openInitialCashModal();
                     } else if (packet?.nextBestAction?.category === 'RISK_VERIFICATION') {
                       setActiveModule('decision');
                       setExpandedSections((p) => ({ ...p, riskEvidence: true }));
@@ -949,9 +1016,15 @@ export function SingleProductResearchSection({
 
           {/* 汇率快照小字条 (Spec §21) */}
           <div className="px-3.5 py-2 rounded-lg bg-surface/60 border border-border/80 text-[11px] text-gray-400 flex items-center justify-between">
-            <span>
-              当前换算汇率：1 CNY = {candidate?.fxSnapshot?.rate ?? 0.14} USD (来源: {candidate?.fxSnapshot?.source || 'PBOC 基准'})
-            </span>
+            {candidate?.fxSnapshot?.rate ? (
+              <span>
+                当前换算汇率：1 CNY = {candidate.fxSnapshot.rate} USD (来源: {candidate.fxSnapshot.source})
+              </span>
+            ) : (
+              <span className="text-amber-400">
+                汇率状态：未录入 (还差人民币兑美元汇率，确认后才能完成成本换算)
+              </span>
+            )}
             <span>人民币出厂价自动折算为美元入账，可自由切换</span>
           </div>
 
@@ -1001,7 +1074,9 @@ export function SingleProductResearchSection({
                       <td className="py-3 px-3 font-mono font-bold text-emerald-400">
                         ¥{totalCny.toFixed(2)}
                         <span className="text-[10px] text-gray-400 block">
-                          (~${(totalCny * (candidate?.fxSnapshot?.rate ?? 0.14)).toFixed(2)})
+                          {candidate?.fxSnapshot?.rate
+                            ? `(~$${(totalCny * candidate.fxSnapshot.rate).toFixed(2)})`
+                            : '(~美元汇率待确认)'}
                         </span>
                       </td>
 
@@ -1053,7 +1128,10 @@ export function SingleProductResearchSection({
       )}
 
       {/* 模块 ⑤: 单件利润与首单启动资金 (Spec §19) */}
-      {activeModule === 'economics' && (
+      {activeModule === 'economics' && (() => {
+        const cashCurrency = candidate?.initialCash?.currency || 'CNY';
+        const cashSymbol = cashCurrency === 'USD' ? '$' : '¥';
+        return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 左卡: 单件利润 Unit Economics */}
           <div className="bg-surface border border-border rounded-2xl p-6 space-y-4">
@@ -1063,7 +1141,7 @@ export function SingleProductResearchSection({
                 <p className="text-xs text-gray-400">单件边际贡献测算（按 USD）</p>
               </div>
               <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 font-mono font-bold">
-                边际利润: {packet?.unitContributionProfitUsd ? `$${packet.unitContributionProfitUsd.toFixed(2)}` : '待算'}
+                边际利润: {packet?.unitContributionProfitUsd != null ? `$${packet.unitContributionProfitUsd.toFixed(2)}` : '待算'}
               </span>
             </div>
 
@@ -1071,53 +1149,88 @@ export function SingleProductResearchSection({
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">计划零售售价</span>
                 <span className="font-mono font-bold text-white">
-                  ${candidate?.economics?.inputs?.sellingPrice?.value?.toFixed(2) || '29.99'}
+                  {candidate?.economics?.inputs?.sellingPrice?.value != null
+                    ? `$${candidate.economics.inputs.sellingPrice.value.toFixed(2)}`
+                    : '未核定'}
                 </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">单件采购出厂成本 (含包装Logo)</span>
                 <span className="font-mono text-rose-400">
-                  -${candidate?.economics?.inputs?.productCost?.value?.toFixed(2) || '6.44'}
+                  {candidate?.economics?.inputs?.productCost?.value != null
+                    ? `-$${candidate.economics.inputs.productCost.value.toFixed(2)}`
+                    : '未核定'}
                 </span>
               </div>
               <div className="flex justify-between pt-2">
-                <span className="text-gray-400">亚马逊平台佣金 (15%)</span>
-                <span className="font-mono text-rose-400">-$4.50</span>
+                <span className="text-gray-400">
+                  亚马逊平台佣金 ({candidate?.economics?.inputs?.referralFeeRate?.value != null ? `${(candidate.economics.inputs.referralFeeRate.value * 100).toFixed(0)}%` : '未核定'})
+                </span>
+                <span className="font-mono text-rose-400">
+                  {packet?.costBreakdown?.referralFee?.included && packet.costBreakdown.referralFee.value != null
+                    ? `-$${packet.costBreakdown.referralFee.value.toFixed(2)}`
+                    : '暂未计入'}
+                </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">FBA 配送派送费</span>
-                <span className="font-mono text-rose-400">-$4.80</span>
+                <span className="font-mono text-rose-400">
+                  {packet?.costBreakdown?.fbaFee?.included && packet.costBreakdown.fbaFee.value != null
+                    ? `-$${packet.costBreakdown.fbaFee.value.toFixed(2)}`
+                    : '暂未计入'}
+                </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">单件头程海运/空运费</span>
-                <span className="font-mono text-rose-400">-$1.80</span>
+                <span className="font-mono text-rose-400">
+                  {packet?.costBreakdown?.freightFee?.included && packet.costBreakdown.freightFee.value != null
+                    ? `-$${packet.costBreakdown.freightFee.value.toFixed(2)}`
+                    : '暂未计入'}
+                </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">进口关税与税费</span>
-                <span className="font-mono text-rose-400">-$0.40</span>
+                <span className="font-mono text-rose-400">
+                  {packet?.costBreakdown?.duty?.included && packet.costBreakdown.duty.value != null
+                    ? `-$${packet.costBreakdown.duty.value.toFixed(2)}`
+                    : '暂未计入'}
+                </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">预估单件广告推广成本 (PPC)</span>
-                <span className="font-mono text-rose-400">-$3.00</span>
+                <span className="font-mono text-rose-400">
+                  {packet?.costBreakdown?.advertisingCost?.included && packet.costBreakdown.advertisingCost.value != null
+                    ? `-$${packet.costBreakdown.advertisingCost.value.toFixed(2)}`
+                    : '暂未计入'}
+                </span>
               </div>
               <div className="flex justify-between pt-2">
-                <span className="text-gray-400">预估退货与损耗 (5% 退货率)</span>
-                <span className="font-mono text-rose-400">-$0.24</span>
+                <span className="text-gray-400">预估退货与损耗</span>
+                <span className="font-mono text-rose-400">
+                  {packet?.costBreakdown?.expectedReturnLoss?.included && packet.costBreakdown.expectedReturnLoss.value != null
+                    ? `-$${packet.costBreakdown.expectedReturnLoss.value.toFixed(2)}`
+                    : '暂未计入'}
+                </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">月度仓储费与杂费</span>
-                <span className="font-mono text-rose-400">-$0.17</span>
+                <span className="font-mono text-rose-400">
+                  {packet?.costBreakdown?.storage?.included && packet.costBreakdown.storage.value != null
+                    ? `-$${packet.costBreakdown.storage.value.toFixed(2)}`
+                    : '暂未计入'}
+                </span>
               </div>
               <div className="flex justify-between pt-3 text-sm font-bold border-t-2 border-border">
                 <span className="text-white">单件贡献利润 (Contribution Profit)</span>
                 <span className="font-mono text-emerald-400">
-                  ${packet?.unitContributionProfitUsd?.toFixed(2) || '8.64'}
+                  {packet?.unitContributionProfitUsd != null
+                    ? `$${packet.unitContributionProfitUsd.toFixed(2)}`
+                    : '待算'}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* 右卡: 首单启动现金要求 Initial Cash Requirement */}
           {/* 右卡: 首单启动现金要求 Initial Cash Requirement */}
           <div className="bg-surface border border-border rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-border">
@@ -1127,15 +1240,7 @@ export function SingleProductResearchSection({
               </div>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => {
-                    setInitialCashForm({
-                      sampleCost: candidate?.initialCash?.sampleCost ?? 100,
-                      firstFreightCost: candidate?.initialCash?.firstFreightCost ?? 6429,
-                      toolingCost: candidate?.initialCash?.toolingCost ?? 0,
-                      packagingSetupCost: candidate?.initialCash?.packagingSetupCost ?? 0,
-                    });
-                    setShowInitialCashModal(true);
-                  }}
+                  onClick={openInitialCashModal}
                   className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-[11px] font-bold text-white transition-all shadow-sm"
                 >
                   补齐 / 调整启动资金项
@@ -1147,7 +1252,7 @@ export function SingleProductResearchSection({
                 }`}>
                   {candidate?.initialCash?.status === 'INCOMPLETE'
                     ? candidate.initialCash.displaySummaryZh
-                    : `总需求: ${packet?.initialCashRequired?.formattedTextZh || '¥2.95 万'}`}
+                    : `总需求: ${packet?.initialCashRequired?.formattedTextZh || '还不能计算'}`}
                 </span>
               </div>
             </div>
@@ -1156,20 +1261,24 @@ export function SingleProductResearchSection({
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">起订量 (MOQ 规模)</span>
                 <span className="font-mono font-bold text-white">
-                  {candidate?.initialCash?.moq || 500} 件
+                  {candidate?.initialCash?.moq ? `${candidate.initialCash.moq} 件` : '未确定'}
                 </span>
               </div>
               <div className="flex justify-between pt-2">
-                <span className="text-gray-400">大货采购货款 (500 件 × ¥46.00)</span>
+                <span className="text-gray-400">
+                  大货采购货款 {candidate?.initialCash?.moq && candidate?.initialCash?.productCostPerUnit ? `(${candidate.initialCash.moq} 件 × ${cashSymbol}${candidate.initialCash.productCostPerUnit.toFixed(2)})` : ''}
+                </span>
                 <span className="font-mono text-purple-300">
-                  ¥{candidate?.initialCash?.inventoryCost?.toFixed(2) || '23,000.00'}
+                  {candidate?.initialCash?.inventoryCost != null && candidate.initialCash.inventoryCost > 0
+                    ? `${cashSymbol}${candidate.initialCash.inventoryCost.toFixed(2)}`
+                    : '待算'}
                 </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">样品打样与寄送费 (一次性)</span>
                 <span className="font-mono text-purple-300">
                   {candidate?.initialCash?.sampleCost != null
-                    ? `¥${candidate.initialCash.sampleCost.toFixed(2)}`
+                    ? `${cashSymbol}${candidate.initialCash.sampleCost.toFixed(2)}`
                     : '未填 (缺样品费)'}
                 </span>
               </div>
@@ -1177,20 +1286,24 @@ export function SingleProductResearchSection({
                 <span className="text-gray-400">首批头程物流费</span>
                 <span className="font-mono text-purple-300">
                   {candidate?.initialCash?.firstFreightCost != null
-                    ? `¥${candidate.initialCash.firstFreightCost.toFixed(2)}`
+                    ? `${cashSymbol}${candidate.initialCash.firstFreightCost.toFixed(2)}`
                     : '未填 (缺首批头程)'}
                 </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">模具开模费 (公模为 0)</span>
                 <span className="font-mono text-purple-300">
-                  ¥{(candidate?.initialCash?.toolingCost ?? 0).toFixed(2)}
+                  {candidate?.initialCash?.toolingCost != null
+                    ? `${cashSymbol}${candidate.initialCash.toolingCost.toFixed(2)}`
+                    : `${cashSymbol}0.00`}
                 </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-gray-400">定制包装制版费</span>
                 <span className="font-mono text-purple-300">
-                  ¥{(candidate?.initialCash?.packagingSetupCost ?? 0).toFixed(2)}
+                  {candidate?.initialCash?.packagingSetupCost != null
+                    ? `${cashSymbol}${candidate.initialCash.packagingSetupCost.toFixed(2)}`
+                    : `${cashSymbol}0.00`}
                 </span>
               </div>
               <div className="flex justify-between pt-3 text-sm font-bold border-t-2 border-border">
@@ -1200,7 +1313,7 @@ export function SingleProductResearchSection({
                 }`}>
                   {candidate?.initialCash?.status === 'INCOMPLETE'
                     ? candidate.initialCash.displaySummaryZh
-                    : packet?.initialCashRequired?.formattedTextZh || '¥2.95 万'}
+                    : packet?.initialCashRequired?.formattedTextZh || '还不能计算'}
                 </span>
               </div>
             </div>
@@ -1210,7 +1323,8 @@ export function SingleProductResearchSection({
             </p>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* 模块 ⑥: 一页结论 (Spec §5 Step 8, §6, §7, §8, §9) */}
       {activeModule === 'decision' && packet && (
@@ -1366,14 +1480,33 @@ export function SingleProductResearchSection({
               {expandedSections.costBreakdown && (
                 <div className="p-4 pt-0 border-t border-border/40 text-xs text-gray-300">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div>采购出厂价: ${packet.costBreakdown.productCost.toFixed(2)}</div>
-                    <div>佣金: ${packet.costBreakdown.referralFee.toFixed(2)}</div>
-                    <div>FBA 配送: ${packet.costBreakdown.fbaFee.toFixed(2)}</div>
-                    <div>头程运费: ${packet.costBreakdown.freightFee.toFixed(2)}</div>
-                    <div>预估关税: ${packet.costBreakdown.duty.toFixed(2)}</div>
-                    <div>推广费用: ${packet.costBreakdown.advertisingCost.toFixed(2)}</div>
-                    <div>退货损失: ${packet.costBreakdown.expectedReturnLoss.toFixed(2)}</div>
-                    <div>总费用: ${packet.costBreakdown.totalExpenses.toFixed(2)}</div>
+                    <div>
+                      采购出厂价: {packet.costBreakdown.productCost?.value != null ? `$${packet.costBreakdown.productCost.value.toFixed(2)}` : '未核定'}
+                    </div>
+                    <div>
+                      佣金: {packet.costBreakdown.referralFee?.included && packet.costBreakdown.referralFee.value != null ? `$${packet.costBreakdown.referralFee.value.toFixed(2)}` : '暂未计入'}
+                    </div>
+                    <div>
+                      FBA 配送: {packet.costBreakdown.fbaFee?.included && packet.costBreakdown.fbaFee.value != null ? `$${packet.costBreakdown.fbaFee.value.toFixed(2)}` : '暂未计入'}
+                    </div>
+                    <div>
+                      头程运费: {packet.costBreakdown.freightFee?.included && packet.costBreakdown.freightFee.value != null ? `$${packet.costBreakdown.freightFee.value.toFixed(2)}` : '暂未计入'}
+                    </div>
+                    <div>
+                      预估关税: {packet.costBreakdown.duty?.included && packet.costBreakdown.duty.value != null ? `$${packet.costBreakdown.duty.value.toFixed(2)}` : '暂未计入'}
+                    </div>
+                    <div>
+                      推广费用: {packet.costBreakdown.advertisingCost?.included && packet.costBreakdown.advertisingCost.value != null ? `$${packet.costBreakdown.advertisingCost.value.toFixed(2)}` : '暂未计入'}
+                    </div>
+                    <div>
+                      退货损失: {packet.costBreakdown.expectedReturnLoss?.included && packet.costBreakdown.expectedReturnLoss.value != null ? `$${packet.costBreakdown.expectedReturnLoss.value.toFixed(2)}` : '暂未计入'}
+                    </div>
+                    <div>
+                      月度仓储: {packet.costBreakdown.storage?.included && packet.costBreakdown.storage.value != null ? `$${packet.costBreakdown.storage.value.toFixed(2)}` : '暂未计入'}
+                    </div>
+                    <div className="col-span-2 sm:col-span-4 font-bold text-white pt-2 border-t border-border/40">
+                      总计核定费用: {packet.costBreakdown.totalExpenses?.value != null ? `$${packet.costBreakdown.totalExpenses.value.toFixed(2)}` : '待完整测算'}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1594,7 +1727,9 @@ export function SingleProductResearchSection({
       )}
 
       {/* 7. 弹窗: 启动资金补齐与调整表单 (P0-1) */}
-      {showInitialCashModal && (
+      {showInitialCashModal && (() => {
+        const cashCurrencyLabel = candidate?.initialCash?.currency === 'USD' ? '$ USD' : '¥ CNY';
+        return (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-surface border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div>
@@ -1606,15 +1741,15 @@ export function SingleProductResearchSection({
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="text-gray-300 block mb-1 font-medium">样品打样与寄送费 (¥ CNY)</label>
+                <label className="text-gray-300 block mb-1 font-medium">样品打样与寄送费 ({cashCurrencyLabel})</label>
                 <input
                   type="number"
-                  placeholder="例如: 100"
+                  placeholder="未填写 (必填)"
                   value={initialCashForm.sampleCost}
                   onChange={(e) =>
                     setInitialCashForm({
                       ...initialCashForm,
-                      sampleCost: parseFloat(e.target.value) || 0,
+                      sampleCost: e.target.value === '' ? '' : parseFloat(e.target.value) || 0,
                     })
                   }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
@@ -1623,24 +1758,26 @@ export function SingleProductResearchSection({
               </div>
 
               <div>
-                <label className="text-gray-300 block mb-1 font-medium">首批头程物流费 (¥ CNY)</label>
+                <label className="text-gray-300 block mb-1 font-medium">首批头程物流费 ({cashCurrencyLabel})</label>
                 <input
                   type="number"
-                  placeholder="例如: 6429"
+                  placeholder="未填写 (必填)"
                   value={initialCashForm.firstFreightCost}
                   onChange={(e) =>
                     setInitialCashForm({
                       ...initialCashForm,
-                      firstFreightCost: parseFloat(e.target.value) || 0,
+                      firstFreightCost: e.target.value === '' ? '' : parseFloat(e.target.value) || 0,
                     })
                   }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
                 />
-                <span className="text-[11px] text-gray-500">首批 500 件发往海外仓/FBA 的总运费，必填项</span>
+                <span className="text-[11px] text-gray-500">
+                  首批 {candidate?.initialCash?.moq ? `${candidate.initialCash.moq} 件 ` : ''}发往海外仓/FBA 的总运费，必填项
+                </span>
               </div>
 
               <div>
-                <label className="text-gray-300 block mb-1 font-medium">模具开模费 (¥ CNY)</label>
+                <label className="text-gray-300 block mb-1 font-medium">模具开模费 ({cashCurrencyLabel})</label>
                 <input
                   type="number"
                   placeholder="公模为 0"
@@ -1648,7 +1785,7 @@ export function SingleProductResearchSection({
                   onChange={(e) =>
                     setInitialCashForm({
                       ...initialCashForm,
-                      toolingCost: parseFloat(e.target.value) || 0,
+                      toolingCost: e.target.value === '' ? '' : parseFloat(e.target.value) || 0,
                     })
                   }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
@@ -1657,7 +1794,7 @@ export function SingleProductResearchSection({
               </div>
 
               <div>
-                <label className="text-gray-300 block mb-1 font-medium">定制包装制版费 (¥ CNY)</label>
+                <label className="text-gray-300 block mb-1 font-medium">定制包装制版费 ({cashCurrencyLabel})</label>
                 <input
                   type="number"
                   placeholder="无制版费为 0"
@@ -1665,7 +1802,7 @@ export function SingleProductResearchSection({
                   onChange={(e) =>
                     setInitialCashForm({
                       ...initialCashForm,
-                      packagingSetupCost: parseFloat(e.target.value) || 0,
+                      packagingSetupCost: e.target.value === '' ? '' : parseFloat(e.target.value) || 0,
                     })
                   }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
@@ -1689,7 +1826,8 @@ export function SingleProductResearchSection({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

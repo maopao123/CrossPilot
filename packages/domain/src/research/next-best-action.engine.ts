@@ -88,7 +88,45 @@ export class NextBestActionEngine {
     // 优先级 ③: 关键财务数据缺失
     const inputs = candidate.economics?.inputs;
 
+    if (
+      candidate.missingRequirements?.some(
+        (r) => r.field === 'fxRate' || r.description?.includes('汇率'),
+      )
+    ) {
+      return {
+        id: 'nba-fill-fx-rate',
+        priority: 3,
+        title: '录入人民币兑美元汇率以完成成本换算',
+        category: 'CRITICAL_INPUT',
+        targetField: 'fxRate',
+        description: '已录入人民币报价，还差人民币兑美元汇率，确认后才能完成采购成本折算。',
+        actionType: 'FILL_CRITICAL_INPUT',
+        buttonText: '确认汇率',
+      };
+    }
+
     if (!inputs?.productCost?.value || inputs.productCost.source === 'UNKNOWN') {
+      const primaryQuote = candidate.supplierQuotes?.find((q) => q.id === candidate.primaryQuoteId);
+      const isUnconfirmedFees =
+        primaryQuote &&
+        (primaryQuote.packagingCost?.source === 'UNKNOWN' ||
+          primaryQuote.packagingCost?.value === null ||
+          primaryQuote.logoCost?.source === 'UNKNOWN' ||
+          primaryQuote.logoCost?.value === null);
+
+      if (isUnconfirmedFees) {
+        return {
+          id: 'nba-confirm-quote-fees',
+          priority: 3,
+          title: '确认主选工厂的包装费与定制 Logo 费用',
+          category: 'CRITICAL_INPUT',
+          targetField: 'productCost',
+          description: '主选报价存在未明确费用项，需确认是否有额外包装与定制支出。',
+          actionType: 'FILL_CRITICAL_INPUT',
+          buttonText: '确认费用',
+        };
+      }
+
       return {
         id: 'nba-fill-product-cost',
         priority: 3,

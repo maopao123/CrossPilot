@@ -18,6 +18,7 @@ import {
   RiskApplicabilityPolicy,
   NextBestActionEngine,
   DecisionPacketService,
+  ProfitCalculationService,
 } from '@crosspilot/domain';
 import {
   CandidateComparisonResult,
@@ -1587,7 +1588,7 @@ export class MarketService {
     const existingFreight = updated.initialCash?.firstFreightCost ?? undefined;
     updated.initialCash = InitialCashService.calculateInitialCash({
       moq: result.primaryQuote.moq,
-      productCostPerUnit: result.productCostCny,
+      productCostPerUnit: result.productCostQuoteCurrency,
       sampleCost: result.primaryQuote.sampleCost,
       firstFreightCost: existingFreight,
       currency: result.primaryQuote.currency,
@@ -1629,13 +1630,62 @@ export class MarketService {
     if (updated.primaryQuoteId) {
       const primaryQuote = updated.supplierQuotes?.find((q) => q.id === updated.primaryQuoteId);
       if (primaryQuote) {
+        // P0-3: 校验包装费与 Logo 费是否已确认，禁止 UNKNOWN 偷偷变成 0
+        const isPackagingUnknown =
+          primaryQuote.packagingCost?.source === 'UNKNOWN' ||
+          primaryQuote.packagingCost?.value === null ||
+          primaryQuote.packagingCost?.value === undefined;
+        const isLogoUnknown =
+          primaryQuote.logoCost?.source === 'UNKNOWN' ||
+          primaryQuote.logoCost?.value === null ||
+          primaryQuote.logoCost?.value === undefined;
+
+        let unitCost: number | null = null;
+        if (!isPackagingUnknown && !isLogoUnknown && primaryQuote.unitPrice > 0) {
+          unitCost = ProfitCalculationService.roundMoney(
+            primaryQuote.unitPrice + primaryQuote.packagingCost.value! + primaryQuote.logoCost.value!,
+          );
+        }
+
+        if (unitCost !== null) {
+          if (primaryQuote.currency === 'USD') {
+            updated.economics.inputs.productCost = { value: unitCost, source: 'FACT' };
+          } else if (primaryQuote.currency === 'CNY') {
+            if (updated.fxSnapshot && typeof updated.fxSnapshot.rate === 'number' && updated.fxSnapshot.rate > 0) {
+              const costUsd = ProfitCalculationService.roundMoney(unitCost * updated.fxSnapshot.rate);
+              const fxSrc = updated.fxSnapshot.source as string;
+              const isFactFx = fxSrc === 'FACT' || fxSrc === 'PBOC' || fxSrc === 'PBOC_BENCHMARK';
+              updated.economics.inputs.productCost = {
+                value: costUsd,
+                source: isFactFx ? 'FACT' : 'ESTIMATE',
+              };
+            } else {
+              updated.economics.inputs.productCost = { value: null, source: 'UNKNOWN' };
+            }
+          }
+        } else {
+          updated.economics.inputs.productCost = { value: null, source: 'UNKNOWN' };
+        }
+
         updated.initialCash = InitialCashService.calculateInitialCash({
           moq: primaryQuote.moq,
-          productCostPerUnit: primaryQuote.unitPrice + (primaryQuote.packagingCost?.value || 0) + (primaryQuote.logoCost?.value || 0),
-          sampleCost: initialCashParams?.sampleCost !== undefined ? initialCashParams.sampleCost : primaryQuote.sampleCost,
-          firstFreightCost: initialCashParams?.firstFreightCost !== undefined ? initialCashParams.firstFreightCost : updated.initialCash?.firstFreightCost,
-          toolingCost: initialCashParams?.toolingCost !== undefined ? initialCashParams.toolingCost : primaryQuote.toolingCost,
-          packagingSetupCost: initialCashParams?.packagingSetupCost !== undefined ? initialCashParams.packagingSetupCost : updated.initialCash?.packagingSetupCost,
+          productCostPerUnit: unitCost,
+          sampleCost:
+            initialCashParams?.sampleCost !== undefined
+              ? initialCashParams.sampleCost
+              : primaryQuote.sampleCost,
+          firstFreightCost:
+            initialCashParams?.firstFreightCost !== undefined
+              ? initialCashParams.firstFreightCost
+              : updated.initialCash?.firstFreightCost,
+          toolingCost:
+            initialCashParams?.toolingCost !== undefined
+              ? initialCashParams.toolingCost
+              : primaryQuote.toolingCost,
+          packagingSetupCost:
+            initialCashParams?.packagingSetupCost !== undefined
+              ? initialCashParams.packagingSetupCost
+              : updated.initialCash?.packagingSetupCost,
           currency: primaryQuote.currency,
         });
       }
@@ -1650,24 +1700,28 @@ export class MarketService {
   }
 
   // ==========================================================================
-  // Single-Product Research Analytics Tracking (Spec §35 & §38)
+  // Single-Product Research Analytics Tracking (DEV_TELEMETRY - Spec §35 & §38)
+  // 注意：此为开发态内存遥测，重启丢失，非生产级持久化 Product Analytics。
+  // 严格强制 Workspace 隔离，禁止跨 Workspace 读取。
   // ==========================================================================
-  private analyticsEvents: ResearchAnalyticsEvent[] = [];
+  private analyticsEvents: (ResearchAnalyticsEvent & { workspaceId: string })[] = [];
 
-  trackAnalyticsEvent(event: ResearchAnalyticsEvent) {
-    const tracked: ResearchAnalyticsEvent = {
+  trackAnalyticsEvent(workspaceId: string, event: ResearchAnalyticsEvent) {
+    const tracked = {
       ...event,
+      workspaceId,
       timestamp: event.timestamp || new Date().toISOString(),
     };
     this.analyticsEvents.push(tracked);
     return { success: true, event: tracked, totalEvents: this.analyticsEvents.length };
   }
 
-  getAnalyticsEvents(candidateId?: string) {
-    if (candidateId) {
-      return this.analyticsEvents.filter((e) => e.candidateId === candidateId);
-    }
-    return this.analyticsEvents;
+  getAnalyticsEvents(workspaceId: string, candidateId?: string) {
+    return this.analyticsEvents.filter((e) => {
+      if (e.workspaceId !== workspaceId) return false;
+      if (candidateId && e.candidateId !== candidateId) return false;
+      return true;
+    });
   }
 }
 

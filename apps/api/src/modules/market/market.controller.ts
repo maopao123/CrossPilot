@@ -293,12 +293,18 @@ export class MarketController {
   }
 
   @Post('market-research/analytics/event')
-  trackAnalyticsEvent(@Body() body: ResearchAnalyticsEvent) {
-    return this.marketService.trackAnalyticsEvent(body);
+  trackAnalyticsEvent(
+    @CurrentWorkspace() workspaceId: string,
+    @Body() body: ResearchAnalyticsEvent,
+  ) {
+    return this.marketService.trackAnalyticsEvent(workspaceId, body);
   }
 
   @Get('market-research/analytics/events')
-  getAnalyticsEvents(@Query('candidateId') candidateId?: string) {
-    return this.marketService.getAnalyticsEvents(candidateId);
+  getAnalyticsEvents(
+    @CurrentWorkspace() workspaceId: string,
+    @Query('candidateId') candidateId?: string,
+  ) {
+    return this.marketService.getAnalyticsEvents(workspaceId, candidateId);
   }
 }

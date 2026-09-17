@@ -33,7 +33,10 @@ export class InitialCashService {
       currency = 'CNY',
     } = params;
 
-    const inventoryCost = ProfitCalculationService.roundMoney(moq * productCostPerUnit);
+    const inventoryCost =
+      moq && productCostPerUnit && productCostPerUnit > 0
+        ? ProfitCalculationService.roundMoney(moq * productCostPerUnit)
+        : 0;
     const validTooling = ProfitCalculationService.roundMoney(toolingCost ?? 0);
     const validPackagingSetup = ProfitCalculationService.roundMoney(packagingSetupCost ?? 0);
     const validOther = ProfitCalculationService.roundMoney(otherOneTimeCosts ?? 0);
@@ -84,7 +87,10 @@ export class InitialCashService {
 
     const breakdown: InitialCashItem[] = [
       {
-        item: `首批大货采购款 (${moq} 件 × ${currency} ${productCostPerUnit})`,
+        item:
+          moq && productCostPerUnit
+            ? `首批大货采购款 (${moq} 件 × ${currency} ${productCostPerUnit})`
+            : '首批大货采购款 (出厂价待定)',
         amount: inventoryCost,
         currency,
         description: '大货出厂采购成本',
