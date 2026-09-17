@@ -61,25 +61,40 @@ export function SingleProductResearchSection({
     riskEvidence: false,
   });
 
-  // 草稿报价弹窗或输入状态
+  // 识别 Demo 状态 (P1: Demo 隔离)
+  const [isDemo, setIsDemo] = useState<boolean>(Boolean(initialCandidate?.id === 'cand-glass-fruit-box-001'));
+
+  // 草稿报价弹窗或输入状态 (P0: 禁止以 0 作为未填写的初始状态)
   const [showAddQuoteModal, setShowAddQuoteModal] = useState<boolean>(false);
-  const [newQuoteForm, setNewQuoteForm] = useState({
+  const [newQuoteForm, setNewQuoteForm] = useState<{
+    supplierName: string;
+    unitPrice: number | '';
+    packagingCost: number | '';
+    logoCost: number | '';
+    moq: number | '';
+    leadTimeDays: number | '';
+    sampleCost: number | '';
+    sourceChannel: '1688' | 'DIRECT' | 'CANTON_FAIR' | 'OTHER';
+  }>({
     supplierName: '',
-    unitPrice: 0,
-    packagingCost: 0,
-    logoCost: 0,
-    moq: 0,
-    leadTimeDays: 0,
-    sampleCost: 0,
-    sourceChannel: '1688' as const,
+    unitPrice: '',
+    packagingCost: '',
+    logoCost: '',
+    moq: '',
+    leadTimeDays: '',
+    sampleCost: '',
+    sourceChannel: '1688',
   });
 
-  // 包装/Logo未知费用确认弹窗 (Anti-gaming Spec §16)
+  // 包装/Logo未知费用确认弹窗 (Anti-gaming Spec §16: 弹窗不预填 0 误导用户)
   const [pendingPrimaryQuoteId, setPendingPrimaryQuoteId] = useState<string | null>(null);
   const [showUnknownChargeModal, setShowUnknownChargeModal] = useState<boolean>(false);
-  const [unknownChargesInput, setUnknownChargesInput] = useState<{ packagingCost: number; logoCost: number }>({
-    packagingCost: 0,
-    logoCost: 0,
+  const [unknownChargesInput, setUnknownChargesInput] = useState<{
+    packagingCost: number | '';
+    logoCost: number | '';
+  }>({
+    packagingCost: '',
+    logoCost: '',
   });
 
   // 规格编辑草稿表单
@@ -129,18 +144,14 @@ export function SingleProductResearchSection({
     }).catch(() => {});
   }
 
-  // 加载初始或示例产品
-  useEffect(() => {
-    if (!candidate) {
-      loadFruitBoxDemo();
-    }
-  }, []);
+  // P1: 取消普通页面自动加载 Demo (零自动加载，保持真实业务入口干净)
 
   async function loadFruitBoxDemo() {
     setLoading(true);
     try {
       const res = await ApiClient.get<ProductCandidate>('/api/v1/market-research/single-product/demo-fruit-box');
       setCandidate(res);
+      setIsDemo(true);
       if (res.specifications && res.specifications[0]) {
         const s = res.specifications[0];
         setSpecForm({
@@ -153,6 +164,31 @@ export function SingleProductResearchSection({
       onCandidateChange?.(res);
     } catch (e) {
       console.error('Failed to load demo fruit box', e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // 真实业务入口: 初始化新产品候选 (Spec §3 & §8)
+  async function handleInitCandidate(entry: 'idea' | 'market' | 'quotes' | 'decision') {
+    setLoading(true);
+    try {
+      const titles: Record<string, string> = {
+        idea: '新产品创意企划',
+        market: '市场调研新产品',
+        quotes: '工厂报价核算产品',
+        decision: '综合立项决策产品',
+      };
+      const res = await ApiClient.post<ProductCandidate>('/api/v1/market-research/single-product/init', {
+        title: titles[entry] || '新选品项目',
+        entryPoint: entry,
+      });
+      setCandidate(res);
+      setIsDemo(false);
+      handleEntryPointSelect(entry);
+      onCandidateChange?.(res);
+    } catch (e: any) {
+      alert(e?.message || '初始化选品项目失败');
     } finally {
       setLoading(false);
     }
@@ -282,16 +318,16 @@ export function SingleProductResearchSection({
     if (!quote) return;
 
     // 检查是否有 UNKNOWN 包装费或 Logo 费 (Spec §16 Anti-gaming)
-    if (
-      quote.packagingCost.source === 'UNKNOWN' ||
-      quote.packagingCost.value === null ||
-      quote.logoCost.source === 'UNKNOWN' ||
-      quote.logoCost.value === null
-    ) {
+    const packagingIsUnknown =
+      quote.packagingCost.source === 'UNKNOWN' || quote.packagingCost.value === null;
+    const logoIsUnknown =
+      quote.logoCost.source === 'UNKNOWN' || quote.logoCost.value === null;
+
+    if (packagingIsUnknown || logoIsUnknown) {
       setPendingPrimaryQuoteId(quoteId);
       setUnknownChargesInput({
-        packagingCost: quote.packagingCost.value ?? 0,
-        logoCost: quote.logoCost.value ?? 0,
+        packagingCost: packagingIsUnknown ? '' : (quote.packagingCost.value ?? ''),
+        logoCost: logoIsUnknown ? '' : (quote.logoCost.value ?? ''),
       });
       setShowUnknownChargeModal(true);
       return;
@@ -315,12 +351,19 @@ export function SingleProductResearchSection({
   // 确认未知费用后选定算账工厂
   async function confirmUnknownChargesAndSelect() {
     if (!candidate || !pendingPrimaryQuoteId) return;
+    if (unknownChargesInput.packagingCost === '' || unknownChargesInput.logoCost === '') {
+      alert('请明确确认包装费与Logo定制费（若工厂确认免费，请明确填写 0）');
+      return;
+    }
     setLoading(true);
     try {
       const res = await ApiClient.post<ProductCandidate>('/api/v1/market-research/single-product/quote/select-primary', {
         candidate,
         quoteId: pendingPrimaryQuoteId,
-        confirmedUnknownCharges: unknownChargesInput,
+        confirmedUnknownCharges: {
+          packagingCost: Number(unknownChargesInput.packagingCost),
+          logoCost: Number(unknownChargesInput.logoCost),
+        },
       });
       setCandidate(res);
       onCandidateChange?.(res);
@@ -333,21 +376,43 @@ export function SingleProductResearchSection({
     }
   }
 
-  // 保存新报价
+  // 保存新报价 (P0: UNKNOWN ≠ FACT 0，严格遵守数据真实性)
   async function handleSaveNewQuote() {
     if (!candidate) return;
+
+    const trimmedName = newQuoteForm.supplierName.trim();
+    const unitPriceNum = parseOptionalNumber(newQuoteForm.unitPrice);
+    const moqNum = parseOptionalNumber(newQuoteForm.moq);
+
+    if (!trimmedName || unitPriceNum === undefined || unitPriceNum <= 0 || moqNum === undefined || moqNum <= 0) {
+      alert('请填写供应商名称、出厂单价与最小起订量 (MOQ)');
+      return;
+    }
+
     setLoading(true);
     try {
+      const packagingCostVal = parseOptionalNumber(newQuoteForm.packagingCost);
+      const packagingCostObj =
+        packagingCostVal === undefined
+          ? { value: null, source: 'UNKNOWN' as const }
+          : { value: packagingCostVal, source: 'FACT' as const };
+
+      const logoCostVal = parseOptionalNumber(newQuoteForm.logoCost);
+      const logoCostObj =
+        logoCostVal === undefined
+          ? { value: null, source: 'UNKNOWN' as const }
+          : { value: logoCostVal, source: 'FACT' as const };
+
       const res = await ApiClient.post<ProductCandidate>('/api/v1/market-research/single-product/quote/save', {
         candidate,
         quote: {
-          supplierName: newQuoteForm.supplierName,
-          unitPrice: Number(newQuoteForm.unitPrice),
-          packagingCost: { value: Number(newQuoteForm.packagingCost), source: 'FACT' },
-          logoCost: { value: Number(newQuoteForm.logoCost), source: 'FACT' },
-          moq: Number(newQuoteForm.moq),
-          leadTimeDays: Number(newQuoteForm.leadTimeDays),
-          sampleCost: Number(newQuoteForm.sampleCost),
+          supplierName: trimmedName,
+          unitPrice: unitPriceNum,
+          packagingCost: packagingCostObj,
+          logoCost: logoCostObj,
+          moq: moqNum,
+          leadTimeDays: parseOptionalNumber(newQuoteForm.leadTimeDays),
+          sampleCost: parseOptionalNumber(newQuoteForm.sampleCost),
           sourceChannel: newQuoteForm.sourceChannel,
           captureMethod: 'MANUAL',
           currency: 'CNY',
@@ -356,7 +421,17 @@ export function SingleProductResearchSection({
       setCandidate(res);
       onCandidateChange?.(res);
       setShowAddQuoteModal(false);
-      trackFunnel('QUOTE_ENTERED', { supplierName: newQuoteForm.supplierName });
+      setNewQuoteForm({
+        supplierName: '',
+        unitPrice: '',
+        packagingCost: '',
+        logoCost: '',
+        moq: '',
+        leadTimeDays: '',
+        sampleCost: '',
+        sourceChannel: '1688',
+      });
+      trackFunnel('QUOTE_ENTERED', { supplierName: trimmedName });
     } catch (e: any) {
       alert(e?.message || '保存报价失败');
     } finally {
@@ -369,19 +444,13 @@ export function SingleProductResearchSection({
     if (!candidate) return;
     setLoading(true);
     try {
-      const parseOptional = (val: number | string | undefined | null) => {
-        if (val === '' || val === undefined || val === null) return undefined;
-        const num = typeof val === 'number' ? val : parseFloat(String(val));
-        return isNaN(num) ? undefined : num;
-      };
-
       const res = await ApiClient.post<ProductCandidate>('/api/v1/market-research/single-product/evaluate', {
         candidate,
         initialCashParams: {
-          sampleCost: parseOptional(initialCashForm.sampleCost),
-          firstFreightCost: parseOptional(initialCashForm.firstFreightCost),
-          toolingCost: parseOptional(initialCashForm.toolingCost) ?? 0,
-          packagingSetupCost: parseOptional(initialCashForm.packagingSetupCost) ?? 0,
+          sampleCost: parseOptionalNumber(initialCashForm.sampleCost),
+          firstFreightCost: parseOptionalNumber(initialCashForm.firstFreightCost),
+          toolingCost: parseOptionalNumber(initialCashForm.toolingCost) ?? 0,
+          packagingSetupCost: parseOptionalNumber(initialCashForm.packagingSetupCost) ?? 0,
         },
       });
       setCandidate(res);
@@ -417,6 +486,79 @@ export function SingleProductResearchSection({
     );
   }
 
+  if (!candidate) {
+    return (
+      <div className="space-y-6">
+        {/* 真实业务入口选择卡片 (Spec §8: 无 Candidate 时展示真实入口页) */}
+        <div className="bg-surface/80 backdrop-blur border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border/60">
+            <div>
+              <div className="flex items-center space-x-2.5 mb-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                <h2 className="text-lg sm:text-xl font-bold text-white">
+                  单产品选品决策 (Single-Product Research V1)
+                </h2>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-300">
+                你现在处在哪一步？(选择你的真实推进阶段，开始真实选品项目)
+              </p>
+            </div>
+            <button
+              onClick={loadFruitBoxDemo}
+              disabled={loading}
+              className="text-xs text-gray-400 hover:text-blue-300 flex items-center space-x-1.5 transition-colors self-start md:self-auto bg-surface/80 hover:bg-blue-500/10 px-3 py-2 rounded-xl border border-border hover:border-blue-500/30 shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              <span>载入玻璃水果盒测试样本</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+            <button
+              onClick={() => handleInitCandidate('idea')}
+              disabled={loading}
+              className="p-5 rounded-xl border border-border hover:border-blue-500 hover:bg-blue-500/5 text-left transition-all group"
+            >
+              <span className="text-xs font-semibold text-blue-400 block mb-1">阶段 1</span>
+              <span className="text-sm font-bold text-white block group-hover:text-blue-300">我只有一个产品想法</span>
+              <span className="text-xs text-gray-400 block mt-2">从产品概念或用户需求出发，梳理核心卖点与规格</span>
+            </button>
+
+            <button
+              onClick={() => handleInitCandidate('market')}
+              disabled={loading}
+              className="p-5 rounded-xl border border-border hover:border-blue-500 hover:bg-blue-500/5 text-left transition-all group"
+            >
+              <span className="text-xs font-semibold text-blue-400 block mb-1">阶段 2</span>
+              <span className="text-sm font-bold text-white block group-hover:text-blue-300">确定产品，想看市场</span>
+              <span className="text-xs text-gray-400 block mt-2">分析细分价格带、代表竞品标杆与真实买家抱怨</span>
+            </button>
+
+            <button
+              onClick={() => handleInitCandidate('quotes')}
+              disabled={loading}
+              className="p-5 rounded-xl border border-border hover:border-blue-500 hover:bg-blue-500/5 text-left transition-all group"
+            >
+              <span className="text-xs font-semibold text-blue-400 block mb-1">阶段 3</span>
+              <span className="text-sm font-bold text-white block group-hover:text-blue-300">已有工厂报价，帮我算账</span>
+              <span className="text-xs text-gray-400 block mt-2">录入出厂单价与MOQ，核算单件贡献利润与首单启动资金</span>
+            </button>
+
+            <button
+              onClick={() => handleInitCandidate('decision')}
+              disabled={loading}
+              className="p-5 rounded-xl border border-border hover:border-blue-500 hover:bg-blue-500/5 text-left transition-all group"
+            >
+              <span className="text-xs font-semibold text-blue-400 block mb-1">阶段 4</span>
+              <span className="text-sm font-bold text-white block group-hover:text-blue-300">基本确定，判断能不能做</span>
+              <span className="text-xs text-gray-400 block mt-2">结合利润、启动资金、核心风险与下一步唯一动作做终局判断</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const activeSpec = candidate?.specifications?.find((s) => s.id === candidate.activeSpecVersionId) || candidate?.specifications?.[0];
   const quotes: SupplierQuote[] = candidate?.supplierQuotes || [];
   const primaryQuote = quotes.find((q) => q.id === candidate?.primaryQuoteId);
@@ -437,10 +579,10 @@ export function SingleProductResearchSection({
           </div>
           <button
             onClick={loadFruitBoxDemo}
-            className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1.5 transition-colors self-start md:self-auto bg-blue-500/10 hover:bg-blue-500/20 px-2.5 py-1 rounded-lg border border-blue-500/20"
+            className="text-xs text-gray-400 hover:text-blue-300 flex items-center space-x-1.5 transition-colors self-start md:self-auto bg-surface hover:bg-blue-500/10 px-2.5 py-1 rounded-lg border border-border hover:border-blue-500/20"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>载入玻璃水果盒+沥水篮测试样本 (黄金基准)</span>
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            <span>载入玻璃水果盒测试样本</span>
           </button>
         </div>
 
@@ -498,12 +640,31 @@ export function SingleProductResearchSection({
       {/* 2. Candidate 首页核心摘要卡片 (Spec §28: 两个关键数字 + 一句建议 + 一个下一步) */}
       {candidate && (
         <div className="bg-gradient-to-br from-surface via-surface to-blue-950/20 border border-border rounded-2xl p-5 sm:p-6 shadow-md">
+          {/* Demo 明确标识 Banner (Spec §Demo Isolation) */}
+          {(isDemo || candidate.id === 'cand-glass-fruit-box-001') && (
+            <div className="mb-4 px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-amber-300 text-xs font-semibold">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>测试样本 (Demo 数据，仅用于功能体验)</span>
+              </div>
+              <span className="text-[11px] text-amber-400/80">
+                系统内置基准测试样例，真实选品数据不包含此数据
+              </span>
+            </div>
+          )}
+
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-border/60">
             <div>
               <div className="flex items-center space-x-2.5 mb-1.5">
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                  单产品选品 V1
-                </span>
+                {(isDemo || candidate.id === 'cand-glass-fruit-box-001') ? (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    测试样本 (Demo)
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                    单产品选品 V1
+                  </span>
+                )}
                 <span className="text-xs text-gray-400 font-mono">
                   ID: {candidate.id}
                 </span>
@@ -1572,17 +1733,18 @@ export function SingleProductResearchSection({
             <div className="space-y-3 pt-2">
               <div>
                 <label className="text-xs text-gray-400 block mb-1">
-                  包装费用 (若工厂免费提供出厂包装请填 0)
+                  包装是否有额外费用？(若工厂免费提供出厂包装，请明确输入 0)
                 </label>
                 <input
                   type="number"
                   min="0"
                   step="0.5"
+                  placeholder="若工厂确认免费请明确输入 0"
                   value={unknownChargesInput.packagingCost}
                   onChange={(e) =>
                     setUnknownChargesInput({
                       ...unknownChargesInput,
-                      packagingCost: parseFloat(e.target.value) || 0,
+                      packagingCost: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
                     })
                   }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-white"
@@ -1591,17 +1753,18 @@ export function SingleProductResearchSection({
 
               <div>
                 <label className="text-xs text-gray-400 block mb-1">
-                  Logo 定制费 (若无定制需求请填 0)
+                  Logo 是否有额外费用？(若工厂确认免收打标费，请明确输入 0)
                 </label>
                 <input
                   type="number"
                   min="0"
                   step="0.5"
+                  placeholder="若工厂确认免费请明确输入 0"
                   value={unknownChargesInput.logoCost}
                   onChange={(e) =>
                     setUnknownChargesInput({
                       ...unknownChargesInput,
-                      logoCost: parseFloat(e.target.value) || 0,
+                      logoCost: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
                     })
                   }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-white"
@@ -1621,7 +1784,8 @@ export function SingleProductResearchSection({
               </button>
               <button
                 onClick={confirmUnknownChargesAndSelect}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white"
+                disabled={unknownChargesInput.packagingCost === '' || unknownChargesInput.logoCost === ''}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-white"
               >
                 确认并以此算账
               </button>
@@ -1637,7 +1801,7 @@ export function SingleProductResearchSection({
             <h3 className="text-base font-bold text-white">录入工厂报价 (Supplier Quote)</h3>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="col-span-2">
-                <label className="text-gray-400 block mb-1">供应商名称</label>
+                <label className="text-gray-400 block mb-1">供应商名称 *</label>
                 <input
                   type="text"
                   placeholder="例如: 浙江台州某制品厂"
@@ -1648,41 +1812,73 @@ export function SingleProductResearchSection({
               </div>
 
               <div>
-                <label className="text-gray-400 block mb-1">出厂单价 (¥ CNY)</label>
+                <label className="text-gray-400 block mb-1">出厂单价 * (¥ CNY)</label>
                 <input
                   type="number"
+                  min="0"
+                  step="0.1"
+                  placeholder="必填，如 42"
                   value={newQuoteForm.unitPrice}
-                  onChange={(e) => setNewQuoteForm({ ...newQuoteForm, unitPrice: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setNewQuoteForm({
+                      ...newQuoteForm,
+                      unitPrice: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
+                    })
+                  }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
                 />
               </div>
 
               <div>
-                <label className="text-gray-400 block mb-1">包装费用 (¥ CNY)</label>
+                <label className="text-gray-400 block mb-1">包装费用 (¥ CNY，不填为未知)</label>
                 <input
                   type="number"
+                  min="0"
+                  step="0.1"
+                  placeholder="留空为未知；免费填 0"
                   value={newQuoteForm.packagingCost}
-                  onChange={(e) => setNewQuoteForm({ ...newQuoteForm, packagingCost: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setNewQuoteForm({
+                      ...newQuoteForm,
+                      packagingCost: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
+                    })
+                  }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
                 />
               </div>
 
               <div>
-                <label className="text-gray-400 block mb-1">Logo 费用 (¥ CNY)</label>
+                <label className="text-gray-400 block mb-1">Logo 费用 (¥ CNY，不填为未知)</label>
                 <input
                   type="number"
+                  min="0"
+                  step="0.1"
+                  placeholder="留空为未知；免费填 0"
                   value={newQuoteForm.logoCost}
-                  onChange={(e) => setNewQuoteForm({ ...newQuoteForm, logoCost: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setNewQuoteForm({
+                      ...newQuoteForm,
+                      logoCost: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
+                    })
+                  }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
                 />
               </div>
 
               <div>
-                <label className="text-gray-400 block mb-1">最小起订量 (MOQ)</label>
+                <label className="text-gray-400 block mb-1">最小起订量 * (MOQ)</label>
                 <input
                   type="number"
+                  min="1"
+                  step="1"
+                  placeholder="必填，如 500"
                   value={newQuoteForm.moq}
-                  onChange={(e) => setNewQuoteForm({ ...newQuoteForm, moq: parseInt(e.target.value) || 100 })}
+                  onChange={(e) =>
+                    setNewQuoteForm({
+                      ...newQuoteForm,
+                      moq: e.target.value === '' ? '' : (parseInt(e.target.value, 10) || 0),
+                    })
+                  }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
                 />
               </div>
@@ -1691,8 +1887,16 @@ export function SingleProductResearchSection({
                 <label className="text-gray-400 block mb-1">大货生产交期 (天)</label>
                 <input
                   type="number"
+                  min="1"
+                  step="1"
+                  placeholder="选填，如 25"
                   value={newQuoteForm.leadTimeDays}
-                  onChange={(e) => setNewQuoteForm({ ...newQuoteForm, leadTimeDays: parseInt(e.target.value) || 20 })}
+                  onChange={(e) =>
+                    setNewQuoteForm({
+                      ...newQuoteForm,
+                      leadTimeDays: e.target.value === '' ? '' : (parseInt(e.target.value, 10) || 0),
+                    })
+                  }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
                 />
               </div>
@@ -1701,8 +1905,16 @@ export function SingleProductResearchSection({
                 <label className="text-gray-400 block mb-1">样品费用 (¥ CNY)</label>
                 <input
                   type="number"
+                  min="0"
+                  step="1"
+                  placeholder="选填，如 100"
                   value={newQuoteForm.sampleCost}
-                  onChange={(e) => setNewQuoteForm({ ...newQuoteForm, sampleCost: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setNewQuoteForm({
+                      ...newQuoteForm,
+                      sampleCost: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
+                    })
+                  }
                   className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white"
                 />
               </div>
@@ -1855,4 +2067,16 @@ function computeFactBadges(quotes: SupplierQuote[]): SupplierQuoteFactBadge[] {
   }
 
   return badges;
+}
+
+// 辅助函数: 解析可选数字，空字符串或 null/undefined 返回 undefined，保留真正的 0 (P0 Truthfulness)
+function parseOptionalNumber(
+  value: number | string | undefined | null,
+): number | undefined {
+  if (value === '' || value === undefined || value === null) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }

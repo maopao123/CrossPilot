@@ -1037,4 +1037,129 @@ describe('CrossPilot Single-Product Research V1 Acceptance Suite (工程增强�
       expect(incompleteCash.displaySummaryZh).toContain('缺起订量');
     });
   });
+
+  describe('Phase 3 V1 Final Truthfulness Closure: Quote UNKNOWN vs FACT 0 & Anti-Gaming Gate', () => {
+    function createCandidateForQuoteTests(quoteOverrides?: Partial<SupplierQuote>): ProductCandidate {
+      const candidate = createTestCandidate();
+      const spec = candidate.specifications![0];
+      const quote: SupplierQuote = {
+        id: 'quote-closure-1',
+        candidateId: candidate.id,
+        specVersionId: spec.id,
+        supplierName: '宁波某工贸一体模具厂',
+        status: 'ACTIVE',
+        unitPrice: 42,
+        packagingCost: { value: null, source: 'UNKNOWN' },
+        logoCost: { value: null, source: 'UNKNOWN' },
+        moq: 500,
+        sampleCost: undefined,
+        leadTimeDays: 20,
+        captureMethod: 'MANUAL',
+        sourceChannel: '1688',
+        currency: 'CNY',
+        capturedAt: new Date().toISOString(),
+        ...quoteOverrides,
+      };
+      candidate.supplierQuotes = [quote];
+      return candidate;
+    }
+
+    it('Case 1: 包装费/Logo 都不填时，保存为 UNKNOWN null 而非 FACT 0', () => {
+      const candidate = createCandidateForQuoteTests();
+      const quote = candidate.supplierQuotes![0];
+
+      expect(quote.packagingCost.value).toBeNull();
+      expect(quote.packagingCost.source).toBe('UNKNOWN');
+      expect(quote.logoCost.value).toBeNull();
+      expect(quote.logoCost.source).toBe('UNKNOWN');
+    });
+
+    it('Case 2: 包装费/Logo 明确输入 0 时，准确保存为 value: 0, source: FACT', () => {
+      const candidate = createCandidateForQuoteTests({
+        packagingCost: { value: 0, source: 'FACT' },
+        logoCost: { value: 0, source: 'FACT' },
+      });
+      const quote = candidate.supplierQuotes![0];
+
+      expect(quote.packagingCost.value).toBe(0);
+      expect(quote.packagingCost.source).toBe('FACT');
+      expect(quote.logoCost.value).toBe(0);
+      expect(quote.logoCost.source).toBe('FACT');
+    });
+
+    it('Case 3: Quote 包含 UNKNOWN 包装费或 Logo 费时，点击算账坚决阻断，严禁隐式当 0 计算', () => {
+      const candidate = createCandidateForQuoteTests({
+        packagingCost: { value: null, source: 'UNKNOWN' },
+        logoCost: { value: null, source: 'UNKNOWN' },
+      });
+
+      // 未传入确认费用，SupplierQuoteService 坚决抛出阻断异常
+      expect(() =>
+        SupplierQuoteService.selectPrimaryQuote(candidate, 'quote-closure-1'),
+      ).toThrow(/该报价的【包装费用】为 UNKNOWN \(未知\)/);
+
+      // 若包装费已知但 Logo 费为 UNKNOWN，同样坚决阻断
+      candidate.supplierQuotes![0].packagingCost = { value: 2, source: 'FACT' };
+      expect(() =>
+        SupplierQuoteService.selectPrimaryQuote(candidate, 'quote-closure-1'),
+      ).toThrow(/该报价的【Logo费用】为 UNKNOWN \(未知\)/);
+    });
+
+    it('Case 4: 用户在确认弹窗中明确输入 0 确认后 (FACT 0)，允许以出厂价算账', () => {
+      const candidate = createCandidateForQuoteTests({
+        unitPrice: 42,
+        packagingCost: { value: null, source: 'UNKNOWN' },
+        logoCost: { value: null, source: 'UNKNOWN' },
+      });
+
+      const result = SupplierQuoteService.selectPrimaryQuote(
+        candidate,
+        'quote-closure-1',
+        { packagingCost: 0, logoCost: 0 },
+      );
+
+      // 确认后包装与 Logo 费变为 FACT 0
+      expect(result.primaryQuote.packagingCost.value).toBe(0);
+      expect(result.primaryQuote.packagingCost.source).toBe('FACT');
+      expect(result.primaryQuote.logoCost.value).toBe(0);
+      expect(result.primaryQuote.logoCost.source).toBe('FACT');
+
+      // 单件成本正好等于出厂单价 42 CNY
+      expect(result.productCostQuoteCurrency).toBe(42);
+      expect(result.breakdown.packagingCost).toBe(0);
+      expect(result.breakdown.logoCost).toBe(0);
+    });
+
+    it('Case 5: sampleCost 留空时为 undefined/null，Initial Cash 正确标识 INCOMPLETE 直到补齐', () => {
+      // 1. 留空情形 (undefined)
+      const cashWithoutSample = InitialCashService.calculateInitialCash({
+        moq: 500,
+        productCostPerUnit: 42.0,
+        sampleCost: undefined, // 未填写
+        firstFreightCost: 5000,
+        currency: 'CNY',
+      });
+
+      expect(cashWithoutSample.status).toBe('INCOMPLETE');
+      expect(cashWithoutSample.sampleCost).toBeNull();
+      expect(cashWithoutSample.totalInitialCash).toBeNull();
+      expect(cashWithoutSample.missingItems).toContain('样品费');
+      expect(cashWithoutSample.displaySummaryZh).toContain('缺样品费');
+
+      // 2. 补齐打样费 ¥150
+      const cashWithSample = InitialCashService.calculateInitialCash({
+        moq: 500,
+        productCostPerUnit: 42.0,
+        sampleCost: 150,
+        firstFreightCost: 5000,
+        currency: 'CNY',
+      });
+
+      expect(cashWithSample.status).toBe('COMPLETE');
+      expect(cashWithSample.sampleCost).toBe(150);
+      // 500 * 42 (21,000) + 150 + 5000 = 26,150
+      expect(cashWithSample.totalInitialCash).toBe(26150);
+    });
+  });
 });
+

@@ -134,4 +134,84 @@ describe('Single-Product Research API & Analytics Truthfulness', () => {
       expect(eventsC).toEqual([]);
     });
   });
+
+  describe('Phase 3 V1 Final Truthfulness Closure: API Quote & Init Candidate Endpoints', () => {
+    it('saveSingleProductQuote: 保存空白包装费/Logo费为 UNKNOWN null，留空 sampleCost 为 null', () => {
+      const candidate = service.initSingleProductCandidate({ title: '新选品项目' });
+
+      // 用户录入未填包装费/Logo/样品费的报价
+      const updated = service.saveSingleProductQuote(candidate, {
+        supplierName: '深圳某模具五金厂',
+        unitPrice: 45,
+        packagingCost: { value: null, source: 'UNKNOWN' },
+        logoCost: { value: null, source: 'UNKNOWN' },
+        moq: 300,
+        sampleCost: undefined,
+        leadTimeDays: undefined,
+      });
+
+      expect(updated.supplierQuotes).toHaveLength(1);
+      const savedQuote = updated.supplierQuotes![0];
+      expect(savedQuote.unitPrice).toBe(45);
+      expect(savedQuote.packagingCost).toEqual({ value: null, source: 'UNKNOWN' });
+      expect(savedQuote.logoCost).toEqual({ value: null, source: 'UNKNOWN' });
+      expect(savedQuote.sampleCost).toBeNull();
+      expect(savedQuote.leadTimeDays).toBeNull();
+    });
+
+    it('selectSingleProductPrimaryQuote: 未确认 UNKNOWN 费用时坚决抛错阻断；确认 0 费用后转为 FACT 0 并完成算账', () => {
+      const candidate = service.initSingleProductCandidate({ title: '新选品项目' });
+      const withQuote = service.saveSingleProductQuote(candidate, {
+        id: 'quote-api-test-1',
+        supplierName: '深圳某模具五金厂',
+        unitPrice: 45,
+        packagingCost: { value: null, source: 'UNKNOWN' },
+        logoCost: { value: null, source: 'UNKNOWN' },
+        moq: 300,
+      });
+
+      // 1. 未确认费用直接选择 -> 坚决抛错阻断
+      expect(() =>
+        service.selectSingleProductPrimaryQuote(withQuote, 'quote-api-test-1'),
+      ).toThrow(/该报价的【包装费用】为 UNKNOWN/);
+
+      // 2. 明确确认 0 (FACT 0) -> 允许选择并以 45 CNY 计入
+      const selected = service.selectSingleProductPrimaryQuote(
+        withQuote,
+        'quote-api-test-1',
+        { packagingCost: 0, logoCost: 0 },
+      );
+
+      expect(selected.primaryQuoteId).toBe('quote-api-test-1');
+      const primaryQuote = selected.supplierQuotes!.find((q) => q.id === 'quote-api-test-1');
+      expect(primaryQuote?.packagingCost).toEqual({
+        value: 0,
+        source: 'FACT',
+        basis: 'CONFIRMED_USER_SELECTION',
+      });
+      expect(primaryQuote?.logoCost).toEqual({
+        value: 0,
+        source: 'FACT',
+        basis: 'CONFIRMED_USER_SELECTION',
+      });
+      // 启动资金货款部分: 300 * 45 = 13500
+      expect(selected.initialCash?.inventoryCost).toBe(13500);
+    });
+
+    it('initSingleProductCandidate: 无 Candidate 时创建真实选品对象，数据状态干净且无假 0 污染', () => {
+      const fresh = service.initSingleProductCandidate({
+        title: '我的新厨房产品',
+        entryPoint: 'idea',
+      });
+
+      expect(fresh.id).toMatch(/^cand-/);
+      expect(fresh.title).toBe('我的新厨房产品');
+      expect(fresh.supplierQuotes).toHaveLength(0);
+      expect(fresh.primaryQuoteId).toBeUndefined();
+      expect(fresh.economics.status).toBe('INCOMPLETE');
+      expect(fresh.economics.inputs.productCost).toEqual({ value: null, source: 'UNKNOWN' });
+      expect(fresh.decisionPacket?.verdict).toBe('INSUFFICIENT_DATA');
+    });
+  });
 });
+
