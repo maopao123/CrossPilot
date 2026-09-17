@@ -599,6 +599,72 @@ describe('CrossPilot Single-Product Research V1 Acceptance Suite (工程增强�
       expect(nba?.category).toBe('CRITICAL_INPUT');
       expect(nba?.targetField).toBe('productCost');
     });
+
+    it('优先级 4: 启动资金项不完整 (缺样品费/头程) 时，精准推荐补齐启动资金', () => {
+      const candidate = createTestCandidate({
+        risks: [],
+        economics: {
+          ...createTestCandidate().economics,
+          status: 'COMPLETE',
+          inputs: {
+            ...createTestCandidate().economics.inputs,
+            productCost: { value: 6.44, source: 'FACT' },
+          },
+        },
+        initialCash: InitialCashService.calculateInitialCash({
+          moq: 500,
+          productCostPerUnit: 46,
+          currency: 'CNY',
+        }),
+      });
+
+      const nba = NextBestActionEngine.getNextBestAction(candidate);
+      expect(nba?.priority).toBe(4);
+      expect(nba?.category).toBe('LAUNCH_CASH');
+      expect(nba?.title).toContain('缺样品费/首批头程');
+      expect(nba?.buttonText).toBe('补齐启动资金');
+    });
+  });
+
+  describe('P0-1 & P0-2 深度自检用例: InitialCash 边界校验与多币种支持', () => {
+    it('当起订量或单价缺失/<=0 时，准确归入 missingItems 并标记 INCOMPLETE', () => {
+      const incompleteZeroMoq = InitialCashService.calculateInitialCash({
+        moq: 0,
+        productCostPerUnit: 46,
+        sampleCost: 100,
+        firstFreightCost: 6429,
+        currency: 'CNY',
+      });
+      expect(incompleteZeroMoq.status).toBe('INCOMPLETE');
+      expect(incompleteZeroMoq.missingItems).toContain('起订量');
+      expect(incompleteZeroMoq.displaySummaryZh).toContain('缺起订量');
+
+      const incompleteZeroPrice = InitialCashService.calculateInitialCash({
+        moq: 500,
+        productCostPerUnit: 0,
+        sampleCost: 100,
+        firstFreightCost: 6429,
+        currency: 'CNY',
+      });
+      expect(incompleteZeroPrice.status).toBe('INCOMPLETE');
+      expect(incompleteZeroPrice.missingItems).toContain('出厂单价');
+      expect(incompleteZeroPrice.displaySummaryZh).toContain('缺出厂单价');
+    });
+
+    it('当币种为 USD 时，正确使用 $ 符号并完整计算各项', () => {
+      const usdCash = InitialCashService.calculateInitialCash({
+        moq: 1000,
+        productCostPerUnit: 12.5,
+        sampleCost: 150,
+        firstFreightCost: 2500,
+        toolingCost: 500,
+        packagingSetupCost: 250,
+        currency: 'USD',
+      });
+      expect(usdCash.status).toBe('COMPLETE');
+      expect(usdCash.totalInitialCash).toBe(1000 * 12.5 + 150 + 2500 + 500 + 250); // 15900
+      expect(usdCash.displaySummaryZh).toBe('$1.59 万 (含货款、样品、头程)');
+    });
   });
 
   describe('P0-15 & 黄金验收用例: 玻璃水果盒 + 沥水篮一页决策结论包 (Golden Flow)', () => {

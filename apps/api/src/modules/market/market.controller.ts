@@ -10,6 +10,7 @@ import type {
   CandidateEnrichmentRun,
   ProductSpecification,
   SupplierQuote,
+  ResearchAnalyticsEvent,
 } from '@crosspilot/shared';
 
 @Controller()
@@ -280,6 +281,7 @@ export class MarketController {
         sampleCost?: number;
         firstFreightCost?: number;
         toolingCost?: number;
+        packagingSetupCost?: number;
       };
     },
   ) {
@@ -288,5 +290,15 @@ export class MarketController {
       body.feeInputs,
       body.initialCashParams,
     );
+  }
+
+  @Post('market-research/analytics/event')
+  trackAnalyticsEvent(@Body() body: ResearchAnalyticsEvent) {
+    return this.marketService.trackAnalyticsEvent(body);
+  }
+
+  @Get('market-research/analytics/events')
+  getAnalyticsEvents(@Query('candidateId') candidateId?: string) {
+    return this.marketService.getAnalyticsEvents(candidateId);
   }
 }

@@ -39,6 +39,12 @@ export class InitialCashService {
     const validOther = ProfitCalculationService.roundMoney(otherOneTimeCosts ?? 0);
 
     const missingItems: string[] = [];
+    if (!moq || moq <= 0) {
+      missingItems.push('起订量');
+    }
+    if (!productCostPerUnit || productCostPerUnit <= 0) {
+      missingItems.push('出厂单价');
+    }
     if (sampleCost === undefined || sampleCost === null) {
       missingItems.push('样品费');
     }
@@ -67,11 +73,12 @@ export class InitialCashService {
           validPackagingSetup +
           validOther,
       );
+      const symbol = currency === 'USD' ? '$' : '¥';
       if (totalInitialCash >= 10000) {
         const val = totalInitialCash / 10000;
-        displaySummaryZh = `¥${Number(val.toFixed(2))} 万 (含货款、样品、头程)`;
+        displaySummaryZh = `${symbol}${Number(val.toFixed(2))} 万 (含货款、样品、头程)`;
       } else {
-        displaySummaryZh = `¥${totalInitialCash.toLocaleString()} (含货款、样品、头程)`;
+        displaySummaryZh = `${symbol}${totalInitialCash.toLocaleString()} (含货款、样品、头程)`;
       }
     }
 

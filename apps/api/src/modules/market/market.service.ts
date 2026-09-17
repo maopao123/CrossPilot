@@ -45,6 +45,7 @@ import {
   GeneratedRfq,
   InitialCashRequirement,
   OnePageDecisionPacket,
+  ResearchAnalyticsEvent,
 } from '@crosspilot/shared';
 
 @Injectable()
@@ -1606,7 +1607,12 @@ export class MarketService {
   evaluateSingleProduct(
     candidate: ProductCandidate,
     feeInputs?: Partial<ProductCandidate['economics']['inputs']>,
-    initialCashParams?: { sampleCost?: number; firstFreightCost?: number; toolingCost?: number },
+    initialCashParams?: {
+      sampleCost?: number;
+      firstFreightCost?: number;
+      toolingCost?: number;
+      packagingSetupCost?: number;
+    },
   ): ProductCandidate {
     let updated = { ...candidate };
 
@@ -1629,6 +1635,7 @@ export class MarketService {
           sampleCost: initialCashParams?.sampleCost !== undefined ? initialCashParams.sampleCost : primaryQuote.sampleCost,
           firstFreightCost: initialCashParams?.firstFreightCost !== undefined ? initialCashParams.firstFreightCost : updated.initialCash?.firstFreightCost,
           toolingCost: initialCashParams?.toolingCost !== undefined ? initialCashParams.toolingCost : primaryQuote.toolingCost,
+          packagingSetupCost: initialCashParams?.packagingSetupCost !== undefined ? initialCashParams.packagingSetupCost : updated.initialCash?.packagingSetupCost,
           currency: primaryQuote.currency,
         });
       }
@@ -1640,6 +1647,27 @@ export class MarketService {
     updated.decisionPacket = DecisionPacketService.buildDecisionPacket(updated);
 
     return updated;
+  }
+
+  // ==========================================================================
+  // Single-Product Research Analytics Tracking (Spec §35 & §38)
+  // ==========================================================================
+  private analyticsEvents: ResearchAnalyticsEvent[] = [];
+
+  trackAnalyticsEvent(event: ResearchAnalyticsEvent) {
+    const tracked: ResearchAnalyticsEvent = {
+      ...event,
+      timestamp: event.timestamp || new Date().toISOString(),
+    };
+    this.analyticsEvents.push(tracked);
+    return { success: true, event: tracked, totalEvents: this.analyticsEvents.length };
+  }
+
+  getAnalyticsEvents(candidateId?: string) {
+    if (candidateId) {
+      return this.analyticsEvents.filter((e) => e.candidateId === candidateId);
+    }
+    return this.analyticsEvents;
   }
 }
 
