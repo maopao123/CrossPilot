@@ -145,7 +145,7 @@ export class DecisionPacketService {
       }
 
       const hasValidInput =
-        inputValue !== null && inputValue !== undefined && inputSource !== 'UNKNOWN';
+        inputValue != null && inputSource !== 'UNKNOWN';
       if (!hasValidInput) {
         return {
           value: null,

@@ -1,4 +1,4 @@
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { MarketService } from '../src/modules/market/market.service.js';
 import type { ProductCandidate } from '@crosspilot/shared';
 
@@ -116,6 +116,47 @@ describe('ResearchTask Workflow Reliability Hardening (Part 1 & Part 2)', () => 
         new BadRequestException('Invalid research task stage transition: CREATED -> DECISION'),
       );
     });
+    it('Fix #6: 允许从 COMPLETED 回退至 DECISION 阶段 (PASS)', async () => {
+      const candidate = createSampleCandidate('户外露营灯');
+      const task = await service.createResearchTask('ws-1', {
+        title: '露营灯任务',
+        currentStage: 'CREATED',
+        candidateData: candidate,
+      });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'MARKET_RESEARCH' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'SPECIFICATION' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'QUOTE' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'ECONOMICS' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'DECISION' });
+      const completedTask = await service.updateResearchTask('ws-1', task.id, { currentStage: 'COMPLETED' });
+      expect(completedTask.currentStage).toBe('COMPLETED');
+
+      // 回退至 DECISION
+      const rollbacked = await service.updateResearchTask('ws-1', task.id, { currentStage: 'DECISION' });
+      expect(rollbacked.currentStage).toBe('DECISION');
+    });
+
+    it('Fix #6: COMPLETED -> CREATED 等非法跨阶段回退必须拒绝并抛出 400 (FAIL)', async () => {
+      const candidate = createSampleCandidate('露营天幕');
+      const task = await service.createResearchTask('ws-1', {
+        title: '露营天幕任务',
+        currentStage: 'CREATED',
+        candidateData: candidate,
+      });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'MARKET_RESEARCH' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'SPECIFICATION' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'QUOTE' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'ECONOMICS' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'DECISION' });
+      await service.updateResearchTask('ws-1', task.id, { currentStage: 'COMPLETED' });
+
+      // 非法直接回退到 CREATED
+      await expect(
+        service.updateResearchTask('ws-1', task.id, { currentStage: 'CREATED' }),
+      ).rejects.toThrow(
+        new BadRequestException('Invalid research task stage transition: COMPLETED -> CREATED'),
+      );
+    });
   });
 
   describe('Part 2: 限制 InMemory Fallback (生产环境禁止回退，必须抛出 500)', () => {
@@ -201,6 +242,38 @@ describe('ResearchTask Workflow Reliability Hardening (Part 1 & Part 2)', () => 
 
       const retrieved = await service.getResearchTask('ws-test', task.id);
       expect(retrieved.title).toBe('测试内存任务');
+    });
+  });
+
+  describe('Part 3: 跨租户数据隔离安全防护 (Fix #1: Cross-Tenant Isolation)', () => {
+    it('租户 A 创建的任务，租户 B 无法查询、修改或删除，严格返回 NotFoundException', async () => {
+      const candidate = createSampleCandidate('租户隔离专属产品');
+      const taskA = await service.createResearchTask('workspace-tenant-A', {
+        title: '租户A私有任务',
+        candidateData: candidate,
+      });
+      expect(taskA.id).toBeDefined();
+
+      // 1. 租户 B 查询任务 A 失败
+      await expect(
+        service.getResearchTask('workspace-tenant-B', taskA.id),
+      ).rejects.toThrow(NotFoundException);
+
+      // 2. 租户 B 更新任务 A 失败
+      await expect(
+        service.updateResearchTask('workspace-tenant-B', taskA.id, {
+          title: '恶意篡改标题',
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      // 3. 租户 B 删除任务 A 失败
+      await expect(
+        service.deleteResearchTask('workspace-tenant-B', taskA.id),
+      ).rejects.toThrow(NotFoundException);
+
+      // 4. 验证任务 A 依然安全存在于租户 A 中
+      const safeTaskA = await service.getResearchTask('workspace-tenant-A', taskA.id);
+      expect(safeTaskA.title).toBe('租户A私有任务');
     });
   });
 });

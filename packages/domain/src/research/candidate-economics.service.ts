@@ -79,7 +79,8 @@ export class CandidateEconomicsService {
     // 1. Audit critical inputs for truthfulness & provenance
     for (const key of CRITICAL_ECONOMICS_INPUTS) {
       const field = normalizedInputs[key];
-      if (!field || field.value === null || field.source === 'UNKNOWN') {
+      const isMissing = !field || field.source === 'UNKNOWN' || field.value == null;
+      if (isMissing) {
         missingInputs.push(key);
         criticalMissing.push(key);
       }
@@ -88,7 +89,8 @@ export class CandidateEconomicsService {
     // 2. Audit non-critical inputs (missing values are treated as EXCLUDED_FROM_CALCULATION, not real zero)
     for (const key of NON_CRITICAL_ECONOMICS_INPUTS) {
       const field = normalizedInputs[key];
-      if (!field || field.value === null || field.source === 'UNKNOWN') {
+      const isMissing = !field || field.source === 'UNKNOWN' || field.value == null;
+      if (isMissing) {
         excludedInputs.push(key);
       }
     }

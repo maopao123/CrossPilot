@@ -249,6 +249,14 @@ export class NextBestActionEngine {
       };
     }
 
+    const decisionVal = candidate.decision as string | undefined;
+    if (decisionVal && decisionVal !== 'SHORTLIST' && decisionVal !== 'WATCH') {
+      console.warn(
+        `[NextBestActionEngine] No action matched for candidate ${candidate.id}, ` +
+        `decision=${candidate.decision}, economics=${candidate.economics?.status}`,
+      );
+    }
+
     return null;
   }
 }

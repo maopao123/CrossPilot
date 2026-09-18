@@ -48,11 +48,15 @@ export class InitialCashService {
     if (!productCostPerUnit || productCostPerUnit <= 0) {
       missingItems.push('出厂单价');
     }
-    if (sampleCost === undefined || sampleCost === null) {
+    if (sampleCost == null) {
       missingItems.push('样品费');
+    } else if (sampleCost <= 0) {
+      missingItems.push('样品费(需确认是否真实为0)');
     }
-    if (firstFreightCost === undefined || firstFreightCost === null) {
+    if (firstFreightCost == null) {
       missingItems.push('首批头程');
+    } else if (firstFreightCost <= 0) {
+      missingItems.push('首批头程(需确认是否真实为0)');
     }
 
     const isIncomplete = missingItems.length > 0;

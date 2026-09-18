@@ -77,6 +77,10 @@ export class SpecificationManager {
 
   /**
    * P0-8: 字段级 Diff 与失效机制
+   *
+   * 注意: CORE_SPEC_FIELDS 的比较使用严格相等 (===)，仅支持原始类型值。
+   * 如果未来字段值改为对象类型（如 { value, unit }），需要实现深度比较。
+   *
    * 若 CORE_SPEC_FIELDS 中任一字段发生实质性变更：
    * 1. 自动生成 Spec V(n+1) 草稿
    * 2. 旧规格关联的所有 Quote 状态置为 STALE

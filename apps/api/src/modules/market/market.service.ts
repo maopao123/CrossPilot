@@ -1909,13 +1909,19 @@ export class MarketService {
 
     if (this.prisma && (this.prisma as any).researchTask) {
       try {
-        const record = await (this.prisma as any).researchTask.update({
-          where: { id },
+        const updateResult = await (this.prisma as any).researchTask.updateMany({
+          where: { id, workspaceId },
           data: {
             title: updatedTitle,
             currentStage: updatedStage,
             candidateData: updatedCandidate as any,
           },
+        });
+        if (updateResult.count === 0) {
+          throw new NotFoundException(`未找到 ID 为 ${id} 的选品任务`);
+        }
+        const record = await (this.prisma as any).researchTask.findFirst({
+          where: { id, workspaceId },
         });
         const task: ResearchTask = {
           id: record.id,
@@ -1929,13 +1935,21 @@ export class MarketService {
         this.inMemoryTasks.set(id, task);
         return task;
       } catch (err) {
+        if (err instanceof NotFoundException) {
+          throw err;
+        }
         if (isProduction) {
           throw new InternalServerErrorException('Research task persistence unavailable');
         }
-        console.warn('Prisma researchTask.update failed, falling back to memory store:', err);
+        console.warn('Prisma researchTask.updateMany failed, falling back to memory store:', err);
       }
     } else if (isProduction) {
       throw new InternalServerErrorException('Research task persistence unavailable');
+    }
+
+    const memTask = this.inMemoryTasks.get(id);
+    if (!memTask || memTask.workspaceId !== workspaceId) {
+      throw new NotFoundException(`未找到 ID 为 ${id} 的选品任务`);
     }
 
     const updatedTask: ResearchTask = {
@@ -1954,12 +1968,21 @@ export class MarketService {
 
     if (this.prisma && (this.prisma as any).researchTask) {
       try {
-        await (this.prisma as any).researchTask.deleteMany({
+        const deleted = await (this.prisma as any).researchTask.deleteMany({
           where: { id, workspaceId },
         });
-        this.inMemoryTasks.delete(id);
+        if (deleted.count === 0 && isProduction) {
+          throw new NotFoundException(`未找到 ID 为 ${id} 的选品任务`);
+        }
+        const memTask = this.inMemoryTasks.get(id);
+        if (memTask && memTask.workspaceId === workspaceId) {
+          this.inMemoryTasks.delete(id);
+        }
         return { success: true };
       } catch (err) {
+        if (err instanceof NotFoundException) {
+          throw err;
+        }
         if (isProduction) {
           throw new InternalServerErrorException('Research task persistence unavailable');
         }
@@ -1967,6 +1990,11 @@ export class MarketService {
       }
     } else if (isProduction) {
       throw new InternalServerErrorException('Research task persistence unavailable');
+    }
+
+    const memTask = this.inMemoryTasks.get(id);
+    if (!memTask || memTask.workspaceId !== workspaceId) {
+      throw new NotFoundException(`未找到 ID 为 ${id} 的选品任务`);
     }
     this.inMemoryTasks.delete(id);
     return { success: true };

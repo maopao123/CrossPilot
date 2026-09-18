@@ -77,6 +77,8 @@ export class KeywordExpansionService {
       usedExpensiveCalls: 0,
       stoppedByBudget: false,
     };
+    budgetState.usedCredits = budgetState.usedCredits ?? 0;
+    budgetState.usedProviderCalls = budgetState.usedProviderCalls ?? 0;
 
     const keywordMap = new Map<string, KeywordNode>();
     const asinMap = new Map<string, AsinNode>();

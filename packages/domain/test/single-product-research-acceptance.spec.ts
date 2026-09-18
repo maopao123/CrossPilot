@@ -1160,6 +1160,48 @@ describe('CrossPilot Single-Product Research V1 Acceptance Suite (工程增强�
       // 500 * 42 (21,000) + 150 + 5000 = 26,150
       expect(cashWithSample.totalInitialCash).toBe(26150);
     });
+
+    it('Case 6: Fix #2 初始资金 0 值区分 (0 标记为需确认，null 标记为缺失)', () => {
+      const cashZero = InitialCashService.calculateInitialCash({
+        moq: 500,
+        productCostPerUnit: 42.0,
+        sampleCost: 0,
+        firstFreightCost: 0,
+        currency: 'CNY',
+      });
+
+      expect(cashZero.status).toBe('INCOMPLETE');
+      expect(cashZero.missingItems).toContain('样品费(需确认是否真实为0)');
+      expect(cashZero.missingItems).toContain('首批头程(需确认是否真实为0)');
+
+      const cashNull = InitialCashService.calculateInitialCash({
+        moq: 500,
+        productCostPerUnit: 42.0,
+        sampleCost: null,
+        firstFreightCost: null,
+        currency: 'CNY',
+      });
+
+      expect(cashNull.status).toBe('INCOMPLETE');
+      expect(cashNull.missingItems).toEqual(['样品费', '首批头程']);
+    });
+
+    it('Case 7: Fix #5 经济测算中的真实 0 与未知混淆验证 ({ value: 0, source: FACT } 不应标记为缺失)', () => {
+      const inputs = {
+        sellingPrice: { value: 25.0, source: 'FACT' as const },
+        productCost: { value: 5.0, source: 'FACT' as const },
+        referralFeeRate: { value: 0.15, source: 'FACT' as const },
+        fbaFeePerUnit: { value: 4.5, source: 'FACT' as const },
+        freightPerUnit: { value: 1.5, source: 'FACT' as const },
+        dutyPerUnit: { value: 0, source: 'FACT' as const }, // 明确关税为 0
+        otherCostsPerUnit: { value: 0, source: 'UNKNOWN' as const }, // 未知杂费
+      };
+
+      const result = CandidateEconomicsService.calculateEconomics(inputs);
+      expect(result.status).toBe('COMPLETE');
+      expect(result.excludedInputs).not.toContain('dutyPerUnit');
+      expect(result.excludedInputs).toContain('otherCostsPerUnit');
+    });
   });
 });
 

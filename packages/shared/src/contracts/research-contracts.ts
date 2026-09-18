@@ -1162,7 +1162,7 @@ export const ALLOWED_RESEARCH_TASK_STAGE_TRANSITIONS: Record<ResearchTaskStage, 
   QUOTE: ['QUOTE', 'ECONOMICS'],
   ECONOMICS: ['ECONOMICS', 'DECISION'],
   DECISION: ['DECISION', 'COMPLETED'],
-  COMPLETED: ['COMPLETED'],
+  COMPLETED: ['COMPLETED', 'DECISION'],
 } as const;
 
 export function isValidResearchTaskStageTransition(

@@ -104,6 +104,12 @@ export class OpportunityScoreEngine {
     );
 
     let sumAvailableBaseWeights = availableSignalKeys.reduce((sum, k) => sum + baseWeights[k], 0);
+    if (availableSignalKeys.length > 0 && sumAvailableBaseWeights <= 0) {
+      throw new Error(
+        `Invalid opportunity score weights: sum=${sumAvailableBaseWeights}, ` +
+        `weights=${JSON.stringify(baseWeights)}`,
+      );
+    }
     if (sumAvailableBaseWeights <= 0) sumAvailableBaseWeights = 1.0;
 
     const normalizedWeights: Record<string, number> = {};
