@@ -38,7 +38,7 @@ import {
   Award,
   AlertCircle,
 } from 'lucide-react';
-import type { ProductOpportunity as DomainProductOpportunity, ProductCandidate } from '@crosspilot/shared';
+import type { ProductOpportunity as DomainProductOpportunity, ProductCandidate, ResearchTask } from '@crosspilot/shared';
 import { CandidateComparisonSection } from './candidate-comparison-section';
 import { AutoDiscoverySection } from './auto-discovery-section';
 import { SingleProductResearchSection } from './single-product-research-section';
@@ -306,6 +306,26 @@ export default function MarketResearchPage() {
   const [showEvidence, setShowEvidence] = useState(false);
   const [handoffCandidates, setHandoffCandidates] = useState<ProductCandidate[] | undefined>(undefined);
   const [activeWorkspaceMode, setActiveWorkspaceMode] = useState<'singleProduct' | 'macroMatrix'>('singleProduct');
+  const [activeResearchTask, setActiveResearchTask] = useState<ResearchTask | null>(null);
+  const [activeResearchCandidate, setActiveResearchCandidate] = useState<ProductCandidate | null>(null);
+
+  async function handleCandidateSelectForDeepResearch(cand: ProductCandidate) {
+    setActiveResearchCandidate(cand);
+    try {
+      const task = await ApiClient.post<ResearchTask>('/api/v1/market-research/tasks', {
+        title: cand.title ? `${cand.title}选品任务` : '候选产品选品任务',
+        currentStage: 'MARKET_OPPORTUNITY',
+        candidateData: cand,
+      });
+      setActiveResearchTask(task);
+    } catch (e) {
+      console.warn('Failed to auto-create research task for selected candidate:', e);
+    }
+    setActiveWorkspaceMode('singleProduct');
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
 
   // Phase 4: On-demand Product Trend Modal state
   const [trendModalAsin, setTrendModalAsin] = useState<string | null>(null);
@@ -544,7 +564,12 @@ export default function MarketResearchPage() {
       </div>
 
       {activeWorkspaceMode === 'singleProduct' ? (
-        <SingleProductResearchSection />
+        <SingleProductResearchSection
+          initialCandidate={activeResearchCandidate || undefined}
+          initialTask={activeResearchTask}
+          onCandidateChange={setActiveResearchCandidate}
+          onTaskChange={setActiveResearchTask}
+        />
       ) : (
         <>
           {/* Integration Provider & Governance Status Banner */}
@@ -1406,7 +1431,10 @@ export default function MarketResearchPage() {
       <AutoDiscoverySection onHandoffToV2={setHandoffCandidates} />
 
       {/* Product Research V2 MVP: Candidate Decision & Comparison Matrix */}
-      <CandidateComparisonSection externalCandidates={handoffCandidates} />
+      <CandidateComparisonSection
+        externalCandidates={handoffCandidates}
+        onCandidateSelect={handleCandidateSelectForDeepResearch}
+      />
 
       {/* Market Overview Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

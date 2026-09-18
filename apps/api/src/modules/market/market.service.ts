@@ -47,6 +47,11 @@ import {
   InitialCashRequirement,
   OnePageDecisionPacket,
   ResearchAnalyticsEvent,
+  ResearchTask,
+  ResearchTaskStage,
+  ResearchTaskSummary,
+  CreateResearchTaskDto,
+  UpdateResearchTaskDto,
 } from '@crosspilot/shared';
 
 @Injectable()
@@ -1723,6 +1728,200 @@ export class MarketService {
       return true;
     });
   }
+
+  // ==========================================================================
+  // Single-Product Research Task Workflow Persistence (Phase 1 & 2)
+  // ==========================================================================
+
+  private inMemoryTasks = new Map<string, ResearchTask>();
+
+  async createResearchTask(
+    workspaceId: string,
+    dto: { title: string; candidateData: ProductCandidate; currentStage?: ResearchTaskStage },
+  ): Promise<ResearchTask> {
+    if (!dto.title || !dto.title.trim()) {
+      throw new BadRequestException('任务名称不能为空');
+    }
+    if (!dto.candidateData) {
+      throw new BadRequestException('候选产品数据不能为空');
+    }
+
+    const stage: ResearchTaskStage = dto.currentStage || 'CREATED';
+    const now = new Date().toISOString();
+
+    if (this.prisma && (this.prisma as any).researchTask) {
+      try {
+        const record = await (this.prisma as any).researchTask.create({
+          data: {
+            workspaceId,
+            title: dto.title.trim(),
+            currentStage: stage,
+            candidateData: dto.candidateData as any,
+          },
+        });
+        const task: ResearchTask = {
+          id: record.id,
+          workspaceId: record.workspaceId,
+          title: record.title,
+          currentStage: record.currentStage as ResearchTaskStage,
+          candidateData: record.candidateData as ProductCandidate,
+          createdAt: record.createdAt?.toISOString ? record.createdAt.toISOString() : String(record.createdAt),
+          updatedAt: record.updatedAt?.toISOString ? record.updatedAt.toISOString() : String(record.updatedAt),
+        };
+        this.inMemoryTasks.set(task.id, task);
+        return task;
+      } catch (err) {
+        console.warn('Prisma researchTask.create failed, falling back to memory store:', err);
+      }
+    }
+
+    const id = `task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const task: ResearchTask = {
+      id,
+      workspaceId,
+      title: dto.title.trim(),
+      currentStage: stage,
+      candidateData: dto.candidateData,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.inMemoryTasks.set(id, task);
+    return task;
+  }
+
+  async listResearchTasks(workspaceId: string): Promise<ResearchTaskSummary[]> {
+    if (this.prisma && (this.prisma as any).researchTask) {
+      try {
+        const records = await (this.prisma as any).researchTask.findMany({
+          where: { workspaceId },
+          orderBy: { updatedAt: 'desc' },
+          select: {
+            id: true,
+            workspaceId: true,
+            title: true,
+            currentStage: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+        return records.map((r: any) => ({
+          id: r.id,
+          workspaceId: r.workspaceId,
+          title: r.title,
+          currentStage: r.currentStage as ResearchTaskStage,
+          createdAt: r.createdAt?.toISOString ? r.createdAt.toISOString() : String(r.createdAt),
+          updatedAt: r.updatedAt?.toISOString ? r.updatedAt.toISOString() : String(r.updatedAt),
+        }));
+      } catch (err) {
+        console.warn('Prisma researchTask.findMany failed, falling back to memory store:', err);
+      }
+    }
+
+    return Array.from(this.inMemoryTasks.values())
+      .filter((t) => t.workspaceId === workspaceId)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .map((t) => ({
+        id: t.id,
+        workspaceId: t.workspaceId,
+        title: t.title,
+        currentStage: t.currentStage,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      }));
+  }
+
+  async getResearchTask(workspaceId: string, id: string): Promise<ResearchTask> {
+    if (this.prisma && (this.prisma as any).researchTask) {
+      try {
+        const record = await (this.prisma as any).researchTask.findFirst({
+          where: { id, workspaceId },
+        });
+        if (record) {
+          return {
+            id: record.id,
+            workspaceId: record.workspaceId,
+            title: record.title,
+            currentStage: record.currentStage as ResearchTaskStage,
+            candidateData: record.candidateData as ProductCandidate,
+            createdAt: record.createdAt?.toISOString ? record.createdAt.toISOString() : String(record.createdAt),
+            updatedAt: record.updatedAt?.toISOString ? record.updatedAt.toISOString() : String(record.updatedAt),
+          };
+        }
+      } catch (err) {
+        console.warn('Prisma researchTask.findFirst failed, falling back to memory store:', err);
+      }
+    }
+
+    const memTask = this.inMemoryTasks.get(id);
+    if (memTask && memTask.workspaceId === workspaceId) {
+      return memTask;
+    }
+
+    throw new NotFoundException(`未找到 ID 为 ${id} 的选品任务`);
+  }
+
+  async updateResearchTask(
+    workspaceId: string,
+    id: string,
+    dto: { title?: string; candidateData?: ProductCandidate; currentStage?: ResearchTaskStage },
+  ): Promise<ResearchTask> {
+    const existing = await this.getResearchTask(workspaceId, id);
+    const now = new Date().toISOString();
+    const updatedTitle = dto.title?.trim() || existing.title;
+    const updatedStage = dto.currentStage || existing.currentStage;
+    const updatedCandidate = dto.candidateData || existing.candidateData;
+
+    if (this.prisma && (this.prisma as any).researchTask) {
+      try {
+        const record = await (this.prisma as any).researchTask.update({
+          where: { id },
+          data: {
+            title: updatedTitle,
+            currentStage: updatedStage,
+            candidateData: updatedCandidate as any,
+          },
+        });
+        const task: ResearchTask = {
+          id: record.id,
+          workspaceId: record.workspaceId,
+          title: record.title,
+          currentStage: record.currentStage as ResearchTaskStage,
+          candidateData: record.candidateData as ProductCandidate,
+          createdAt: record.createdAt?.toISOString ? record.createdAt.toISOString() : String(record.createdAt),
+          updatedAt: record.updatedAt?.toISOString ? record.updatedAt.toISOString() : String(record.updatedAt),
+        };
+        this.inMemoryTasks.set(id, task);
+        return task;
+      } catch (err) {
+        console.warn('Prisma researchTask.update failed, falling back to memory store:', err);
+      }
+    }
+
+    const updatedTask: ResearchTask = {
+      ...existing,
+      title: updatedTitle,
+      currentStage: updatedStage,
+      candidateData: updatedCandidate,
+      updatedAt: now,
+    };
+    this.inMemoryTasks.set(id, updatedTask);
+    return updatedTask;
+  }
+
+  async deleteResearchTask(workspaceId: string, id: string): Promise<{ success: boolean }> {
+    if (this.prisma && (this.prisma as any).researchTask) {
+      try {
+        await (this.prisma as any).researchTask.deleteMany({
+          where: { id, workspaceId },
+        });
+      } catch (err) {
+        console.warn('Prisma researchTask.deleteMany failed, falling back to memory store:', err);
+      }
+    }
+    this.inMemoryTasks.delete(id);
+    return { success: true };
+  }
 }
+
 
 

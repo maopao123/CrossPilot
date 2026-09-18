@@ -59,6 +59,7 @@ model Workspace {
   reviews                  Review[]
   profitRecords            ProfitDaily[]
   marketResearchProjects   MarketResearchProject[]
+  researchTasks            ResearchTask[]
   competitors              Competitor[]
   productCompetitors       ProductCompetitor[]
   productOpportunities     ProductOpportunity[]
@@ -316,6 +317,26 @@ model MarketMetricsSnapshot {
 
   @@index([researchProjectId])
   @@map("market_metrics_snapshots")
+}
+
+// ==========================================
+// 44.1 单产品选品任务流模型 (Single Product Research Task)
+// ==========================================
+
+model ResearchTask {
+  id            String    @id @default(uuid())
+  workspaceId   String    @map("workspace_id")
+  title         String
+  currentStage  String    @default("CREATED") @map("current_stage") // CREATED | MARKET_RESEARCH | SPECIFICATION | QUOTE | ECONOMICS | DECISION | COMPLETED
+  candidateData Json      @map("candidate_data")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workspaceId, updatedAt])
+  @@map("research_tasks")
 }
 
 model Competitor {

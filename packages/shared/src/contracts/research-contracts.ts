@@ -1107,4 +1107,50 @@ export interface ResearchAnalyticsEvent {
   timestamp: string;
 }
 
+/**
+ * ============================================================================
+ * Phase 4: Single Product Research Workflow Task (选品任务流与持久化编排)
+ * ============================================================================
+ */
+export type ResearchTaskStage =
+  | 'CREATED'
+  | 'MARKET_RESEARCH'
+  | 'SPECIFICATION'
+  | 'QUOTE'
+  | 'ECONOMICS'
+  | 'DECISION'
+  | 'COMPLETED';
+
+export interface ResearchTask {
+  id: string;
+  workspaceId: string;
+  title: string;
+  currentStage: ResearchTaskStage;
+  candidateData: ProductCandidate;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchTaskSummary {
+  id: string;
+  workspaceId: string;
+  title: string;
+  currentStage: ResearchTaskStage;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateResearchTaskDto {
+  title: string;
+  candidateData: ProductCandidate;
+  currentStage?: ResearchTaskStage;
+}
+
+export interface UpdateResearchTaskDto {
+  title?: string;
+  candidateData?: ProductCandidate;
+  currentStage?: ResearchTaskStage;
+}
+
+
 

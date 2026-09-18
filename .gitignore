@@ -12,3 +12,4 @@ coverage
 .checkpoints
 .runtime-pg
 docs/_ops_*
+.idea

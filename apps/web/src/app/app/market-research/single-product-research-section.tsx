@@ -34,19 +34,30 @@ import type {
   OnePageDecisionPacket,
   DecisionCostItem,
   ResearchFunnelEvent,
+  ResearchTask,
+  ResearchTaskStage,
+  ResearchTaskSummary,
 } from '@crosspilot/shared';
 import { ApiClient } from '../../../lib/api-client';
+import { ResearchTaskWorkflow, SingleProductModuleKey } from './research-task-workflow';
 
 interface SingleProductResearchSectionProps {
   initialCandidate?: ProductCandidate;
-  onCandidateChange?: (candidate: ProductCandidate) => void;
+  initialTask?: ResearchTask | null;
+  onCandidateChange?: (candidate: ProductCandidate | null) => void;
+  onTaskChange?: (task: ResearchTask | null) => void;
 }
 
 export function SingleProductResearchSection({
   initialCandidate,
+  initialTask,
   onCandidateChange,
+  onTaskChange,
 }: SingleProductResearchSectionProps) {
   const [candidate, setCandidate] = useState<ProductCandidate | null>(initialCandidate ?? null);
+  const [currentTask, setCurrentTask] = useState<ResearchTask | null>(initialTask ?? null);
+  const [isSavingTask, setIsSavingTask] = useState<boolean>(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialTask?.updatedAt ?? null);
   const packet: OnePageDecisionPacket | undefined = candidate?.decisionPacket;
   const [loading, setLoading] = useState<boolean>(false);
   const [activeModule, setActiveModule] = useState<'market' | 'competitors' | 'specs' | 'quotes' | 'economics' | 'decision'>('decision');
@@ -144,6 +155,107 @@ export function SingleProductResearchSection({
     }).catch(() => {});
   }
 
+  // 监听外部传入的 candidate 和 task 变更 (Phase 3 & Phase 5)
+  useEffect(() => {
+    if (initialCandidate) {
+      setCandidate(initialCandidate);
+      if (initialCandidate.id === 'cand-glass-fruit-box-001') {
+        setIsDemo(true);
+      }
+    }
+  }, [initialCandidate]);
+
+  useEffect(() => {
+    if (initialTask) {
+      setCurrentTask(initialTask);
+      setLastSavedAt(initialTask.updatedAt);
+      if (initialTask.candidateData) {
+        setCandidate(initialTask.candidateData);
+      }
+    }
+  }, [initialTask]);
+
+  // 初次进入若无 candidate 与 task，自动从云端恢复最近活跃选品任务 (Phase 5 & 6 场景2)
+  useEffect(() => {
+    if (!initialCandidate && !initialTask) {
+      ApiClient.get<ResearchTaskSummary[]>('/api/v1/market-research/tasks')
+        .then((tasks) => {
+          if (tasks && tasks.length > 0) {
+            return ApiClient.get<ResearchTask>(`/api/v1/market-research/tasks/${tasks[0].id}`);
+          }
+          return null;
+        })
+        .then((fullTask) => {
+          if (fullTask && fullTask.candidateData) {
+            setCurrentTask(fullTask);
+            setCandidate(fullTask.candidateData);
+            setLastSavedAt(fullTask.updatedAt);
+            onTaskChange?.(fullTask);
+            onCandidateChange?.(fullTask.candidateData);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  // 状态同步与任务自动保存器 (Phase 5)
+  async function syncTaskProgress(
+    cand: ProductCandidate,
+    stage: ResearchTaskStage,
+    customTitle?: string,
+  ): Promise<ResearchTask | null> {
+    if (!cand) return null;
+    setIsSavingTask(true);
+    try {
+      const taskTitle = customTitle || currentTask?.title || `${cand.title || '新产品'}选品任务`;
+      if (currentTask?.id) {
+        const updated = await ApiClient.put<ResearchTask>(`/api/v1/market-research/tasks/${currentTask.id}`, {
+          title: taskTitle,
+          currentStage: stage,
+          candidateData: cand,
+        });
+        setCurrentTask(updated);
+        setLastSavedAt(updated.updatedAt);
+        onTaskChange?.(updated);
+        return updated;
+      } else {
+        const created = await ApiClient.post<ResearchTask>('/api/v1/market-research/tasks', {
+          title: taskTitle,
+          currentStage: stage,
+          candidateData: cand,
+        });
+        setCurrentTask(created);
+        setLastSavedAt(created.updatedAt);
+        onTaskChange?.(created);
+        return created;
+      }
+    } catch (e) {
+      console.warn('Failed to auto-save research task:', e);
+      return null;
+    } finally {
+      setIsSavingTask(false);
+    }
+  }
+
+  function handleTaskChangeFromWorkflow(task: ResearchTask) {
+    setCurrentTask(task);
+    setLastSavedAt(task.updatedAt);
+    if (task.candidateData) {
+      setCandidate(task.candidateData);
+      onCandidateChange?.(task.candidateData);
+    }
+    onTaskChange?.(task);
+  }
+
+  function handleNewTaskFromWorkflow() {
+    setCurrentTask(null);
+    setCandidate(null);
+    setLastSavedAt(null);
+    setActiveModule('market');
+    onTaskChange?.(null);
+    onCandidateChange?.(null);
+  }
+
   // P1: 取消普通页面自动加载 Demo (零自动加载，保持真实业务入口干净)
 
   async function loadFruitBoxDemo() {
@@ -162,6 +274,7 @@ export function SingleProductResearchSection({
         });
       }
       onCandidateChange?.(res);
+      await syncTaskProgress(res, 'DECISION', '玻璃水果盒测试选品任务');
     } catch (e) {
       console.error('Failed to load demo fruit box', e);
     } finally {
@@ -187,6 +300,7 @@ export function SingleProductResearchSection({
       setIsDemo(false);
       handleEntryPointSelect(entry);
       onCandidateChange?.(res);
+      await syncTaskProgress(res, 'CREATED', `${titles[entry] || '新产品'}选品任务`);
     } catch (e: any) {
       alert(e?.message || '初始化选品项目失败');
     } finally {
@@ -205,9 +319,12 @@ export function SingleProductResearchSection({
           economicsStatus: candidate.economics?.status,
           initialCashStatus: candidate.initialCash?.status,
         });
+        if (currentTask?.currentStage !== 'DECISION') {
+          syncTaskProgress(candidate, 'DECISION');
+        }
       }
     }
-  }, [activeModule, packet, candidate?.id]);
+  }, [activeModule, packet, candidate?.id, currentTask?.currentStage]);
 
   // 埋点: 5项关键财务输入真正齐备时触发 (P1-4)
   useEffect(() => {
@@ -287,6 +404,7 @@ export function SingleProductResearchSection({
       });
       setCandidate(res);
       onCandidateChange?.(res);
+      await syncTaskProgress(res, 'SPECIFICATION');
     } catch (e: any) {
       alert(e?.message || '冻结规格失败，请确保核心4项规格已填完整');
     } finally {
@@ -341,6 +459,7 @@ export function SingleProductResearchSection({
       });
       setCandidate(res);
       onCandidateChange?.(res);
+      await syncTaskProgress(res, 'QUOTE');
     } catch (e: any) {
       alert(e?.message || '选择算账工厂失败');
     } finally {
@@ -369,6 +488,7 @@ export function SingleProductResearchSection({
       onCandidateChange?.(res);
       setShowUnknownChargeModal(false);
       setPendingPrimaryQuoteId(null);
+      await syncTaskProgress(res, 'QUOTE');
     } catch (e: any) {
       alert(e?.message || '确认费用失败');
     } finally {
@@ -432,6 +552,7 @@ export function SingleProductResearchSection({
         sourceChannel: '1688',
       });
       trackFunnel('QUOTE_ENTERED', { supplierName: trimmedName });
+      await syncTaskProgress(res, 'QUOTE');
     } catch (e: any) {
       alert(e?.message || '保存报价失败');
     } finally {
@@ -456,6 +577,7 @@ export function SingleProductResearchSection({
       setCandidate(res);
       onCandidateChange?.(res);
       setShowInitialCashModal(false);
+      await syncTaskProgress(res, 'ECONOMICS');
     } catch (e: any) {
       alert(e?.message || '更新启动资金失败');
     } finally {
@@ -489,6 +611,18 @@ export function SingleProductResearchSection({
   if (!candidate) {
     return (
       <div className="space-y-6">
+        {/* ResearchTaskWorkflow 全局选品任务流水线与历史任务切换 (Phase 4) */}
+        <ResearchTaskWorkflow
+          currentTask={currentTask}
+          candidate={candidate}
+          activeModule={activeModule}
+          onSelectModule={setActiveModule}
+          onTaskChange={handleTaskChangeFromWorkflow}
+          onNewTask={handleNewTaskFromWorkflow}
+          isSaving={isSavingTask}
+          lastSavedAt={lastSavedAt}
+        />
+
         {/* 真实业务入口选择卡片 (Spec §8: 无 Candidate 时展示真实入口页) */}
         <div className="bg-surface/80 backdrop-blur border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border/60">
@@ -568,6 +702,18 @@ export function SingleProductResearchSection({
 
   return (
     <div className="space-y-6">
+      {/* ResearchTaskWorkflow 全局选品任务流水线与阶段指示器 (Phase 4) */}
+      <ResearchTaskWorkflow
+        currentTask={currentTask}
+        candidate={candidate}
+        activeModule={activeModule}
+        onSelectModule={setActiveModule}
+        onTaskChange={handleTaskChangeFromWorkflow}
+        onNewTask={handleNewTaskFromWorkflow}
+        isSaving={isSavingTask}
+        lastSavedAt={lastSavedAt}
+      />
+
       {/* 1. 首页多入口选择条 (Spec §3: 不要强迫所有用户从 Step 1 开始) */}
       <div className="bg-surface/70 backdrop-blur border border-border/80 rounded-2xl p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">

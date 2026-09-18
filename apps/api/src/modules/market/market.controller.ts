@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { MarketService } from './market.service.js';
 import { CurrentWorkspace } from '../../common/decorators/current-workspace.decorator.js';
 import type {
@@ -11,6 +11,7 @@ import type {
   ProductSpecification,
   SupplierQuote,
   ResearchAnalyticsEvent,
+  ResearchTaskStage,
 } from '@crosspilot/shared';
 
 @Controller()
@@ -307,4 +308,47 @@ export class MarketController {
   ) {
     return this.marketService.getAnalyticsEvents(workspaceId, candidateId);
   }
+
+  // ==========================================================================
+  // Single-Product Research Task Workflow Endpoints (Phase 2)
+  // ==========================================================================
+
+  @Post('market-research/tasks')
+  createResearchTask(
+    @CurrentWorkspace() workspaceId: string,
+    @Body() body: { title: string; candidateData: ProductCandidate; currentStage?: ResearchTaskStage },
+  ) {
+    return this.marketService.createResearchTask(workspaceId, body);
+  }
+
+  @Get('market-research/tasks')
+  listResearchTasks(@CurrentWorkspace() workspaceId: string) {
+    return this.marketService.listResearchTasks(workspaceId);
+  }
+
+  @Get('market-research/tasks/:id')
+  getResearchTask(
+    @CurrentWorkspace() workspaceId: string,
+    @Param('id') id: string,
+  ) {
+    return this.marketService.getResearchTask(workspaceId, id);
+  }
+
+  @Put('market-research/tasks/:id')
+  updateResearchTask(
+    @CurrentWorkspace() workspaceId: string,
+    @Param('id') id: string,
+    @Body() body: { title?: string; candidateData?: ProductCandidate; currentStage?: ResearchTaskStage },
+  ) {
+    return this.marketService.updateResearchTask(workspaceId, id, body);
+  }
+
+  @Delete('market-research/tasks/:id')
+  deleteResearchTask(
+    @CurrentWorkspace() workspaceId: string,
+    @Param('id') id: string,
+  ) {
+    return this.marketService.deleteResearchTask(workspaceId, id);
+  }
 }
+
