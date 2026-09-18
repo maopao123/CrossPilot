@@ -314,7 +314,7 @@ export default function MarketResearchPage() {
     try {
       const task = await ApiClient.post<ResearchTask>('/api/v1/market-research/tasks', {
         title: cand.title ? `${cand.title}选品任务` : '候选产品选品任务',
-        currentStage: 'MARKET_OPPORTUNITY',
+        currentStage: 'MARKET_RESEARCH',
         candidateData: cand,
       });
       setActiveResearchTask(task);

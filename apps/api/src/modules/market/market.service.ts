@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { IntegrationGateway, XydcMapper } from '@crosspilot/integrations';
 import {
@@ -52,6 +52,7 @@ import {
   ResearchTaskSummary,
   CreateResearchTaskDto,
   UpdateResearchTaskDto,
+  isValidResearchTaskStageTransition,
 } from '@crosspilot/shared';
 
 @Injectable()
@@ -1730,7 +1731,7 @@ export class MarketService {
   }
 
   // ==========================================================================
-  // Single-Product Research Task Workflow Persistence (Phase 1 & 2)
+  // Single-Product Research Task Workflow Persistence (Phase 1 & 2) & Reliability Hardening
   // ==========================================================================
 
   private inMemoryTasks = new Map<string, ResearchTask>();
@@ -1747,6 +1748,11 @@ export class MarketService {
     }
 
     const stage: ResearchTaskStage = dto.currentStage || 'CREATED';
+    if (dto.currentStage) {
+      validateResearchTaskStageTransition('CREATED', dto.currentStage);
+    }
+
+    const isProduction = process.env.NODE_ENV === 'production';
     const now = new Date().toISOString();
 
     if (this.prisma && (this.prisma as any).researchTask) {
@@ -1771,8 +1777,13 @@ export class MarketService {
         this.inMemoryTasks.set(task.id, task);
         return task;
       } catch (err) {
+        if (isProduction) {
+          throw new InternalServerErrorException('Research task persistence unavailable');
+        }
         console.warn('Prisma researchTask.create failed, falling back to memory store:', err);
       }
+    } else if (isProduction) {
+      throw new InternalServerErrorException('Research task persistence unavailable');
     }
 
     const id = `task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -1790,6 +1801,8 @@ export class MarketService {
   }
 
   async listResearchTasks(workspaceId: string): Promise<ResearchTaskSummary[]> {
+    const isProduction = process.env.NODE_ENV === 'production';
+
     if (this.prisma && (this.prisma as any).researchTask) {
       try {
         const records = await (this.prisma as any).researchTask.findMany({
@@ -1813,8 +1826,13 @@ export class MarketService {
           updatedAt: r.updatedAt?.toISOString ? r.updatedAt.toISOString() : String(r.updatedAt),
         }));
       } catch (err) {
+        if (isProduction) {
+          throw new InternalServerErrorException('Research task persistence unavailable');
+        }
         console.warn('Prisma researchTask.findMany failed, falling back to memory store:', err);
       }
+    } else if (isProduction) {
+      throw new InternalServerErrorException('Research task persistence unavailable');
     }
 
     return Array.from(this.inMemoryTasks.values())
@@ -1831,6 +1849,8 @@ export class MarketService {
   }
 
   async getResearchTask(workspaceId: string, id: string): Promise<ResearchTask> {
+    const isProduction = process.env.NODE_ENV === 'production';
+
     if (this.prisma && (this.prisma as any).researchTask) {
       try {
         const record = await (this.prisma as any).researchTask.findFirst({
@@ -1847,9 +1867,20 @@ export class MarketService {
             updatedAt: record.updatedAt?.toISOString ? record.updatedAt.toISOString() : String(record.updatedAt),
           };
         }
+        if (isProduction) {
+          throw new NotFoundException(`未找到 ID 为 ${id} 的选品任务`);
+        }
       } catch (err) {
+        if (err instanceof NotFoundException) {
+          throw err;
+        }
+        if (isProduction) {
+          throw new InternalServerErrorException('Research task persistence unavailable');
+        }
         console.warn('Prisma researchTask.findFirst failed, falling back to memory store:', err);
       }
+    } else if (isProduction) {
+      throw new InternalServerErrorException('Research task persistence unavailable');
     }
 
     const memTask = this.inMemoryTasks.get(id);
@@ -1866,6 +1897,11 @@ export class MarketService {
     dto: { title?: string; candidateData?: ProductCandidate; currentStage?: ResearchTaskStage },
   ): Promise<ResearchTask> {
     const existing = await this.getResearchTask(workspaceId, id);
+    if (dto.currentStage) {
+      validateResearchTaskStageTransition(existing.currentStage, dto.currentStage);
+    }
+
+    const isProduction = process.env.NODE_ENV === 'production';
     const now = new Date().toISOString();
     const updatedTitle = dto.title?.trim() || existing.title;
     const updatedStage = dto.currentStage || existing.currentStage;
@@ -1893,8 +1929,13 @@ export class MarketService {
         this.inMemoryTasks.set(id, task);
         return task;
       } catch (err) {
+        if (isProduction) {
+          throw new InternalServerErrorException('Research task persistence unavailable');
+        }
         console.warn('Prisma researchTask.update failed, falling back to memory store:', err);
       }
+    } else if (isProduction) {
+      throw new InternalServerErrorException('Research task persistence unavailable');
     }
 
     const updatedTask: ResearchTask = {
@@ -1909,18 +1950,43 @@ export class MarketService {
   }
 
   async deleteResearchTask(workspaceId: string, id: string): Promise<{ success: boolean }> {
+    const isProduction = process.env.NODE_ENV === 'production';
+
     if (this.prisma && (this.prisma as any).researchTask) {
       try {
         await (this.prisma as any).researchTask.deleteMany({
           where: { id, workspaceId },
         });
+        this.inMemoryTasks.delete(id);
+        return { success: true };
       } catch (err) {
+        if (isProduction) {
+          throw new InternalServerErrorException('Research task persistence unavailable');
+        }
         console.warn('Prisma researchTask.deleteMany failed, falling back to memory store:', err);
       }
+    } else if (isProduction) {
+      throw new InternalServerErrorException('Research task persistence unavailable');
     }
     this.inMemoryTasks.delete(id);
     return { success: true };
   }
+}
+
+/**
+ * 选品任务阶段迁移校验器 (ResearchTaskStageTransitionGuard)
+ * 校验合法则返回 true，非法则抛出 BadRequestException
+ */
+export function validateResearchTaskStageTransition(
+  currentStage: ResearchTaskStage,
+  nextStage: ResearchTaskStage,
+): boolean {
+  if (!isValidResearchTaskStageTransition(currentStage, nextStage)) {
+    throw new BadRequestException(
+      `Invalid research task stage transition: ${currentStage} -> ${nextStage}`,
+    );
+  }
+  return true;
 }
 
 

@@ -69,3 +69,19 @@ test('Workflow Orchestration: page.tsx macro to single product research handoff'
     'SingleProductResearchSection must receive initialTask',
   );
 });
+
+test('Workflow Hardening: single-product-research-section guards stage transition and prevents illegal jumps', () => {
+  const code = fs.readFileSync(sectionPath, 'utf8');
+  assert.ok(
+    code.includes('isValidResearchTaskStageTransition'),
+    'Must import and use isValidResearchTaskStageTransition in single-product-research-section.tsx',
+  );
+  assert.ok(
+    code.includes("currentTask?.currentStage === 'ECONOMICS'"),
+    'Decision effect must only advance to DECISION when current stage is ECONOMICS',
+  );
+  assert.ok(
+    code.includes("syncTaskProgress(res, 'CREATED', '玻璃水果盒测试选品任务')"),
+    'Demo fruit box must initialize task at CREATED stage, not DECISION',
+  );
+});

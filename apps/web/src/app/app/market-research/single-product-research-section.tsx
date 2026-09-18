@@ -26,17 +26,18 @@ import {
   HelpCircle,
   Plus,
 } from 'lucide-react';
-import type {
-  ProductCandidate,
-  ProductSpecification,
-  SupplierQuote,
-  SupplierQuoteFactBadge,
-  OnePageDecisionPacket,
-  DecisionCostItem,
-  ResearchFunnelEvent,
-  ResearchTask,
-  ResearchTaskStage,
-  ResearchTaskSummary,
+import {
+  type ProductCandidate,
+  type ProductSpecification,
+  type SupplierQuote,
+  type SupplierQuoteFactBadge,
+  type OnePageDecisionPacket,
+  type DecisionCostItem,
+  type ResearchFunnelEvent,
+  type ResearchTask,
+  type ResearchTaskStage,
+  type ResearchTaskSummary,
+  isValidResearchTaskStageTransition,
 } from '@crosspilot/shared';
 import { ApiClient } from '../../../lib/api-client';
 import { ResearchTaskWorkflow, SingleProductModuleKey } from './research-task-workflow';
@@ -209,9 +210,12 @@ export function SingleProductResearchSection({
     try {
       const taskTitle = customTitle || currentTask?.title || `${cand.title || '新产品'}选品任务`;
       if (currentTask?.id) {
+        const stageToSend = isValidResearchTaskStageTransition(currentTask.currentStage, stage)
+          ? stage
+          : currentTask.currentStage;
         const updated = await ApiClient.put<ResearchTask>(`/api/v1/market-research/tasks/${currentTask.id}`, {
           title: taskTitle,
-          currentStage: stage,
+          currentStage: stageToSend,
           candidateData: cand,
         });
         setCurrentTask(updated);
@@ -219,9 +223,10 @@ export function SingleProductResearchSection({
         onTaskChange?.(updated);
         return updated;
       } else {
+        const initialStage = isValidResearchTaskStageTransition('CREATED', stage) ? stage : 'CREATED';
         const created = await ApiClient.post<ResearchTask>('/api/v1/market-research/tasks', {
           title: taskTitle,
-          currentStage: stage,
+          currentStage: initialStage,
           candidateData: cand,
         });
         setCurrentTask(created);
@@ -274,7 +279,7 @@ export function SingleProductResearchSection({
         });
       }
       onCandidateChange?.(res);
-      await syncTaskProgress(res, 'DECISION', '玻璃水果盒测试选品任务');
+      await syncTaskProgress(res, 'CREATED', '玻璃水果盒测试选品任务');
     } catch (e) {
       console.error('Failed to load demo fruit box', e);
     } finally {
@@ -319,7 +324,7 @@ export function SingleProductResearchSection({
           economicsStatus: candidate.economics?.status,
           initialCashStatus: candidate.initialCash?.status,
         });
-        if (currentTask?.currentStage !== 'DECISION') {
+        if (currentTask?.currentStage === 'ECONOMICS') {
           syncTaskProgress(candidate, 'DECISION');
         }
       }

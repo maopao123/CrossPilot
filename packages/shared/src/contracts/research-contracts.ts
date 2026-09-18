@@ -1152,5 +1152,33 @@ export interface UpdateResearchTaskDto {
   currentStage?: ResearchTaskStage;
 }
 
+/**
+ * 选品任务严格状态迁移规则定义 (ResearchTaskStageTransitionGuard)
+ */
+export const ALLOWED_RESEARCH_TASK_STAGE_TRANSITIONS: Record<ResearchTaskStage, readonly ResearchTaskStage[]> = {
+  CREATED: ['CREATED', 'MARKET_RESEARCH'],
+  MARKET_RESEARCH: ['MARKET_RESEARCH', 'SPECIFICATION'],
+  SPECIFICATION: ['SPECIFICATION', 'QUOTE'],
+  QUOTE: ['QUOTE', 'ECONOMICS'],
+  ECONOMICS: ['ECONOMICS', 'DECISION'],
+  DECISION: ['DECISION', 'COMPLETED'],
+  COMPLETED: ['COMPLETED'],
+} as const;
 
+export function isValidResearchTaskStageTransition(
+  currentStage: ResearchTaskStage,
+  nextStage: ResearchTaskStage,
+): boolean {
+  const allowed = ALLOWED_RESEARCH_TASK_STAGE_TRANSITIONS[currentStage];
+  return allowed ? allowed.includes(nextStage) : false;
+}
 
+export function validateResearchTaskStageTransition(
+  currentStage: ResearchTaskStage,
+  nextStage: ResearchTaskStage,
+): boolean {
+  if (!isValidResearchTaskStageTransition(currentStage, nextStage)) {
+    throw new Error(`Invalid research task stage transition: ${currentStage} -> ${nextStage}`);
+  }
+  return true;
+}

@@ -41,13 +41,13 @@ describe('Single-Product Research Task Workflow API (Phase 1 & 2)', () => {
 
     await service.createResearchTask('ws-tenant-alpha', {
       title: '水果盒任务',
-      currentStage: 'SPECIFICATION',
+      currentStage: 'CREATED',
       candidateData: candidateA,
     });
 
     await service.createResearchTask('ws-tenant-alpha', {
       title: '香薰任务',
-      currentStage: 'QUOTE',
+      currentStage: 'MARKET_RESEARCH',
       candidateData: candidateB,
     });
 
@@ -88,29 +88,41 @@ describe('Single-Product Research Task Workflow API (Phase 1 & 2)', () => {
       candidateData: candidate,
     });
 
-    // 1. 冻结规格后更新为 SPECIFICATION
+    // 1. 市场调研后更新为 MARKET_RESEARCH
     const updated1 = await service.updateResearchTask('ws-test-推进', created.id, {
+      currentStage: 'MARKET_RESEARCH',
+    });
+    expect(updated1.currentStage).toBe('MARKET_RESEARCH');
+
+    // 2. 冻结规格后更新为 SPECIFICATION
+    const updated2 = await service.updateResearchTask('ws-test-推进', created.id, {
       currentStage: 'SPECIFICATION',
     });
-    expect(updated1.currentStage).toBe('SPECIFICATION');
+    expect(updated2.currentStage).toBe('SPECIFICATION');
 
-    // 2. 选定工厂报价后更新为 QUOTE
-    const updated2 = await service.updateResearchTask('ws-test-推进', created.id, {
+    // 3. 选定工厂报价后更新为 QUOTE
+    const updated3 = await service.updateResearchTask('ws-test-推进', created.id, {
       currentStage: 'QUOTE',
     });
-    expect(updated2.currentStage).toBe('QUOTE');
+    expect(updated3.currentStage).toBe('QUOTE');
 
-    // 3. 利润分析后更新为 ECONOMICS
-    const updated3 = await service.updateResearchTask('ws-test-推进', created.id, {
+    // 4. 利润分析后更新为 ECONOMICS
+    const updated4 = await service.updateResearchTask('ws-test-推进', created.id, {
       currentStage: 'ECONOMICS',
     });
-    expect(updated3.currentStage).toBe('ECONOMICS');
+    expect(updated4.currentStage).toBe('ECONOMICS');
 
-    // 4. 生成决策包后更新为 DECISION
-    const updated4 = await service.updateResearchTask('ws-test-推进', created.id, {
+    // 5. 生成决策包后更新为 DECISION
+    const updated5 = await service.updateResearchTask('ws-test-推进', created.id, {
       currentStage: 'DECISION',
     });
-    expect(updated4.currentStage).toBe('DECISION');
+    expect(updated5.currentStage).toBe('DECISION');
+
+    // 6. 终局立项后更新为 COMPLETED
+    const updated6 = await service.updateResearchTask('ws-test-推进', created.id, {
+      currentStage: 'COMPLETED',
+    });
+    expect(updated6.currentStage).toBe('COMPLETED');
   });
 
   it('场景 5: Prisma 真实调用支持', async () => {
