@@ -18,41 +18,48 @@ import { OperationAutomationService } from '../../../apps/api/src/modules/operat
 import { OperationAutomationController } from '../../../apps/api/src/modules/operation-automation/operation-automation.controller.js';
 
 /**
- * High-fidelity in-memory transactional mock of PrismaClient for Phase 6.
+ * High-fidelity in-memory transactional mock of PrismaClient for Phase 6 & Phase 6.1.
  * Supports:
  * - Isolation per workspace
- * - Atomic $transaction with true rollback on error
- * - State snapshots
+ * - Atomic $transaction with isolated rollback of transaction mutations
+ * - Optimistic concurrency control via updateMany version checking
  */
 function createMockPrismaClient() {
   let ops: any[] = [];
   let actions: any[] = [];
   let audits: ExecutionAudit[] = [];
 
-  const cloneState = () => ({
-    ops: JSON.parse(JSON.stringify(ops)),
-    actions: JSON.parse(JSON.stringify(actions)),
-    audits: JSON.parse(JSON.stringify(audits)),
-  });
+  const createClientInterface = (
+    isTx = false,
+    callbacks?: {
+      onRecordCreate?: (list: any[], item: any) => void;
+      onRecordModify?: (target: any) => void;
+    },
+  ) => {
+    const recordModify = (target: any) => {
+      if (callbacks?.onRecordModify) {
+        callbacks.onRecordModify(target);
+      }
+    };
+    const recordCreate = (list: any[], item: any) => {
+      if (callbacks?.onRecordCreate) {
+        callbacks.onRecordCreate(list, item);
+      }
+    };
 
-  const restoreState = (snapshot: any) => {
-    ops = snapshot.ops;
-    actions = snapshot.actions;
-    audits = snapshot.audits;
-  };
-
-  const createClientInterface = (isTx = false) => {
     const client: any = {
       automationOperation: {
         findFirst: jest.fn(async ({ where }: { where: any }) => {
-          return ops.find((o) => {
+          const found = ops.find((o) => {
             if (where.id && o.id !== where.id) return false;
             if (where.workspaceId && o.workspaceId !== where.workspaceId) return false;
             return true;
-          }) ?? null;
+          });
+          return found ? JSON.parse(JSON.stringify(found)) : null;
         }),
         findUnique: jest.fn(async ({ where }: { where: any }) => {
-          return ops.find((o) => o.id === where.id) ?? null;
+          const found = ops.find((o) => o.id === where.id);
+          return found ? JSON.parse(JSON.stringify(found)) : null;
         }),
         create: jest.fn(async ({ data }: { data: any }) => {
           const record = {
@@ -70,11 +77,13 @@ function createMockPrismaClient() {
             updatedAt: new Date(),
           };
           ops.push(record);
+          recordCreate(ops, record);
           return { ...record };
         }),
         update: jest.fn(async ({ where, data }: { where: any; data: any }) => {
           const target = ops.find((o) => o.id === where.id);
           if (!target) throw new Error(`Record not found: ${where.id}`);
+          recordModify(target);
           if (data.phase !== undefined) target.phase = data.phase;
           if (data.effect !== undefined) target.effect = data.effect;
           if (data.recovery !== undefined) target.recovery = data.recovery;
@@ -88,18 +97,44 @@ function createMockPrismaClient() {
           target.updatedAt = new Date();
           return { ...target };
         }),
+        updateMany: jest.fn(async ({ where, data }: { where: any; data: any }) => {
+          const matches = ops.filter((o) => {
+            if (where.id && o.id !== where.id) return false;
+            if (where.workspaceId && o.workspaceId !== where.workspaceId) return false;
+            if (where.version !== undefined && o.version !== where.version) return false;
+            if (where.phase && o.phase !== where.phase) return false;
+            return true;
+          });
+          for (const target of matches) {
+            recordModify(target);
+            if (data.phase !== undefined) target.phase = data.phase;
+            if (data.effect !== undefined) target.effect = data.effect;
+            if (data.recovery !== undefined) target.recovery = data.recovery;
+            if (data.evidence !== undefined) target.evidence = data.evidence;
+            if (data.lastErrorCode !== undefined) target.lastErrorCode = data.lastErrorCode;
+            if (data.leaseOwner !== undefined) target.leaseOwner = data.leaseOwner;
+            if (data.leaseUntil !== undefined) target.leaseUntil = data.leaseUntil;
+            if (data.version?.increment) {
+              target.version += data.version.increment;
+            }
+            target.updatedAt = new Date();
+          }
+          return { count: matches.length };
+        }),
       },
 
       plannedAction: {
         findFirst: jest.fn(async ({ where }: { where: any }) => {
-          return actions.find((a) => {
+          const found = actions.find((a) => {
             if (where.id && a.id !== where.id) return false;
             if (where.workspaceId && a.workspaceId !== where.workspaceId) return false;
             return true;
-          }) ?? null;
+          });
+          return found ? JSON.parse(JSON.stringify(found)) : null;
         }),
         findUnique: jest.fn(async ({ where }: { where: any }) => {
-          return actions.find((a) => a.id === where.id) ?? null;
+          const found = actions.find((a) => a.id === where.id);
+          return found ? JSON.parse(JSON.stringify(found)) : null;
         }),
         create: jest.fn(async ({ data }: { data: any }) => {
           const record = {
@@ -110,11 +145,13 @@ function createMockPrismaClient() {
             updatedAt: new Date(),
           };
           actions.push(record);
+          recordCreate(actions, record);
           return { ...record };
         }),
         update: jest.fn(async ({ where, data }: { where: any; data: any }) => {
           const target = actions.find((a) => a.id === where.id);
           if (!target) throw new Error(`PlannedAction not found: ${where.id}`);
+          recordModify(target);
           if (data.status !== undefined) target.status = data.status;
           if (data.lastMessage !== undefined) target.lastMessage = data.lastMessage;
           if (data.parameters !== undefined) target.parameters = data.parameters;
@@ -141,6 +178,7 @@ function createMockPrismaClient() {
             createdAt: new Date(),
           };
           audits.push(record);
+          recordCreate(audits, record);
           return { ...record };
         }),
         findMany: jest.fn(async ({ where, orderBy }: { where: any; orderBy?: any }) => {
@@ -177,13 +215,32 @@ function createMockPrismaClient() {
 
     if (!isTx) {
       client.$transaction = jest.fn(async (fn: (tx: any) => Promise<any>) => {
-        const snapshot = cloneState();
-        const txClient = createClientInterface(true);
+        const createdRecords: { list: any[]; item: any }[] = [];
+        const modifiedRecords: { target: any; original: any }[] = [];
+
+        const recordModification = (target: any) => {
+          if (!modifiedRecords.some((m) => m.target === target)) {
+            modifiedRecords.push({ target, original: JSON.parse(JSON.stringify(target)) });
+          }
+        };
+
+        const txClient = createClientInterface(true, {
+          onRecordCreate: (list, item) => createdRecords.push({ list, item }),
+          onRecordModify: (target) => recordModification(target),
+        });
+
         try {
           const result = await fn(txClient);
           return result;
         } catch (error) {
-          restoreState(snapshot);
+          for (const { list, item } of createdRecords) {
+            const idx = list.indexOf(item);
+            if (idx !== -1) list.splice(idx, 1);
+          }
+          for (const { target, original } of modifiedRecords) {
+            Object.keys(target).forEach((k) => delete target[k]);
+            Object.assign(target, original);
+          }
           throw error;
         }
       });
@@ -534,7 +591,7 @@ describe('Phase 6 — Human Audit Trail & ExecutionAudit Store', () => {
 
       const result = await service.resolveNeedsAttention(wsA, op.id, {
         resolution: 'FORCE_ADOPT',
-        userId: 'admin-user-77',
+        actorId: 'admin-user-77',
         comment: '已人工核验外部单据真实有效并采纳',
       });
 
@@ -609,7 +666,7 @@ describe('Phase 6 — Human Audit Trail & ExecutionAudit Store', () => {
 
       const result = await service.resolveNeedsAttention(wsA, op.id, {
         resolution: 'DISMISS',
-        userId: 'ops-lead-01',
+        actorId: 'ops-lead-01',
         comment: '重复提交，人工废弃该错误操作',
       });
 
@@ -663,7 +720,7 @@ describe('Phase 6 — Human Audit Trail & ExecutionAudit Store', () => {
 
       const result = await service.resolveNeedsAttention(wsA, op.id, {
         resolution: 'RETRY_SYNC',
-        userId: 'ops-retry-usr',
+        actorId: 'ops-retry-usr',
         comment: '本地单据重试同步成功',
       });
 
@@ -705,7 +762,7 @@ describe('Phase 6 — Human Audit Trail & ExecutionAudit Store', () => {
       await expect(
         service.resolveNeedsAttention(wsA, op.id, {
           resolution: 'RETRY_SYNC',
-          userId: 'ops-user',
+          actorId: 'ops-user',
         }),
       ).rejects.toThrow(/Local PurchaseOrder sync failed/);
 
@@ -754,7 +811,7 @@ describe('Phase 6 — Human Audit Trail & ExecutionAudit Store', () => {
       await expect(
         service.resolveNeedsAttention(wsA, op.id, {
           resolution: 'DISMISS',
-          userId: 'usr-tx-rollback',
+          actorId: 'usr-tx-rollback',
           comment: 'Should abort completely',
         }),
       ).rejects.toThrow(/DB_DISK_FULL/);
@@ -865,7 +922,261 @@ describe('Phase 6 — Human Audit Trail & ExecutionAudit Store', () => {
   });
 
   // ==========================================
-  // 11. Real PostgreSQL Live Integration Suite (Active when TEST_DATABASE_URL is set)
+  // 11. Phase 6.1: Concurrency Control & Single-Winner OCC Hardening
+  // ==========================================
+  describe('11. Phase 6.1: Concurrency Control & Single-Winner OCC Hardening', () => {
+    it('proves concurrent identical resolutions (Admin A DISMISS vs Admin B DISMISS): single winner, loser rejected with 409 ConflictException, version increments once, exactly 1 audit', async () => {
+      const mock = createMockPrismaClient();
+      const service = new OperationAutomationService(
+        mock.prisma as any,
+        { executeTool: jest.fn() } as any,
+      );
+
+      const action = mock.seedAction({
+        id: 'act-occ-same-1',
+        workspaceId: wsA,
+        status: 'FAILED',
+      });
+
+      const op = mock.seedOp({
+        id: 'op-occ-same-1',
+        workspaceId: wsA,
+        actionId: action.id,
+        phase: 'NEEDS_ATTENTION',
+        effect: 'UNKNOWN',
+        recovery: 'MANUAL',
+        version: 1,
+      });
+
+      // Admin A and Admin B submit DISMISS concurrently
+      const [resA, resB] = await Promise.allSettled([
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'DISMISS',
+          actorId: 'admin-a',
+          comment: 'Dismissed by A',
+        }),
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'DISMISS',
+          actorId: 'admin-b',
+          comment: 'Dismissed by B',
+        }),
+      ]);
+
+      const fulfilled = [resA, resB].filter((r) => r.status === 'fulfilled') as PromiseFulfilledResult<any>[];
+      const rejected = [resA, resB].filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+
+      // Exactly 1 winner and 1 loser
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      // Loser must throw ConflictException with 409 status code semantics
+      expect(rejected[0].reason.constructor.name).toBe('ConflictException');
+      expect(rejected[0].reason.message).toMatch(/Concurrent modification conflict/);
+
+      // Verify DB state: Operation version incremented by exactly 1, phase FAILED
+      const { ops, actions, audits } = mock.getStore();
+      const updatedOp = ops.find((o) => o.id === op.id);
+      expect(updatedOp.version).toBe(2);
+      expect(updatedOp.phase).toBe('FAILED');
+      expect(updatedOp.effect).toBe('NOT_APPLIED');
+
+      // PlannedAction status FAILED
+      const updatedAction = actions.find((a) => a.id === action.id);
+      expect(updatedAction.status).toBe('FAILED');
+
+      // Exactly 1 ExecutionAudit row created (by the winner)
+      expect(audits).toHaveLength(1);
+      expect(audits[0].auditAction).toBe('DISMISS');
+      expect(audits[0].actorId).toBe(fulfilled[0].value.operation.evidence.manualResolution.resolvedBy);
+    });
+
+    it('proves concurrent conflicting resolutions (Admin A FORCE_ADOPT vs Admin B DISMISS): single winner, loser transaction aborted with zero action corruption and zero extra audits', async () => {
+      const mock = createMockPrismaClient();
+      const service = new OperationAutomationService(
+        mock.prisma as any,
+        { executeTool: jest.fn() } as any,
+      );
+
+      (service as any).syncLocalPurchaseOrder = jest.fn().mockResolvedValue({ success: true });
+
+      const action = mock.seedAction({
+        id: 'act-occ-conf-1',
+        workspaceId: wsA,
+        status: 'FAILED',
+        parameters: { sku: 'SKU-RACE-01' },
+      });
+
+      const op = mock.seedOp({
+        id: 'op-occ-conf-1',
+        workspaceId: wsA,
+        actionId: action.id,
+        phase: 'NEEDS_ATTENTION',
+        effect: 'UNKNOWN',
+        recovery: 'MANUAL',
+        version: 3,
+        externalId: 'EXT-PO-RACE-01',
+      });
+
+      // Race FORCE_ADOPT vs DISMISS
+      const [resAdopt, resDismiss] = await Promise.allSettled([
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'FORCE_ADOPT',
+          actorId: 'admin-adopt',
+          comment: 'Force adopt winner',
+        }),
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'DISMISS',
+          actorId: 'admin-dismiss',
+          comment: 'Dismiss loser',
+        }),
+      ]);
+
+      const fulfilled = [resAdopt, resDismiss].filter((r) => r.status === 'fulfilled') as PromiseFulfilledResult<any>[];
+      const rejected = [resAdopt, resDismiss].filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0].reason.constructor.name).toBe('ConflictException');
+
+      // Version incremented exactly once (from 3 to 4)
+      const { ops, actions, audits } = mock.getStore();
+      const updatedOp = ops.find((o) => o.id === op.id);
+      expect(updatedOp.version).toBe(4);
+
+      // Exactly 1 ExecutionAudit row
+      expect(audits).toHaveLength(1);
+      const winnerResolution = fulfilled[0].value.operation.evidence.manualResolution.resolution;
+      expect(audits[0].auditAction).toBe(winnerResolution);
+
+      // Action status must match the winner's expected state
+      const updatedAction = actions.find((a) => a.id === action.id);
+      if (winnerResolution === 'FORCE_ADOPT') {
+        expect(updatedAction.status).toBe('SUCCESS');
+      } else {
+        expect(updatedAction.status).toBe('FAILED');
+      }
+    });
+
+    it('proves resolving an operation with a stale version throws 409 ConflictException when updateMany matches 0 rows', async () => {
+      const mock = createMockPrismaClient();
+      const service = new OperationAutomationService(
+        mock.prisma as any,
+        { executeTool: jest.fn() } as any,
+      );
+
+      const op = mock.seedOp({
+        id: 'op-stale-1',
+        workspaceId: wsA,
+        phase: 'NEEDS_ATTENTION',
+        effect: 'UNKNOWN',
+        recovery: 'MANUAL',
+        version: 1,
+      });
+
+      // Intercept tx to simulate OCC mismatch (updateMany matched 0 records due to concurrent version update)
+      const origTransaction = mock.prisma.$transaction;
+      mock.prisma.$transaction = jest.fn(async (fn: any) => {
+        return origTransaction(async (tx: any) => {
+          tx.automationOperation.updateMany = jest.fn().mockResolvedValue({ count: 0 });
+          return fn(tx);
+        });
+      });
+
+      await expect(
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'DISMISS',
+          actorId: 'admin-stale',
+        }),
+      ).rejects.toThrow(/Concurrent modification conflict/);
+
+      // Zero audits recorded
+      expect(mock.getStore().audits).toHaveLength(0);
+    });
+
+    it('proves operation already transitioned out of NEEDS_ATTENTION throws 409 ConflictException inside transaction', async () => {
+      const mock = createMockPrismaClient();
+      const service = new OperationAutomationService(
+        mock.prisma as any,
+        { executeTool: jest.fn() } as any,
+      );
+
+      const op = mock.seedOp({
+        id: 'op-phase-transition-race',
+        workspaceId: wsA,
+        phase: 'NEEDS_ATTENTION',
+        effect: 'UNKNOWN',
+        recovery: 'MANUAL',
+        version: 1,
+      });
+
+      // Inside transaction, simulate phase having transitioned to COMPLETED
+      const origTransaction = mock.prisma.$transaction;
+      mock.prisma.$transaction = jest.fn(async (fn: any) => {
+        const stored = mock.getStore().ops.find((o) => o.id === op.id);
+        if (stored) {
+          stored.phase = 'COMPLETED';
+        }
+        return origTransaction(fn);
+      });
+
+      await expect(
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'DISMISS',
+          actorId: 'admin-race',
+        }),
+      ).rejects.toThrow(/Operation 'op-phase-transition-race' is no longer in NEEDS_ATTENTION phase/);
+
+      expect(mock.getStore().audits).toHaveLength(0);
+    });
+
+    it('proves fail-closed actor contract: missing, empty, or blank actorId throws 400 BadRequestException with zero mutations', async () => {
+      const mock = createMockPrismaClient();
+      const service = new OperationAutomationService(
+        mock.prisma as any,
+        { executeTool: jest.fn() } as any,
+      );
+
+      const op = mock.seedOp({
+        id: 'op-actor-contract-1',
+        workspaceId: wsA,
+        phase: 'NEEDS_ATTENTION',
+        effect: 'UNKNOWN',
+        recovery: 'MANUAL',
+        version: 1,
+      });
+
+      // 1. Empty string actorId
+      await expect(
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'DISMISS',
+          actorId: '',
+        }),
+      ).rejects.toThrow(/Authenticated actor ID is required/);
+
+      // 2. Blank whitespace actorId
+      await expect(
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'DISMISS',
+          actorId: '   ',
+        }),
+      ).rejects.toThrow(/Authenticated actor ID is required/);
+
+      // 3. Passing userId only without actorId (reject legacy userId fallback)
+      await expect(
+        service.resolveNeedsAttention(wsA, op.id, {
+          resolution: 'DISMISS',
+          userId: 'legacy-user',
+        } as any),
+      ).rejects.toThrow(/Authenticated actor ID is required/);
+
+      // 0 mutations, 0 audits
+      expect(mock.getStore().audits).toHaveLength(0);
+      expect(mock.getStore().ops.find((o) => o.id === op.id).version).toBe(1);
+    });
+  });
+
+  // ==========================================
+  // 12. Real PostgreSQL Live Integration Suite (Active when TEST_DATABASE_URL is set)
   // ==========================================
   const liveTestDbUrl =
     process.env.AUTOMATION_TEST_DATABASE_URL ||
@@ -878,7 +1189,7 @@ describe('Phase 6 — Human Audit Trail & ExecutionAudit Store', () => {
 
   const describeLivePostgres = isLiveTestDb ? describe : describe.skip;
 
-  describeLivePostgres('11. Real PostgreSQL Live Transaction & Rollback Integration', () => {
+  describeLivePostgres('12. Real PostgreSQL Live Transaction & Rollback Integration', () => {
     let realPrisma: PrismaClient;
     const realWs = `ws_audit_real_${Date.now()}`;
     const realOpId = `op_audit_real_${Date.now()}`;
@@ -950,6 +1261,55 @@ describe('Phase 6 — Human Audit Trail & ExecutionAudit Store', () => {
 
       const audits = await store.listAudits(realWs, realOpId);
       expect(audits).toHaveLength(0);
+    });
+
+    it('proves real PostgreSQL OCC concurrency: concurrent updateMany with version predicate admits only one winner', async () => {
+      const opPostgresId = `op_pg_occ_${Date.now()}`;
+      await realPrisma.automationOperation.create({
+        data: {
+          id: opPostgresId,
+          workspaceId: realWs,
+          connectionId: 'conn-pg-occ',
+          operationKind: 'CREATE_PURCHASE_ORDER',
+          idempotencyKey: `idemp-pg-occ-${Date.now()}`,
+          payloadHash: 'hash-pg-occ',
+          mode: 'SIMULATOR',
+          provider: 'simulator-erp',
+          phase: 'NEEDS_ATTENTION',
+          effect: 'UNKNOWN',
+          recovery: 'MANUAL',
+          version: 1,
+        },
+      });
+
+      // Two concurrent transactions attempt OCC update with version: 1
+      const attemptUpdate = async (actor: string) => {
+        return realPrisma.$transaction(async (tx) => {
+          const res = await tx.automationOperation.updateMany({
+            where: { id: opPostgresId, workspaceId: realWs, version: 1, phase: 'NEEDS_ATTENTION' },
+            data: { phase: 'COMPLETED', effect: 'APPLIED', recovery: 'NONE', version: { increment: 1 } },
+          });
+          if (res.count === 0) {
+            throw new Error(`OCC_CONFLICT_${actor}`);
+          }
+          return actor;
+        });
+      };
+
+      const [res1, res2] = await Promise.allSettled([
+        attemptUpdate('worker-1'),
+        attemptUpdate('worker-2'),
+      ]);
+
+      const fulfilled = [res1, res2].filter((r) => r.status === 'fulfilled');
+      const rejected = [res1, res2].filter((r) => r.status === 'rejected');
+
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const finalOp = await realPrisma.automationOperation.findUnique({ where: { id: opPostgresId } });
+      expect(finalOp?.version).toBe(2);
+      expect(finalOp?.phase).toBe('COMPLETED');
     });
   });
 });

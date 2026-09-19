@@ -100,57 +100,87 @@ Store 层与 DB 层双重防线：
 
 ---
 
-## 5. 事务原子性与执行流程 (Transaction Atomicity)
+---
+
+## 5. 事务原子性、并发控制 (OCC) 与执行流程 (Transaction Atomicity & OCC)
 
 人工干预是高危写操作，不同于技术日志和监控指标（它们可以 fail-safe 忽略），**Human Audit 必须 Fail-Closed**：
-> 不允许出现“操作状态已被人工改动，但审计记录落库失败”的不一致情况。
+> 不允许出现“操作状态已被人工改动，但审计记录落库失败”的不一致情况；
+> 也不允许出现“两名操作员同时提交决议，导致状态或审计记录互相践踏覆盖”的并发冲突。
 
-`AutomationOperation` 状态更新、`PlannedAction` 状态流转以及 `ExecutionAudit` 插入操作**必须在同一个 `prisma.$transaction` 事务内完成**。若 Audit 写入失败，整个事务立即 Rollback！
+### 5.1 乐观并发控制 (OCC) 与 Single-Winner 语义 (Phase 6.1)
+为了彻底根除多人同时审核同一个异常单据引发的竞态条件，Phase 6.1 在 `$transaction` 内部引入了基于 `AutomationOperation.version` 与 `phase` 的乐观锁防护（OCC）：
+
+1. **版本条件更新 (Conditional Update)**：
+   事务内使用 `updateMany` 替代盲目 `update`：
+   ```ts
+   const updateResult = await tx.automationOperation.updateMany({
+     where: {
+       id: operationId,
+       workspaceId,
+       version: txBeforeOp.version,
+       phase: 'NEEDS_ATTENTION',
+     },
+     data: {
+       phase: targetPhase,
+       effect: targetEffect,
+       recovery: targetRecovery,
+       evidence: updatedEvidence,
+       lastErrorCode: targetLastErrorCode,
+       leaseOwner: null,
+       leaseUntil: null,
+       version: { increment: 1 },
+     },
+   });
+   ```
+2. **唯一胜者准则 (Single-Winner Guarantee)**：
+   - 若 `updateResult.count === 0`，表明该单据已被另一并发事务抢先变更，本事务立即抛出 `409 ConflictException`；
+   - 竞态失败方（Loser）整个事务立即 Rollback：**零 PlannedAction 修改、零新增 ExecutionAudit 记录**；
+   - 胜者（Winner）版本号由 `N` 递增至 `N + 1`，恰好产生 1 条不可变审计日志。
 
 ```mermaid
 sequenceDiagram
   autonumber
-  actor Operator as 运营人员 (user.sub)
+  actor OpA as 操作员 A (user.sub A)
+  actor OpB as 操作员 B (user.sub B)
   participant API as OperationAutomationService
-  participant Ext as syncLocalPurchaseOrder (幂等前置)
-  participant DB as PostgreSQL ($transaction)
+  participant DB as PostgreSQL ($transaction & OCC)
 
-  Operator->>API: resolveNeedsAttention(FORCE_ADOPT / DISMISS / RETRY_SYNC)
-  API->>API: 验证父操作存在且处于 NEEDS_ATTENTION
-  API->>API: 强校验 actorId 真实有效（非空）
+  OpA->>API: resolveNeedsAttention(FORCE_ADOPT, actorId A)
+  OpB->>API: resolveNeedsAttention(DISMISS, actorId B)
   
-  alt FORCE_ADOPT / RETRY_SYNC
-    API->>Ext: syncLocalPurchaseOrder(externalId)
-    Note over API,Ext: 外部前置同步成功，方可开启事务
+  Note over API,DB: 操作员 A 与 B 并发触发，读取当前 version=1, phase=NEEDS_ATTENTION
+
+  rect rgb(240, 255, 240)
+    Note over API,DB: 操作员 A 事务先进入 updateMany
+    API->>DB: updateMany where id=op, version=1, phase=NEEDS_ATTENTION
+    DB-->>API: count = 1 (成功锁定并更新 version=2, phase=COMPLETED)
+    API->>DB: update PlannedAction (SUCCESS)
+    API->>DB: insert ExecutionAudit (actorId A, FORCE_ADOPT)
+    API->>DB: COMMIT
+    API-->>OpA: 200 OK (FORCE_ADOPT 成功)
   end
 
-  API->>DB: BEGIN TRANSACTION (tx)
-  API->>DB: tx.automationOperation.update(COMPLETED / FAILED)
-  API->>DB: tx.plannedAction.update(SUCCESS / FAILED)
-  API->>DB: tx.executionAudit.create(ExecutionAudit)
-  
-  alt 审计或状态写入失败
-    DB-->>API: 发生异常 (Disk Full / Constraint Error)
-    API->>DB: ROLLBACK
-    Note over API,DB: Operation 保持 NEEDS_ATTENTION，Action 保持 FAILED，无假 Audit
-  else 全部写入成功
-    DB-->>API: 提交成功 (COMMIT)
+  rect rgb(255, 240, 240)
+    Note over API,DB: 操作员 B 事务随后执行 updateMany
+    API->>DB: updateMany where id=op, version=1, phase=NEEDS_ATTENTION
+    DB-->>API: count = 0 (当前版本已是 2，且 phase 已非 NEEDS_ATTENTION)
+    API->>DB: ROLLBACK (零 PlannedAction 变更，零新增 Audit)
+    API-->>OpB: 409 ConflictException (提示已被其他操作处理)
   end
-
-  API-->>Operator: 响应结果 (含更新后 Operation)
 ```
 
-### 三大业务场景详细流转：
+### 5.2 三大业务场景详细流转：
 1. **`FORCE_ADOPT`（强制采纳）**：
    - 依赖外部凭证 `externalId`，前置执行 `syncLocalPurchaseOrder`（该操作具备幂等性）；
-   - 事务内：`Operation` -> `COMPLETED / APPLIED / NONE`（版本号原子递增），`PlannedAction` -> `SUCCESS`，记录 `FORCE_ADOPT` 审计；
-   - 若事务失败，`Operation` 维持 `NEEDS_ATTENTION`，下次重试安全无副作用。
+   - 事务内：OCC 校验版本，`Operation` -> `COMPLETED / APPLIED / NONE`（版本号原子递增），`PlannedAction` -> `SUCCESS`，记录 `FORCE_ADOPT` 审计；
+   - 若事务失败或发生 OCC 冲突，`Operation` 维持原有状态，下次处理安全无副作用。
 2. **`DISMISS`（人工废弃）**：
    - 无外部网络调用；
-   - 事务内：`Operation` -> `FAILED / NOT_APPLIED / NONE`，`PlannedAction` -> `FAILED`，记录 `DISMISS` 审计。
+   - 事务内：OCC 校验版本，`Operation` -> `FAILED / NOT_APPLIED / NONE`，`PlannedAction` -> `FAILED`，记录 `DISMISS` 审计。
 3. **`RETRY_SYNC`（重试同步）**：
    - 前置重试本地 PurchaseOrder 同步，若失败立即中断，不产生错误审计；
-   - 同步成功后进入事务：`Operation` -> `COMPLETED / APPLIED / NONE`，`PlannedAction` -> `SUCCESS`，记录 `RETRY_SYNC` 审计（附带 `localSync: "SUCCEEDED"` 元数据）。
+   - 同步成功后进入事务：OCC 校验版本，`Operation` -> `COMPLETED / APPLIED / NONE`，`PlannedAction` -> `SUCCESS`，记录 `RETRY_SYNC` 审计（附带 `localSync: "SUCCEEDED"` 元数据）。
 
 ---
 
@@ -170,11 +200,31 @@ export interface ExecutionAuditState {
 }
 ```
 
+> [!NOTE]
+> 快照准确性保证：`beforeState` 必须源自事务内更新前读取的 `txBeforeOp`；`afterState` 必须源自数据库落地后的 `txAfterOp`，真实反映持久化状态。
+
 ---
 
-## 7. 质量门禁与测试覆盖
+## 7. 严格收口的 Actor 身份契约 (Actor Identity Closure)
 
-- **测试套件**：`packages/actions/test/human-audit-trail.spec.ts`（17 个用例全面覆盖）
+在 Phase 6.1 中，彻底删除了旧版接口对 `userId` 的兼容性 fallback：
+- 服务层接口定义收敛为 `ResolveNeedsAttentionInput`：
+  ```ts
+  export interface ResolveNeedsAttentionInput {
+    resolution: 'FORCE_ADOPT' | 'DISMISS' | 'RETRY_SYNC';
+    comment?: string;
+    actorId: string;
+  }
+  ```
+- Controller 层直接从 `@CurrentUser() user: JwtPayload` 提取 `user.sub` 作为 `actorId` 传入；
+- 服务层直接执行 fail-closed 检查：若 `actorId` 未提供、为空或纯空白，抛出 400 `BadRequestException`；
+- 禁止传入空凭证或试图以匿名 `manual-operator` 兜底。
+
+---
+
+## 8. 质量门禁与测试覆盖
+
+- **测试套件**：`packages/actions/test/human-audit-trail.spec.ts`（23 个用例全面覆盖）
   1. **不可变语义**：禁止更新/删除，连续追加生成两条独立按序记录；
   2. **租户硬隔离**：跨工作区查询隔离，跨工作区追加抛 `AutomationOperationNotFoundError`；
   3. **Actor 真实性**：空/空白 actorId 拒绝，非法 Action / ActorType 拦截；
@@ -185,4 +235,11 @@ export interface ExecutionAuditState {
   8. **P0 事务回滚**：高保真模拟 Audit 写入失败，证明 Operation 与 Action 100% 完整回滚，无幽灵状态；
   9. **Controller 身份防篡改**：证实客户端 Body 无法篡改 `user.sub` 真实身份；
   10. **四类历史互不干扰**：验证与 Approval、ActionExecution、ExecutionAttempt 的清晰界限；
-  11. **真实 PostgreSQL 事务回滚**：提供针对真实数据库环境的事务回滚集成支持。
+  11. **Phase 6.1 并发与 OCC 控制**：
+      - 并发同构决议（Admin A DISMISS vs Admin B DISMISS）：单胜者，败者抛 409，版本递增 1，单条审计；
+      - 并发异构决议（FORCE_ADOPT vs DISMISS）：单胜者，败者完全回滚，Action 零污染，零多余审计；
+      - 探测到版本过旧（updateMany count=0）立即抛 409 ConflictException；
+      - 探测到脱离 NEEDS_ATTENTION 状态立即抛 409；
+      - 强契约 Actor 校验：缺失 actorId 拒绝并保证 0 状态改动；
+  12. **真实 PostgreSQL 事务回滚与 OCC 并发验证**：提供针对真实数据库环境的事务回滚与 OCC 并发测试套件。
+

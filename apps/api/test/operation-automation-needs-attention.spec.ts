@@ -197,7 +197,7 @@ describe('F-11: Needs Attention Human Review & Recovery Flow', () => {
 
     // 1) Attempt RETRY_SYNC before adding supplier -> should fail with 400
     await expect(
-      service.resolveNeedsAttention(wsId, op.id, { resolution: 'RETRY_SYNC' }),
+      service.resolveNeedsAttention(wsId, op.id, { resolution: 'RETRY_SYNC', actorId: 'admin-user-1' }),
     ).rejects.toThrow(/Local PurchaseOrder sync failed/);
 
     // 2) Operator adds the supplier in the database
@@ -212,7 +212,7 @@ describe('F-11: Needs Attention Human Review & Recovery Flow', () => {
     // 3) Re-attempt RETRY_SYNC -> should succeed!
     const resolveRes = await service.resolveNeedsAttention(wsId, op.id, {
       resolution: 'RETRY_SYNC',
-      userId: 'admin-user-1',
+      actorId: 'admin-user-1',
       comment: 'Supplier registered, successfully synchronized local PO',
     });
 
@@ -278,7 +278,7 @@ describe('F-11: Needs Attention Human Review & Recovery Flow', () => {
 
     const resolveRes = await service.resolveNeedsAttention(wsId, op.id, {
       resolution: 'FORCE_ADOPT',
-      userId: 'admin-manager',
+      actorId: 'admin-manager',
       comment: 'Verified with ERP vendor that minor discrepancy was due to currency conversion rounding',
     });
 
@@ -329,7 +329,7 @@ describe('F-11: Needs Attention Human Review & Recovery Flow', () => {
 
     const resolveRes = await service.resolveNeedsAttention(wsId, op.id, {
       resolution: 'DISMISS',
-      userId: 'ops-lead',
+      actorId: 'ops-lead',
       comment: 'Wrong supplier code submitted by operator, cancelled',
     });
 
@@ -348,7 +348,7 @@ describe('F-11: Needs Attention Human Review & Recovery Flow', () => {
   it('5. error handling: rejects cross-workspace operation (404) and already completed operation (400)', async () => {
     // 1) Cross workspace
     await expect(
-      service.resolveNeedsAttention(otherWsId, 'non-existent-op', { resolution: 'DISMISS' }),
+      service.resolveNeedsAttention(otherWsId, 'non-existent-op', { resolution: 'DISMISS', actorId: 'ops-lead' }),
     ).rejects.toThrow(/not found/);
 
     // 2) Non-NEEDS_ATTENTION operation
@@ -369,7 +369,7 @@ describe('F-11: Needs Attention Human Review & Recovery Flow', () => {
     });
 
     await expect(
-      service.resolveNeedsAttention(wsId, completedOp.id, { resolution: 'FORCE_ADOPT' }),
+      service.resolveNeedsAttention(wsId, completedOp.id, { resolution: 'FORCE_ADOPT', actorId: 'admin-manager' }),
     ).rejects.toThrow(/is not in NEEDS_ATTENTION phase/);
   });
 });

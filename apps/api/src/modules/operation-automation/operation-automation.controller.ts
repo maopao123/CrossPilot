@@ -73,7 +73,6 @@ export class OperationAutomationController {
     return this.automationService.resolveNeedsAttention(workspaceId, operationId, {
       resolution: body.resolution,
       comment: body.comment,
-      userId: user?.sub,
       actorId: user?.sub,
     });
   }

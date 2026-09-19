@@ -1,5 +1,34 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 6.1 完成（Phase 6.1 Human Audit Concurrency & Actor Identity Closure Complete）**：
+> - **基线 Commit**: `ed65005f9ef647e88b0aa430d566925d0a743c81` (`ed65005`, Phase 6)
+> - **目标达成**：全面收口 Phase 6 人工审计流的并发安全（OCC）与 Actor 身份契约，确立 Single-Winner 竞态安全准则，消除多操作员并发决议导致的状态踩踏与幽灵审计隐患，完成 Phase 6 最终冻结闭环。
+> - **1. 乐观并发控制 (OCC) 与 Single-Winner 准则（`OperationAutomationService`）**：
+>   - 在 `prisma.$transaction` 内引入基于 `AutomationOperation.version` 与 `phase` 的 `updateMany` 条件更新：
+>     `where: { id: operationId, workspaceId, version: txBeforeOp.version, phase: 'NEEDS_ATTENTION' }`；
+>   - 唯一胜者保证：若 `updateResult.count === 0`，表明版本或状态已被并发决议变更，立即抛出 `409 ConflictException`；
+>   - 败者完全回滚：败者事务立即终止，**零 PlannedAction 状态污染、零多余 ExecutionAudit 行写入**；胜者版本号由 `N` 递增至 `N + 1`，恰好产生 1 条不可变审计记录；
+>   - 状态快照精度修正：`beforeState` 源自事务内更新前读取的 `txBeforeOp`，`afterState` 源自落地后的 `txAfterOp`。
+> - **2. Actor 身份契约彻底收口（Actor Identity Contract Closure）**：
+>   - 定义统一收口的契约接口 `ResolveNeedsAttentionInput { resolution, comment, actorId }`，彻底废除 `userId?: string` 兼容性 fallback；
+>   - `OperationAutomationController` 强绑定 `@CurrentUser() user: JwtPayload`，直接将 `user.sub` 赋予 `actorId` 传入服务层；
+>   - 服务层 Fail-Closed 校验：若 `actorId` 未传、为空或纯空白，立即抛出 400 `BadRequestException`，拒绝任何无主或匿名操作。
+> - **3. 幂等前置边界保持**：
+>   - `FORCE_ADOPT` 与 `RETRY_SYNC` 所依赖的 `syncLocalPurchaseOrder` 保留在事务外执行，确保外部同步成功后再开启数据库事务；
+>   - 统一精简三类决议的事务处理逻辑，杜绝代码冗余与重复事务模板。
+> - **4. 交付物与质量门禁**：
+>   - 规范文档：更新 `docs/automation-runtime/HUMAN_AUDIT_TRAIL.md`（新增 OCC 并发控制架构、时序图及 Actor 契约说明）；
+>   - 自动化测试：更新 `packages/actions/test/human-audit-trail.spec.ts`（新增 Phase 6.1 专属并发控制套件，覆盖并发同构/异构决议、状态脱离冲突、stale version 检测、强契约 actorId 校验，并补充真实 PG OCC 测试套件）；
+>   - 全套回归门禁验证：
+>     - `pnpm -r run build` 全部 PASS
+>     - `pnpm -r run typecheck` 10/10 workspaces 全部 PASS (0 错误)
+>     - `@crosspilot/actions` 204/204 全部 PASS (9 个测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/worker` 18/18 全部 PASS (4 个测试套件)
+>     - `@crosspilot/api` 核心测试套件全部 PASS
+>     - 真实 PostgreSQL 并发验证：safe test database offline (gracefully skipped via environment guard)；
+>   - 严格红线执行：0 新建数据库表，0 Migration，零状态机核心语义改动，未进入 Phase 7/8/9。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 6 完成（Phase 6 Human Audit Trail Complete）**：
 > - **基线 Commit**: `9b2976d4c6a88ca209df63aa682df81f8d6cdddb` (`9b2976d`, Phase 5.1)
 > - **目标达成**：为 `AutomationOperation` 的人工状态变更（`FORCE_ADOPT`、`DISMISS`、`RETRY_SYNC`）构建独立、不可变、workspace-safe、actor-grounded 的 `ExecutionAudit` 人工操作审计流水；落实 Fail-Closed 原子事务（Operation Update + Action Update + Audit Insert），彻底消除历史证据覆写与无审计篡改隐患；严格保证与已有 Approval、ActionExecution、ExecutionAttempt 职责边界的绝对隔离。

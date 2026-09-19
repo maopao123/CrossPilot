@@ -33,6 +33,12 @@ export interface AutomationWorkflowRun {
   updatedAt: string;
 }
 
+export interface ResolveNeedsAttentionInput {
+  resolution: 'FORCE_ADOPT' | 'DISMISS' | 'RETRY_SYNC';
+  comment?: string;
+  actorId: string;
+}
+
 @Injectable()
 export class OperationAutomationService {
   private readonly actionRouter = new ActionRouter();
@@ -687,12 +693,7 @@ export class OperationAutomationService {
   async resolveNeedsAttention(
     workspaceId: string,
     operationId: string,
-    input: {
-      resolution: 'FORCE_ADOPT' | 'DISMISS' | 'RETRY_SYNC';
-      comment?: string;
-      userId?: string;
-      actorId?: string;
-    },
+    input: ResolveNeedsAttentionInput,
   ): Promise<{ success: boolean; message: string; operation: any }> {
     const op = await this.prisma.automationOperation.findFirst({
       where: { id: operationId, workspaceId },
@@ -706,9 +707,9 @@ export class OperationAutomationService {
       throw new BadRequestException(`Operation '${operationId}' is not in NEEDS_ATTENTION phase (current phase: ${op.phase})`);
     }
 
-    // Phase 6: Authenticated human actor identity is strictly required (fail closed)
-    const effectiveActorId = (input.actorId || input.userId || '').trim();
-    if (!effectiveActorId) {
+    // Phase 6.1: Authenticated human actor identity is strictly required (fail closed, no fallback)
+    const actorId = (input.actorId || '').trim();
+    if (!actorId) {
       throw new BadRequestException('Authenticated actor ID is required to resolve needs-attention operation');
     }
 
@@ -719,18 +720,20 @@ export class OperationAutomationService {
       : null;
     const actionParams = (action?.parameters as any) || {};
 
-    const beforeState: ExecutionAuditState = {
-      phase: op.phase,
-      effect: op.effect,
-      recovery: op.recovery,
-      lastErrorCode: op.lastErrorCode || null,
-      externalId: op.externalId || (op.evidence as any)?.externalId || null,
-      operationVersion: op.version,
-      actionStatus: action?.status || null,
-    };
-
     const sanitizedReason = comment ? sanitizeString(comment).substring(0, 2000) : null;
     const traceId = (op.evidence as any)?.traceId || null;
+
+    let targetPhase: 'COMPLETED' | 'FAILED';
+    let targetEffect: 'APPLIED' | 'NOT_APPLIED';
+    let targetRecovery: 'NONE';
+    let targetLastErrorCode: string | null;
+    let defaultComment: string;
+    let actionStatus: 'SUCCESS' | 'FAILED';
+    let actionMessage: string;
+    let auditMetadata: Record<string, any>;
+    let successMessage: string;
+    let externalIdForEvidence: string | null = null;
+    let syncErrorReset = false;
 
     if (resolution === 'FORCE_ADOPT') {
       const externalId = op.externalId || (op.evidence as any)?.externalId;
@@ -740,174 +743,27 @@ export class OperationAutomationService {
 
       await this.syncLocalPurchaseOrder(workspaceId, externalId, actionParams);
 
-      const updatedEvidence = {
-        ...((op.evidence as any) || {}),
-        phase: 'COMPLETED',
-        effect: 'APPLIED',
-        recovery: 'NONE',
-        externalId,
-        verifiedAt: nowIso,
-        manualResolution: {
-          resolution: 'FORCE_ADOPT',
-          resolvedBy: effectiveActorId,
-          comment: sanitizedReason || '人工审核确认外部单据有效并强制采纳',
-          resolvedAt: nowIso,
-        },
-      };
-
-      const { updatedOp } = await this.prisma.$transaction(async (tx) => {
-        const txOp = await tx.automationOperation.update({
-          where: { id: op.id },
-          data: {
-            phase: 'COMPLETED',
-            effect: 'APPLIED',
-            recovery: 'NONE',
-            evidence: updatedEvidence,
-            lastErrorCode: null,
-            leaseOwner: null,
-            leaseUntil: null,
-            version: { increment: 1 },
-          },
-        });
-
-        let txAction: any = null;
-        if (action) {
-          txAction = await tx.plannedAction.update({
-            where: { id: action.id },
-            data: {
-              status: 'SUCCESS',
-              lastMessage: `人工已确认并强制采纳外部单据 (${externalId}): ${sanitizedReason || '人工审核通过'}`,
-              parameters: {
-                ...actionParams,
-                _evidence: updatedEvidence,
-              },
-            },
-          });
-        }
-
-        const afterState: ExecutionAuditState = {
-          phase: txOp.phase,
-          effect: txOp.effect,
-          recovery: txOp.recovery,
-          lastErrorCode: txOp.lastErrorCode || null,
-          externalId: txOp.externalId || (txOp.evidence as any)?.externalId || null,
-          operationVersion: txOp.version,
-          actionStatus: txAction ? txAction.status : (action?.status || null),
-        };
-
-        await this.auditStore.appendAudit(
-          {
-            workspaceId,
-            operationId: op.id,
-            actionId: op.actionId,
-            actorId: effectiveActorId,
-            actorType: 'USER',
-            auditAction: 'FORCE_ADOPT',
-            reason: sanitizedReason,
-            beforeState,
-            afterState,
-            metadata: sanitizeLogData({
-              resolution: 'FORCE_ADOPT',
-              externalId,
-            }),
-            traceId,
-          },
-          tx,
-        );
-
-        return { updatedOp: txOp };
-      });
-
-      return {
-        success: true,
-        message: `Operation '${operationId}' successfully force-adopted with externalId '${externalId}'`,
-        operation: updatedOp,
-      };
-    }
-
-    if (resolution === 'DISMISS') {
-      const updatedEvidence = {
-        ...((op.evidence as any) || {}),
-        phase: 'FAILED',
-        effect: 'NOT_APPLIED',
-        recovery: 'NONE',
-        manualResolution: {
-          resolution: 'DISMISS',
-          resolvedBy: effectiveActorId,
-          comment: sanitizedReason || '人工核对后废弃此单据',
-          resolvedAt: nowIso,
-        },
-      };
-
-      const { updatedOp } = await this.prisma.$transaction(async (tx) => {
-        const txOp = await tx.automationOperation.update({
-          where: { id: op.id },
-          data: {
-            phase: 'FAILED',
-            effect: 'NOT_APPLIED',
-            recovery: 'NONE',
-            evidence: updatedEvidence,
-            leaseOwner: null,
-            leaseUntil: null,
-            version: { increment: 1 },
-          },
-        });
-
-        let txAction: any = null;
-        if (action) {
-          txAction = await tx.plannedAction.update({
-            where: { id: action.id },
-            data: {
-              status: 'FAILED',
-              lastMessage: `人工核对后已废弃此异常操作: ${sanitizedReason || '人工废弃'}`,
-              parameters: {
-                ...actionParams,
-                _evidence: updatedEvidence,
-              },
-            },
-          });
-        }
-
-        const afterState: ExecutionAuditState = {
-          phase: txOp.phase,
-          effect: txOp.effect,
-          recovery: txOp.recovery,
-          lastErrorCode: txOp.lastErrorCode || null,
-          externalId: txOp.externalId || (txOp.evidence as any)?.externalId || null,
-          operationVersion: txOp.version,
-          actionStatus: txAction ? txAction.status : (action?.status || null),
-        };
-
-        await this.auditStore.appendAudit(
-          {
-            workspaceId,
-            operationId: op.id,
-            actionId: op.actionId,
-            actorId: effectiveActorId,
-            actorType: 'USER',
-            auditAction: 'DISMISS',
-            reason: sanitizedReason,
-            beforeState,
-            afterState,
-            metadata: sanitizeLogData({
-              resolution: 'DISMISS',
-            }),
-            traceId,
-          },
-          tx,
-        );
-
-        return { updatedOp: txOp };
-      });
-
-      return {
-        success: true,
-        message: `Operation '${operationId}' dismissed by operator`,
-        operation: updatedOp,
-      };
-    }
-
-    if (resolution === 'RETRY_SYNC') {
+      targetPhase = 'COMPLETED';
+      targetEffect = 'APPLIED';
+      targetRecovery = 'NONE';
+      targetLastErrorCode = null;
+      defaultComment = '人工审核确认外部单据有效并强制采纳';
+      actionStatus = 'SUCCESS';
+      actionMessage = `人工已确认并强制采纳外部单据 (${externalId}): ${sanitizedReason || '人工审核通过'}`;
+      auditMetadata = { resolution: 'FORCE_ADOPT', externalId };
+      successMessage = `Operation '${operationId}' successfully force-adopted with externalId '${externalId}'`;
+      externalIdForEvidence = externalId;
+    } else if (resolution === 'DISMISS') {
+      targetPhase = 'FAILED';
+      targetEffect = 'NOT_APPLIED';
+      targetRecovery = 'NONE';
+      targetLastErrorCode = op.lastErrorCode || null;
+      defaultComment = '人工核对后废弃此单据';
+      actionStatus = 'FAILED';
+      actionMessage = `人工核对后已废弃此异常操作: ${sanitizedReason || '人工废弃'}`;
+      auditMetadata = { resolution: 'DISMISS' };
+      successMessage = `Operation '${operationId}' dismissed by operator`;
+    } else if (resolution === 'RETRY_SYNC') {
       const externalId = op.externalId || (op.evidence as any)?.externalId;
       if (!externalId) {
         throw new BadRequestException(`Cannot RETRY_SYNC without externalId`);
@@ -918,95 +774,144 @@ export class OperationAutomationService {
         throw new BadRequestException(`Local PurchaseOrder sync failed: ${syncRes.error}`);
       }
 
-      const updatedEvidence = {
-        ...((op.evidence as any) || {}),
-        phase: 'COMPLETED',
-        effect: 'APPLIED',
-        recovery: 'NONE',
-        errorCode: null,
-        syncError: null,
-        externalId,
-        verifiedAt: nowIso,
+      targetPhase = 'COMPLETED';
+      targetEffect = 'APPLIED';
+      targetRecovery = 'NONE';
+      targetLastErrorCode = null;
+      defaultComment = '本地单据重试同步成功';
+      actionStatus = 'SUCCESS';
+      actionMessage = `人工触发本地单据重试同步成功: ${externalId}`;
+      auditMetadata = { resolution: 'RETRY_SYNC', localSync: 'SUCCEEDED', externalId };
+      successMessage = `Local PurchaseOrder successfully synchronized for '${externalId}'`;
+      externalIdForEvidence = externalId;
+      syncErrorReset = true;
+    } else {
+      throw new BadRequestException(`Unsupported resolution '${resolution}'`);
+    }
+
+    const { updatedOp } = await this.prisma.$transaction(async (tx) => {
+      const txBeforeOp = await tx.automationOperation.findFirst({
+        where: { id: operationId, workspaceId },
+      });
+
+      if (!txBeforeOp || txBeforeOp.phase !== 'NEEDS_ATTENTION') {
+        throw new ConflictException(
+          `Concurrent modification conflict: Operation '${operationId}' is no longer in NEEDS_ATTENTION phase`,
+        );
+      }
+
+      const effectiveEvidence = (txBeforeOp.evidence as any) || {};
+      const updatedEvidence: Record<string, any> = {
+        ...effectiveEvidence,
+        phase: targetPhase,
+        effect: targetEffect,
+        recovery: targetRecovery,
         manualResolution: {
-          resolution: 'RETRY_SYNC',
-          resolvedBy: effectiveActorId,
-          comment: sanitizedReason || '本地单据重试同步成功',
+          resolution,
+          resolvedBy: actorId,
+          comment: sanitizedReason || defaultComment,
           resolvedAt: nowIso,
         },
       };
 
-      const { updatedOp } = await this.prisma.$transaction(async (tx) => {
-        const txOp = await tx.automationOperation.update({
-          where: { id: op.id },
-          data: {
-            phase: 'COMPLETED',
-            effect: 'APPLIED',
-            recovery: 'NONE',
-            lastErrorCode: null,
-            evidence: updatedEvidence,
-            leaseOwner: null,
-            leaseUntil: null,
-            version: { increment: 1 },
-          },
-        });
+      if (externalIdForEvidence) {
+        updatedEvidence.externalId = externalIdForEvidence;
+        updatedEvidence.verifiedAt = nowIso;
+      }
+      if (syncErrorReset) {
+        updatedEvidence.errorCode = null;
+        updatedEvidence.syncError = null;
+      }
 
-        let txAction: any = null;
-        if (action) {
-          txAction = await tx.plannedAction.update({
-            where: { id: action.id },
-            data: {
-              status: 'SUCCESS',
-              lastMessage: `人工触发本地单据重试同步成功: ${externalId}`,
-              parameters: {
-                ...actionParams,
-                _evidence: updatedEvidence,
-              },
-            },
-          });
-        }
-
-        const afterState: ExecutionAuditState = {
-          phase: txOp.phase,
-          effect: txOp.effect,
-          recovery: txOp.recovery,
-          lastErrorCode: txOp.lastErrorCode || null,
-          externalId: txOp.externalId || (txOp.evidence as any)?.externalId || null,
-          operationVersion: txOp.version,
-          actionStatus: txAction ? txAction.status : (action?.status || null),
-        };
-
-        await this.auditStore.appendAudit(
-          {
-            workspaceId,
-            operationId: op.id,
-            actionId: op.actionId,
-            actorId: effectiveActorId,
-            actorType: 'USER',
-            auditAction: 'RETRY_SYNC',
-            reason: sanitizedReason,
-            beforeState,
-            afterState,
-            metadata: sanitizeLogData({
-              resolution: 'RETRY_SYNC',
-              localSync: 'SUCCEEDED',
-              externalId,
-            }),
-            traceId,
-          },
-          tx,
-        );
-
-        return { updatedOp: txOp };
+      const updateResult = await tx.automationOperation.updateMany({
+        where: {
+          id: operationId,
+          workspaceId,
+          version: txBeforeOp.version,
+          phase: 'NEEDS_ATTENTION',
+        },
+        data: {
+          phase: targetPhase,
+          effect: targetEffect,
+          recovery: targetRecovery,
+          evidence: updatedEvidence,
+          lastErrorCode: targetLastErrorCode,
+          leaseOwner: null,
+          leaseUntil: null,
+          version: { increment: 1 },
+        },
       });
 
-      return {
-        success: true,
-        message: `Local PurchaseOrder successfully synchronized for '${externalId}'`,
-        operation: updatedOp,
-      };
-    }
+      if (updateResult.count === 0) {
+        throw new ConflictException(
+          `Concurrent modification conflict: Operation '${operationId}' was already updated by another resolution (expected version ${txBeforeOp.version})`,
+        );
+      }
 
-    throw new BadRequestException(`Unsupported resolution '${resolution}'`);
+      const txAfterOp = await tx.automationOperation.findFirst({
+        where: { id: operationId, workspaceId },
+      });
+
+      let txAction: any = null;
+      if (txBeforeOp.actionId) {
+        txAction = await tx.plannedAction.update({
+          where: { id: txBeforeOp.actionId },
+          data: {
+            status: actionStatus,
+            lastMessage: actionMessage,
+            parameters: {
+              ...actionParams,
+              _evidence: updatedEvidence,
+            },
+          },
+        });
+      }
+
+      const beforeState: ExecutionAuditState = {
+        phase: txBeforeOp.phase,
+        effect: txBeforeOp.effect,
+        recovery: txBeforeOp.recovery,
+        lastErrorCode: txBeforeOp.lastErrorCode || null,
+        externalId: txBeforeOp.externalId || (txBeforeOp.evidence as any)?.externalId || null,
+        operationVersion: txBeforeOp.version,
+        actionStatus: action?.status || null,
+      };
+
+      const afterState: ExecutionAuditState = {
+        phase: txAfterOp!.phase,
+        effect: txAfterOp!.effect,
+        recovery: txAfterOp!.recovery,
+        lastErrorCode: txAfterOp!.lastErrorCode || null,
+        externalId: txAfterOp!.externalId || (txAfterOp!.evidence as any)?.externalId || null,
+        operationVersion: txAfterOp!.version,
+        actionStatus: txAction ? txAction.status : (action?.status || null),
+      };
+
+      await this.auditStore.appendAudit(
+        {
+          workspaceId,
+          operationId: txBeforeOp.id,
+          actionId: txBeforeOp.actionId,
+          actorId,
+          actorType: 'USER',
+          auditAction: resolution,
+          reason: sanitizedReason,
+          beforeState,
+          afterState,
+          metadata: sanitizeLogData(auditMetadata),
+          traceId,
+        },
+        tx,
+      );
+
+      return { updatedOp: txAfterOp };
+    });
+
+    return {
+      success: true,
+      message: successMessage,
+      operation: updatedOp,
+    };
   }
 
   private async syncLocalPurchaseOrder(
