@@ -151,15 +151,25 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
     }
 
     const json = (await res.json()) as ShopifyGraphQLResponse<T>;
-    if (json.errors && json.errors.length > 0 && !json.data) {
+    if (json.errors && json.errors.length > 0) {
       const firstErr = json.errors[0];
+      const errMsg = firstErr.message || 'Shopify GraphQL Error';
+      const code = String(firstErr.extensions?.code || '').toUpperCase();
       const isThrottled =
-        firstErr.message.toLowerCase().includes('throttled') ||
-        firstErr.extensions?.code === 'THROTTLED';
+        errMsg.toLowerCase().includes('throttled') ||
+        code === 'THROTTLED';
       if (isThrottled) {
-        throw new CommercePortError('PROVIDER_RATE_LIMIT', firstErr.message, true);
+        throw new CommercePortError('PROVIDER_RATE_LIMIT', errMsg, true);
       }
-      throw new CommercePortError('COMMERCE_PORT_ERROR', firstErr.message, false);
+      const isAuth =
+        errMsg.toLowerCase().includes('access denied') ||
+        errMsg.toLowerCase().includes('unauthorized') ||
+        code === 'ACCESS_DENIED' ||
+        code === 'UNAUTHORIZED';
+      if (isAuth) {
+        throw new CommercePortError(ErrorCodes.AUTH_REQUIRED, errMsg, false);
+      }
+      throw new CommercePortError('COMMERCE_PORT_ERROR', errMsg, false);
     }
 
     return json;
@@ -277,15 +287,23 @@ export class ShopifyAdapter implements CommerceAdapter {
     const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret);
 
     const query = `
-      query ListProducts($first: Int!) {
-        products(first: $first) {
+      query ListProducts($first: Int!, $after: String) {
+        products(first: $first, after: $after) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             id
             title
             handle
             status
             productType
-            variants(first: 20) {
+            variants(first: 100) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
               nodes {
                 id
                 title
@@ -301,8 +319,38 @@ export class ShopifyAdapter implements CommerceAdapter {
       }
     `;
 
-    const res = await this.executeGraphQL<any>(bound.shop, token, query, { first: 50 });
-    const productNodes = Array.isArray(res.data?.products?.nodes) ? res.data.products.nodes : [];
+    const productNodes: any[] = [];
+    let hasNextPage = true;
+    let cursor: string | null = null;
+
+    while (hasNextPage) {
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(bound.shop, token, query, {
+        first: 50,
+        after: cursor,
+      });
+      const page: any = res.data?.products;
+      const nodes = Array.isArray(page?.nodes) ? page.nodes : (Array.isArray(page) ? page : []);
+      for (const node of nodes) {
+        if (node.variants?.pageInfo?.hasNextPage) {
+          const allVariants = await this.fetchAllVariants(
+            bound.shop,
+            token,
+            node.id,
+            node.variants.nodes || [],
+            node.variants.pageInfo.endCursor,
+          );
+          node.variants = {
+            ...node.variants,
+            nodes: allVariants,
+          };
+        }
+        productNodes.push(node);
+      }
+
+      hasNextPage = Boolean(page?.pageInfo?.hasNextPage);
+      cursor = page?.pageInfo?.endCursor || null;
+      if (!cursor) break;
+    }
 
     const products: CanonicalProduct[] = [];
     for (const node of productNodes) {
@@ -364,7 +412,11 @@ export class ShopifyAdapter implements CommerceAdapter {
             handle
             status
             productType
-            variants(first: 20) {
+            variants(first: 100) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
               nodes {
                 id
                 title
@@ -379,6 +431,19 @@ export class ShopifyAdapter implements CommerceAdapter {
         const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
         const productNode = res.data?.product;
         if (!productNode) return null;
+        if (productNode.variants?.pageInfo?.hasNextPage) {
+          const allVariants = await this.fetchAllVariants(
+            bound.shop,
+            token,
+            productNode.id,
+            productNode.variants.nodes || [],
+            productNode.variants.pageInfo.endCursor,
+          );
+          productNode.variants = {
+            ...productNode.variants,
+            nodes: allVariants,
+          };
+        }
         const products = this.toProducts(ctx, productNode);
         if (products.length === 0) return null;
         if (this.persistIdentities) {
@@ -391,7 +456,7 @@ export class ShopifyAdapter implements CommerceAdapter {
       }
     }
 
-    // 3. Search variant by SKU or secondary identifier
+    // 3. Search variant by SKU or secondary identifier (do not swallow auth/rate limit errors!)
     const searchQuery = `
       query FindVariant($query: String!) {
         productVariants(first: 1, query: $query) {
@@ -412,32 +477,24 @@ export class ShopifyAdapter implements CommerceAdapter {
       }
     `;
 
-    try {
-      const res = await this.executeGraphQL<any>(bound.shop, token, searchQuery, {
-        query: `sku:${offerId}`,
-      });
-      const matchedVariant = res.data?.productVariants?.nodes?.[0];
-      if (matchedVariant) {
-        const product = this.variantToCanonicalProduct(ctx, matchedVariant.product, matchedVariant);
-        if (this.persistIdentities) {
-          await this.projectIdentities(ctx, [product]);
-        }
-        return product;
+    const res = await this.executeGraphQL<any>(bound.shop, token, searchQuery, {
+      query: `sku:${offerId}`,
+    });
+    const matchedVariant = res.data?.productVariants?.nodes?.[0];
+    if (matchedVariant) {
+      const product = this.variantToCanonicalProduct(ctx, matchedVariant.product, matchedVariant);
+      if (this.persistIdentities) {
+        await this.projectIdentities(ctx, [product]);
       }
-    } catch {
-      // Fall through to numeric ID probe
+      return product;
     }
 
     // 4. Try numeric variant ID fallback
     if (/^\d+$/.test(offerId)) {
-      try {
-        const numericRes = await this.getProduct(ctx, `gid://shopify/ProductVariant/${offerId}`);
-        if (numericRes) return numericRes;
-        const numericProductRes = await this.getProduct(ctx, `gid://shopify/Product/${offerId}`);
-        if (numericProductRes) return numericProductRes;
-      } catch {
-        return null;
-      }
+      const numericRes = await this.getProduct(ctx, `gid://shopify/ProductVariant/${offerId}`);
+      if (numericRes) return numericRes;
+      const numericProductRes = await this.getProduct(ctx, `gid://shopify/Product/${offerId}`);
+      if (numericProductRes) return numericProductRes;
     }
 
     return null;
@@ -455,11 +512,18 @@ export class ShopifyAdapter implements CommerceAdapter {
     if (query.from) {
       filterParts.push(`created_at:>=${query.from.toISOString()}`);
     }
+    if (query.to) {
+      filterParts.push(`created_at:<=${query.to.toISOString()}`);
+    }
     const queryString = filterParts.length > 0 ? filterParts.join(' AND ') : undefined;
 
     const graphql = `
-      query ListOrders($first: Int!, $query: String) {
-        orders(first: $first, query: $query) {
+      query ListOrders($first: Int!, $after: String, $query: String) {
+        orders(first: $first, after: $after, query: $query) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             id
             name
@@ -472,7 +536,11 @@ export class ShopifyAdapter implements CommerceAdapter {
                 currencyCode
               }
             }
-            lineItems(first: 20) {
+            lineItems(first: 100) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
               nodes {
                 id
                 title
@@ -494,17 +562,64 @@ export class ShopifyAdapter implements CommerceAdapter {
       }
     `;
 
-    const first = typeof query.limit === 'number' && query.limit > 0 ? Math.min(query.limit, 100) : 50;
-    const res = await this.executeGraphQL<any>(bound.shop, token, graphql, {
-      first,
-      query: queryString,
-    });
+    const targetLimit = typeof query.limit === 'number' && query.limit > 0 ? query.limit : Infinity;
+    const pageSize = typeof query.limit === 'number' && query.limit > 0 ? Math.min(query.limit, 100) : 50;
 
-    const orderNodes = Array.isArray(res.data?.orders?.nodes) ? res.data.orders.nodes : [];
-    const orders = orderNodes.map((row: any) => this.toOrder(ctx, row));
+    const matchedOrders: CanonicalOrder[] = [];
+    let hasNextPage = true;
+    let cursor: string | null = null;
 
-    const filtered = query.status ? orders.filter((o: CanonicalOrder) => o.status === query.status) : orders;
-    return typeof query.limit === 'number' ? filtered.slice(0, query.limit) : filtered;
+    while (hasNextPage && matchedOrders.length < targetLimit) {
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(bound.shop, token, graphql, {
+        first: pageSize,
+        after: cursor,
+        query: queryString,
+      });
+
+      const orderPage: any = res.data?.orders;
+      const orderNodes = Array.isArray(orderPage?.nodes) ? orderPage.nodes : (Array.isArray(orderPage) ? orderPage : []);
+
+      for (const row of orderNodes) {
+        if (row.lineItems?.pageInfo?.hasNextPage) {
+          const allLines = await this.fetchAllOrderLineItems(
+            bound.shop,
+            token,
+            row.id,
+            row.lineItems.nodes || [],
+            row.lineItems.pageInfo.endCursor,
+          );
+          row.lineItems = {
+            ...row.lineItems,
+            nodes: allLines,
+          };
+        }
+        const canonical = this.toOrder(ctx, row);
+
+        // Explicit date bound filtering
+        if (query.from && new Date(canonical.createdAt).getTime() < query.from.getTime()) {
+          continue;
+        }
+        if (query.to && new Date(canonical.createdAt).getTime() > query.to.getTime()) {
+          continue;
+        }
+
+        // Status filter applies BEFORE taking limit
+        if (query.status && canonical.status !== query.status) {
+          continue;
+        }
+
+        matchedOrders.push(canonical);
+        if (matchedOrders.length >= targetLimit) {
+          break;
+        }
+      }
+
+      hasNextPage = Boolean(orderPage?.pageInfo?.hasNextPage);
+      cursor = orderPage?.pageInfo?.endCursor || null;
+      if (!cursor) break;
+    }
+
+    return matchedOrders;
   }
 
   async getInventory(ctx: CommerceContext, offerId: string): Promise<CanonicalInventory | null> {
@@ -519,7 +634,11 @@ export class ShopifyAdapter implements CommerceAdapter {
             id
             inventoryItem {
               id
-              inventoryLevels(first: 10) {
+              inventoryLevels(first: 50) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
                 nodes {
                   quantities(names: ["available", "incoming", "reserved", "on_hand", "committed"]) {
                     name
@@ -531,14 +650,22 @@ export class ShopifyAdapter implements CommerceAdapter {
           }
         }
       `;
-      try {
-        const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
-        const variant = res.data?.productVariant;
-        if (!variant?.inventoryItem) return null;
-        return this.toInventory(ctx, offerId, variant.inventoryItem.inventoryLevels?.nodes);
-      } catch {
-        return null;
+      const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
+      const variant = res.data?.productVariant;
+      if (!variant?.inventoryItem) return null;
+      let levels = Array.isArray(variant.inventoryItem.inventoryLevels?.nodes)
+        ? variant.inventoryItem.inventoryLevels.nodes
+        : (Array.isArray(variant.inventoryItem.inventoryLevels) ? variant.inventoryItem.inventoryLevels : []);
+      if (variant.inventoryItem.inventoryLevels?.pageInfo?.hasNextPage) {
+        levels = await this.fetchAllInventoryLevels(
+          bound.shop,
+          token,
+          variant.inventoryItem.id,
+          levels,
+          variant.inventoryItem.inventoryLevels.pageInfo.endCursor,
+        );
       }
+      return this.toInventory(ctx, offerId, levels);
     }
 
     // 2. Product GID lookup -> check primary variant
@@ -552,7 +679,11 @@ export class ShopifyAdapter implements CommerceAdapter {
                 id
                 inventoryItem {
                   id
-                  inventoryLevels(first: 10) {
+                  inventoryLevels(first: 50) {
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
                     nodes {
                       quantities(names: ["available", "incoming", "reserved", "on_hand", "committed"]) {
                         name
@@ -566,14 +697,22 @@ export class ShopifyAdapter implements CommerceAdapter {
           }
         }
       `;
-      try {
-        const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
-        const variant = res.data?.product?.variants?.nodes?.[0];
-        if (!variant?.inventoryItem) return null;
-        return this.toInventory(ctx, offerId, variant.inventoryItem.inventoryLevels?.nodes);
-      } catch {
-        return null;
+      const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
+      const variant = res.data?.product?.variants?.nodes?.[0];
+      if (!variant?.inventoryItem) return null;
+      let levels = Array.isArray(variant.inventoryItem.inventoryLevels?.nodes)
+        ? variant.inventoryItem.inventoryLevels.nodes
+        : (Array.isArray(variant.inventoryItem.inventoryLevels) ? variant.inventoryItem.inventoryLevels : []);
+      if (variant.inventoryItem.inventoryLevels?.pageInfo?.hasNextPage) {
+        levels = await this.fetchAllInventoryLevels(
+          bound.shop,
+          token,
+          variant.inventoryItem.id,
+          levels,
+          variant.inventoryItem.inventoryLevels.pageInfo.endCursor,
+        );
       }
+      return this.toInventory(ctx, offerId, levels);
     }
 
     // 3. Search variant by SKU
@@ -584,7 +723,11 @@ export class ShopifyAdapter implements CommerceAdapter {
             id
             inventoryItem {
               id
-              inventoryLevels(first: 10) {
+              inventoryLevels(first: 50) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
                 nodes {
                   quantities(names: ["available", "incoming", "reserved", "on_hand", "committed"]) {
                     name
@@ -598,16 +741,24 @@ export class ShopifyAdapter implements CommerceAdapter {
       }
     `;
 
-    try {
-      const res = await this.executeGraphQL<any>(bound.shop, token, searchQuery, {
-        query: `sku:${offerId}`,
-      });
-      const variant = res.data?.productVariants?.nodes?.[0];
-      if (variant?.inventoryItem) {
-        return this.toInventory(ctx, offerId, variant.inventoryItem.inventoryLevels?.nodes);
+    const res = await this.executeGraphQL<any>(bound.shop, token, searchQuery, {
+      query: `sku:${offerId}`,
+    });
+    const variant = res.data?.productVariants?.nodes?.[0];
+    if (variant?.inventoryItem) {
+      let levels = Array.isArray(variant.inventoryItem.inventoryLevels?.nodes)
+        ? variant.inventoryItem.inventoryLevels.nodes
+        : (Array.isArray(variant.inventoryItem.inventoryLevels) ? variant.inventoryItem.inventoryLevels : []);
+      if (variant.inventoryItem.inventoryLevels?.pageInfo?.hasNextPage) {
+        levels = await this.fetchAllInventoryLevels(
+          bound.shop,
+          token,
+          variant.inventoryItem.id,
+          levels,
+          variant.inventoryItem.inventoryLevels.pageInfo.endCursor,
+        );
       }
-    } catch {
-      // Fall through to numeric probe
+      return this.toInventory(ctx, offerId, levels);
     }
 
     // 4. Numeric fallback
@@ -786,18 +937,175 @@ export class ShopifyAdapter implements CommerceAdapter {
       );
     }
 
-    if (res?.errors && res.errors.length > 0 && !res.data) {
+    if (res?.errors && res.errors.length > 0) {
       const firstErr = res.errors[0];
+      const errMsg = firstErr.message || 'Shopify GraphQL capability execution error';
+      const code = String(firstErr.extensions?.code || '').toUpperCase();
       const isThrottled =
-        firstErr.message?.toLowerCase().includes('throttled') ||
-        firstErr.extensions?.code === 'THROTTLED';
+        errMsg.toLowerCase().includes('throttled') ||
+        code === 'THROTTLED';
       if (isThrottled) {
-        throw new CommercePortError('PROVIDER_RATE_LIMIT', firstErr.message, true);
+        throw new CommercePortError('PROVIDER_RATE_LIMIT', errMsg, true);
       }
-      throw new CommercePortError('COMMERCE_PORT_ERROR', firstErr.message, false);
+      const isAuth =
+        errMsg.toLowerCase().includes('access denied') ||
+        errMsg.toLowerCase().includes('unauthorized') ||
+        code === 'ACCESS_DENIED' ||
+        code === 'UNAUTHORIZED';
+      if (isAuth) {
+        throw new CommercePortError(ErrorCodes.AUTH_REQUIRED, errMsg, false);
+      }
+      throw new CommercePortError('COMMERCE_PORT_ERROR', errMsg, false);
     }
 
     return res;
+  }
+
+  private async fetchAllVariants(
+    shop: string,
+    token: string,
+    productId: string,
+    initialVariants: any[],
+    initialCursor?: string,
+  ): Promise<any[]> {
+    const allVariants = [...initialVariants];
+    let cursor = initialCursor || null;
+    let hasNext = true;
+
+    const moreVariantsQuery = `
+      query GetProductMoreVariants($id: ID!, $after: String) {
+        product(id: $id) {
+          variants(first: 100, after: $after) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              title
+              sku
+              price
+              inventoryItem {
+                id
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    while (hasNext && cursor) {
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(shop, token, moreVariantsQuery, {
+        id: productId,
+        after: cursor,
+      });
+      const page: any = res.data?.product?.variants;
+      const nodes = Array.isArray(page?.nodes) ? page.nodes : [];
+      allVariants.push(...nodes);
+      hasNext = Boolean(page?.pageInfo?.hasNextPage);
+      cursor = page?.pageInfo?.endCursor || null;
+    }
+
+    return allVariants;
+  }
+
+  private async fetchAllOrderLineItems(
+    shop: string,
+    token: string,
+    orderId: string,
+    initialLines: any[],
+    initialCursor?: string,
+  ): Promise<any[]> {
+    const allLines = [...initialLines];
+    let cursor = initialCursor || null;
+    let hasNext = true;
+
+    const moreLinesQuery = `
+      query GetOrderMoreLineItems($id: ID!, $after: String) {
+        order(id: $id) {
+          lineItems(first: 100, after: $after) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              title
+              quantity
+              originalUnitPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              variant {
+                id
+                sku
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    while (hasNext && cursor) {
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(shop, token, moreLinesQuery, {
+        id: orderId,
+        after: cursor,
+      });
+      const page: any = res.data?.order?.lineItems;
+      const nodes = Array.isArray(page?.nodes) ? page.nodes : [];
+      allLines.push(...nodes);
+      hasNext = Boolean(page?.pageInfo?.hasNextPage);
+      cursor = page?.pageInfo?.endCursor || null;
+    }
+
+    return allLines;
+  }
+
+  private async fetchAllInventoryLevels(
+    shop: string,
+    token: string,
+    inventoryItemId: string,
+    initialLevels: any[],
+    initialCursor?: string,
+  ): Promise<any[]> {
+    const allLevels = [...initialLevels];
+    let cursor = initialCursor || null;
+    let hasNext = true;
+
+    const moreLevelsQuery = `
+      query GetMoreInventoryLevels($id: ID!, $after: String) {
+        inventoryItem(id: $id) {
+          inventoryLevels(first: 50, after: $after) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              quantities(names: ["available", "incoming", "reserved", "on_hand", "committed"]) {
+                name
+                quantity
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    while (hasNext && cursor) {
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(shop, token, moreLevelsQuery, {
+        id: inventoryItemId,
+        after: cursor,
+      });
+      const page: any = res.data?.inventoryItem?.inventoryLevels;
+      const nodes = Array.isArray(page?.nodes) ? page.nodes : [];
+      allLevels.push(...nodes);
+      hasNext = Boolean(page?.pageInfo?.hasNextPage);
+      cursor = page?.pageInfo?.endCursor || null;
+    }
+
+    return allLevels;
   }
 
   private toProducts(ctx: CommerceContext, node: any): CanonicalProduct[] {
@@ -920,32 +1228,48 @@ export class ShopifyAdapter implements CommerceAdapter {
     offerId: string,
     levels: any[] = [],
   ): CanonicalInventory {
-    let available = 0;
-    let reserved = 0;
-    let inbound = 0;
+    let totalAvailable = 0;
+    let totalReserved = 0;
+    let totalInbound = 0;
 
     const levelRows = Array.isArray(levels) ? levels : [];
     for (const lvl of levelRows) {
       const quantities = Array.isArray(lvl?.quantities) ? lvl.quantities : [];
+      const qtyMap = new Map<string, number>();
       for (const q of quantities) {
-        const name = String(q?.name || '').toLowerCase();
-        const qty = Number(q?.quantity || 0);
-        if (name === 'available' || name === 'on_hand') {
-          available += qty;
-        } else if (name === 'reserved' || name === 'committed') {
-          reserved += qty;
-        } else if (name === 'incoming') {
-          inbound += qty;
+        if (q?.name) {
+          qtyMap.set(String(q.name).toLowerCase(), Number(q.quantity || 0));
         }
+      }
+
+      // 1. Available: strictly prioritize 'available'. Only fallback to 'on_hand' if 'available' is not reported.
+      // Never add available and on_hand together, because on_hand includes available plus committed.
+      if (qtyMap.has('available')) {
+        totalAvailable += qtyMap.get('available')!;
+      } else if (qtyMap.has('on_hand')) {
+        totalAvailable += qtyMap.get('on_hand')!;
+      }
+
+      // 2. Reserved: prioritize 'committed' (Shopify standard for orders awaiting fulfillment), fallback to 'reserved'.
+      // Never add committed and reserved together in the same level.
+      if (qtyMap.has('committed')) {
+        totalReserved += qtyMap.get('committed')!;
+      } else if (qtyMap.has('reserved')) {
+        totalReserved += qtyMap.get('reserved')!;
+      }
+
+      // 3. Inbound: Shopify uses 'incoming'
+      if (qtyMap.has('incoming')) {
+        totalInbound += qtyMap.get('incoming')!;
       }
     }
 
     return {
       offerId,
       storeId: ctx.storeId,
-      available,
-      reserved,
-      inbound,
+      available: totalAvailable,
+      reserved: totalReserved,
+      inbound: totalInbound,
       daysOfStock: null,
     };
   }

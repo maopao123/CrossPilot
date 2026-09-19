@@ -76,9 +76,10 @@ export class ListingUpdateWorkflow {
 
     const baseUrl = (params.baseUrl || 'http://127.0.0.1:3000').replace(/\/$/, '');
     const timeoutMs = params.timeoutMs || 15000;
-    const evidenceDir =
+    const baseEvidenceDir =
       params.evidenceDir ||
-      path.join(process.cwd(), '.runtime-evidence', 'rpa', jobId);
+      path.join(process.cwd(), '.runtime-evidence', 'rpa');
+    const evidenceDir = path.join(baseEvidenceDir, jobId);
 
     if (!fs.existsSync(evidenceDir)) {
       fs.mkdirSync(evidenceDir, { recursive: true });

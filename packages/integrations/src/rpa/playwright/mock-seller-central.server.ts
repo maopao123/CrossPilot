@@ -33,6 +33,16 @@ export const DEFAULT_MOCK_LISTINGS: Record<string, MockSellerListing> = {
   },
 };
 
+export function escapeHtml(str: unknown): string {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /**
  * Embedded Mock Amazon Seller Central server for realistic Playwright Browser Automation.
  * Serves live interactive HTML UI with SKU inventory list, listing editor, and API state persistence.
@@ -190,17 +200,18 @@ export class MockSellerCentralServer {
   }
 
   private renderDashboardPage(items: MockSellerListing[], search: string): string {
+    const escapedSearch = escapeHtml(search);
     const tableRows = items
       .map(
         (item) => `
-        <tr data-sku="${item.sku}" id="row-${item.sku}">
-          <td class="col-sku font-mono">${item.sku}</td>
-          <td class="col-asin text-muted">${item.asin}</td>
-          <td class="col-title" id="title-${item.sku}">${item.title}</td>
-          <td class="col-price" id="price-${item.sku}">$${item.price.toFixed(2)}</td>
-          <td class="col-status"><span class="badge badge-active">${item.status}</span></td>
+        <tr data-sku="${escapeHtml(item.sku)}" id="row-${escapeHtml(item.sku)}">
+          <td class="col-sku font-mono">${escapeHtml(item.sku)}</td>
+          <td class="col-asin text-muted">${escapeHtml(item.asin)}</td>
+          <td class="col-title" id="title-${escapeHtml(item.sku)}">${escapeHtml(item.title)}</td>
+          <td class="col-price" id="price-${escapeHtml(item.sku)}">$${item.price.toFixed(2)}</td>
+          <td class="col-status"><span class="badge badge-active">${escapeHtml(item.status)}</span></td>
           <td class="col-action">
-            <a class="btn-edit" id="edit-${item.sku}" href="/edit?sku=${encodeURIComponent(item.sku)}">Edit Listing</a>
+            <a class="btn-edit" id="edit-${escapeHtml(item.sku)}" href="/edit?sku=${encodeURIComponent(item.sku)}">Edit Listing</a>
           </td>
         </tr>`,
       )
@@ -237,7 +248,7 @@ export class MockSellerCentralServer {
   </div>
   <div class="card">
     <div class="search-bar">
-      <input type="text" id="search-input" placeholder="Search SKU or title..." value="${search}" />
+      <input type="text" id="search-input" placeholder="Search SKU or title..." value="${escapedSearch}" />
       <button id="search-button" onclick="doSearch()">Search</button>
       <button id="btn-refresh" style="background:#fff;" onclick="window.location.href='/'">Show All</button>
     </div>
@@ -271,11 +282,14 @@ export class MockSellerCentralServer {
   }
 
   private renderEditPage(listing: MockSellerListing): string {
+    const escapedSku = escapeHtml(listing.sku);
+    const escapedAsin = escapeHtml(listing.asin);
+    const escapedTitle = escapeHtml(listing.title);
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Edit Listing - ${listing.sku} • Seller Central</title>
+  <title>Edit Listing - ${escapedSku} • Seller Central</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; color: #111; }
     .header { background: #232f3e; color: #fff; padding: 15px 25px; border-radius: 6px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
@@ -302,16 +316,16 @@ export class MockSellerCentralServer {
   </div>
   <div class="card">
     <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
-      <span style="color:#555;font-size:13px;">SKU:</span> <span class="sku-badge" id="display-sku">${listing.sku}</span> &nbsp;•&nbsp;
-      <span style="color:#555;font-size:13px;">ASIN:</span> <span class="sku-badge" id="display-asin">${listing.asin}</span>
+      <span style="color:#555;font-size:13px;">SKU:</span> <span class="sku-badge" id="display-sku">${escapedSku}</span> &nbsp;•&nbsp;
+      <span style="color:#555;font-size:13px;">ASIN:</span> <span class="sku-badge" id="display-asin">${escapedAsin}</span>
     </div>
 
     <form id="listing-form" onsubmit="return false;">
-      <input type="hidden" id="listing-sku" value="${listing.sku}" />
+      <input type="hidden" id="listing-sku" value="${escapedSku}" />
 
       <div class="form-group">
         <label for="listing-title">Item Name (Product Title)</label>
-        <input type="text" id="listing-title" name="title" value="${listing.title}" />
+        <input type="text" id="listing-title" name="title" value="${escapedTitle}" />
         <div class="hint">Recommended length: 80 - 150 characters.</div>
       </div>
 

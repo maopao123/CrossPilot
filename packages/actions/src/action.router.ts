@@ -206,9 +206,11 @@ export class ActionRouter {
         }
 
         try {
+          const payload = (proposal.payload || {}) as Record<string, unknown>;
+          const workflow = String(payload.workflow || proposal.name || '');
           const rpaResult = await adapter.execute({
-            workflow: proposal.name,
-            params: proposal.payload as Record<string, unknown>,
+            workflow,
+            params: payload,
           });
 
           const isMock = mode === 'MOCK' || adapter.id === 'mock-rpa';
@@ -277,10 +279,18 @@ export class ActionRouter {
             };
           } else {
             // FAILED status returned from adapter
-            // Typed preflight distinction: only pre-dispatch without remote jobId & explicit AUTH_REQUIRED/PREFLIGHT is NOT_APPLIED.
-            // Any failure once dispatched (has jobId or post-dispatch) retains effect UNKNOWN.
-            const hasRemoteJob = Boolean(rpaResult.jobId);
-            const isExplicitPreflight = !hasRemoteJob && (rpaResult.error?.startsWith('AUTH_REQUIRED') || rpaResult.error?.startsWith('PREFLIGHT'));
+            // Typed preflight/config distinction: config errors, auth required, or unsupported workflows
+            // rejected before execution definitely have effect NOT_APPLIED.
+            // Any failure once dispatched to remote system retains effect UNKNOWN for safety.
+            const isConfigOrPreflight =
+              Boolean(rpaResult.error?.startsWith('CONFIG_ERROR')) ||
+              Boolean(rpaResult.error?.startsWith('AUTH_REQUIRED')) ||
+              Boolean(rpaResult.error?.startsWith('UNSUPPORTED_WORKFLOW')) ||
+              (!rpaResult.jobId && Boolean(rpaResult.error?.startsWith('PREFLIGHT')));
+
+            const errorCode = rpaResult.error?.startsWith('CONFIG_ERROR')
+              ? 'CONFIG_ERROR'
+              : (isConfigOrPreflight ? 'AUTH_REQUIRED' : 'RPA_FAILED');
 
             result = {
               actionId: proposal.id,
@@ -295,10 +305,10 @@ export class ActionRouter {
                 provider: adapter.id,
                 operationId,
                 phase: 'FAILED',
-                effect: isExplicitPreflight ? 'NOT_APPLIED' : 'UNKNOWN',
-                recovery: isExplicitPreflight ? 'REAUTHORIZE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
-                externalId: rpaResult.jobId || undefined,
-                errorCode: isExplicitPreflight ? 'AUTH_REQUIRED' : 'RPA_FAILED',
+                effect: isConfigOrPreflight ? 'NOT_APPLIED' : 'UNKNOWN',
+                recovery: isConfigOrPreflight ? 'REAUTHORIZE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
+                externalId: isConfigOrPreflight ? undefined : (rpaResult.jobId || undefined),
+                errorCode,
               },
             };
           }

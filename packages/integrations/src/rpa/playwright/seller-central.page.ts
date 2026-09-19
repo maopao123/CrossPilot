@@ -45,7 +45,10 @@ export class SellerCentralPage {
     const searchButton = this.page.locator('#search-button');
     await searchButton.click();
 
-    const editButton = this.page.locator(`#edit-${sku}`);
+    const escapedSkuAttr = sku.replace(/["\\]/g, '\\$&');
+    const editButton = this.page
+      .locator(`tr[data-sku="${escapedSkuAttr}"] .btn-edit, a.btn-edit[href*="sku=${encodeURIComponent(sku)}"]`)
+      .first();
     await editButton.waitFor({ state: 'visible', timeout: timeoutMs });
     await editButton.click();
 

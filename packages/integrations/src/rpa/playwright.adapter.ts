@@ -31,7 +31,6 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
 
   private readonly options: PlaywrightRpaAdapterOptions;
   private readonly executionResults = new Map<string, RpaExecutionResult>();
-  private activeMockServer: MockSellerCentralServer | null = null;
 
   constructor(options: PlaywrightRpaAdapterOptions = {}) {
     this.options = options;
@@ -41,8 +40,17 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
     const jobId = `rpa_playwright_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     const startTime = Date.now();
 
-    // 1. Workflow validation
-    if (input.workflow !== 'UPDATE_LISTING') {
+    const params = (input.params || {}) as Record<string, any>;
+
+    // 1. Workflow validation: match exact code or friendly proposal name
+    const rawWorkflow = String(params.workflow || input.workflow || '').trim();
+    const normalizedWorkflow = rawWorkflow.toUpperCase().replace(/[\s-]+/g, '_');
+    const isSupported =
+      normalizedWorkflow === 'UPDATE_LISTING' ||
+      normalizedWorkflow === 'UPDATE_AMAZON_LISTING' ||
+      rawWorkflow === 'UPDATE_LISTING';
+
+    if (!isSupported) {
       const failedResult: RpaExecutionResult = {
         jobId,
         status: 'FAILED',
@@ -60,23 +68,33 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
       return failedResult;
     }
 
-    const params = (input.params || {}) as Record<string, any>;
     const skuCode = String(params.skuCode || params.sku || '');
     const title = params.title != null ? String(params.title) : undefined;
     const price = params.price != null ? parseFloat(String(params.price)) : undefined;
 
-    // 2. Base URL discovery: input param > options > env > auto-spin embedded Mock Seller Central
+    // 2. Base URL discovery: input param > options > env > explicitly provided mockServer
     let baseUrl = params.baseUrl || this.options.baseUrl || process.env.SELLER_CENTRAL_URL;
-    let didSpinMockServer = false;
+    if (!baseUrl && this.options.mockServer) {
+      baseUrl = this.options.mockServer.getUrl();
+    }
 
+    // Fail-closed: Never auto-spin mock server in LIVE mode if target URL is missing!
     if (!baseUrl) {
-      if (!this.activeMockServer) {
-        this.activeMockServer = this.options.mockServer || new MockSellerCentralServer();
-        baseUrl = await this.activeMockServer.start(0);
-        didSpinMockServer = true;
-      } else {
-        baseUrl = this.activeMockServer.getUrl();
-      }
+      const configErrorResult: RpaExecutionResult = {
+        jobId,
+        status: 'FAILED',
+        error: 'CONFIG_ERROR: No Seller Central target URL provided for LIVE RPA execution. Set SELLER_CENTRAL_URL or configure baseUrl.',
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            step: 'CONFIG_VALIDATION',
+            message: 'LIVE RPA execution rejected: target Seller Central URL is missing. Refusing to fallback to mock in LIVE mode.',
+          },
+        ],
+        durationMs: Date.now() - startTime,
+      };
+      this.executionResults.set(jobId, configErrorResult);
+      return configErrorResult;
     }
 
     const workflowParams: UpdateListingWorkflowParams = {
@@ -111,11 +129,22 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
 
       this.executionResults.set(jobId, result);
       return result;
-    } finally {
-      if (didSpinMockServer && this.activeMockServer) {
-        await this.activeMockServer.stop().catch(() => {});
-        this.activeMockServer = null;
-      }
+    } catch (err: any) {
+      const errorResult: RpaExecutionResult = {
+        jobId,
+        status: 'FAILED',
+        error: `EXECUTION_ERROR: ${err?.message || String(err)}`,
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            step: 'UNHANDLED_EXCEPTION',
+            message: err?.message || String(err),
+          },
+        ],
+        durationMs: Date.now() - startTime,
+      };
+      this.executionResults.set(jobId, errorResult);
+      return errorResult;
     }
   }
 
