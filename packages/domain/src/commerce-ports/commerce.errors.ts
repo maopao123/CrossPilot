@@ -1,14 +1,18 @@
-import { ErrorCodes } from '@crosspilot/shared';
+import { ErrorCodes, NormalizedExecutionError, normalizeExecutionError } from '@crosspilot/shared';
 
 export class CommercePortError extends Error {
   readonly code: string;
   readonly retryable: boolean;
+  readonly normalizedError: NormalizedExecutionError;
 
-  constructor(code: string, message: string, retryable = false) {
+  constructor(code: string, message: string, retryable = false, normalized?: NormalizedExecutionError) {
     super(message);
     this.name = 'CommercePortError';
     this.code = code;
     this.retryable = retryable;
+    this.normalizedError =
+      normalized ||
+      normalizeExecutionError({ code, message }, { code, retryable, provider: 'commerce' });
   }
 }
 

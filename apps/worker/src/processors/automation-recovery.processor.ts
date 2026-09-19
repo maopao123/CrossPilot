@@ -1,6 +1,7 @@
 import { PrismaClient, AutomationOperation } from '@prisma/client';
 import { AutomationOperationStore } from '@crosspilot/db';
 import { SimulatorERPAdapter } from '@crosspilot/integrations';
+import { ExecutionErrorClass, NormalizedExecutionError, normalizeExecutionError } from '@crosspilot/shared';
 
 export const AUTOMATION_RECOVERY_QUEUE_NAME = 'crosspilot-automation-recovery';
 
@@ -107,6 +108,13 @@ export async function processAutomationRecovery(
     try {
       // Case 1: In SUBMITTED / VERIFYING or recovery=QUERY -> Check remote reality
       if (claimed.phase === 'SUBMITTED' || claimed.phase === 'VERIFYING' || claimed.recovery === 'QUERY') {
+        let action: any = null;
+        let params: any = {};
+        if (claimed.actionId) {
+          action = await prisma.plannedAction.findUnique({ where: { id: claimed.actionId } });
+          params = (action?.parameters as any) || {};
+        }
+
         const checkRes = await adapter.getPurchaseOrder({
           scope: { workspaceId: claimed.workspaceId, connectionId: claimed.connectionId },
           operationId: claimed.id,
@@ -115,13 +123,6 @@ export async function processAutomationRecovery(
         if (checkRes.success && checkRes.data?.externalId) {
           const externalId = checkRes.data.externalId;
           const remoteOrder = checkRes.data;
-
-          let action: any = null;
-          let params: any = {};
-          if (claimed.actionId) {
-            action = await prisma.plannedAction.findUnique({ where: { id: claimed.actionId } });
-            params = (action?.parameters as any) || {};
-          }
 
           // D-R1: 远端单据关键内容与本地原始请求 payload 比对
           // 至少供应商标识严格相等、总金额严格相等（如有明细则明细数量也比对）
@@ -205,6 +206,15 @@ export async function processAutomationRecovery(
               recovery: 'MANUAL',
               externalId,
               errorCode: 'REMOTE_PAYLOAD_MISMATCH',
+              errorClass: 'VERIFY_MISMATCH' as ExecutionErrorClass,
+              normalizedError: normalizeExecutionError(
+                new Error(`Remote payload mismatch: ${conflictDetails.mismatches.join('; ')}`),
+                {
+                  provider: claimed.provider,
+                  code: 'REMOTE_PAYLOAD_MISMATCH',
+                  defaultClass: 'VERIFY_MISMATCH',
+                },
+              ),
               conflictDetails,
             };
 
@@ -240,6 +250,15 @@ export async function processAutomationRecovery(
               recovery: 'MANUAL',
               externalId,
               errorCode: 'LOCAL_SYNC_FAILED',
+              errorClass: 'PROVIDER_ERROR' as ExecutionErrorClass,
+              normalizedError: normalizeExecutionError(
+                new Error(`Failed to sync local PurchaseOrder: ${syncRes.error}`),
+                {
+                  provider: claimed.provider,
+                  code: 'LOCAL_SYNC_FAILED',
+                  defaultClass: 'PROVIDER_ERROR',
+                },
+              ),
               verifiedAt: new Date().toISOString(),
               syncError: syncRes.error,
             };
@@ -294,12 +313,54 @@ export async function processAutomationRecovery(
           continue;
         }
 
-        // Distinguish definite NOT_FOUND from TIMEOUT / NETWORK_ERROR
-        const isDefiniteNotFound = checkRes.errorCode === 'NOT_FOUND';
+        // Distinguish definite NOT_FOUND from TIMEOUT / NETWORK_ERROR / AUTH / PERMISSION
+        const checkNormalized: NormalizedExecutionError =
+          checkRes.normalizedError ||
+          normalizeExecutionError(checkRes.errorMessage || checkRes, {
+            provider: claimed.provider,
+            code: checkRes.errorCode,
+            originalStatus: checkRes.statusCode,
+          });
+
+        // Query failure: AUTH / PERMISSION errors cannot be resolved by retrying query
+        if (checkNormalized.class === 'AUTH' || checkNormalized.class === 'PERMISSION') {
+          const recoveryAction = checkNormalized.class === 'AUTH' ? 'REAUTHORIZE' : 'MANUAL';
+          const evidenceData: any = {
+            mode: claimed.mode as any,
+            provider: claimed.provider,
+            operationId: claimed.id,
+            phase: 'NEEDS_ATTENTION',
+            effect: 'UNKNOWN',
+            recovery: recoveryAction,
+            errorCode: checkNormalized.code,
+            errorClass: checkNormalized.class,
+            normalizedError: checkNormalized,
+          };
+
+          await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+          if (claimed.actionId) {
+            await prisma.plannedAction.updateMany({
+              where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
+              data: {
+                status: 'FAILED',
+                lastMessage: `ERP 远端查询鉴权/权限失败 (${checkNormalized.class}: ${checkNormalized.message})，需人工/重新授权处理`,
+                parameters: {
+                  ...params,
+                  _evidence: evidenceData,
+                },
+              },
+            });
+          }
+          escalated++;
+          continue;
+        }
+
+        const isDefiniteNotFound = checkNormalized.class === 'NOT_FOUND';
 
         if (isDefiniteNotFound) {
           if (claimed.attemptCount >= 3) {
-            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, {
+            const evidenceData: any = {
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -307,7 +368,10 @@ export async function processAutomationRecovery(
               effect: 'NOT_APPLIED',
               recovery: 'MANUAL',
               errorCode: 'MAX_RETRIES_EXCEEDED',
-            });
+              errorClass: checkNormalized.class,
+              normalizedError: checkNormalized,
+            };
+            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
@@ -315,6 +379,10 @@ export async function processAutomationRecovery(
                 data: {
                   status: 'FAILED',
                   lastMessage: '重试超过上限，需要人工介入处理 (远端确认未创建)',
+                  parameters: {
+                    ...params,
+                    _evidence: evidenceData,
+                  },
                 },
               });
             }
@@ -340,7 +408,7 @@ export async function processAutomationRecovery(
         } else {
           // Timeout or network error during query: remote status remains UNKNOWN
           if (claimed.attemptCount >= 3) {
-            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, {
+            const evidenceData: any = {
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -348,7 +416,10 @@ export async function processAutomationRecovery(
               effect: 'UNKNOWN',
               recovery: 'MANUAL',
               errorCode: 'QUERY_TIMEOUT_MAX',
-            });
+              errorClass: checkNormalized.class,
+              normalizedError: checkNormalized,
+            };
+            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
@@ -356,6 +427,10 @@ export async function processAutomationRecovery(
                 data: {
                   status: 'FAILED',
                   lastMessage: '查询远端超时达上限，状态未知，需人工核实外部系统',
+                  parameters: {
+                    ...params,
+                    _evidence: evidenceData,
+                  },
                 },
               });
             }
@@ -409,6 +484,7 @@ export async function processAutomationRecovery(
         let createSuccess = false;
         let externalId: string | undefined;
         let actionParams: any = {};
+        let erpRes: any = null;
 
         if (claimed.actionId) {
           const action = await prisma.plannedAction.findUnique({
@@ -417,7 +493,7 @@ export async function processAutomationRecovery(
 
           if (action) {
             actionParams = (action.parameters as any) || {};
-            const erpRes = await adapter.createPurchaseOrder({
+            erpRes = await adapter.createPurchaseOrder({
               scope: { workspaceId: claimed.workspaceId, connectionId: claimed.connectionId },
               operationId: claimed.id,
               idempotencyKey: claimed.idempotencyKey,
@@ -444,6 +520,15 @@ export async function processAutomationRecovery(
               recovery: 'MANUAL',
               externalId,
               errorCode: 'LOCAL_SYNC_FAILED',
+              errorClass: 'PROVIDER_ERROR' as ExecutionErrorClass,
+              normalizedError: normalizeExecutionError(
+                new Error(`Failed to sync local PurchaseOrder: ${syncRes.error}`),
+                {
+                  provider: claimed.provider,
+                  code: 'LOCAL_SYNC_FAILED',
+                  defaultClass: 'PROVIDER_ERROR',
+                },
+              ),
               verifiedAt: new Date().toISOString(),
               syncError: syncRes.error,
             };
@@ -502,9 +587,105 @@ export async function processAutomationRecovery(
           }
           recovered++;
         } else {
+          const erpNormalized: NormalizedExecutionError =
+            erpRes?.normalizedError ||
+            normalizeExecutionError(erpRes?.error || erpRes || new Error('Create purchase order failed'), {
+              provider: claimed.provider,
+              code: erpRes?.errorCode,
+              originalStatus: erpRes?.statusCode,
+            });
+
           const nextCount = claimed.attemptCount + 1;
+
+          // Non-retryable error (AUTH, PERMISSION, VALIDATION, CONFLICT):
+          // Do not blind loop. Immediately escalate to NEEDS_ATTENTION.
+          if (!erpNormalized.retryable && erpNormalized.class !== 'TIMEOUT') {
+            const recoveryAction = erpNormalized.class === 'AUTH' ? 'REAUTHORIZE' : 'MANUAL';
+            const evidenceData: any = {
+              mode: claimed.mode as any,
+              provider: claimed.provider,
+              operationId: claimed.id,
+              phase: 'NEEDS_ATTENTION',
+              effect: 'NOT_APPLIED',
+              recovery: recoveryAction,
+              errorCode: erpNormalized.code,
+              errorClass: erpNormalized.class,
+              normalizedError: erpNormalized,
+            };
+
+            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+            if (claimed.actionId) {
+              await prisma.plannedAction.updateMany({
+                where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
+                data: {
+                  status: 'FAILED',
+                  lastMessage: `ERP 采购单重试遇到不可重试错误 (${erpNormalized.class}: ${erpNormalized.message})，已置入 NEEDS_ATTENTION`,
+                  parameters: {
+                    ...actionParams,
+                    _evidence: evidenceData,
+                  },
+                },
+              });
+            }
+            escalated++;
+            continue;
+          }
+
+          // TIMEOUT error during retry:
+          // In-flight status unknown! Do NOT blindly retry creation; switch to QUERY to verify remote state.
+          if (erpNormalized.class === 'TIMEOUT') {
+            if (nextCount >= 3) {
+              const evidenceData: any = {
+                mode: claimed.mode as any,
+                provider: claimed.provider,
+                operationId: claimed.id,
+                phase: 'NEEDS_ATTENTION',
+                effect: 'UNKNOWN',
+                recovery: 'MANUAL',
+                errorCode: 'RETRY_TIMEOUT_MAX',
+                errorClass: erpNormalized.class,
+                normalizedError: erpNormalized,
+              };
+              await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+              if (claimed.actionId) {
+                await prisma.plannedAction.updateMany({
+                  where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
+                  data: {
+                    status: 'FAILED',
+                    lastMessage: 'ERP 采购单重试超时达上限，状态未知，需人工核对外部系统',
+                    parameters: {
+                      ...actionParams,
+                      _evidence: evidenceData,
+                    },
+                  },
+                });
+              }
+              escalated++;
+              continue;
+            }
+
+            await prisma.automationOperation.update({
+              where: { id: claimed.id },
+              data: {
+                version: { increment: 1 },
+                phase: 'SUBMITTED',
+                recovery: 'QUERY',
+                effect: 'UNKNOWN',
+                attemptCount: nextCount,
+                nextAttemptAt: new Date(Date.now() + Math.pow(2, nextCount) * 1000),
+                leaseOwner: null,
+                leaseUntil: null,
+              },
+            });
+            retried++;
+            continue;
+          }
+
+          // Retryable error (TRANSIENT, RATE_LIMIT, etc.)
           if (nextCount >= 3) {
-            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, {
+            const evidenceData: any = {
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -512,7 +693,24 @@ export async function processAutomationRecovery(
               effect: 'NOT_APPLIED',
               recovery: 'MANUAL',
               errorCode: 'RETRY_FAILED_MAX',
-            });
+              errorClass: erpNormalized.class,
+              normalizedError: erpNormalized,
+            };
+            await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+            if (claimed.actionId) {
+              await prisma.plannedAction.updateMany({
+                where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
+                data: {
+                  status: 'FAILED',
+                  lastMessage: `ERP 采购单重试达到上限 (${erpNormalized.message})，需要人工介入处理`,
+                  parameters: {
+                    ...actionParams,
+                    _evidence: evidenceData,
+                  },
+                },
+              });
+            }
             escalated++;
           } else {
             await prisma.automationOperation.update({

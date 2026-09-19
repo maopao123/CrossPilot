@@ -1,3 +1,5 @@
+import { ExecutionErrorClass, NormalizedExecutionError } from './execution-error.js';
+
 export type AutomationMode = 'MOCK' | 'SIMULATOR' | 'LIVE';
 
 export type AutomationPhase =
@@ -29,8 +31,15 @@ export interface ExecutionEvidence {
   effect: AutomationEffect;
   recovery: RecoveryAction;
   errorCode?: string;
+  errorClass?: ExecutionErrorClass;
+  normalizedError?: NormalizedExecutionError;
   externalId?: string;
   requestId?: string;
   verifiedAt?: string;
   evidenceRef?: string;
+  conflictDetails?: Record<string, unknown>;
+  syncError?: string;
+  manualResolution?: Record<string, unknown>;
 }
+
+export * from './execution-error.js';

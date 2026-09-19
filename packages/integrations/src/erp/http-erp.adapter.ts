@@ -1,11 +1,12 @@
-import type {
-  ErpCreateCommand,
-  ErpInventoryItem,
-  ErpLookup,
-  ErpPurchaseOrder,
-  ErpReceiptCommand,
-  ErpReceiptRecord,
-  ErpResult,
+import {
+  type ErpCreateCommand,
+  type ErpInventoryItem,
+  type ErpLookup,
+  type ErpPurchaseOrder,
+  type ErpReceiptCommand,
+  type ErpReceiptRecord,
+  type ErpResult,
+  normalizeExecutionError,
 } from '@crosspilot/shared';
 
 export interface HttpErpAdapterOptions {
@@ -77,62 +78,93 @@ export class HttpERPAdapter {
       }
 
       if (status === 401 || status === 403) {
+        const errorCode = status === 401 ? 'AUTH_FAILED' : 'VALIDATION_ERROR';
+        const errorMessage = parsedJson?.message || parsedJson?.error || `Authentication failed with HTTP ${status}`;
         return {
           success: false,
-          errorCode: 'AUTH_FAILED',
-          errorMessage: parsedJson?.message || parsedJson?.error || `Authentication failed with HTTP ${status}`,
+          errorCode: status === 401 ? 'AUTH_FAILED' : 'VALIDATION_ERROR',
+          errorMessage,
           statusCode: status,
           rawResponse: parsedJson || text,
+          normalizedError: normalizeExecutionError(
+            { errorCode, errorMessage, statusCode: status, rawResponse: parsedJson || text },
+            { provider: 'erp', originalStatus: status, code: status === 401 ? 'AUTH_FAILED' : 'PERMISSION_DENIED' },
+          ),
         };
       }
 
       if (status === 429) {
+        const errorMessage = parsedJson?.message || parsedJson?.error || 'Rate limit exceeded';
         return {
           success: false,
           errorCode: 'RATE_LIMITED',
-          errorMessage: parsedJson?.message || parsedJson?.error || 'Rate limit exceeded',
+          errorMessage,
           statusCode: status,
           rawResponse: parsedJson || text,
+          normalizedError: normalizeExecutionError(
+            { errorCode: 'RATE_LIMITED', errorMessage, statusCode: status },
+            { provider: 'erp', originalStatus: 429, code: 'RATE_LIMITED' },
+          ),
         };
       }
 
       if (status === 400 || status === 422) {
+        const errorMessage = parsedJson?.message || parsedJson?.error || `Validation error HTTP ${status}`;
         return {
           success: false,
           errorCode: 'VALIDATION_ERROR',
-          errorMessage: parsedJson?.message || parsedJson?.error || `Validation error HTTP ${status}`,
+          errorMessage,
           statusCode: status,
           rawResponse: parsedJson || text,
+          normalizedError: normalizeExecutionError(
+            { errorCode: 'VALIDATION_ERROR', errorMessage, statusCode: status },
+            { provider: 'erp', originalStatus: status, code: 'VALIDATION_ERROR' },
+          ),
         };
       }
 
       if (status === 404) {
+        const errorMessage = parsedJson?.message || parsedJson?.error || 'Resource not found';
         return {
           success: false,
           errorCode: 'NOT_FOUND',
-          errorMessage: parsedJson?.message || parsedJson?.error || 'Resource not found',
+          errorMessage,
           statusCode: status,
           rawResponse: parsedJson || text,
+          normalizedError: normalizeExecutionError(
+            { errorCode: 'NOT_FOUND', errorMessage, statusCode: 404 },
+            { provider: 'erp', originalStatus: 404, code: 'NOT_FOUND' },
+          ),
         };
       }
 
       if (status < 200 || status >= 300) {
+        const errorMessage = parsedJson?.message || parsedJson?.error || `ERP server error HTTP ${status}`;
         return {
           success: false,
           errorCode: 'UNKNOWN_ERROR',
-          errorMessage: parsedJson?.message || parsedJson?.error || `ERP server error HTTP ${status}`,
+          errorMessage,
           statusCode: status,
           rawResponse: parsedJson || text,
+          normalizedError: normalizeExecutionError(
+            { errorCode: 'UNKNOWN_ERROR', errorMessage, statusCode: status },
+            { provider: 'erp', originalStatus: status, code: `HTTP_${status}` },
+          ),
         };
       }
 
       if (!parsedJson || typeof parsedJson !== 'object') {
+        const errorMessage = 'Malformed 200 response: expected JSON object';
         return {
           success: false,
           errorCode: 'UNKNOWN_ERROR',
-          errorMessage: 'Malformed 200 response: expected JSON object',
+          errorMessage,
           statusCode: status,
           rawResponse: text,
+          normalizedError: normalizeExecutionError(
+            { code: 'VALIDATION_ERROR', message: errorMessage },
+            { provider: 'erp', originalStatus: status, code: 'VALIDATION_ERROR' },
+          ),
         };
       }
 
@@ -145,16 +177,19 @@ export class HttpERPAdapter {
     } catch (err: any) {
       clearTimeout(timer);
       if (err.name === 'AbortError' || err.code === 'UND_ERR_CONNECT_TIMEOUT') {
+        const errorMessage = `Request timed out after ${timeout}ms`;
         return {
           success: false,
           errorCode: 'TIMEOUT',
-          errorMessage: `Request timed out after ${timeout}ms`,
+          errorMessage,
+          normalizedError: normalizeExecutionError(err, { provider: 'erp', code: 'TIMEOUT' }),
         };
       }
       return {
         success: false,
         errorCode: 'UNKNOWN_ERROR',
         errorMessage: err.message || 'Network error',
+        normalizedError: normalizeExecutionError(err, { provider: 'erp', code: err?.code || 'NETWORK_ERROR' }),
       };
     }
   }
@@ -181,12 +216,17 @@ export class HttpERPAdapter {
 
     const po = res.data;
     if (!po || typeof po !== 'object' || !po.externalId) {
+      const errorMessage = 'ERP returned 200 but missing externalId or malformed payload';
       return {
         success: false,
         errorCode: 'UNKNOWN_ERROR',
-        errorMessage: 'ERP returned 200 but missing externalId or malformed payload',
+        errorMessage,
         statusCode: res.statusCode,
         rawResponse: res.rawResponse,
+        normalizedError: normalizeExecutionError(
+          { code: 'VALIDATION_ERROR', message: errorMessage },
+          { provider: 'erp', code: 'VALIDATION_ERROR', originalStatus: res.statusCode },
+        ),
       };
     }
 
@@ -202,10 +242,15 @@ export class HttpERPAdapter {
     } else if (lookup.idempotencyKey) {
       endpoint = `/erp/purchase-orders/by-idempotency/${encodeURIComponent(lookup.idempotencyKey)}`;
     } else {
+      const errorMessage = 'Lookup requires externalId, operationId, or idempotencyKey';
       return {
         success: false,
         errorCode: 'VALIDATION_ERROR',
-        errorMessage: 'Lookup requires externalId, operationId, or idempotencyKey',
+        errorMessage,
+        normalizedError: normalizeExecutionError(
+          { code: 'VALIDATION_ERROR', message: errorMessage },
+          { provider: 'erp', code: 'VALIDATION_ERROR' },
+        ),
       };
     }
 
@@ -253,12 +298,17 @@ export class HttpERPAdapter {
 
     const receipt = res.data;
     if (!receipt || typeof receipt !== 'object' || !receipt.externalReceiptId) {
+      const errorMessage = 'ERP returned 200 for receipt but missing externalReceiptId';
       return {
         success: false,
         errorCode: 'UNKNOWN_ERROR',
-        errorMessage: 'ERP returned 200 for receipt but missing externalReceiptId',
+        errorMessage,
         statusCode: res.statusCode,
         rawResponse: res.rawResponse,
+        normalizedError: normalizeExecutionError(
+          { code: 'VALIDATION_ERROR', message: errorMessage },
+          { provider: 'erp', code: 'VALIDATION_ERROR', originalStatus: res.statusCode },
+        ),
       };
     }
 

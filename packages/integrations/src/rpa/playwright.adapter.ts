@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { AutomationMode } from '@crosspilot/shared';
+import { AutomationMode, normalizeExecutionError } from '@crosspilot/shared';
 import {
   RpaAdapter,
   RpaExecutionInput,
@@ -122,10 +122,15 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
       rawWorkflow === 'UPDATE_LISTING';
 
     if (!isSupported) {
+      const errorMsg = `UNSUPPORTED_WORKFLOW: Playwright RPA adapter does not support workflow "${input.workflow}"`;
       const failedResult: RpaExecutionResult = {
         jobId: '',
         status: 'FAILED',
-        error: `UNSUPPORTED_WORKFLOW: Playwright RPA adapter does not support workflow "${input.workflow}"`,
+        error: errorMsg,
+        normalizedError: normalizeExecutionError(errorMsg, {
+          provider: 'playwright-rpa',
+          code: 'UNSUPPORTED_WORKFLOW',
+        }),
         logs: [
           {
             timestamp: new Date().toISOString(),
@@ -150,10 +155,15 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
       try {
         hostname = new URL(params.baseUrl).hostname;
       } catch {}
+      const errorMsg = `CONFIG_ERROR: Unauthorized target host "${hostname}" in baseUrl. Target host must be a valid Seller Central domain or trusted server configuration.`;
       return {
         jobId: '',
         status: 'FAILED',
-        error: `CONFIG_ERROR: Unauthorized target host "${hostname}" in baseUrl. Target host must be a valid Seller Central domain or trusted server configuration.`,
+        error: errorMsg,
+        normalizedError: normalizeExecutionError(errorMsg, {
+          provider: 'playwright-rpa',
+          code: 'CONFIG_ERROR',
+        }),
         logs: [
           {
             timestamp: new Date().toISOString(),
@@ -172,10 +182,15 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
 
     // Fail-closed: Never auto-spin mock server in LIVE mode if target URL is missing!
     if (!baseUrl) {
+      const errorMsg = 'CONFIG_ERROR: No Seller Central target URL provided for LIVE RPA execution. Set SELLER_CENTRAL_URL or configure baseUrl.';
       const configErrorResult: RpaExecutionResult = {
         jobId: '',
         status: 'FAILED',
-        error: 'CONFIG_ERROR: No Seller Central target URL provided for LIVE RPA execution. Set SELLER_CENTRAL_URL or configure baseUrl.',
+        error: errorMsg,
+        normalizedError: normalizeExecutionError(errorMsg, {
+          provider: 'playwright-rpa',
+          code: 'CONFIG_ERROR',
+        }),
         logs: [
           {
             timestamp: new Date().toISOString(),
@@ -193,10 +208,15 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
       try {
         hostname = new URL(baseUrl).hostname;
       } catch {}
+      const errorMsg = `CONFIG_ERROR: Unauthorized target host "${hostname}" in configured baseUrl. Target host must be a valid Seller Central domain.`;
       return {
         jobId: '',
         status: 'FAILED',
-        error: `CONFIG_ERROR: Unauthorized target host "${hostname}" in configured baseUrl. Target host must be a valid Seller Central domain.`,
+        error: errorMsg,
+        normalizedError: normalizeExecutionError(errorMsg, {
+          provider: 'playwright-rpa',
+          code: 'CONFIG_ERROR',
+        }),
         logs: [
           {
             timestamp: new Date().toISOString(),
@@ -230,6 +250,13 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
         status = 'TIMEOUT';
       }
 
+      const normalizedError = outcome.success
+        ? undefined
+        : normalizeExecutionError(outcome.error, {
+            provider: 'playwright-rpa',
+            code: status === 'TIMEOUT' ? 'PAGE_TIMEOUT' : undefined,
+          });
+
       const result: RpaExecutionResult = {
         jobId,
         status,
@@ -237,16 +264,23 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
         screenshotUrls: outcome.screenshotUrls,
         logs: outcome.logs,
         error: outcome.error,
+        normalizedError,
         durationMs: outcome.durationMs,
       };
 
       this.executionResults.set(jobId, result);
       return result;
     } catch (err: any) {
+      const errorMsg = `EXECUTION_ERROR: ${err?.message || String(err)}`;
+      const normalizedError = normalizeExecutionError(err, {
+        provider: 'playwright-rpa',
+        code: 'EXECUTION_ERROR',
+      });
       const errorResult: RpaExecutionResult = {
         jobId,
         status: 'FAILED',
-        error: `EXECUTION_ERROR: ${err?.message || String(err)}`,
+        error: errorMsg,
+        normalizedError,
         logs: [
           {
             timestamp: new Date().toISOString(),
@@ -264,10 +298,15 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
   async getStatus(jobId: string): Promise<RpaExecutionResult> {
     const res = this.executionResults.get(jobId);
     if (res) return res;
+    const errorMsg = `Job ${jobId} not found`;
     return {
       jobId,
       status: 'FAILED',
-      error: `Job ${jobId} not found`,
+      error: errorMsg,
+      normalizedError: normalizeExecutionError(errorMsg, {
+        provider: 'playwright-rpa',
+        code: 'NOT_FOUND',
+      }),
       durationMs: 0,
     };
   }

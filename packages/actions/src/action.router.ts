@@ -4,7 +4,7 @@ import {
   ActionDispatcherContext,
 } from './action.types.js';
 import { defaultRpaRegistry, RpaAdapter } from '@crosspilot/integrations/rpa';
-import { AutomationMode } from '@crosspilot/shared';
+import { AutomationMode, normalizeExecutionError } from '@crosspilot/shared';
 import { verifyApprovedPayloadBinding } from './approval-binding.js';
 
 export type { ActionDispatcherContext } from './action.types.js';
@@ -92,12 +92,18 @@ export class ActionRouter {
       }
 
       // Idempotency conflict: same operationId was dispatched with different parameters, target, provider, or mode
+      const idempErrorMsg = `IDEMPOTENCY_CONFLICT: operationId '${context.operationId}' has already been executed with different parameters, target, provider, or mode`;
+      const idempNormalized = normalizeExecutionError(idempErrorMsg, {
+        provider: 'idempotency-cache',
+        code: 'IDEMPOTENCY_CONFLICT',
+      });
       return {
         actionId: proposal.id,
         status: 'FAILED',
-        error: `IDEMPOTENCY_CONFLICT: operationId '${context.operationId}' has already been executed with different parameters, target, provider, or mode`,
+        error: idempErrorMsg,
         traceId,
         durationMs: Date.now() - startTime,
+        normalizedError: idempNormalized,
         executionEvidence: {
           mode,
           provider: 'idempotency-cache',
@@ -105,7 +111,9 @@ export class ActionRouter {
           phase: 'FAILED',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
-          errorCode: 'IDEMPOTENCY_CONFLICT',
+          errorCode: idempNormalized.code,
+          errorClass: idempNormalized.class,
+          normalizedError: idempNormalized,
         },
       };
     }
@@ -119,13 +127,19 @@ export class ActionRouter {
     ).trim();
 
     if (proposal.targetId && payloadTarget && proposal.targetId !== payloadTarget) {
+      const targetMismatchMsg = `TARGET_MISMATCH: Approved proposal targetId "${proposal.targetId}" does not match execution payload target "${payloadTarget}"`;
+      const targetNormalized = normalizeExecutionError(targetMismatchMsg, {
+        provider: context.providerId || 'action-router',
+        code: 'TARGET_MISMATCH',
+      });
       return {
         actionId: proposal.id,
         status: 'FAILED',
         isMock: mode === 'MOCK',
-        error: `TARGET_MISMATCH: Approved proposal targetId "${proposal.targetId}" does not match execution payload target "${payloadTarget}"`,
+        error: targetMismatchMsg,
         traceId,
         durationMs: Date.now() - startTime,
+        normalizedError: targetNormalized,
         executionEvidence: {
           mode,
           provider: context.providerId || 'action-router',
@@ -133,7 +147,9 @@ export class ActionRouter {
           phase: 'FAILED',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
-          errorCode: 'TARGET_MISMATCH',
+          errorCode: targetNormalized.code,
+          errorClass: targetNormalized.class,
+          normalizedError: targetNormalized,
         },
       };
     }
@@ -142,13 +158,19 @@ export class ActionRouter {
     // (skuCode, title, price, workflow) cannot be tampered with after approval.
     const payloadBindingCheck = verifyApprovedPayloadBinding(proposal, context);
     if (!payloadBindingCheck.valid) {
+      const tamperedMsg = `PAYLOAD_TAMPERED: Approved execution parameters were tampered (${payloadBindingCheck.reason})`;
+      const tamperedNormalized = normalizeExecutionError(tamperedMsg, {
+        provider: context.providerId || 'action-router',
+        code: 'PAYLOAD_TAMPERED',
+      });
       return {
         actionId: proposal.id,
         status: 'FAILED',
         isMock: mode === 'MOCK',
-        error: `PAYLOAD_TAMPERED: Approved execution parameters were tampered (${payloadBindingCheck.reason})`,
+        error: tamperedMsg,
         traceId,
         durationMs: Date.now() - startTime,
+        normalizedError: tamperedNormalized,
         executionEvidence: {
           mode,
           provider: context.providerId || 'action-router',
@@ -156,7 +178,9 @@ export class ActionRouter {
           phase: 'FAILED',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
-          errorCode: 'PAYLOAD_TAMPERED',
+          errorCode: tamperedNormalized.code,
+          errorClass: tamperedNormalized.class,
+          normalizedError: tamperedNormalized,
         },
       };
     }
@@ -167,13 +191,19 @@ export class ActionRouter {
       Boolean((proposal.approvedPayload as any)?.isDemoTemplate);
 
     if (mode === 'LIVE' && isDemoPayload) {
+      const demoErrorMsg = 'DEMO_PAYLOAD_FORBIDDEN: Demo template cannot be executed in LIVE mode (WRITE_FORBIDDEN)';
+      const demoNormalized = normalizeExecutionError(demoErrorMsg, {
+        provider: context.providerId || 'action-router',
+        code: 'WRITE_FORBIDDEN',
+      });
       return {
         actionId: proposal.id,
         status: 'FAILED',
         isMock: false,
-        error: 'DEMO_PAYLOAD_FORBIDDEN: Demo template cannot be executed in LIVE mode (WRITE_FORBIDDEN)',
+        error: demoErrorMsg,
         traceId,
         durationMs: Date.now() - startTime,
+        normalizedError: demoNormalized,
         executionEvidence: {
           mode,
           provider: context.providerId || 'action-router',
@@ -181,7 +211,9 @@ export class ActionRouter {
           phase: 'FAILED',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
-          errorCode: 'WRITE_FORBIDDEN',
+          errorCode: demoNormalized.code,
+          errorClass: demoNormalized.class,
+          normalizedError: demoNormalized,
         },
       };
     }
@@ -196,14 +228,20 @@ export class ActionRouter {
           : this.rpaRegistry.getDefault(mode);
 
         if (!adapter) {
+          const errorMsg = mode === 'LIVE'
+            ? `AUTH_REQUIRED: No live RPA adapter configured for LIVE mode (provider: ${context.providerId || 'default'})`
+            : `UNSUPPORTED: No RPA adapter available for ${mode} mode (provider: ${context.providerId || 'default'})`;
+          const normalized = normalizeExecutionError(errorMsg, {
+            provider: context.providerId || 'rpa',
+            code: mode === 'LIVE' ? 'AUTH_REQUIRED' : 'UNSUPPORTED',
+          });
           result = {
             actionId: proposal.id,
             status: 'FAILED',
-            error: mode === 'LIVE'
-              ? `AUTH_REQUIRED: No live RPA adapter configured for LIVE mode (provider: ${context.providerId || 'default'})`
-              : `UNSUPPORTED: No RPA adapter available for ${mode} mode (provider: ${context.providerId || 'default'})`,
+            error: errorMsg,
             traceId,
             durationMs: Date.now() - startTime,
+            normalizedError: normalized,
             executionEvidence: {
               mode,
               provider: context.providerId || 'rpa',
@@ -211,7 +249,9 @@ export class ActionRouter {
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: mode === 'LIVE' ? 'REAUTHORIZE' : 'MANUAL',
-              errorCode: mode === 'LIVE' ? 'AUTH_REQUIRED' : 'UNSUPPORTED',
+              errorCode: normalized.code,
+              errorClass: normalized.class,
+              normalizedError: normalized,
             },
           };
           break;
@@ -223,12 +263,18 @@ export class ActionRouter {
 
         // Strict pre-execution mode check: isolate mock and live providers before execute
         if (mode === 'MOCK' && !isMockAdapter) {
+          const errorMsg = `INVALID_MODE: Provider '${adapter.id}' does not support MOCK mode`;
+          const normalized = normalizeExecutionError(errorMsg, {
+            provider: adapter.id,
+            code: 'INVALID_PROVIDER_FOR_MODE',
+          });
           result = {
             actionId: proposal.id,
             status: 'FAILED',
-            error: `INVALID_MODE: Provider '${adapter.id}' does not support MOCK mode`,
+            error: errorMsg,
             traceId,
             durationMs: Date.now() - startTime,
+            normalizedError: normalized,
             executionEvidence: {
               mode: 'MOCK',
               provider: adapter.id,
@@ -236,19 +282,27 @@ export class ActionRouter {
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: 'MANUAL',
-              errorCode: 'INVALID_PROVIDER_FOR_MODE',
+              errorCode: normalized.code,
+              errorClass: normalized.class,
+              normalizedError: normalized,
             },
           };
           break;
         }
 
         if (mode === 'SIMULATOR' && !isSimulatorAdapter) {
+          const errorMsg = `UNSUPPORTED: Provider '${adapter.id}' does not support SIMULATOR mode`;
+          const normalized = normalizeExecutionError(errorMsg, {
+            provider: adapter.id,
+            code: 'UNSUPPORTED',
+          });
           result = {
             actionId: proposal.id,
             status: 'FAILED',
-            error: `UNSUPPORTED: Provider '${adapter.id}' does not support SIMULATOR mode`,
+            error: errorMsg,
             traceId,
             durationMs: Date.now() - startTime,
+            normalizedError: normalized,
             executionEvidence: {
               mode: 'SIMULATOR',
               provider: adapter.id,
@@ -256,19 +310,27 @@ export class ActionRouter {
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: 'MANUAL',
-              errorCode: 'UNSUPPORTED',
+              errorCode: normalized.code,
+              errorClass: normalized.class,
+              normalizedError: normalized,
             },
           };
           break;
         }
 
         if (mode === 'LIVE' && !isLiveAdapter) {
+          const errorMsg = `AUTH_REQUIRED: Mock provider '${adapter.id}' cannot be executed in LIVE mode`;
+          const normalized = normalizeExecutionError(errorMsg, {
+            provider: adapter.id,
+            code: 'AUTH_REQUIRED',
+          });
           result = {
             actionId: proposal.id,
             status: 'FAILED',
-            error: `AUTH_REQUIRED: Mock provider '${adapter.id}' cannot be executed in LIVE mode`,
+            error: errorMsg,
             traceId,
             durationMs: Date.now() - startTime,
+            normalizedError: normalized,
             executionEvidence: {
               mode: 'LIVE',
               provider: adapter.id,
@@ -276,7 +338,9 @@ export class ActionRouter {
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: 'REAUTHORIZE',
-              errorCode: 'AUTH_REQUIRED',
+              errorCode: normalized.code,
+              errorClass: normalized.class,
+              normalizedError: normalized,
             },
           };
           break;
@@ -296,6 +360,12 @@ export class ActionRouter {
           if (rpaResult.status === 'SUCCESS') {
             // Live bare SUCCESS without verified evidence cannot claim APPLIED
             const isVerified = Boolean(isMock || (isSimulator && rpaResult.jobId) || rpaResult.output?.verified);
+            const unverifiedNormalized = isVerified
+              ? undefined
+              : normalizeExecutionError('UNVERIFIED_LIVE_EXECUTION', {
+                  provider: adapter.id,
+                  code: 'UNVERIFIED_LIVE_EXECUTION',
+                });
 
             result = {
               actionId: proposal.id,
@@ -304,6 +374,7 @@ export class ActionRouter {
               data: rpaResult as any,
               traceId,
               durationMs: Date.now() - startTime,
+              normalizedError: unverifiedNormalized,
               executionEvidence: {
                 mode, // Preserve mode! Never hardcode isMock ? 'MOCK' : 'LIVE'
                 provider: adapter.id,
@@ -313,7 +384,13 @@ export class ActionRouter {
                 recovery: isVerified ? 'NONE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
                 externalId: rpaResult.jobId || undefined,
                 ...(isMock ? { verifiedAt: new Date().toISOString() } : {}),
-                ...(isVerified ? {} : { errorCode: 'UNVERIFIED_LIVE_EXECUTION' }),
+                ...(isVerified
+                  ? {}
+                  : {
+                      errorCode: 'UNVERIFIED_LIVE_EXECUTION',
+                      errorClass: unverifiedNormalized?.class,
+                      normalizedError: unverifiedNormalized,
+                    }),
               },
             };
           } else if (rpaResult.status === 'RUNNING') {
@@ -335,6 +412,12 @@ export class ActionRouter {
               },
             };
           } else if (rpaResult.status === 'TIMEOUT') {
+            const timeoutNormalized =
+              rpaResult.normalizedError ||
+              normalizeExecutionError(rpaResult.error || 'RPA execution timed out', {
+                provider: adapter.id,
+                code: 'TIMEOUT',
+              });
             result = {
               actionId: proposal.id,
               status: 'FAILED',
@@ -343,6 +426,7 @@ export class ActionRouter {
               data: rpaResult as any,
               traceId,
               durationMs: Date.now() - startTime,
+              normalizedError: timeoutNormalized,
               executionEvidence: {
                 mode,
                 provider: adapter.id,
@@ -351,26 +435,31 @@ export class ActionRouter {
                 effect: 'UNKNOWN',
                 recovery: adapter.getStatus ? 'QUERY' : 'MANUAL',
                 externalId: rpaResult.jobId || undefined,
-                errorCode: 'TIMEOUT',
+                errorCode: timeoutNormalized.code,
+                errorClass: timeoutNormalized.class,
+                normalizedError: timeoutNormalized,
               },
             };
           } else {
             // FAILED status returned from adapter
-            // Typed preflight/config distinction: only pre-dispatch errors without a remote jobId
-            // (e.g. local config error, missing credentials, unsupported workflow) definitely have effect NOT_APPLIED.
-            // Any failure once dispatched to a remote system (hasRemoteJob === true) retains effect UNKNOWN for safety,
-            // preserving remote externalId for auditability and recovery.
+            const failedNormalized =
+              rpaResult.normalizedError ||
+              normalizeExecutionError(rpaResult.error || 'RPA execution failed', {
+                provider: adapter.id,
+              });
+
             const hasRemoteJob = Boolean(rpaResult.jobId);
             const isExplicitPreflight =
               !hasRemoteJob &&
-              (Boolean(rpaResult.error?.startsWith('CONFIG_ERROR')) ||
+              (failedNormalized.class === 'VALIDATION' ||
+                failedNormalized.class === 'AUTH' ||
+                failedNormalized.code === 'CONFIG_ERROR' ||
+                failedNormalized.code === 'AUTH_REQUIRED' ||
+                failedNormalized.code === 'UNSUPPORTED_WORKFLOW' ||
+                Boolean(rpaResult.error?.startsWith('CONFIG_ERROR')) ||
                 Boolean(rpaResult.error?.startsWith('AUTH_REQUIRED')) ||
                 Boolean(rpaResult.error?.startsWith('UNSUPPORTED_WORKFLOW')) ||
                 Boolean(rpaResult.error?.startsWith('PREFLIGHT')));
-
-            const errorCode = rpaResult.error?.startsWith('CONFIG_ERROR')
-              ? 'CONFIG_ERROR'
-              : (rpaResult.error?.startsWith('AUTH_REQUIRED') ? 'AUTH_REQUIRED' : 'RPA_FAILED');
 
             result = {
               actionId: proposal.id,
@@ -380,27 +469,34 @@ export class ActionRouter {
               data: rpaResult as any,
               traceId,
               durationMs: Date.now() - startTime,
+              normalizedError: failedNormalized,
               executionEvidence: {
                 mode,
                 provider: adapter.id,
                 operationId,
                 phase: 'FAILED',
                 effect: isExplicitPreflight ? 'NOT_APPLIED' : 'UNKNOWN',
-                recovery: isExplicitPreflight ? 'REAUTHORIZE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
+                recovery: isExplicitPreflight
+                  ? (failedNormalized.class === 'AUTH' ? 'REAUTHORIZE' : 'MANUAL')
+                  : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
                 externalId: rpaResult.jobId || undefined,
-                errorCode,
+                errorCode: failedNormalized.code,
+                errorClass: failedNormalized.class,
+                normalizedError: failedNormalized,
               },
             };
           }
         } catch (err: any) {
           // Unexpected exception during execution (e.g. process crash, connection dropped after submit)
           // Conservative invariant: remote effect is UNKNOWN
+          const caughtNormalized = normalizeExecutionError(err, { provider: adapter.id });
           result = {
             actionId: proposal.id,
             status: 'FAILED',
             error: err.message || 'RPA adapter threw an unexpected error',
             traceId,
             durationMs: Date.now() - startTime,
+            normalizedError: caughtNormalized,
             executionEvidence: {
               mode,
               provider: adapter.id,
@@ -408,6 +504,9 @@ export class ActionRouter {
               phase: 'FAILED',
               effect: 'UNKNOWN',
               recovery: adapter.getStatus ? 'QUERY' : 'MANUAL',
+              errorCode: caughtNormalized.code,
+              errorClass: caughtNormalized.class,
+              normalizedError: caughtNormalized,
             },
           };
         }
@@ -420,12 +519,18 @@ export class ActionRouter {
       case 'BROWSER':
       case 'COMPUTER_USE':
       default: {
+        const unsupportedMsg = `UNSUPPORTED: runtime ${proposal.type} is not implemented`;
+        const unsupportedNormalized = normalizeExecutionError(unsupportedMsg, {
+          provider: proposal.type,
+          code: 'UNSUPPORTED_RUNTIME',
+        });
         result = {
           actionId: proposal.id,
           status: 'FAILED',
-          error: `UNSUPPORTED: runtime ${proposal.type} is not implemented`,
+          error: unsupportedMsg,
           traceId,
           durationMs: Date.now() - startTime,
+          normalizedError: unsupportedNormalized,
           executionEvidence: {
             mode,
             provider: proposal.type,
@@ -433,7 +538,9 @@ export class ActionRouter {
             phase: 'FAILED',
             effect: 'NOT_APPLIED',
             recovery: 'MANUAL',
-            errorCode: 'UNSUPPORTED_RUNTIME',
+            errorCode: unsupportedNormalized.code,
+            errorClass: unsupportedNormalized.class,
+            normalizedError: unsupportedNormalized,
           },
         };
         break;

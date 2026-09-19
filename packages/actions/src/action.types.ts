@@ -1,4 +1,4 @@
-import { AutomationMode, ExecutionEvidence } from '@crosspilot/shared';
+import { AutomationMode, ExecutionEvidence, NormalizedExecutionError } from '@crosspilot/shared';
 
 export type ActionType =
   | 'AI'
@@ -44,6 +44,7 @@ export interface ActionExecutionResult<T = any> {
   approvalId?: string;
   isMock?: boolean;
   executionEvidence?: ExecutionEvidence;
+  normalizedError?: NormalizedExecutionError;
 }
 
 export interface ActionDispatcherContext {

@@ -83,6 +83,8 @@ export interface ErpReceiptRecord {
   receivedAt: string;
 }
 
+import type { NormalizedExecutionError } from './execution-error.js';
+
 export type ErpErrorCode =
   | 'AUTH_FAILED'
   | 'RATE_LIMITED'
@@ -98,4 +100,6 @@ export interface ErpResult<T> {
   errorMessage?: string;
   statusCode?: number;
   rawResponse?: unknown;
+  normalizedError?: NormalizedExecutionError;
 }
+
