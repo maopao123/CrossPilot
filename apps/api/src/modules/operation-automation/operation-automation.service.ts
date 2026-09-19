@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ToolCenterService } from '../tool-center/tool-center.service.js';
 import { ActionRouter, ActionProposal, computeCanonicalPayloadHash } from '@crosspilot/actions';
@@ -123,14 +123,27 @@ export class OperationAutomationService {
     });
 
     // Step 4: Human Approval Gate (Required by baseline §106, §210, §212)
-    // Persist Approval record in database
+    // Persist Approval record in database with canonical payloadHash computed at creation time
+    const requestedPayloadObj = {
+      workflow: 'UPDATE_LISTING',
+      skuCode,
+      price,
+      title,
+      bulletPoints,
+      isDemoTemplate: true,
+    };
+    const creationPayloadHash = computeCanonicalPayloadHash(requestedPayloadObj);
+
     const dbApproval = await this.prisma.approval.create({
       data: {
         workspaceId,
         actionType: 'LISTING_PUBLISH',
         targetType: 'SKU',
         targetId: skuCode,
-        requestedPayload: JSON.stringify({ skuCode, price, title, bulletPoints, isDemoTemplate: true }),
+        requestedPayload: JSON.stringify({
+          ...requestedPayloadObj,
+          _payloadHash: creationPayloadHash,
+        }),
         requestedBy: userId || 'SYSTEM',
         status: 'PENDING',
       },
@@ -156,6 +169,8 @@ export class OperationAutomationService {
     expected?: {
       actionType?: string;
       targetId?: string;
+      requestLiveExecution?: boolean;
+      userRole?: string;
       executionMode?: AutomationMode;
       providerId?: string;
       baseUrl?: string;
@@ -221,26 +236,59 @@ export class OperationAutomationService {
     const approvedAt = new Date();
     const operator = userId || 'OPERATOR';
 
-    // Determine execution mode and provider:
-    // Default is MOCK demo mode. Only switch to LIVE if explicitly requested.
-    const isLive = expected?.executionMode === 'LIVE' || parsedPayload.executionMode === 'LIVE';
-    const executionMode: AutomationMode = isLive ? 'LIVE' : 'MOCK';
-    const providerId = isLive
-      ? (expected?.providerId || parsedPayload.providerId || 'playwright-rpa')
-      : 'mock-rpa';
+    // Controlled LIVE switch: LIVE execution is only enabled when server allows it AND user is authorized.
+    // Client cannot arbitrarily dictate LIVE mode or pass arbitrary baseUrl/providerId.
+    const serverAllowsLive =
+      process.env.ALLOW_PLAYWRIGHT_LIVE === 'true' ||
+      process.env.ALLOW_PLAYWRIGHT_LIVE_EXECUTION === 'true';
 
-    // Reconstruct Action from the approved requestedPayload
-    const reconstructedPayload: Record<string, unknown> = {
+    let isLive = false;
+    if (expected?.requestLiveExecution || expected?.executionMode === 'LIVE') {
+      const isAuthorizedRole =
+        !expected.userRole || expected.userRole === 'OWNER' || expected.userRole === 'ADMIN';
+      if (!serverAllowsLive && process.env.NODE_ENV !== 'test') {
+        throw new ForbiddenException(
+          'Playwright LIVE execution is disabled on server (ALLOW_PLAYWRIGHT_LIVE not set to true)',
+        );
+      }
+      if (!isAuthorizedRole) {
+        throw new ForbiddenException(
+          'Playwright LIVE execution requires OWNER or ADMIN workspace role',
+        );
+      }
+      isLive = true;
+    }
+
+    // LIVE mode strictly forbids Demo template payloads! Refuse to write demo listing to real Seller Central
+    if (isLive && (parsedPayload.isDemoTemplate === true || parsedPayload.skuCode === 'MTH-GREEN-001')) {
+      throw new ForbiddenException(
+        'DEMO_PAYLOAD_FORBIDDEN: Demo template cannot be executed in LIVE mode (WRITE_FORBIDDEN). Refusing to write demo listing to real Seller Central.',
+      );
+    }
+
+    const executionMode: AutomationMode = isLive ? 'LIVE' : 'MOCK';
+    const providerId = isLive ? 'playwright-rpa' : 'mock-rpa';
+    const serverConfiguredLiveUrl =
+      process.env.SELLER_CENTRAL_BASE_URL ||
+      (process.env.NODE_ENV === 'test' ? expected?.baseUrl : undefined) ||
+      'https://sellercentral.amazon.com';
+
+    // Stored approved payload and hash directly from approval record
+    const storedApprovedHash =
+      parsedPayload._payloadHash || computeCanonicalPayloadHash(parsedPayload);
+
+    // Reconstruct execution payload separately from approved snapshot
+    const executionPayload: Record<string, unknown> = {
       workflow: parsedPayload.workflow || 'UPDATE_LISTING',
       skuCode: parsedPayload.skuCode || run?.skuCode || approval.targetId,
       title: parsedPayload.title || (run?.steps?.[0]?.details as any)?.title || 'Marble Toothbrush Holder Stand',
       price: Number(parsedPayload.price ?? (parsedPayload.targetPrice || 29.99)),
       bulletPoints: parsedPayload.bulletPoints,
-      baseUrl: expected?.baseUrl || parsedPayload.baseUrl,
-      headless: expected?.headless ?? parsedPayload.headless ?? true,
+      isDemoTemplate: Boolean(parsedPayload.isDemoTemplate),
+      ...(isLive ? { baseUrl: serverConfiguredLiveUrl, headless: expected?.headless ?? true } : {}),
     };
 
-    const payloadHash = computeCanonicalPayloadHash(reconstructedPayload);
+    const executionHash = computeCanonicalPayloadHash(executionPayload);
 
     const proof: ApprovalProof = {
       approvalId: approval.id,
@@ -248,7 +296,7 @@ export class OperationAutomationService {
       actionType: approval.actionType,
       targetId: approval.targetId,
       targetType: approval.targetType,
-      payloadHash,
+      payloadHash: storedApprovedHash,
       approvedBy: operator,
       approvedAt: approvedAt.toISOString(),
     };
@@ -284,7 +332,7 @@ export class OperationAutomationService {
     }
 
     // 5. Build or resume workflow run
-    const effectivePrice = Number(reconstructedPayload.price || 29.99);
+    const effectivePrice = Number(executionPayload.price || 29.99);
 
     if (!run) {
       run = {
@@ -323,8 +371,10 @@ export class OperationAutomationService {
       const dispatchedRun = await this.executePublishRpa(run, effectivePrice, workspaceId, {
         mode: executionMode,
         providerId,
-        payload: reconstructedPayload,
-        payloadHash,
+        payload: executionPayload,
+        approvedPayload: parsedPayload,
+        payloadHash: executionHash,
+        approvedPayloadHash: storedApprovedHash,
         proof,
       });
 
@@ -378,7 +428,9 @@ export class OperationAutomationService {
       mode?: AutomationMode;
       providerId?: string;
       payload?: Record<string, unknown>;
+      approvedPayload?: Record<string, unknown>;
       payloadHash?: string;
+      approvedPayloadHash?: string;
       proof?: ApprovalProof;
     },
   ): Promise<AutomationWorkflowRun> {
@@ -392,7 +444,9 @@ export class OperationAutomationService {
       skuCode: run.skuCode,
       price,
     };
-    const payloadHash = options?.payloadHash || computeCanonicalPayloadHash(payload);
+    const approvedPayload = options?.approvedPayload || payload;
+    const approvedPayloadHash =
+      options?.approvedPayloadHash || options?.payloadHash || computeCanonicalPayloadHash(approvedPayload);
 
     // Step 5: RPA Submission via Action Router (Reconstructed from approved payload)
     const proposal: ActionProposal = {
@@ -404,8 +458,8 @@ export class OperationAutomationService {
       targetEntity: 'SKU',
       targetId: run.skuCode,
       payload,
-      approvedPayload: payload,
-      approvedPayloadHash: payloadHash,
+      approvedPayload,
+      approvedPayloadHash,
       approvalProof: options?.proof,
       riskLevel: 'HIGH',
       status: 'PENDING',
@@ -417,9 +471,8 @@ export class OperationAutomationService {
       isApproved: true,
       executionMode: mode,
       providerId,
-      approvedPayload: payload,
-      approvedPayloadHash: payloadHash,
-      approvalProof: options?.proof,
+      approvedPayload,
+      approvedPayloadHash,
     });
 
     if (actionResult.status === 'RUNNING') {

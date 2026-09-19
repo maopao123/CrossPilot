@@ -10,8 +10,15 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
     approvalRecord = {
       id: 'app_test_01',
       workspaceId: 'ws_demo',
+      actionType: 'LISTING_PUBLISH',
+      targetType: 'SKU',
       targetId: 'MTH-GREEN-001',
-      requestedPayload: JSON.stringify({ skuCode: 'MTH-GREEN-001', price: 29.99 }),
+      requestedPayload: JSON.stringify({
+        workflow: 'UPDATE_LISTING',
+        skuCode: 'MTH-GREEN-001',
+        price: 29.99,
+        isDemoTemplate: true,
+      }),
       status: 'PENDING',
       requestedAt: new Date(),
     };
@@ -22,7 +29,7 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
           Object.assign(approvalRecord, data);
           return approvalRecord;
         }),
-        findFirst: jest.fn().mockResolvedValue(approvalRecord),
+        findFirst: jest.fn().mockImplementation(async () => approvalRecord),
         update: jest.fn().mockImplementation(async ({ data }) => {
           Object.assign(approvalRecord, data);
           return approvalRecord;
@@ -145,7 +152,49 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
       expect(step5?.details?.executionEvidence).toEqual(upstreamEvidence);
     });
 
-    it('Explicit HITL LIVE approval path reconstructs action from requestedPayload, dispatches with executionMode=LIVE and providerId=playwright-rpa, sets syncVerified=true, and stores evidence', async () => {
+    it('LIVE mode strictly forbids Demo template payload and throws DEMO_PAYLOAD_FORBIDDEN (WRITE_FORBIDDEN)', async () => {
+      const initial = await service.startListingPublishWorkflow(
+        { skuCode: 'MTH-GREEN-001', targetPrice: 29.99 },
+        'ws_demo',
+      );
+
+      // Attempting LIVE execution on demo template must be strictly blocked
+      await expect(
+        service.approveAndExecute(initial.approvalId!, 'ws_demo', 'OP_ADMIN', {
+          requestLiveExecution: true,
+          userRole: 'OWNER',
+        }),
+      ).rejects.toThrow(/DEMO_PAYLOAD_FORBIDDEN.*WRITE_FORBIDDEN/);
+    });
+
+    it('LIVE mode strictly rejects unauthorized user role (e.g. VIEWER) before execution', async () => {
+      // Create non-demo approval
+      approvalRecord = {
+        id: 'app_real_01',
+        workspaceId: 'ws_demo',
+        actionType: 'LISTING_PUBLISH',
+        targetType: 'SKU',
+        targetId: 'REAL-SKU-888',
+        requestedPayload: JSON.stringify({
+          skuCode: 'REAL-SKU-888',
+          price: 49.99,
+          title: 'Authentic Real Marble Stand',
+          isDemoTemplate: false,
+          workflow: 'UPDATE_LISTING',
+        }),
+        status: 'PENDING',
+        requestedAt: new Date(),
+      };
+
+      await expect(
+        service.approveAndExecute('app_real_01', 'ws_demo', 'OP_VIEWER', {
+          requestLiveExecution: true,
+          userRole: 'VIEWER', // Non-admin / non-owner role rejected!
+        }),
+      ).rejects.toThrow(/requires OWNER or ADMIN/);
+    });
+
+    it('Explicit HITL LIVE approval path on authentic non-demo payload reconstructs action, dispatches with executionMode=LIVE, sets syncVerified=true, and stores evidence', async () => {
       const liveEvidence = {
         mode: 'LIVE' as const,
         provider: 'playwright-rpa',
@@ -174,7 +223,7 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
               jobId: 'rpa_live_12345',
               status: 'SUCCESS',
               output: {
-                sellerCentralUrl: 'https://sellercentral.amazon.com/inventory/view/MTH-GREEN-001',
+                sellerCentralUrl: 'https://sellercentral.amazon.com/inventory/view/REAL-SKU-999',
               },
             },
             executionEvidence: liveEvidence,
@@ -182,22 +231,35 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
         }),
       };
 
-      const initial = await service.startListingPublishWorkflow(
-        { skuCode: 'MTH-GREEN-001', targetPrice: 29.99 },
-        'ws_demo',
-      );
+      // Non-demo approval record
+      approvalRecord = {
+        id: 'app_real_999',
+        workspaceId: 'ws_demo',
+        actionType: 'LISTING_PUBLISH',
+        targetType: 'SKU',
+        targetId: 'REAL-SKU-999',
+        requestedPayload: JSON.stringify({
+          skuCode: 'REAL-SKU-999',
+          price: 59.99,
+          title: 'Custom Stone Base Holder',
+          workflow: 'UPDATE_LISTING',
+          isDemoTemplate: false,
+        }),
+        status: 'PENDING',
+        requestedAt: new Date(),
+      };
 
-      const completed = await service.approveAndExecute(initial.approvalId!, 'ws_demo', 'OP_ADMIN', {
-        executionMode: 'LIVE',
-        providerId: 'playwright-rpa',
+      const completed = await service.approveAndExecute('app_real_999', 'ws_demo', 'OP_ADMIN', {
+        requestLiveExecution: true,
+        userRole: 'OWNER',
       });
 
       // Verify reconstructed Action parameters
       expect(capturedContext.executionMode).toBe('LIVE');
       expect(capturedContext.providerId).toBe('playwright-rpa');
       expect(capturedContext.isApproved).toBe(true);
-      expect(capturedContext.approvedPayload.skuCode).toBe('MTH-GREEN-001');
-      expect(capturedContext.approvedPayload.price).toBe(29.99);
+      expect(capturedContext.approvedPayload.skuCode).toBe('REAL-SKU-999');
+      expect(capturedContext.approvedPayload.price).toBe(59.99);
       expect(capturedContext.approvedPayload.workflow).toBe('UPDATE_LISTING');
       expect(capturedContext.approvedPayloadHash).toBeDefined();
 
@@ -208,7 +270,7 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
       expect(completed.result.syncVerified).toBe(true);
       expect(completed.result.catalogStatus).toBe('VERIFIED');
       expect(completed.result.sellerCentralUrl).toBe(
-        'https://sellercentral.amazon.com/inventory/view/MTH-GREEN-001',
+        'https://sellercentral.amazon.com/inventory/view/REAL-SKU-999',
       );
 
       const step5 = completed.steps.find((s) => s.stepNumber === 5);

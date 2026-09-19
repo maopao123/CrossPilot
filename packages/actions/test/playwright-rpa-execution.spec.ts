@@ -902,6 +902,94 @@ describe('V10 Phase B: Playwright Listing RPA Execution Truth Tests', () => {
     expect(result.error).toContain('malicious-attacker-domain.com');
     expect(result.jobId).toBe('');
   });
+
+  it('29. Fail-closed missing critical field: Execution payload omitting approved price is blocked with PAYLOAD_TAMPERED before browser launch', async () => {
+    let browserExecuted = false;
+    const trackingAdapter = {
+      id: 'tracking-playwright-rpa',
+      name: 'Tracking Playwright RPA',
+      supportedModes: ['LIVE'],
+      execute: async () => {
+        browserExecuted = true;
+        return { jobId: 'should-never-run', status: 'SUCCESS', output: {} };
+      },
+    };
+
+    const registry = new RpaRegistry();
+    registry.register(trackingAdapter as any);
+    const router = new ActionRouter(registry);
+
+    const approvedPayload = {
+      workflow: 'UPDATE_LISTING',
+      skuCode: 'SKU-001',
+      title: 'Marble Toothbrush Holder White',
+      price: 29.99,
+    };
+
+    // Execution payload omits price completely
+    const proposalWithoutPrice: ActionProposal = {
+      ...baseListingProposal,
+      id: 'missing-price-action',
+      targetId: 'SKU-001',
+      payload: {
+        workflow: 'UPDATE_LISTING',
+        skuCode: 'SKU-001',
+        title: 'Marble Toothbrush Holder White',
+        // price omitted!
+      },
+      approvedPayload,
+    };
+
+    const result = await router.dispatch(proposalWithoutPrice, {
+      workspaceId: 'ws_missing_field',
+      isApproved: true,
+      executionMode: 'LIVE',
+      providerId: 'tracking-playwright-rpa',
+      approvedPayload,
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.error).toContain('PAYLOAD_TAMPERED');
+    expect(result.error).toContain("Field 'price' is missing in execution payload");
+    expect(result.executionEvidence?.effect).toBe('NOT_APPLIED');
+    expect(browserExecuted).toBe(false);
+  });
+
+  it('30. Target host security: Non-HTTPS remote Seller Central URL is rejected with CONFIG_ERROR', async () => {
+    const adapter = new PlaywrightRpaAdapter();
+    const result = await adapter.execute({
+      workflow: 'UPDATE_LISTING',
+      mode: 'LIVE',
+      params: {
+        skuCode: 'SKU-001',
+        title: 'New Title',
+        price: 29.99,
+        baseUrl: 'http://sellercentral.amazon.com/inventory', // HTTP rejected!
+      },
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.error).toContain('CONFIG_ERROR');
+    expect(result.jobId).toBe('');
+  });
+
+  it('31. Target host security: Rogue domain attempting suffix spoofing (sellercentral.amazon.evil.com) is rejected with CONFIG_ERROR', async () => {
+    const adapter = new PlaywrightRpaAdapter();
+    const result = await adapter.execute({
+      workflow: 'UPDATE_LISTING',
+      mode: 'LIVE',
+      params: {
+        skuCode: 'SKU-001',
+        title: 'New Title',
+        price: 29.99,
+        baseUrl: 'https://sellercentral.amazon.evil.com/inventory', // Suffix wildcard spoof rejected!
+      },
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.error).toContain('CONFIG_ERROR');
+    expect(result.jobId).toBe('');
+  });
 });
 
 

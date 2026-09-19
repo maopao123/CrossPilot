@@ -31,13 +31,20 @@ export class OperationAutomationController {
     @Param('approvalId') approvalId: string,
     @CurrentWorkspace() workspaceId: string,
     @CurrentUser() user: JwtPayload,
-    @Body() body?: { actionType?: string; targetId?: string },
+    @Body() body?: { actionType?: string; targetId?: string; requestLiveExecution?: boolean },
   ) {
     return this.automationService.approveAndExecute(
       approvalId,
       workspaceId,
       user?.sub,
-      body,
+      body
+        ? {
+            actionType: body.actionType,
+            targetId: body.targetId,
+            requestLiveExecution: body.requestLiveExecution,
+            userRole: user?.role,
+          }
+        : undefined,
     );
   }
 

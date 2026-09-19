@@ -7,14 +7,20 @@ import {
 import { createCommerceContext } from '@crosspilot/domain';
 import { encryptSecret } from '../src/modules/commerce-store/credential-crypto.js';
 
-const targetDbUrl =
-  process.env.TEST_DATABASE_URL ||
-  process.env.DATABASE_URL ||
-  'postgresql://postgres:Pgsql456%40@127.0.0.1:15432/crosspilot?schema=public';
+const testDbUrl = process.env.TEST_DATABASE_URL || process.env.AUTOMATION_TEST_DATABASE_URL;
+const isExplicitDbRun = Boolean(testDbUrl);
+const describeSuite = isExplicitDbRun ? describe : describe.skip;
 
-describe('A5: ShopifyAdapter Real PostgreSQL Integration & ChannelIdentity Persistence', () => {
+if (!isExplicitDbRun) {
+  console.log(
+    '⚠️ [NOT_RUN] A5: ShopifyAdapter Real PostgreSQL Integration test skipped: TEST_DATABASE_URL is not set.',
+  );
+}
+
+describeSuite('A5: ShopifyAdapter Real PostgreSQL Integration & ChannelIdentity Persistence', () => {
+  jest.setTimeout(30000);
+
   let prisma: PrismaClient;
-  let isDbAvailable = false;
 
   const timestamp = Date.now();
   const testWorkspaceId = `ws_sh_db_${timestamp}`;
@@ -103,19 +109,16 @@ describe('A5: ShopifyAdapter Real PostgreSQL Integration & ChannelIdentity Persi
     expiresIn: 3600,
   }));
 
+  let isConnected = false;
+
   beforeAll(async () => {
-    try {
-      prisma = new PrismaClient({
-        datasources: { db: { url: targetDbUrl } },
-      });
-      await prisma.$connect();
-      await prisma.$queryRaw`SELECT 1`;
-      isDbAvailable = true;
-    } catch (err: any) {
-      console.warn(`⚠️ [NOT_RUN] PostgreSQL not available at ${targetDbUrl}:`, err?.message);
-      isDbAvailable = false;
-      return;
-    }
+    // Fail immediately if database connection cannot be established
+    prisma = new PrismaClient({
+      datasources: { db: { url: testDbUrl! } },
+    });
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
+    isConnected = true;
 
     // 1. Create isolated Workspace
     await prisma.workspace.create({
@@ -171,7 +174,7 @@ describe('A5: ShopifyAdapter Real PostgreSQL Integration & ChannelIdentity Persi
   });
 
   afterAll(async () => {
-    if (isDbAvailable && prisma) {
+    if (prisma && isConnected) {
       try {
         await prisma.channelIdentity.deleteMany({ where: { storeId: testStoreId } });
         await prisma.providerCredential.deleteMany({ where: { id: testCredentialId } });
@@ -187,11 +190,6 @@ describe('A5: ShopifyAdapter Real PostgreSQL Integration & ChannelIdentity Persi
   });
 
   it('1. syncs multi-variant Shopify product into real PostgreSQL channel_identities table without overwriting', async () => {
-    if (!isDbAvailable) {
-      console.log('Skipping test: DB not reachable');
-      return;
-    }
-
     const adapter = new ShopifyAdapter(prisma, {
       transport: mockTransport,
       exchangeToken: mockExchangeToken,
@@ -246,11 +244,6 @@ describe('A5: ShopifyAdapter Real PostgreSQL Integration & ChannelIdentity Persi
   });
 
   it('2. retrieves CanonicalProduct by Product GID and aligns id with ChannelIdentity.entityId', async () => {
-    if (!isDbAvailable) {
-      console.log('Skipping test: DB not reachable');
-      return;
-    }
-
     const adapter = new ShopifyAdapter(prisma, {
       transport: mockTransport,
       exchangeToken: mockExchangeToken,
@@ -281,11 +274,6 @@ describe('A5: ShopifyAdapter Real PostgreSQL Integration & ChannelIdentity Persi
   });
 
   it('3. proves idempotency: re-running listProducts updates safely without row duplication', async () => {
-    if (!isDbAvailable) {
-      console.log('Skipping test: DB not reachable');
-      return;
-    }
-
     const adapter = new ShopifyAdapter(prisma, {
       transport: mockTransport,
       exchangeToken: mockExchangeToken,

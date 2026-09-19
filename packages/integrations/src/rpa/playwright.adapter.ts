@@ -31,7 +31,13 @@ export const ALLOWED_SELLER_CENTRAL_HOST_PATTERNS: RegExp[] = [
   /^sellercentral\.amazon\.ca$/,
   /^sellercentral\.amazon\.com\.mx$/,
   /^sellercentral\.amazon\.com\.au$/,
-  /^([a-z0-9-]+\.)?sellercentral\.amazon\.[a-z.]+$/,
+  /^sellercentral\.amazon\.nl$/,
+  /^sellercentral\.amazon\.se$/,
+  /^sellercentral\.amazon\.pl$/,
+  /^sellercentral\.amazon\.sg$/,
+  /^sellercentral\.amazon\.ae$/,
+  /^sellercentral\.amazon\.sa$/,
+  /^sellercentral\.amazon\.in$/,
 ];
 
 export function isAllowedTargetHost(
@@ -41,13 +47,27 @@ export function isAllowedTargetHost(
   try {
     const parsed = new URL(urlStr);
     const hostname = parsed.hostname.toLowerCase();
+    const protocol = parsed.protocol.toLowerCase();
 
-    // 1. Check Seller Central allowlist
+    const isLoopback = hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1';
+
+    // 1. Loopback hosts: ONLY allowed in test or development environments
+    const isTestOrDev = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
+    if (isLoopback) {
+      return Boolean(isTestOrDev && (protocol === 'http:' || protocol === 'https:'));
+    }
+
+    // 2. All remote / non-loopback LIVE addresses MUST enforce HTTPS
+    if (protocol !== 'https:') {
+      return false;
+    }
+
+    // 3. Check explicit Seller Central allowlist
     for (const pattern of ALLOWED_SELLER_CENTRAL_HOST_PATTERNS) {
       if (pattern.test(hostname)) return true;
     }
 
-    // 2. Check options.allowedHosts
+    // 4. Check options.allowedHosts (server-side explicitly allowed hosts)
     if (options.allowedHosts) {
       for (const allowed of options.allowedHosts) {
         if (typeof allowed === 'string' && allowed.toLowerCase() === hostname) return true;
@@ -55,21 +75,14 @@ export function isAllowedTargetHost(
       }
     }
 
-    // 3. Check if hostname matches server-configured options.baseUrl
+    // 5. Check if hostname matches server-configured options.baseUrl
     if (options.baseUrl) {
       try {
         const configured = new URL(options.baseUrl);
-        if (configured.hostname.toLowerCase() === hostname) return true;
+        if (configured.protocol === 'https:' && configured.hostname.toLowerCase() === hostname) {
+          return true;
+        }
       } catch {}
-    }
-
-    // 4. In test / dev environments, allow loopback hosts for mock testing
-    const isTestOrDev =
-      process.env.NODE_ENV === 'test' ||
-      process.env.NODE_ENV === 'development' ||
-      !process.env.NODE_ENV;
-    if (isTestOrDev && (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1')) {
-      return true;
     }
 
     return false;

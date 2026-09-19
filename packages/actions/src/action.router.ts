@@ -161,6 +161,31 @@ export class ActionRouter {
       };
     }
 
+    // 2.2 Demo Payload Guard: LIVE mode strictly forbids executing demo templates (WRITE_FORBIDDEN)
+    const isDemoPayload =
+      Boolean((proposal.payload as any)?.isDemoTemplate) ||
+      Boolean((proposal.approvedPayload as any)?.isDemoTemplate);
+
+    if (mode === 'LIVE' && isDemoPayload) {
+      return {
+        actionId: proposal.id,
+        status: 'FAILED',
+        isMock: false,
+        error: 'DEMO_PAYLOAD_FORBIDDEN: Demo template cannot be executed in LIVE mode (WRITE_FORBIDDEN)',
+        traceId,
+        durationMs: Date.now() - startTime,
+        executionEvidence: {
+          mode,
+          provider: context.providerId || 'action-router',
+          operationId,
+          phase: 'FAILED',
+          effect: 'NOT_APPLIED',
+          recovery: 'MANUAL',
+          errorCode: 'WRITE_FORBIDDEN',
+        },
+      };
+    }
+
     // 3. Dispatch by runtime
     let result: ActionExecutionResult;
 

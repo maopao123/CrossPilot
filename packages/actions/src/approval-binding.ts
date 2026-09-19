@@ -100,21 +100,32 @@ export function verifyApprovedPayloadBinding(
     const executedSku = String(
       executedPayload.skuCode || executedPayload.sku || (executedPayload.targetId && typeof executedPayload.targetId === 'string' ? executedPayload.targetId : '') || '',
     ).trim();
-    if (approvedSku && executedSku && approvedSku !== executedSku) {
-      return {
-        valid: false,
-        reason: `Field 'skuCode' mismatch: approved "${approvedSku}" does not match execution "${executedSku}"`,
-      };
+    if (approvedSku) {
+      if (!executedSku) {
+        return {
+          valid: false,
+          reason: `Field 'skuCode' is missing in execution payload (approved: "${approvedSku}")`,
+        };
+      }
+      if (approvedSku !== executedSku) {
+        return {
+          valid: false,
+          reason: `Field 'skuCode' mismatch: approved "${approvedSku}" does not match execution "${executedSku}"`,
+        };
+      }
     }
 
     // B. Check Price
     if (approved.price !== undefined && approved.price !== null) {
       const approvedPrice = Math.round(Number(approved.price) * 100) / 100;
-      const executedPrice = executedPayload.price !== undefined && executedPayload.price !== null
-        ? Math.round(Number(executedPayload.price) * 100) / 100
-        : undefined;
-
-      if (executedPrice !== undefined && approvedPrice !== executedPrice) {
+      if (executedPayload.price === undefined || executedPayload.price === null || executedPayload.price === '') {
+        return {
+          valid: false,
+          reason: `Field 'price' is missing in execution payload (approved: ${approvedPrice})`,
+        };
+      }
+      const executedPrice = Math.round(Number(executedPayload.price) * 100) / 100;
+      if (approvedPrice !== executedPrice) {
         return {
           valid: false,
           reason: `Field 'price' mismatch: approved ${approvedPrice} does not match execution ${executedPrice}`,
@@ -123,13 +134,16 @@ export function verifyApprovedPayloadBinding(
     }
 
     // C. Check Title
-    if (approved.title !== undefined && approved.title !== null) {
+    if (approved.title !== undefined && approved.title !== null && String(approved.title).trim() !== '') {
       const approvedTitle = String(approved.title).trim();
-      const executedTitle = executedPayload.title !== undefined && executedPayload.title !== null
-        ? String(executedPayload.title).trim()
-        : undefined;
-
-      if (executedTitle !== undefined && approvedTitle !== executedTitle) {
+      if (executedPayload.title === undefined || executedPayload.title === null || String(executedPayload.title).trim() === '') {
+        return {
+          valid: false,
+          reason: `Field 'title' is missing in execution payload (approved: "${approvedTitle}")`,
+        };
+      }
+      const executedTitle = String(executedPayload.title).trim();
+      if (approvedTitle !== executedTitle) {
         return {
           valid: false,
           reason: `Field 'title' mismatch: approved "${approvedTitle}" does not match execution "${executedTitle}"`,
@@ -138,13 +152,16 @@ export function verifyApprovedPayloadBinding(
     }
 
     // D. Check Workflow
-    if (approved.workflow !== undefined && approved.workflow !== null) {
+    if (approved.workflow !== undefined && approved.workflow !== null && String(approved.workflow).trim() !== '') {
       const approvedWf = String(approved.workflow).trim().toUpperCase().replace(/[\s-]+/g, '_');
-      const executedWf = executedPayload.workflow !== undefined && executedPayload.workflow !== null
-        ? String(executedPayload.workflow).trim().toUpperCase().replace(/[\s-]+/g, '_')
-        : undefined;
-
-      if (executedWf !== undefined && approvedWf !== executedWf) {
+      if (executedPayload.workflow === undefined || executedPayload.workflow === null || String(executedPayload.workflow).trim() === '') {
+        return {
+          valid: false,
+          reason: `Field 'workflow' is missing in execution payload (approved: "${approvedWf}")`,
+        };
+      }
+      const executedWf = String(executedPayload.workflow).trim().toUpperCase().replace(/[\s-]+/g, '_');
+      if (approvedWf !== executedWf) {
         return {
           valid: false,
           reason: `Field 'workflow' mismatch: approved "${approvedWf}" does not match execution "${executedWf}"`,
