@@ -28,20 +28,25 @@ describeSuite('A6: Shopify Live GraphQL & Real PostgreSQL Full E2E Suite', () =>
   const testCredentialId = `cred_sh_live_${timestamp}`;
 
   const shop = process.env.SHOPIFY_SHOP || 'crosspilot-dev';
-  const testDbUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+  const testDbUrl = process.env.TEST_DATABASE_URL;
   const clientId = process.env.SHOPIFY_CLIENT_ID;
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
 
   beforeAll(async () => {
-    // 1. Validate required environment configurations
+    // 1. Validate required environment configurations (fail-closed, no DATABASE_URL fallback)
     if (!testDbUrl) {
       throw new Error(
-        'RUN_SHOPIFY_LIVE_E2E=1 requires TEST_DATABASE_URL or DATABASE_URL in environment',
+        'RUN_SHOPIFY_LIVE_E2E=1 requires TEST_DATABASE_URL in environment (DATABASE_URL fallback is forbidden)',
       );
     }
-    if (!clientId || !clientSecret) {
+    if (!clientId) {
       throw new Error(
-        'RUN_SHOPIFY_LIVE_E2E=1 requires SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET in environment',
+        'RUN_SHOPIFY_LIVE_E2E=1 requires SHOPIFY_CLIENT_ID in environment',
+      );
+    }
+    if (!clientSecret) {
+      throw new Error(
+        'RUN_SHOPIFY_LIVE_E2E=1 requires SHOPIFY_CLIENT_SECRET in environment',
       );
     }
 

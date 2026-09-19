@@ -245,7 +245,7 @@ export class OperationAutomationService {
     let isLive = false;
     if (expected?.requestLiveExecution || expected?.executionMode === 'LIVE') {
       const isAuthorizedRole =
-        !expected.userRole || expected.userRole === 'OWNER' || expected.userRole === 'ADMIN';
+        expected?.userRole === 'OWNER' || expected?.userRole === 'ADMIN';
       if (!serverAllowsLive && process.env.NODE_ENV !== 'test') {
         throw new ForbiddenException(
           'Playwright LIVE execution is disabled on server (ALLOW_PLAYWRIGHT_LIVE not set to true)',

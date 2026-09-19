@@ -21,7 +21,9 @@ function loadEnv(file) {
   return env;
 }
 
+const rootEnv = loadEnv(path.join(__dirname, '.env'));
 const apiEnv = loadEnv(path.join(__dirname, 'apps/api/.env'));
+const workerEnv = loadEnv(path.join(__dirname, 'apps/worker/.env'));
 
 module.exports = {
   apps: [
@@ -32,7 +34,9 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3001,
+        ...rootEnv,
         ...apiEnv,
+        ...(process.env.DATABASE_URL ? { DATABASE_URL: process.env.DATABASE_URL } : {}),
       },
       instances: 1,
       autorestart: true,
@@ -45,11 +49,15 @@ module.exports = {
       script: 'dist/main.js',
       env: {
         NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://postgres:Pgsql456%40@127.0.0.1:5432/crosspilot?schema=public',
-        REDIS_HOST: '127.0.0.1',
-        REDIS_PORT: 6379,
-        MILVUS_HOST: '127.0.0.1',
-        MILVUS_PORT: 19530,
+        REDIS_HOST: process.env.REDIS_HOST || workerEnv.REDIS_HOST || apiEnv.REDIS_HOST || rootEnv.REDIS_HOST || '127.0.0.1',
+        REDIS_PORT: Number(process.env.REDIS_PORT || workerEnv.REDIS_PORT || apiEnv.REDIS_PORT || rootEnv.REDIS_PORT || 6379),
+        MILVUS_HOST: process.env.MILVUS_HOST || workerEnv.MILVUS_HOST || apiEnv.MILVUS_HOST || rootEnv.MILVUS_HOST || '127.0.0.1',
+        MILVUS_PORT: Number(process.env.MILVUS_PORT || workerEnv.MILVUS_PORT || apiEnv.MILVUS_PORT || rootEnv.MILVUS_PORT || 19530),
+        ...rootEnv,
+        ...workerEnv,
+        ...(process.env.DATABASE_URL || workerEnv.DATABASE_URL || apiEnv.DATABASE_URL || rootEnv.DATABASE_URL
+          ? { DATABASE_URL: process.env.DATABASE_URL || workerEnv.DATABASE_URL || apiEnv.DATABASE_URL || rootEnv.DATABASE_URL }
+          : {}),
       },
       instances: 1,
       autorestart: true,

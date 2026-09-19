@@ -167,18 +167,68 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
       ).rejects.toThrow(/DEMO_PAYLOAD_FORBIDDEN.*WRITE_FORBIDDEN/);
     });
 
-    it('LIVE mode strictly rejects unauthorized user role (e.g. VIEWER) before execution', async () => {
-      // Create non-demo approval
+    it.each([
+      ['undefined role', undefined],
+      ['null role', null],
+      ['empty string role', ''],
+      ['OPERATOR role', 'OPERATOR'],
+      ['VIEWER role', 'VIEWER'],
+    ])(
+      'LIVE mode fail-closed: %s strictly rejects LIVE execution before browser launch (dispatch count = 0)',
+      async (_desc, rejectedRole) => {
+        const dispatchSpy = jest.fn();
+        (service as any).actionRouter = {
+          dispatch: dispatchSpy,
+        };
+
+        approvalRecord = {
+          id: 'app_real_fail_closed',
+          workspaceId: 'ws_demo',
+          actionType: 'LISTING_PUBLISH',
+          targetType: 'SKU',
+          targetId: 'REAL-SKU-888',
+          requestedPayload: JSON.stringify({
+            skuCode: 'REAL-SKU-888',
+            price: 49.99,
+            title: 'Authentic Real Marble Stand',
+            isDemoTemplate: false,
+            workflow: 'UPDATE_LISTING',
+          }),
+          status: 'PENDING',
+          requestedAt: new Date(),
+        };
+
+        await expect(
+          service.approveAndExecute('app_real_fail_closed', 'ws_demo', 'OP_TEST', {
+            requestLiveExecution: true,
+            userRole: rejectedRole as any,
+          }),
+        ).rejects.toThrow(/Playwright LIVE execution requires OWNER or ADMIN workspace role/);
+
+        // Browser dispatch count strictly 0
+        expect(dispatchSpy).not.toHaveBeenCalled();
+      },
+    );
+
+    it('LIVE mode allows ADMIN role to proceed to dispatch', async () => {
+      const dispatchSpy = jest.fn().mockResolvedValue({
+        actionId: 'act_admin',
+        status: 'SUCCEEDED',
+        data: { jobId: 'job_admin_01' },
+        executionEvidence: { mode: 'LIVE', phase: 'COMPLETED', effect: 'APPLIED' },
+      });
+      (service as any).actionRouter = { dispatch: dispatchSpy };
+
       approvalRecord = {
-        id: 'app_real_01',
+        id: 'app_real_admin',
         workspaceId: 'ws_demo',
         actionType: 'LISTING_PUBLISH',
         targetType: 'SKU',
-        targetId: 'REAL-SKU-888',
+        targetId: 'REAL-SKU-777',
         requestedPayload: JSON.stringify({
-          skuCode: 'REAL-SKU-888',
-          price: 49.99,
-          title: 'Authentic Real Marble Stand',
+          skuCode: 'REAL-SKU-777',
+          price: 39.99,
+          title: 'Authentic Admin Granite Stand',
           isDemoTemplate: false,
           workflow: 'UPDATE_LISTING',
         }),
@@ -186,12 +236,13 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
         requestedAt: new Date(),
       };
 
-      await expect(
-        service.approveAndExecute('app_real_01', 'ws_demo', 'OP_VIEWER', {
-          requestLiveExecution: true,
-          userRole: 'VIEWER', // Non-admin / non-owner role rejected!
-        }),
-      ).rejects.toThrow(/requires OWNER or ADMIN/);
+      const result = await service.approveAndExecute('app_real_admin', 'ws_demo', 'OP_ADMIN', {
+        requestLiveExecution: true,
+        userRole: 'ADMIN',
+      });
+
+      expect(result.status).toBe('SUCCEEDED');
+      expect(dispatchSpy).toHaveBeenCalledTimes(1);
     });
 
     it('Explicit HITL LIVE approval path on authentic non-demo payload reconstructs action, dispatches with executionMode=LIVE, sets syncVerified=true, and stores evidence', async () => {
