@@ -111,6 +111,30 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
   async execute(input: RpaExecutionInput): Promise<RpaExecutionResult> {
     const startTime = Date.now();
 
+    if (input.signal?.aborted) {
+      const errorMsg = 'ABORTED_BEFORE_WRITE: Playwright RPA execution cancelled before launch';
+      return {
+        jobId: '',
+        status: 'FAILED',
+        error: errorMsg,
+        normalizedError: normalizeExecutionError(errorMsg, {
+          provider: 'playwright-rpa',
+          code: 'CANCELLED',
+        }),
+        output: {
+          writeExecuted: false,
+        },
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            step: 'ABORT_CHECK',
+            message: 'Execution cancelled before browser launch',
+          },
+        ],
+        durationMs: Date.now() - startTime,
+      };
+    }
+
     const params = (input.params || {}) as Record<string, any>;
 
     // 1. Workflow validation: match exact code or friendly proposal name
@@ -238,29 +262,43 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
       headless: params.headless ?? this.options.headless ?? true,
       timeoutMs: input.timeoutMs || params.timeoutMs || this.options.timeoutMs || 15000,
       evidenceDir: params.evidenceDir || this.options.evidenceDir,
+      signal: input.signal,
     };
 
     try {
       const outcome = await ListingUpdateWorkflow.run(jobId, workflowParams);
 
       let status: 'SUCCESS' | 'FAILED' | 'TIMEOUT' = 'FAILED';
+      let errorCode: string | undefined = undefined;
+
       if (outcome.success) {
         status = 'SUCCESS';
-      } else if (outcome.error && outcome.error.startsWith('PAGE_TIMEOUT')) {
+      } else if (outcome.error && (outcome.error.startsWith('PAGE_TIMEOUT') || outcome.error.startsWith('VERIFY_TIMEOUT'))) {
         status = 'TIMEOUT';
+        errorCode = outcome.error.startsWith('VERIFY_TIMEOUT') ? 'VERIFY_TIMEOUT' : 'PAGE_TIMEOUT';
+      } else if (outcome.error && outcome.error.startsWith('ABORTED_AFTER_WRITE')) {
+        status = 'TIMEOUT';
+        errorCode = 'ABORTED_AFTER_WRITE';
+      } else if (outcome.error && outcome.error.startsWith('ABORTED_BEFORE_WRITE')) {
+        status = 'FAILED';
+        errorCode = 'CANCELLED';
       }
 
       const normalizedError = outcome.success
         ? undefined
         : normalizeExecutionError(outcome.error, {
             provider: 'playwright-rpa',
-            code: status === 'TIMEOUT' ? 'PAGE_TIMEOUT' : undefined,
+            code: errorCode || (status === 'TIMEOUT' ? 'PAGE_TIMEOUT' : undefined),
           });
+
+      const outputData = outcome.output
+        ? { ...(outcome.output as unknown as Record<string, unknown>), writeExecuted: outcome.writeExecuted }
+        : (outcome.writeExecuted !== undefined ? { writeExecuted: outcome.writeExecuted } : undefined);
 
       const result: RpaExecutionResult = {
         jobId,
         status,
-        output: outcome.output as unknown as Record<string, unknown>,
+        output: outputData,
         screenshotUrls: outcome.screenshotUrls,
         logs: outcome.logs,
         error: outcome.error,

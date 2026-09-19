@@ -4,7 +4,12 @@ import {
   ActionDispatcherContext,
 } from './action.types.js';
 import { defaultRpaRegistry, RpaAdapter } from '@crosspilot/integrations/rpa';
-import { AutomationMode, normalizeExecutionError } from '@crosspilot/shared';
+import {
+  AutomationMode,
+  normalizeExecutionError,
+  getAutomationTimeoutConfig,
+  combineAbortSignals,
+} from '@crosspilot/shared';
 import { verifyApprovedPayloadBinding } from './approval-binding.js';
 
 export type { ActionDispatcherContext } from './action.types.js';
@@ -42,8 +47,13 @@ export class ActionRouter {
     const mode: AutomationMode = context.executionMode || 'LIVE';
     const operationId = context.operationId || proposal.id;
 
+    const timeoutConfig = getAutomationTimeoutConfig();
+    const executionTimeoutMs = context.timeoutMs ?? timeoutConfig.executionTimeoutMs;
+    const combined = combineAbortSignals([context.signal], executionTimeoutMs);
+
     // 0. Check Human Gate FIRST (before checking any cache or dispatching)
     if (proposal.requiresHumanApproval && !context.isApproved) {
+      combined.cleanup();
       return {
         actionId: proposal.id,
         status: 'WAITING_APPROVAL',
@@ -84,6 +94,7 @@ export class ActionRouter {
       ) {
         // Only Mock mode can replay cached results; LIVE/SIMULATOR must not silently replay
         if (mode === 'MOCK') {
+          combined.cleanup();
           return {
             ...cached.result,
             traceId,
@@ -97,6 +108,7 @@ export class ActionRouter {
         provider: 'idempotency-cache',
         code: 'IDEMPOTENCY_CONFLICT',
       });
+      combined.cleanup();
       return {
         actionId: proposal.id,
         status: 'FAILED',
@@ -132,6 +144,7 @@ export class ActionRouter {
         provider: context.providerId || 'action-router',
         code: 'TARGET_MISMATCH',
       });
+      combined.cleanup();
       return {
         actionId: proposal.id,
         status: 'FAILED',
@@ -163,6 +176,7 @@ export class ActionRouter {
         provider: context.providerId || 'action-router',
         code: 'PAYLOAD_TAMPERED',
       });
+      combined.cleanup();
       return {
         actionId: proposal.id,
         status: 'FAILED',
@@ -196,6 +210,7 @@ export class ActionRouter {
         provider: context.providerId || 'action-router',
         code: 'WRITE_FORBIDDEN',
       });
+      combined.cleanup();
       return {
         actionId: proposal.id,
         status: 'FAILED',
@@ -346,12 +361,46 @@ export class ActionRouter {
           break;
         }
 
+        if (combined.signal.aborted) {
+          const isTimeout = combined.isTimedOut();
+          const code = isTimeout ? 'TIMEOUT' : 'CANCELLED';
+          const errorMsg = isTimeout
+            ? `Execution timed out before starting (${executionTimeoutMs}ms)`
+            : 'Execution was cancelled by caller before starting';
+          const norm = normalizeExecutionError(errorMsg, {
+            provider: adapter.id,
+            code,
+          });
+          result = {
+            actionId: proposal.id,
+            status: 'FAILED',
+            error: errorMsg,
+            traceId,
+            durationMs: Date.now() - startTime,
+            normalizedError: norm,
+            executionEvidence: {
+              mode,
+              provider: adapter.id,
+              operationId,
+              phase: 'FAILED',
+              effect: 'NOT_APPLIED',
+              recovery: 'NONE',
+              errorCode: norm.code,
+              errorClass: norm.class,
+              normalizedError: norm,
+            },
+          };
+          break;
+        }
+
         try {
           const payload = (proposal.payload || {}) as Record<string, unknown>;
           const workflow = String(payload.workflow || proposal.name || '');
           const rpaResult = await adapter.execute({
             workflow,
             params: payload,
+            signal: combined.signal,
+            timeoutMs: executionTimeoutMs,
           });
 
           const isMock = mode === 'MOCK' || adapter.id === 'mock-rpa';
@@ -449,6 +498,7 @@ export class ActionRouter {
               });
 
             const hasRemoteJob = Boolean(rpaResult.jobId);
+            const writeExecuted = Boolean(rpaResult.output && (rpaResult.output as any).writeExecuted);
 
             // Primary control path: typed normalized error
             let isExplicitPreflight =
@@ -461,6 +511,14 @@ export class ActionRouter {
                 failedNormalized.code === 'UNSUPPORTED_WORKFLOW' ||
                 failedNormalized.code === 'PREFLIGHT');
 
+            // Pre-write cancel: cancelled before writing (e.g. before save)
+            const isPreWriteCancel =
+              !hasRemoteJob &&
+              !writeExecuted &&
+              (failedNormalized.code === 'CANCELLED' ||
+                failedNormalized.code === 'ABORTED_BEFORE_WRITE' ||
+                failedNormalized.code === 'ABORTED');
+
             // LEGACY COMPATIBILITY FALLBACK: Only when rpaResult.normalizedError was missing
             // from adapter and typed classification did not match, check legacy raw string prefix.
             if (!isExplicitPreflight && !rpaResult.normalizedError && rpaResult.error) {
@@ -472,6 +530,8 @@ export class ActionRouter {
                   rawErr.startsWith('UNSUPPORTED_WORKFLOW') ||
                   rawErr.startsWith('PREFLIGHT'));
             }
+
+            const isSafeNotApplied = (isExplicitPreflight || isPreWriteCancel) && !writeExecuted;
 
             result = {
               actionId: proposal.id,
@@ -487,10 +547,12 @@ export class ActionRouter {
                 provider: adapter.id,
                 operationId,
                 phase: 'FAILED',
-                effect: isExplicitPreflight ? 'NOT_APPLIED' : 'UNKNOWN',
-                recovery: isExplicitPreflight
-                  ? (failedNormalized.class === 'AUTH' ? 'REAUTHORIZE' : 'MANUAL')
-                  : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
+                effect: isSafeNotApplied ? 'NOT_APPLIED' : 'UNKNOWN',
+                recovery: isPreWriteCancel
+                  ? 'NONE'
+                  : isExplicitPreflight
+                    ? (failedNormalized.class === 'AUTH' ? 'REAUTHORIZE' : 'MANUAL')
+                    : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
                 externalId: rpaResult.jobId || undefined,
                 errorCode: failedNormalized.code,
                 errorClass: failedNormalized.class,
@@ -500,8 +562,14 @@ export class ActionRouter {
           }
         } catch (err: any) {
           // Unexpected exception during execution (e.g. process crash, connection dropped after submit)
-          // Conservative invariant: remote effect is UNKNOWN
-          const caughtNormalized = normalizeExecutionError(err, { provider: adapter.id });
+          // Conservative invariant: remote effect is UNKNOWN unless safely cancelled prior to write
+          const isCancelled = combined.isCancelled() || err.name === 'AbortError';
+          const isTimedOut = combined.isTimedOut() || err.name === 'TimeoutError';
+          const caughtCode = isCancelled ? 'CANCELLED' : isTimedOut ? 'TIMEOUT' : undefined;
+          const caughtNormalized = normalizeExecutionError(err, {
+            provider: adapter.id,
+            code: caughtCode,
+          });
           result = {
             actionId: proposal.id,
             status: 'FAILED',
@@ -514,8 +582,8 @@ export class ActionRouter {
               provider: adapter.id,
               operationId,
               phase: 'FAILED',
-              effect: 'UNKNOWN',
-              recovery: adapter.getStatus ? 'QUERY' : 'MANUAL',
+              effect: isCancelled ? 'NOT_APPLIED' : 'UNKNOWN',
+              recovery: isCancelled ? 'NONE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
               errorCode: caughtNormalized.code,
               errorClass: caughtNormalized.class,
               normalizedError: caughtNormalized,
@@ -577,6 +645,7 @@ export class ActionRouter {
       });
     }
 
+    combined.cleanup();
     return result;
   }
 }

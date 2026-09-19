@@ -41,6 +41,7 @@ export class WorkerService {
   private recoveryQueue: Queue | null = null;
   private recoveryRedis: Redis | null = null;
   private recoveryPrisma: PrismaClient | null = null;
+  private shutdownController = new AbortController();
   private redisService: RedisService;
   private isRunning = false;
 
@@ -306,7 +307,9 @@ export class WorkerService {
       this.recoveryWorker = new Worker(
         AUTOMATION_RECOVERY_QUEUE_NAME,
         async (_job: Job) => {
-          return await processAutomationRecovery(prisma);
+          return await processAutomationRecovery(prisma, {
+            signal: this.shutdownController.signal,
+          });
         },
         { connection: this.recoveryRedis as any },
       );
@@ -329,6 +332,7 @@ export class WorkerService {
 
   public async stop(): Promise<void> {
     console.log('🛑 Shutting down CrossPilot Worker...');
+    this.shutdownController.abort();
     if (this.worker) {
       await this.worker.close();
       this.worker = null;

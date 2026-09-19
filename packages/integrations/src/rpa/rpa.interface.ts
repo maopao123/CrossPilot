@@ -12,6 +12,7 @@ export interface RpaExecutionInput {
   workflow: string;
   params: Record<string, unknown>;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }
 
 export interface RpaExecutionResult {

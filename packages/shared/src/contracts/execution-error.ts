@@ -369,6 +369,22 @@ export function normalizeExecutionError(
   }
 
   if (
+    normalizedCode === 'CANCELLED' ||
+    normalizedCode === 'ABORTED' ||
+    normalizedCode === 'EXTERNAL_CANCEL'
+  ) {
+    return {
+      class: 'TIMEOUT',
+      code: code || 'CANCELLED',
+      message: message || 'Operation was cancelled by caller',
+      retryable: false,
+      provider,
+      originalStatus,
+      cause,
+    };
+  }
+
+  if (
     normalizedCode === 'SELECTOR_NOT_FOUND' ||
     normalizedCode === 'RPA_SELECTOR_FAILED'
   ) {

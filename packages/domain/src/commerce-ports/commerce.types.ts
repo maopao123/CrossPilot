@@ -4,6 +4,8 @@ export interface CommerceContext {
   workspaceId: string;
   storeId: string;
   traceId: string;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 export interface ChannelIdentityView {

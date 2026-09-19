@@ -58,4 +58,6 @@ export interface ActionDispatcherContext {
   approvedPayload?: Record<string, unknown> | string;
   approvedPayloadHash?: string;
   approvalProof?: any;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }

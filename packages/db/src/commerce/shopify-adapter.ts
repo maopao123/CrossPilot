@@ -1,5 +1,9 @@
 import { PrismaClient } from '@prisma/client';
-import { ErrorCodes } from '@crosspilot/shared';
+import {
+  ErrorCodes,
+  getAutomationTimeoutConfig,
+  combineAbortSignals,
+} from '@crosspilot/shared';
 import {
   CommercePortError,
   providerUnavailable,
@@ -44,12 +48,18 @@ export interface ShopifyGraphQLResponse<T = any> {
   };
 }
 
+export interface ShopifyGraphQLRequestOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
 export interface ShopifyGraphQLTransport {
   execute<T = any>(
     shop: string,
     accessToken: string,
     query: string,
     variables?: Record<string, unknown>,
+    options?: ShopifyGraphQLRequestOptions,
   ): Promise<ShopifyGraphQLResponse<T>>;
 }
 
@@ -58,10 +68,17 @@ export interface ShopifyTokenExchangeResult {
   expiresIn: number;
 }
 
+export interface ShopifyTokenExchangeOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  fetchFn?: typeof fetch;
+}
+
 export type ShopifyTokenExchanger = (
   shop: string,
   clientId: string,
   clientSecret: string,
+  options?: ShopifyTokenExchangeOptions,
 ) => Promise<ShopifyTokenExchangeResult>;
 
 export interface ShopifyAdapterOptions {
@@ -124,33 +141,58 @@ export function validateAndNormalizeShopSubdomain(raw: string): string {
  * Default live HTTP transport for Shopify Admin GraphQL API (default: 2026-07).
  */
 export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
-  constructor(private readonly apiVersion = '2026-07') {}
+  constructor(
+    private readonly apiVersion = '2026-07',
+    private readonly fetchFn: typeof fetch = fetch,
+  ) {}
 
   async execute<T = any>(
     shop: string,
     accessToken: string,
     query: string,
     variables?: Record<string, unknown>,
+    options?: ShopifyGraphQLRequestOptions,
   ): Promise<ShopifyGraphQLResponse<T>> {
     const subdomain = validateAndNormalizeShopSubdomain(shop);
     const url = `https://${subdomain}.myshopify.com/admin/api/${this.apiVersion}/graphql.json`;
+    const timeoutConfig = getAutomationTimeoutConfig();
+    const timeoutMs = options?.timeoutMs ?? timeoutConfig.httpTimeoutMs;
+
+    const combined = combineAbortSignals([options?.signal], timeoutMs);
 
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await this.fetchFn(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': accessToken,
         },
         body: JSON.stringify({ query, variables }),
+        signal: combined.signal,
       });
     } catch (err: any) {
+      if (combined.isTimedOut() || err?.name === 'TimeoutError') {
+        throw new CommercePortError(
+          'TIMEOUT',
+          `Shopify GraphQL request timed out after ${timeoutMs}ms`,
+          false,
+        );
+      }
+      if (combined.isCancelled() || err?.name === 'AbortError') {
+        throw new CommercePortError(
+          'CANCELLED',
+          'Shopify GraphQL request was cancelled by caller',
+          false,
+        );
+      }
       throw new CommercePortError(
         ErrorCodes.PROVIDER_UNAVAILABLE,
         `Failed to reach Shopify GraphQL API: ${err?.message || String(err)}`,
         true,
       );
+    } finally {
+      combined.cleanup();
     }
 
     if (res.status === 429) {
@@ -204,9 +246,14 @@ export async function defaultShopifyTokenExchanger(
   shop: string,
   clientId: string,
   clientSecret: string,
+  options?: ShopifyTokenExchangeOptions,
 ): Promise<ShopifyTokenExchangeResult> {
   const subdomain = validateAndNormalizeShopSubdomain(shop);
   const url = `https://${subdomain}.myshopify.com/admin/oauth/access_token`;
+  const timeoutConfig = getAutomationTimeoutConfig();
+  const timeoutMs = options?.timeoutMs ?? timeoutConfig.httpTimeoutMs;
+
+  const combined = combineAbortSignals([options?.signal], timeoutMs);
 
   const bodyParams = new URLSearchParams();
   bodyParams.append('grant_type', 'client_credentials');
@@ -214,20 +261,38 @@ export async function defaultShopifyTokenExchanger(
   bodyParams.append('client_secret', clientSecret);
 
   let res: Response;
+  const fetchFn = options?.fetchFn ?? fetch;
   try {
-    res = await fetch(url, {
+    res = await fetchFn(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: bodyParams.toString(),
+      signal: combined.signal,
     });
   } catch (err: any) {
+    if (combined.isTimedOut() || err?.name === 'TimeoutError') {
+      throw new CommercePortError(
+        'TIMEOUT',
+        `Shopify token exchange timed out after ${timeoutMs}ms`,
+        false,
+      );
+    }
+    if (combined.isCancelled() || err?.name === 'AbortError') {
+      throw new CommercePortError(
+        'CANCELLED',
+        'Shopify token exchange was cancelled by caller',
+        false,
+      );
+    }
     throw new CommercePortError(
       ErrorCodes.PROVIDER_UNAVAILABLE,
       `Shopify token exchange network failure: ${err?.message || String(err)}`,
       true,
     );
+  } finally {
+    combined.cleanup();
   }
 
   if (res.status === 429) {
@@ -305,7 +370,8 @@ export class ShopifyAdapter implements CommerceAdapter {
 
   async listProducts(ctx: CommerceContext): Promise<CanonicalProduct[]> {
     const bound = await this.bind(ctx);
-    const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret);
+    const options = { signal: ctx?.signal, timeoutMs: ctx?.timeoutMs };
+    const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret, options);
 
     const query = `
       query ListProducts($first: Int!, $after: String) {
@@ -345,10 +411,16 @@ export class ShopifyAdapter implements CommerceAdapter {
     let cursor: string | null = null;
 
     while (hasNextPage) {
-      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(bound.shop, token, query, {
-        first: 50,
-        after: cursor,
-      });
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(
+        bound.shop,
+        token,
+        query,
+        {
+          first: 50,
+          after: cursor,
+        },
+        options,
+      );
       const page: any = res.data?.products;
       const nodes = Array.isArray(page?.nodes) ? page.nodes : (Array.isArray(page) ? page : []);
       for (const node of nodes) {
@@ -387,7 +459,8 @@ export class ShopifyAdapter implements CommerceAdapter {
 
   async getProduct(ctx: CommerceContext, offerId: string): Promise<CanonicalProduct | null> {
     const bound = await this.bind(ctx);
-    const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret);
+    const options = { signal: ctx?.signal, timeoutMs: ctx?.timeoutMs };
+    const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret, options);
 
     // 1. Direct variant GID lookup
     if (offerId.startsWith('gid://shopify/ProductVariant/')) {
@@ -409,7 +482,7 @@ export class ShopifyAdapter implements CommerceAdapter {
         }
       `;
       try {
-        const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
+        const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId }, options);
         const variant = res.data?.productVariant;
         if (!variant) return null;
         const product = this.variantToCanonicalProduct(ctx, variant.product, variant);
@@ -449,7 +522,7 @@ export class ShopifyAdapter implements CommerceAdapter {
         }
       `;
       try {
-        const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
+        const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId }, options);
         const productNode = res.data?.product;
         if (!productNode) return null;
         if (productNode.variants?.pageInfo?.hasNextPage) {
@@ -500,7 +573,7 @@ export class ShopifyAdapter implements CommerceAdapter {
 
     const res = await this.executeGraphQL<any>(bound.shop, token, searchQuery, {
       query: `sku:${offerId}`,
-    });
+    }, options);
     const matchedVariant = res.data?.productVariants?.nodes?.[0];
     if (matchedVariant) {
       const product = this.variantToCanonicalProduct(ctx, matchedVariant.product, matchedVariant);
@@ -527,7 +600,8 @@ export class ShopifyAdapter implements CommerceAdapter {
 
   async listOrders(ctx: CommerceContext, query: OrderQuery = {}): Promise<CanonicalOrder[]> {
     const bound = await this.bind(ctx);
-    const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret);
+    const options = { signal: ctx?.signal, timeoutMs: ctx?.timeoutMs };
+    const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret, options);
 
     const filterParts: string[] = [];
     if (query.from) {
@@ -599,7 +673,7 @@ export class ShopifyAdapter implements CommerceAdapter {
         first: pageSize,
         after: cursor,
         query: queryString,
-      });
+      }, options);
 
       const orderPage: any = res.data?.orders;
       const orderNodes = Array.isArray(orderPage?.nodes) ? orderPage.nodes : (Array.isArray(orderPage) ? orderPage : []);
@@ -649,7 +723,8 @@ export class ShopifyAdapter implements CommerceAdapter {
 
   async getInventory(ctx: CommerceContext, offerId: string): Promise<CanonicalInventory | null> {
     const bound = await this.bind(ctx);
-    const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret);
+    const options = { signal: ctx?.signal, timeoutMs: ctx?.timeoutMs };
+    const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret, options);
 
     // 1. Variant GID lookup
     if (offerId.startsWith('gid://shopify/ProductVariant/')) {
@@ -675,7 +750,7 @@ export class ShopifyAdapter implements CommerceAdapter {
           }
         }
       `;
-      const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
+      const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId }, options);
       const variant = res.data?.productVariant;
       if (!variant?.inventoryItem) return null;
       let levels = Array.isArray(variant.inventoryItem.inventoryLevels?.nodes)
@@ -722,7 +797,7 @@ export class ShopifyAdapter implements CommerceAdapter {
           }
         }
       `;
-      const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId });
+      const res = await this.executeGraphQL<any>(bound.shop, token, query, { id: offerId }, options);
       const variant = res.data?.product?.variants?.nodes?.[0];
       if (!variant?.inventoryItem) return null;
       let levels = Array.isArray(variant.inventoryItem.inventoryLevels?.nodes)
@@ -765,10 +840,9 @@ export class ShopifyAdapter implements CommerceAdapter {
         }
       }
     `;
-
     const res = await this.executeGraphQL<any>(bound.shop, token, searchQuery, {
       query: `sku:${offerId}`,
-    });
+    }, options);
     const variant = res.data?.productVariants?.nodes?.[0];
     if (variant?.inventoryItem) {
       let levels = Array.isArray(variant.inventoryItem.inventoryLevels?.nodes)
@@ -905,7 +979,12 @@ export class ShopifyAdapter implements CommerceAdapter {
     return { store, account, shop, clientId, clientSecret };
   }
 
-  private async getAccessToken(shop: string, clientId: string, clientSecret: string): Promise<string> {
+  private async getAccessToken(
+    shop: string,
+    clientId: string,
+    clientSecret: string,
+    options?: ShopifyTokenExchangeOptions,
+  ): Promise<string> {
     const cacheKey = `${shop}:${clientId}`;
     const now = Date.now();
     const cached = ShopifyAdapter.tokenCache.get(cacheKey);
@@ -917,8 +996,11 @@ export class ShopifyAdapter implements CommerceAdapter {
 
     let exchanged: ShopifyTokenExchangeResult;
     try {
-      exchanged = await this.exchangeToken(shop, clientId, clientSecret);
+      exchanged = await this.exchangeToken(shop, clientId, clientSecret, options);
     } catch (err: any) {
+      if (err instanceof CommercePortError) {
+        throw err;
+      }
       const isAuth = err?.code === ErrorCodes.AUTH_REQUIRED || err?.code === 'TOKEN_EXPIRED';
       const code = isAuth ? ErrorCodes.AUTH_REQUIRED : (err?.code || ErrorCodes.PROVIDER_UNAVAILABLE);
       throw new CommercePortError(
@@ -941,10 +1023,11 @@ export class ShopifyAdapter implements CommerceAdapter {
     accessToken: string,
     query: string,
     variables?: Record<string, unknown>,
+    options?: ShopifyGraphQLRequestOptions,
   ): Promise<ShopifyGraphQLResponse<T>> {
     let res: ShopifyGraphQLResponse<T>;
     try {
-      res = await this.transport.execute<T>(shop, accessToken, query, variables);
+      res = await this.transport.execute<T>(shop, accessToken, query, variables, options);
     } catch (err: any) {
       if (err instanceof CommercePortError) {
         throw err;

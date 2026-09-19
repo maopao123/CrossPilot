@@ -7,6 +7,8 @@ import {
   type ErpReceiptRecord,
   type ErpResult,
   normalizeExecutionError,
+  combineAbortSignals,
+  getAutomationTimeoutConfig,
 } from '@crosspilot/shared';
 
 export interface HttpErpAdapterOptions {
@@ -14,6 +16,12 @@ export interface HttpErpAdapterOptions {
   apiKey?: string;
   timeoutMs?: number;
   maxRetries?: number;
+  fetchFn?: typeof fetch;
+}
+
+export interface ErpRequestOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 export class HttpERPAdapter {
@@ -21,12 +29,14 @@ export class HttpERPAdapter {
   protected readonly apiKey?: string;
   protected readonly timeoutMs: number;
   protected readonly maxRetries: number;
+  protected readonly fetchFn: typeof fetch;
 
   constructor(options: HttpErpAdapterOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.apiKey = options.apiKey;
-    this.timeoutMs = options.timeoutMs ?? 5000;
+    this.timeoutMs = options.timeoutMs ?? getAutomationTimeoutConfig().httpTimeoutMs;
     this.maxRetries = options.maxRetries ?? 0;
+    this.fetchFn = options.fetchFn ?? fetch;
   }
 
   private async request<T>(
@@ -36,12 +46,12 @@ export class HttpERPAdapter {
       body?: unknown;
       headers?: Record<string, string>;
       timeoutMs?: number;
+      signal?: AbortSignal;
     },
   ): Promise<ErpResult<T>> {
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     const timeout = options.timeoutMs ?? this.timeoutMs;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    const combined = combineAbortSignals([options.signal], timeout);
 
     const headers: Record<string, string> = {
       'content-type': 'application/json',
@@ -51,14 +61,12 @@ export class HttpERPAdapter {
     };
 
     try {
-      const response = await fetch(url, {
+      const response = await this.fetchFn(url, {
         method: options.method,
         headers,
         body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-        signal: controller.signal,
+        signal: combined.signal,
       });
-
-      clearTimeout(timer);
 
       const status = response.status;
       let text = '';
@@ -102,23 +110,8 @@ export class HttpERPAdapter {
           statusCode: status,
           rawResponse: parsedJson || text,
           normalizedError: normalizeExecutionError(
-            { errorCode: 'RATE_LIMITED', errorMessage, statusCode: status },
-            { provider: 'erp', originalStatus: 429, code: 'RATE_LIMITED' },
-          ),
-        };
-      }
-
-      if (status === 400 || status === 422) {
-        const errorMessage = parsedJson?.message || parsedJson?.error || `Validation error HTTP ${status}`;
-        return {
-          success: false,
-          errorCode: 'VALIDATION_ERROR',
-          errorMessage,
-          statusCode: status,
-          rawResponse: parsedJson || text,
-          normalizedError: normalizeExecutionError(
-            { errorCode: 'VALIDATION_ERROR', errorMessage, statusCode: status },
-            { provider: 'erp', originalStatus: status, code: 'VALIDATION_ERROR' },
+            { errorCode: 'RATE_LIMITED', errorMessage, statusCode: status, rawResponse: parsedJson || text },
+            { provider: 'erp', originalStatus: status, code: 'RATE_LIMITED' },
           ),
         };
       }
@@ -132,8 +125,53 @@ export class HttpERPAdapter {
           statusCode: status,
           rawResponse: parsedJson || text,
           normalizedError: normalizeExecutionError(
-            { errorCode: 'NOT_FOUND', errorMessage, statusCode: 404 },
-            { provider: 'erp', originalStatus: 404, code: 'NOT_FOUND' },
+            { errorCode: 'NOT_FOUND', errorMessage, statusCode: status },
+            { provider: 'erp', originalStatus: status, code: 'NOT_FOUND' },
+          ),
+        };
+      }
+
+      if (status === 400 || status === 422) {
+        const errorMessage = parsedJson?.message || parsedJson?.error || 'Validation error';
+        return {
+          success: false,
+          errorCode: 'VALIDATION_ERROR',
+          errorMessage,
+          statusCode: status,
+          rawResponse: parsedJson || text,
+          normalizedError: normalizeExecutionError(
+            { errorCode: 'VALIDATION_ERROR', errorMessage, statusCode: status, rawResponse: parsedJson || text },
+            { provider: 'erp', originalStatus: status, code: 'VALIDATION_ERROR' },
+          ),
+        };
+      }
+
+      if (status === 409) {
+        const errorMessage = parsedJson?.message || parsedJson?.error || 'Conflict detected';
+        return {
+          success: false,
+          errorCode: 'UNKNOWN_ERROR',
+          errorMessage,
+          statusCode: status,
+          rawResponse: parsedJson || text,
+          normalizedError: normalizeExecutionError(
+            { errorCode: 'CONFLICT', errorMessage, statusCode: status, rawResponse: parsedJson || text },
+            { provider: 'erp', originalStatus: status, code: 'CONFLICT' },
+          ),
+        };
+      }
+
+      if (status >= 500) {
+        const errorMessage = parsedJson?.message || parsedJson?.error || `ERP server error HTTP ${status}`;
+        return {
+          success: false,
+          errorCode: 'UNKNOWN_ERROR',
+          errorMessage,
+          statusCode: status,
+          rawResponse: parsedJson || text,
+          normalizedError: normalizeExecutionError(
+            { errorCode: 'SERVER_ERROR', errorMessage, statusCode: status, rawResponse: parsedJson || text },
+            { provider: 'erp', originalStatus: status, code: `HTTP_${status}` },
           ),
         };
       }
@@ -175,8 +213,7 @@ export class HttpERPAdapter {
         rawResponse: parsedJson,
       };
     } catch (err: any) {
-      clearTimeout(timer);
-      if (err.name === 'AbortError' || err.code === 'UND_ERR_CONNECT_TIMEOUT') {
+      if (combined.isTimedOut() || err.name === 'TimeoutError' || err.code === 'UND_ERR_CONNECT_TIMEOUT') {
         const errorMessage = `Request timed out after ${timeout}ms`;
         return {
           success: false,
@@ -185,16 +222,30 @@ export class HttpERPAdapter {
           normalizedError: normalizeExecutionError(err, { provider: 'erp', code: 'TIMEOUT' }),
         };
       }
+      if (combined.isCancelled() || err.name === 'AbortError') {
+        const errorMessage = 'Request was cancelled by caller';
+        return {
+          success: false,
+          errorCode: 'TIMEOUT',
+          errorMessage,
+          normalizedError: normalizeExecutionError(err, { provider: 'erp', code: 'CANCELLED' }),
+        };
+      }
       return {
         success: false,
         errorCode: 'UNKNOWN_ERROR',
         errorMessage: err.message || 'Network error',
         normalizedError: normalizeExecutionError(err, { provider: 'erp', code: err?.code || 'NETWORK_ERROR' }),
       };
+    } finally {
+      combined.cleanup();
     }
   }
 
-  async createPurchaseOrder(cmd: ErpCreateCommand): Promise<ErpResult<ErpPurchaseOrder>> {
+  async createPurchaseOrder(
+    cmd: ErpCreateCommand,
+    options?: ErpRequestOptions,
+  ): Promise<ErpResult<ErpPurchaseOrder>> {
     const headers: Record<string, string> = {
       'x-workspace-id': cmd.scope.workspaceId,
       'x-idempotency-key': cmd.idempotencyKey,
@@ -208,6 +259,8 @@ export class HttpERPAdapter {
       method: 'POST',
       body: cmd,
       headers,
+      signal: options?.signal,
+      timeoutMs: options?.timeoutMs,
     });
 
     if (!res.success) {
@@ -233,7 +286,10 @@ export class HttpERPAdapter {
     return res;
   }
 
-  async getPurchaseOrder(lookup: ErpLookup): Promise<ErpResult<ErpPurchaseOrder>> {
+  async getPurchaseOrder(
+    lookup: ErpLookup,
+    options?: ErpRequestOptions,
+  ): Promise<ErpResult<ErpPurchaseOrder>> {
     let endpoint = '';
     if (lookup.externalId) {
       endpoint = `/erp/purchase-orders/${encodeURIComponent(lookup.externalId)}`;
@@ -264,10 +320,16 @@ export class HttpERPAdapter {
     return this.request<ErpPurchaseOrder>(endpoint, {
       method: 'GET',
       headers,
+      signal: options?.signal,
+      timeoutMs: options?.timeoutMs,
     });
   }
 
-  async getInventory(skuId: string, scope?: Record<string, unknown>): Promise<ErpResult<ErpInventoryItem>> {
+  async getInventory(
+    skuId: string,
+    scope?: Record<string, unknown>,
+    options?: ErpRequestOptions,
+  ): Promise<ErpResult<ErpInventoryItem>> {
     const headers: Record<string, string> = {};
     if (scope?.workspaceId) {
       headers['x-workspace-id'] = String(scope.workspaceId);
@@ -275,10 +337,15 @@ export class HttpERPAdapter {
     return this.request<ErpInventoryItem>(`/erp/inventory/${encodeURIComponent(skuId)}`, {
       method: 'GET',
       headers,
+      signal: options?.signal,
+      timeoutMs: options?.timeoutMs,
     });
   }
 
-  async receivePurchaseOrder(cmd: ErpReceiptCommand): Promise<ErpResult<ErpReceiptRecord>> {
+  async receivePurchaseOrder(
+    cmd: ErpReceiptCommand,
+    options?: ErpRequestOptions,
+  ): Promise<ErpResult<ErpReceiptRecord>> {
     const headers: Record<string, string> = {
       'x-workspace-id': cmd.scope.workspaceId,
       'x-receipt-id': cmd.externalReceiptId,
@@ -289,6 +356,8 @@ export class HttpERPAdapter {
         method: 'POST',
         body: cmd,
         headers,
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs,
       },
     );
 

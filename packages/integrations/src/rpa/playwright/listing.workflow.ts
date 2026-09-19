@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import { getAutomationTimeoutConfig } from '@crosspilot/shared';
 import { RpaExecutionLog } from '../rpa.interface.js';
 import { SellerCentralPage, ListingFormData } from './seller-central.page.js';
 
@@ -12,6 +13,7 @@ export interface UpdateListingWorkflowParams {
   headless?: boolean;
   timeoutMs?: number;
   evidenceDir?: string;
+  signal?: AbortSignal;
 }
 
 export interface UpdateListingWorkflowOutput {
@@ -32,6 +34,7 @@ export interface UpdateListingWorkflowResult {
   logs: RpaExecutionLog[];
   error?: string;
   durationMs: number;
+  writeExecuted?: boolean;
 }
 
 /**
@@ -45,6 +48,7 @@ export class ListingUpdateWorkflow {
   ): Promise<UpdateListingWorkflowResult> {
     const startTime = Date.now();
     const logs: RpaExecutionLog[] = [];
+    let writeExecuted = false;
 
     const recordLog = (step: string, message: string) => {
       logs.push({
@@ -55,6 +59,7 @@ export class ListingUpdateWorkflow {
     };
 
     recordLog('INIT', `Starting UPDATE_LISTING workflow for SKU ${params.skuCode}`);
+    params.signal?.throwIfAborted();
 
     if (!params.skuCode) {
       return {
@@ -62,6 +67,7 @@ export class ListingUpdateWorkflow {
         error: 'VALIDATION_FAILED: skuCode is required',
         logs,
         durationMs: Date.now() - startTime,
+        writeExecuted: false,
       };
     }
 
@@ -71,11 +77,16 @@ export class ListingUpdateWorkflow {
         error: 'VALIDATION_FAILED: At least one of title or price must be provided',
         logs,
         durationMs: Date.now() - startTime,
+        writeExecuted: false,
       };
     }
 
     const baseUrl = (params.baseUrl || 'http://127.0.0.1:3000').replace(/\/$/, '');
-    const timeoutMs = params.timeoutMs || 15000;
+    const timeoutConfig = getAutomationTimeoutConfig();
+    const timeoutMs = params.timeoutMs || timeoutConfig.executionTimeoutMs;
+    const navTimeoutMs = Math.min(timeoutMs, timeoutConfig.rpaNavigationTimeoutMs);
+    const verifyTimeoutMs = Math.min(timeoutMs, timeoutConfig.verifyTimeoutMs);
+
     const baseEvidenceDir =
       params.evidenceDir ||
       path.join(process.cwd(), '.runtime-evidence', 'rpa');
@@ -95,11 +106,13 @@ export class ListingUpdateWorkflow {
     let page: Page | null = null;
 
     try {
+      params.signal?.throwIfAborted();
       recordLog('BROWSER_LAUNCH', 'Launching headless Chromium browser instance');
       browser = await chromium.launch({
         headless: params.headless !== false,
       });
 
+      params.signal?.throwIfAborted();
       context = await browser.newContext({
         viewport: { width: 1280, height: 800 },
         userAgent:
@@ -115,13 +128,16 @@ export class ListingUpdateWorkflow {
       const sellerPage = new SellerCentralPage(page);
 
       // Step 1: Open Seller Central Dashboard & Search SKU
+      params.signal?.throwIfAborted();
       recordLog('NAVIGATE', `Navigating to Seller Central dashboard at ${baseUrl}`);
-      await sellerPage.gotoDashboard(baseUrl, timeoutMs);
+      await sellerPage.gotoDashboard(baseUrl, navTimeoutMs);
 
+      params.signal?.throwIfAborted();
       recordLog('LOCATE_SKU', `Searching for SKU "${params.skuCode}" and opening Edit page`);
       await sellerPage.searchAndOpenEdit(params.skuCode, timeoutMs);
 
       // Step 2: Read Before State
+      params.signal?.throwIfAborted();
       recordLog('READ_BEFORE', 'Reading baseline listing details before applying modification');
       const before = await sellerPage.getListingDetails();
       if (!before.sku) {
@@ -138,6 +154,7 @@ export class ListingUpdateWorkflow {
       recordLog('CAPTURE_BEFORE', `Captured before screenshot at ${beforeScreenshot}`);
 
       // Step 3: Apply Updates
+      params.signal?.throwIfAborted();
       const changedFields: string[] = [];
       if (params.title != null) changedFields.push('title');
       if (params.price != null) changedFields.push('price');
@@ -148,12 +165,18 @@ export class ListingUpdateWorkflow {
         price: params.price,
       });
 
-      // Step 4: Save & Confirm
+      // Step 4: Save & Confirm (Critical: check abort before committing write!)
+      params.signal?.throwIfAborted();
       recordLog('SUBMIT_SAVE', 'Clicking "Save and finish" and waiting for confirmation banner');
+      writeExecuted = true;
       await sellerPage.saveAndWaitForConfirmation(timeoutMs);
 
       // Step 5: Reload and Verify Read-Back Truth
+      if (params.signal?.aborted) {
+        throw new Error('ABORTED_AFTER_WRITE: Operation was cancelled after save was submitted, remote state unknown');
+      }
       recordLog('VERIFY_RELOAD', 'Reloading page to verify true persistence on Seller Central');
+      page.setDefaultTimeout(verifyTimeoutMs);
       const after = await sellerPage.reloadAndVerify();
       if (!after.sku) {
         throw new Error(
@@ -206,6 +229,7 @@ export class ListingUpdateWorkflow {
         screenshotUrls: [afterScreenshot, beforeScreenshot],
         logs,
         durationMs: Date.now() - startTime,
+        writeExecuted: true,
       };
     } catch (err: any) {
       recordLog('ERROR', `Workflow execution failed: ${err.message || String(err)}`);
@@ -230,7 +254,9 @@ export class ListingUpdateWorkflow {
 
       let errorClassification = 'RPA_EXECUTION_FAILED';
       const msg = String(err?.message || '');
-      if (msg.includes('SAVE_FAILED')) {
+      if (err?.name === 'AbortError' || params.signal?.aborted || msg.includes('ABORTED')) {
+        errorClassification = writeExecuted ? 'ABORTED_AFTER_WRITE' : 'ABORTED_BEFORE_WRITE';
+      } else if (msg.includes('SAVE_FAILED')) {
         errorClassification = 'SAVE_FAILED';
       } else if (msg.includes('VERIFY_FAILED')) {
         errorClassification = 'VERIFY_FAILED';
@@ -242,7 +268,7 @@ export class ListingUpdateWorkflow {
       ) {
         errorClassification = 'SELECTOR_NOT_FOUND';
       } else if (msg.includes('Timeout') || msg.includes('timed out')) {
-        errorClassification = 'PAGE_TIMEOUT';
+        errorClassification = writeExecuted ? 'VERIFY_TIMEOUT' : 'PAGE_TIMEOUT';
       }
 
       return {
@@ -251,6 +277,7 @@ export class ListingUpdateWorkflow {
         screenshotUrls,
         logs,
         durationMs: Date.now() - startTime,
+        writeExecuted,
       };
     }
   }

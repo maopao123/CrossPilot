@@ -9,6 +9,7 @@ export interface AutomationRecoveryOptions {
   workerId?: string;
   erpBaseUrl?: string;
   limit?: number;
+  signal?: AbortSignal;
 }
 
 export interface AutomationRecoveryResult {
@@ -97,6 +98,10 @@ export async function processAutomationRecovery(
   let failed = 0;
 
   for (const op of dueOps) {
+    if (options.signal?.aborted) {
+      console.log(`[AutomationRecovery] Recovery sweep aborted by worker signal`);
+      break;
+    }
     let claimed: AutomationOperation;
     try {
       // Claim lease for 30,000 ms (30 seconds) preserving existing phase
@@ -115,10 +120,13 @@ export async function processAutomationRecovery(
           params = (action?.parameters as any) || {};
         }
 
-        const checkRes = await adapter.getPurchaseOrder({
-          scope: { workspaceId: claimed.workspaceId, connectionId: claimed.connectionId },
-          operationId: claimed.id,
-        });
+        const checkRes = await adapter.getPurchaseOrder(
+          {
+            scope: { workspaceId: claimed.workspaceId, connectionId: claimed.connectionId },
+            operationId: claimed.id,
+          },
+          { signal: options.signal },
+        );
 
         if (checkRes.success && checkRes.data?.externalId) {
           const externalId = checkRes.data.externalId;
@@ -493,13 +501,16 @@ export async function processAutomationRecovery(
 
           if (action) {
             actionParams = (action.parameters as any) || {};
-            erpRes = await adapter.createPurchaseOrder({
-              scope: { workspaceId: claimed.workspaceId, connectionId: claimed.connectionId },
-              operationId: claimed.id,
-              idempotencyKey: claimed.idempotencyKey,
-              supplierId: String(actionParams.supplierId || 'DEFAULT'),
-              lines: actionParams.lines || [],
-            });
+            erpRes = await adapter.createPurchaseOrder(
+              {
+                scope: { workspaceId: claimed.workspaceId, connectionId: claimed.connectionId },
+                operationId: claimed.id,
+                idempotencyKey: claimed.idempotencyKey,
+                supplierId: String(actionParams.supplierId || 'DEFAULT'),
+                lines: actionParams.lines || [],
+              },
+              { signal: options.signal },
+            );
 
             if (erpRes.success && erpRes.data?.externalId) {
               createSuccess = true;
