@@ -1868,11 +1868,47 @@ model AutomationOperation {
 
   workspace           Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   action              PlannedAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  attempts            ExecutionAttempt[]
 
   @@unique([workspaceId, connectionId, operationKind, idempotencyKey])
   @@index([workspaceId])
   @@index([actionId])
   @@index([phase, nextAttemptAt])
   @@map("automation_operations")
+}
+
+// V10 AI Automation — Execution Attempt History (Phase 5)
+// Tracks each individual execution, query, retry, and recovery attempt independently.
+// ==========================================
+
+model ExecutionAttempt {
+  id           String    @id @default(uuid())
+  workspaceId  String    @map("workspace_id")
+  operationId  String    @map("operation_id")
+  attemptNo    Int       @map("attempt_no")
+  attemptType  String    @map("attempt_type")
+  provider     String
+  workerId     String?   @map("worker_id")
+  traceId      String?   @map("trace_id")
+  status       String
+  startedAt    DateTime  @map("started_at")
+  finishedAt   DateTime? @map("finished_at")
+  durationMs   Int?      @map("duration_ms")
+  errorClass   String?   @map("error_class")
+  errorCode    String?   @map("error_code")
+  errorMessage String?   @map("error_message")
+  effect       String?
+  recovery     String?
+  evidence     Json?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  operation    AutomationOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+
+  @@unique([operationId, attemptNo])
+  @@index([workspaceId, operationId])
+  @@index([operationId, startedAt])
+  @@index([workspaceId, startedAt])
+  @@map("execution_attempts")
 }
 

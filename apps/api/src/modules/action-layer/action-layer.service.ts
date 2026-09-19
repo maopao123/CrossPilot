@@ -457,6 +457,22 @@ export class ActionLayerService {
     const erpBaseUrl = String(target.erpBaseUrl || process.env.SIMULATOR_ERP_URL || '');
     const adapter = new SimulatorERPAdapter({ baseUrl: erpBaseUrl || undefined });
 
+    const traceId = typeof (parameters as any)?.traceId === 'string'
+      ? (parameters as any).traceId
+      : typeof (target as any)?.traceId === 'string'
+        ? (target as any).traceId
+        : undefined;
+
+    await this.operationStore.attempts.safeStartAttempt({
+      workspaceId,
+      operationId: claimedOp.id,
+      attemptNo: claimedOp.attemptCount,
+      attemptType: 'EXECUTE',
+      provider: String(target.provider || 'simulator-erp'),
+      workerId: userId || 'owner',
+      traceId,
+    });
+
     const erpRes = await adapter.createPurchaseOrder({
       scope: { workspaceId, connectionId },
       operationId: claimedOp.id,
@@ -509,6 +525,19 @@ export class ActionLayerService {
         evidenceData,
       );
 
+      await this.operationStore.attempts.safeFinishAttempt({
+        workspaceId,
+        operationId: claimedOp.id,
+        attemptNo: claimedOp.attemptCount,
+        status: isTimeout ? 'TIMEOUT' : 'FAILED',
+        errorClass: normalized.class,
+        errorCode: normalized.code || erpRes.errorCode || 'UNKNOWN_ERROR',
+        errorMessage: erpRes.errorMessage || String(erpRes.errorCode || ''),
+        effect,
+        recovery,
+        evidence: evidenceData,
+      });
+
       const actionStatus = isTimeout ? 'EXECUTING' : 'FAILED';
       const actionMessage = isTimeout
         ? `ERP 采购单提交超时，远端状态未知，已置入 QUERY 恢复队列等待 Worker 自愈`
@@ -558,6 +587,16 @@ export class ActionLayerService {
       claimedOp.version,
       evidenceData,
     );
+
+    await this.operationStore.attempts.safeFinishAttempt({
+      workspaceId,
+      operationId: claimedOp.id,
+      attemptNo: claimedOp.attemptCount,
+      status: 'SUCCEEDED',
+      effect: 'APPLIED',
+      recovery: 'NONE',
+      evidence: evidenceData,
+    });
 
     // Sync or create local PurchaseOrder in DB if supplier exists
     let syncError: string | null = null;

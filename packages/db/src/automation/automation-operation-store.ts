@@ -37,8 +37,14 @@ export type CreateOrReplayResult =
   | { kind: 'CREATED'; operation: AutomationOperation }
   | { kind: 'REPLAYED'; operation: AutomationOperation };
 
+import { ExecutionAttemptStore } from './execution-attempt-store.js';
+
 export class AutomationOperationStore {
-  constructor(private readonly prisma: PrismaClient) {}
+  readonly attempts: ExecutionAttemptStore;
+
+  constructor(private readonly prisma: PrismaClient) {
+    this.attempts = new ExecutionAttemptStore(this.prisma);
+  }
 
   /**
    * Idempotently creates an automation operation or replays an existing one.

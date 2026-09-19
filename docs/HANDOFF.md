@@ -1,5 +1,40 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 5 完成（Phase 5 Execution Attempt History Complete）**：
+> - **基线 Commit**: `ec02d17c618f991ccc874689d804c1cedb49232e` (`ec02d17`, Phase 4.1)
+> - **目标达成**：增加持久化的 `ExecutionAttempt` 历史明细表，使每次 AutomationOperation 的首次执行、故障重试、远端反查以及自愈尝试都能够独立追踪，彻底解决累计 `attemptCount` 仅存次数、单槽位 `evidence` 覆盖导致历史执行无法溯源的问题；同时严格确立 `AutomationOperation` 为唯一运行时状态真相，`ExecutionAttempt` 仅作为历史明细投影。
+> - **1. 数据模型与非破坏性迁移（`packages/db/prisma/`）**：
+>   - 在 Prisma Schema 中新增 `ExecutionAttempt` 模型，并与 `AutomationOperation` 建立级联关联（`onDelete: Cascade`）；
+>   - 包含核心字段：`id`, `workspaceId`, `operationId`, `attemptNo`, `attemptType`, `provider`, `workerId`, `traceId`, `status`, `startedAt`, `finishedAt`, `durationMs`, `errorClass`, `errorCode`, `errorMessage`, `effect`, `recovery`, `evidence`, `createdAt`, `updatedAt`；
+>   - 建立复合唯一约束 `@@unique([operationId, attemptNo])` 以及索引 `[workspaceId, operationId]`, `[operationId, startedAt]`, `[workspaceId, startedAt]`；
+>   - 生成安全纯增量 Migration SQL：`20260919230000_add_execution_attempt_history`。
+> - **2. 运行时持久化 Store（`ExecutionAttemptStore`）**：
+>   - 挂载至 `AutomationOperationStore.attempts`；
+>   - `startAttempt()`：基于数据库级 `(operationId, attemptNo)` 唯一性，在并发冲突时捕获 P2002 并返回已有行，确保 100% 幂等；
+>   - `finishAttempt()`：根据 `startedAt` 与 `finishedAt` 自动计算 `durationMs`；
+>   - 双层敏感凭证脱敏：复用 Phase 3 `sanitizeString` 抹除 Bearer Token / Shopify 令牌 / Postgres 连接串密码，并将 `errorMessage` 截断至 <= 1000 字符；递归执行 `sanitizeLogData` 净化 `evidence` 载荷；
+>   - `safeStartAttempt()` / `safeFinishAttempt()`：故障容错包装，数据库写入失败时只记录结构化告警日志（`RuntimeEvents.EXECUTION_ATTEMPT_RECORD_FAILED`），绝不崩溃业务主流程，绝不引发重复外部写操作；
+>   - 工作区严格隔离：`listAttempts(workspaceId, operationId)` 与 `getAttempt` 强制绑定 `workspaceId` 作用域，跨租户查询安全隔离。
+> - **3. 运行时链路接入与原子单调编号**：
+>   - 统一原子单调编号源：严格使用 `store.claim()` 产生的 `claimed.attemptCount` 作为 `attemptNo`，杜绝应用层 `SELECT MAX + 1`；
+>   - **API 同步执行链路（`action-layer.service.ts`）**：认领后记录 `safeStartAttempt`（`attemptType: 'EXECUTE'`），ERP 调用结束后在错误/成功分支调用 `safeFinishAttempt`；
+>   - **Worker 恢复反查链路（`automation-recovery.processor.ts`）**：认领后根据 `phase`/`recovery` 区分标记为 `QUERY` 或 `RETRY`，并在远端反查成功、内容校验不匹配、远端未找到、重试超时、重试失败及异常分支精确闭环调用 `safeFinishAttempt`；
+>   - 明确区分写操作（`EXECUTE` / `RETRY`）与只读反查（`QUERY`），杜绝将反查错误呈现为二次写操作。
+> - **4. 崩溃与存量数据语义（Crash & Legacy Policy）**：
+>   - 崩溃 semantics：Worker 认领并启动 Attempt 后若遭遇崩溃，该 Attempt 保持 `status: "RUNNING"`，随着父操作租约自然过期，下轮 Recovery 生成新的 Attempt（如 #2），旧记录不被篡改或覆盖；
+>   - 存量数据：旧有操作不伪造回填（No Fake Backfill），`listAttempts` 返回空数组，未来 Execution Center UI 提示“Phase 5 部署前暂无历史明细”。
+> - **5. 交付物与质量门禁**：
+>   - 规范文档：新增 `docs/automation-runtime/EXECUTION_ATTEMPT_HISTORY.md`；
+>   - 自动化测试：新增 `packages/actions/test/execution-attempt-history.spec.ts`（16/16 PASS，覆盖 1 Claim = 1 Attempt、幂等唯一保护、耗时计算、敏感信息截断与脱敏、读写类型区分、三轮错误历史不覆盖共存、工作区租户隔离、崩溃保持 RUNNING、Fail-Safe 写入安全、存量数据无伪造）；
+>   - 全套回归门禁验证：
+>     - `pnpm -r run build` 全部 PASS
+>     - `pnpm -r run typecheck` 10/10 PASS
+>     - `@crosspilot/actions` 174/174 全部 PASS (8 个测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/worker` 16/16 全部 PASS (3 个测试套件)
+>     - `@crosspilot/api` 核心测试套件全部 PASS；
+>   - 严格红线执行：`AutomationOperation` 保持唯一状态机真相，Attempt 状态不反向驱动 Operation，Prometheus 零高基数 Attempt 标签，未进入 Phase 6。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 4.1 完成（Phase 4.1 Metrics Endpoint Security Closure Complete）**：
 > - **基线 Commit**: `2ed266dd89b87f1b53684c87e265016f23812259` (`2ed266d`, Phase 4)
 > - **目标达成**：全面收口 Phase 4 审查发现的 Metrics 端点安全暴露漏洞与生产环境安全边界，落实严格的 Fail-Closed（默认拒绝）防护；纠正文档与配置口径，统一指标标签描述；严格执行零数据库迁移与零状态机改动红线。

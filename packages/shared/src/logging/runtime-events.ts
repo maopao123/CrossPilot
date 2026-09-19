@@ -45,6 +45,12 @@ export const RuntimeEvents = {
   WORKER_JOB_STARTED: 'worker.job.started',
   WORKER_JOB_COMPLETED: 'worker.job.completed',
   WORKER_JOB_FAILED: 'worker.job.failed',
+
+  // Execution Attempt History
+  EXECUTION_ATTEMPT_STARTED: 'execution.attempt.started',
+  EXECUTION_ATTEMPT_COMPLETED: 'execution.attempt.completed',
+  EXECUTION_ATTEMPT_FAILED: 'execution.attempt.failed',
+  EXECUTION_ATTEMPT_RECORD_FAILED: 'execution.attempt.record_failed',
 } as const;
 
 export type RuntimeEventName = (typeof RuntimeEvents)[keyof typeof RuntimeEvents] | (string & {});

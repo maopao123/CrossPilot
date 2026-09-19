@@ -177,6 +177,25 @@ export async function processAutomationRecovery(
       recovery: claimed.recovery,
     });
 
+    const isQuery =
+      claimed.phase === 'SUBMITTED' ||
+      claimed.phase === 'VERIFYING' ||
+      claimed.recovery === 'QUERY';
+    const attemptType = isQuery ? 'QUERY' : 'RETRY';
+
+    await store.attempts.safeStartAttempt(
+      {
+        workspaceId: claimed.workspaceId,
+        operationId: claimed.id,
+        attemptNo: claimed.attemptCount,
+        attemptType,
+        provider: claimed.provider,
+        workerId,
+        traceId,
+      },
+      opLogger,
+    );
+
     try {
       // Case 1: In SUBMITTED / VERIFYING or recovery=QUERY -> Check remote reality
       if (claimed.phase === 'SUBMITTED' || claimed.phase === 'VERIFYING' || claimed.recovery === 'QUERY') {
@@ -309,6 +328,22 @@ export async function processAutomationRecovery(
 
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: 'FAILED',
+                errorClass: 'VERIFY_MISMATCH',
+                errorCode: 'REMOTE_PAYLOAD_MISMATCH',
+                errorMessage: `Remote payload mismatch: ${conflictDetails.mismatches.join('; ')}`,
+                effect: 'NOT_APPLIED',
+                recovery: 'MANUAL',
+                evidence: evidenceData,
+              },
+              opLogger,
+            );
+
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
                 where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
@@ -365,6 +400,22 @@ export async function processAutomationRecovery(
 
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: 'FAILED',
+                errorClass: 'PROVIDER_ERROR',
+                errorCode: 'LOCAL_SYNC_FAILED',
+                errorMessage: `Failed to sync local PurchaseOrder: ${syncRes.error}`,
+                effect: 'APPLIED',
+                recovery: 'MANUAL',
+                evidence: evidenceData,
+              },
+              opLogger,
+            );
+
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
                 where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
@@ -400,6 +451,19 @@ export async function processAutomationRecovery(
           };
 
           await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+          await store.attempts.safeFinishAttempt(
+            {
+              workspaceId: claimed.workspaceId,
+              operationId: claimed.id,
+              attemptNo: claimed.attemptCount,
+              status: 'SUCCEEDED',
+              effect: 'APPLIED',
+              recovery: 'NONE',
+              evidence: evidenceData,
+            },
+            opLogger,
+          );
 
           if (claimed.actionId) {
             await prisma.plannedAction.updateMany({
@@ -456,6 +520,22 @@ export async function processAutomationRecovery(
 
           await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
+          await store.attempts.safeFinishAttempt(
+            {
+              workspaceId: claimed.workspaceId,
+              operationId: claimed.id,
+              attemptNo: claimed.attemptCount,
+              status: 'FAILED',
+              errorClass: checkNormalized.class,
+              errorCode: checkNormalized.code,
+              errorMessage: checkNormalized.message,
+              effect: 'UNKNOWN',
+              recovery: recoveryAction,
+              evidence: evidenceData,
+            },
+            opLogger,
+          );
+
           if (claimed.actionId) {
             await prisma.plannedAction.updateMany({
               where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
@@ -493,6 +573,22 @@ export async function processAutomationRecovery(
             };
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: 'FAILED',
+                errorClass: checkNormalized.class,
+                errorCode: 'MAX_RETRIES_EXCEEDED',
+                errorMessage: checkNormalized.message || 'Remote order not found after max retries',
+                effect: 'NOT_APPLIED',
+                recovery: 'MANUAL',
+                evidence: evidenceData,
+              },
+              opLogger,
+            );
+
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
                 where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
@@ -527,6 +623,23 @@ export async function processAutomationRecovery(
               leaseUntil: null,
             },
           });
+
+          await store.attempts.safeFinishAttempt(
+            {
+              workspaceId: claimed.workspaceId,
+              operationId: claimed.id,
+              attemptNo: claimed.attemptCount,
+              status: 'SUCCEEDED',
+              effect: 'NOT_APPLIED',
+              recovery: 'RETRY',
+              evidence: {
+                result: 'NOT_FOUND',
+                transitionedTo: 'READY',
+              },
+            },
+            opLogger,
+          );
+
           runtimeMetrics.recordRetry({
             provider: claimed.provider,
             errorClass: checkNormalized.class,
@@ -549,6 +662,22 @@ export async function processAutomationRecovery(
               normalizedError: checkNormalized,
             };
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: checkNormalized.class === 'TIMEOUT' ? 'TIMEOUT' : 'FAILED',
+                errorClass: checkNormalized.class,
+                errorCode: 'QUERY_TIMEOUT_MAX',
+                errorMessage: checkNormalized.message,
+                effect: 'UNKNOWN',
+                recovery: 'MANUAL',
+                evidence: evidenceData,
+              },
+              opLogger,
+            );
 
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
@@ -583,6 +712,22 @@ export async function processAutomationRecovery(
               leaseUntil: null,
             },
           });
+
+          await store.attempts.safeFinishAttempt(
+            {
+              workspaceId: claimed.workspaceId,
+              operationId: claimed.id,
+              attemptNo: claimed.attemptCount,
+              status: checkNormalized.class === 'TIMEOUT' ? 'TIMEOUT' : 'FAILED',
+              errorClass: checkNormalized.class,
+              errorCode: checkNormalized.code || 'QUERY_FAILED',
+              errorMessage: checkNormalized.message,
+              effect: 'UNKNOWN',
+              recovery: 'QUERY',
+            },
+            opLogger,
+          );
+
           runtimeMetrics.recordRetry({
             provider: claimed.provider,
             errorClass: checkNormalized.class,
@@ -605,6 +750,20 @@ export async function processAutomationRecovery(
             recovery: 'MANUAL',
             errorCode: 'MAX_RETRIES_EXCEEDED',
           });
+
+          await store.attempts.safeFinishAttempt(
+            {
+              workspaceId: claimed.workspaceId,
+              operationId: claimed.id,
+              attemptNo: claimed.attemptCount,
+              status: 'FAILED',
+              errorCode: 'MAX_RETRIES_EXCEEDED',
+              errorMessage: '重试超过上限，需要人工介入处理',
+              effect: 'NOT_APPLIED',
+              recovery: 'MANUAL',
+            },
+            opLogger,
+          );
 
           if (claimed.actionId) {
             await prisma.plannedAction.updateMany({
@@ -686,6 +845,22 @@ export async function processAutomationRecovery(
 
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: 'FAILED',
+                errorClass: 'PROVIDER_ERROR',
+                errorCode: 'LOCAL_SYNC_FAILED',
+                errorMessage: `Failed to sync local PurchaseOrder: ${syncRes.error}`,
+                effect: 'APPLIED',
+                recovery: 'MANUAL',
+                evidence: evidenceData,
+              },
+              opLogger,
+            );
+
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
                 where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
@@ -720,6 +895,19 @@ export async function processAutomationRecovery(
           };
 
           await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, completedEvidence);
+
+          await store.attempts.safeFinishAttempt(
+            {
+              workspaceId: claimed.workspaceId,
+              operationId: claimed.id,
+              attemptNo: claimed.attemptCount,
+              status: 'SUCCEEDED',
+              effect: 'APPLIED',
+              recovery: 'NONE',
+              evidence: completedEvidence,
+            },
+            opLogger,
+          );
 
           if (claimed.actionId) {
             await prisma.plannedAction.updateMany({
@@ -769,6 +957,22 @@ export async function processAutomationRecovery(
 
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: 'FAILED',
+                errorClass: erpNormalized.class,
+                errorCode: erpNormalized.code,
+                errorMessage: erpNormalized.message,
+                effect: 'NOT_APPLIED',
+                recovery: recoveryAction,
+                evidence: evidenceData,
+              },
+              opLogger,
+            );
+
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
                 where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
@@ -808,6 +1012,22 @@ export async function processAutomationRecovery(
               };
               await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
+              await store.attempts.safeFinishAttempt(
+                {
+                  workspaceId: claimed.workspaceId,
+                  operationId: claimed.id,
+                  attemptNo: claimed.attemptCount,
+                  status: 'TIMEOUT',
+                  errorClass: erpNormalized.class,
+                  errorCode: 'RETRY_TIMEOUT_MAX',
+                  errorMessage: erpNormalized.message,
+                  effect: 'UNKNOWN',
+                  recovery: 'MANUAL',
+                  evidence: evidenceData,
+                },
+                opLogger,
+              );
+
               if (claimed.actionId) {
                 await prisma.plannedAction.updateMany({
                   where: { id: claimed.actionId, workspaceId: claimed.workspaceId },
@@ -842,6 +1062,22 @@ export async function processAutomationRecovery(
                 leaseUntil: null,
               },
             });
+
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: 'TIMEOUT',
+                errorClass: erpNormalized.class,
+                errorCode: erpNormalized.code || 'TIMEOUT',
+                errorMessage: erpNormalized.message,
+                effect: 'UNKNOWN',
+                recovery: 'QUERY',
+              },
+              opLogger,
+            );
+
             runtimeMetrics.recordRetry({
               provider: claimed.provider,
               errorClass: erpNormalized.class,
@@ -865,6 +1101,22 @@ export async function processAutomationRecovery(
               normalizedError: erpNormalized,
             };
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
+
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: 'FAILED',
+                errorClass: erpNormalized.class,
+                errorCode: 'RETRY_FAILED_MAX',
+                errorMessage: erpNormalized.message,
+                effect: 'NOT_APPLIED',
+                recovery: 'MANUAL',
+                evidence: evidenceData,
+              },
+              opLogger,
+            );
 
             if (claimed.actionId) {
               await prisma.plannedAction.updateMany({
@@ -897,6 +1149,22 @@ export async function processAutomationRecovery(
                 leaseUntil: null,
               },
             });
+
+            await store.attempts.safeFinishAttempt(
+              {
+                workspaceId: claimed.workspaceId,
+                operationId: claimed.id,
+                attemptNo: claimed.attemptCount,
+                status: 'FAILED',
+                errorClass: erpNormalized.class,
+                errorCode: erpNormalized.code,
+                errorMessage: erpNormalized.message,
+                effect: 'NOT_APPLIED',
+                recovery: 'RETRY',
+              },
+              opLogger,
+            );
+
             runtimeMetrics.recordRetry({
               provider: claimed.provider,
               errorClass: erpNormalized.class,
@@ -906,6 +1174,19 @@ export async function processAutomationRecovery(
         }
       }
     } catch (err: any) {
+      if (claimed!) {
+        await store.attempts.safeFinishAttempt(
+          {
+            workspaceId: claimed.workspaceId,
+            operationId: claimed.id,
+            attemptNo: claimed.attemptCount,
+            status: 'FAILED',
+            errorClass: 'UNEXPECTED_ERROR',
+            errorMessage: err?.message || String(err),
+          },
+          opLogger,
+        );
+      }
       recoveryLogger.error({
         event: RuntimeEvents.AUTOMATION_OPERATION_FAILED,
         operationId: op.id,
