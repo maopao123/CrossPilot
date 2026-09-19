@@ -3,6 +3,7 @@ import { CommercePortError, createCommerceContext } from '@crosspilot/domain';
 import { MockAmazonProvider } from '@crosspilot/integrations';
 import {
   AmazonAdapter,
+  ShopifyAdapter,
   resolveCommerceAdapter,
   resolveCommerceAdapterForStore,
 } from '@crosspilot/db';
@@ -72,14 +73,17 @@ function mockTransportAdapter(prisma: any) {
 }
 
 describe('V10 Epic 3 AmazonAdapter', () => {
-  it('resolves amazon adapter and keeps shopify unavailable', async () => {
+  it('resolves amazon adapter and shopify adapter; unknown stays unavailable', async () => {
     const prisma = memoryPrisma();
     const adapter = resolveCommerceAdapter(prisma, 'amazon');
     expect(adapter).toBeInstanceOf(AmazonAdapter);
     expect(adapter.platform).toBe('amazon');
-    expect(() => resolveCommerceAdapter(prisma, 'shopify')).toThrow(CommercePortError);
+    const shopifyAdapter = resolveCommerceAdapter(prisma, 'shopify');
+    expect(shopifyAdapter).toBeInstanceOf(ShopifyAdapter);
+    expect(shopifyAdapter.platform).toBe('shopify');
+    expect(() => resolveCommerceAdapter(prisma, 'unknown')).toThrow(CommercePortError);
     try {
-      resolveCommerceAdapter(prisma, 'shopify');
+      resolveCommerceAdapter(prisma, 'unknown');
       throw new Error('expected throw');
     } catch (err) {
       expect((err as CommercePortError).code).toBe(ErrorCodes.PROVIDER_UNAVAILABLE);
