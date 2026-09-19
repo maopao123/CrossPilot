@@ -13,6 +13,11 @@ export interface RpaExecutionInput {
   params: Record<string, unknown>;
   timeoutMs?: number;
   signal?: AbortSignal;
+  traceId?: string;
+  operationId?: string;
+  workspaceId?: string;
+  actionId?: string;
+  executionMode?: string;
 }
 
 export interface RpaExecutionResult {

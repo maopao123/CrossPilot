@@ -119,6 +119,11 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
       service: 'playwright-rpa-adapter',
       provider: 'playwright-rpa',
       workflow: input.workflow,
+      traceId: input.traceId,
+      operationId: input.operationId,
+      workspaceId: input.workspaceId,
+      actionId: input.actionId,
+      executionMode: input.executionMode,
     });
 
     rpaLogger.info({
@@ -284,6 +289,11 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
       timeoutMs: input.timeoutMs || params.timeoutMs || this.options.timeoutMs || 15000,
       evidenceDir: params.evidenceDir || this.options.evidenceDir,
       signal: input.signal,
+      traceId: input.traceId,
+      operationId: input.operationId,
+      workspaceId: input.workspaceId,
+      actionId: input.actionId,
+      executionMode: input.executionMode,
     };
 
     try {

@@ -5,7 +5,7 @@ import pinoDefault, {
 } from 'pino';
 import { type RuntimeLogContext, type LogLevel } from './log-context.js';
 import { type RuntimeEventName } from './runtime-events.js';
-import { sanitizeLogData, summarizePayload } from './log-redaction.js';
+import { sanitizeLogData, sanitizeString, summarizePayload } from './log-redaction.js';
 import { serializeExecutionError } from './error-serializer.js';
 
 // Support both CJS and ESM interop for pino import
@@ -95,11 +95,14 @@ export class StructuredLogger {
 
   private safeLog(level: LogLevel, data: Record<string, unknown> | string, msg?: string): void {
     try {
+      const sanitizedMsg = typeof msg === 'string' ? sanitizeString(msg) : undefined;
+
       if (typeof data === 'string') {
-        if (msg) {
-          this.pinoInstance[level]({ msg: data }, msg);
+        const sanitizedData = sanitizeString(data);
+        if (sanitizedMsg !== undefined) {
+          this.pinoInstance[level]({ message: sanitizedData }, sanitizedMsg);
         } else {
-          this.pinoInstance[level](data);
+          this.pinoInstance[level](sanitizedData);
         }
         return;
       }
@@ -137,8 +140,8 @@ export class StructuredLogger {
       // Run recursive sanitizer for double-layer protection
       const sanitized = sanitizeLogData(processedData) as Record<string, unknown>;
 
-      if (msg) {
-        this.pinoInstance[level](sanitized, msg);
+      if (sanitizedMsg !== undefined) {
+        this.pinoInstance[level](sanitized, sanitizedMsg);
       } else {
         this.pinoInstance[level](sanitized);
       }

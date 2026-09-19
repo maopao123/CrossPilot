@@ -1,5 +1,37 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 3.1 完成（Phase 3.1 Trace Correlation & Logging Security Closure Complete）**：
+> - **基线 Commit**: `3357b265e8ef0bdeba5b5ad9939b06c7a2ba811d` (`3357b26`, Phase 3)
+> - **目标达成**：全面修复 Phase 3 审查发现的日志脱敏绕过隐患与链路标识穿透缺口。闭环直接传字符串与 `msg` 文本的脱敏防线；将 `traceId` / `operationId` / `workspaceId` / `actionId` / `executionMode` 从 ActionRouter 贯穿至 Playwright RPA Adapter、ListingUpdateWorkflow、Shopify GraphQL Transport 与 HttpERPAdapter；支持 ActionRouter 日志依赖注入（DI）；明确异步恢复边界关联合约（`operationId` 为持久化核心锚点，纯 JSON 扩展 `evidence.traceId`，严禁伪造虚构 `traceId`）。
+> - **1. 字符串与消息参数脱敏漏洞彻底修复（`packages/shared/src/logging/`）**：
+>   - 在 `runtime-logger.ts` 中，`safeLog()` 拦截 `typeof data === 'string'` 和 `msg !== undefined` 参数，统一流经 `sanitizeString()`；
+>   - 在 `log-redaction.ts` 中增强正则：支持宽松 Basic Auth 格式、强化 Redis URL 密码匹配（同时支持 `redis://:password@host` 与 `redis://user:password@host`）、Shopify `shpat_` 访问令牌，并新增 `EMBEDDED_SECRET_KEYVALUE_REGEX`，覆盖 `password=`, `client_secret=`, `api_key=`, `access_token=`, `refresh_token=` 等内嵌敏感键值。
+> - **2. ActionRouter 日志依赖注入（DI）与端到端链路贯通（`packages/actions/src/action.router.ts`）**：
+>   - `ActionRouter` 构造函数扩充 `logger?: StructuredLogger`（缺省降级回 `runtimeLogger`），赋能测试与观测层直接捕获真实结构化日志并校验事件一致性；
+>   - 向下调用适配器 `adapter.execute(input)` 时完整透传 `traceId`, `operationId`, `workspaceId`, `actionId`, `executionMode`；
+>   - 内部落盘的所有 `executionEvidence`（16 处拦截与完工分支）均主动补充记录 `traceId`。
+> - **3. RPA / Shopify / ERP 全适配器关联上下文透传**：
+>   - **Playwright RPA Adapter & Workflow**：`RpaExecutionInput` 与 `UpdateListingWorkflowParams` 增加相关性字段，`PlaywrightRpaAdapter` 的 scoped logger 与 `ListingUpdateWorkflow.run` 的 scoped logger 均统一继承并在 `ADAPTER_REQUEST_STARTED`, `ADAPTER_REQUEST_CANCELLED`, `ADAPTER_RPA_STEP` 等事件中携带；
+>   - **Shopify Adapter**：`ShopifyGraphQLRequestOptions` 增加 `traceId`, `operationId`, `workspaceId`，并在所有列表与分页查询（`fetchAllVariants`, `fetchAllOrderLineItems`, `fetchAllInventoryLevels`）及 `HttpShopifyGraphQLTransport.execute` 中统一打标；
+>   - **HTTP ERP Adapter**：`ErpRequestOptions` 扩充相关性上下文，并在 `createPurchaseOrder`, `getPurchaseOrder` 等所有 HTTP 请求的启动与失败事件中打标。
+> - **4. 异步恢复边界持久关联合约（`apps/worker/src/processors/automation-recovery.processor.ts`）**：
+>   - 明确架构语义：`traceId` 属于单次请求/执行的瞬时链路凭据，`operationId` 是长周期恢复与队列执行的**持久化核心锚点（Durable Correlation Anchor）**；
+>   - `ExecutionEvidence` 扩展纯 JSON 合约字段 `traceId?: string`（零数据库迁移）；
+>   - 恢复巡检抢占操作后，若历史 `evidence.traceId` 存在，继承至 `opLogger` 并向后续反查（`getPurchaseOrder`）、重试（`createPurchaseOrder`）和更新证据透传；若历史证据无 `traceId`，坚决不虚构伪造，维持 `operationId` 真实性。
+> - **5. 统一关键事件命名**：
+>   - 在 `RuntimeEvents` 中增补 `AUTOMATION_RECOVERY_SWEEP_ABORTED`, `AUTOMATION_RECOVERY_SYNC_FAILED`, `ADAPTER_RPA_STEP`，彻底杜绝字符串硬编码。
+> - **6. 交付物与质量门禁**：
+>   - 更新规范文档：`docs/automation-runtime/STRUCTURED_LOGGING.md`；
+>   - 扩充测试套件：`packages/actions/test/structured-logging.spec.ts` 新增 2.5-2.7 字符串脱敏用例及 Section 7 全链路关联与恢复用例（测试数由 130 增至 138，全部 PASS）；
+>   - 全套门禁验证：
+>     - `pnpm -r run build` 全部 PASS
+>     - `pnpm -r run typecheck` 10/10 PASS
+>     - `@crosspilot/actions` 138/138 全部 PASS (6 个测试套件)
+>     - `@crosspilot/worker` 10/10 全部 PASS (2 个测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/api` `v93-action-layer.spec.ts` + `automation-erp-http.spec.ts` 11/11 全部 PASS；
+>   - 严格红线执行：零 DB 迁移，零状态机核心语义破坏，未引入 Prometheus/指标系统，严格在 Phase 3.1 范围停止，未进入 Phase 4。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 3 完成（Phase 3 Structured Logging & Trace Correlation Complete）**：
 > - **基线 Commit**: `a1e5c4d956b8c932963f6e094085e997e80d695a` (`a1e5c4d`, Phase 2.1)
 > - **目标达成**：基于 `pino` 建立统一高性能、单行 JSON 结构化日志体系，彻底消除了 Critical Path（ActionRouter / ERP / Shopify / Playwright / AutomationRecovery / WorkerService）中散落的 `console.*` 打印，将已有 `traceId` / `operationId` / `workspaceId` / `actionId` / `attempt` / `provider` / `executionMode` 等上下文全面贯穿运行时。

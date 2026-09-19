@@ -30,6 +30,7 @@ export interface ExecutionEvidence {
   phase: AutomationPhase;
   effect: AutomationEffect;
   recovery: RecoveryAction;
+  traceId?: string;
   errorCode?: string;
   errorClass?: ExecutionErrorClass;
   normalizedError?: NormalizedExecutionError;

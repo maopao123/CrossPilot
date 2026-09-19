@@ -34,8 +34,10 @@ const EXACT_SENSITIVE_KEYS = new Set([
 const CONNECTION_STRING_PASSWORD_REGEX =
   /((?:postgres|postgresql|redis|rediss|mysql|mongodb|mongodb\+srv):\/\/[^:\s/]*:)([^@\s]+)(@)/gi;
 const BEARER_TOKEN_REGEX = /(Bearer\s+)[A-Za-z0-9_\-\.\:\=\+\/]+/gi;
-const BASIC_AUTH_REGEX = /(Basic\s+)[A-Za-z0-9+/=]+/gi;
+const BASIC_AUTH_REGEX = /(Basic\s+)[A-Za-z0-9_\-\.\:\=\+\/]+/gi;
 const SHOPIFY_ACCESS_TOKEN_REGEX = /(shpat_|shpca_)[A-Za-z0-9]+/gi;
+const EMBEDDED_SECRET_KEYVALUE_REGEX =
+  /((?:password|passwd|client_?secret|api_?key|access_?token|refresh_?token)\s*[:=]\s*)[^\s,;&"']+/gi;
 
 /**
  * Determines whether a given object key should be redacted.
@@ -69,7 +71,8 @@ export function sanitizeString(val: string): string {
     .replace(CONNECTION_STRING_PASSWORD_REGEX, `$1${REDACTED_PLACEHOLDER}$3`)
     .replace(BEARER_TOKEN_REGEX, `$1${REDACTED_PLACEHOLDER}`)
     .replace(BASIC_AUTH_REGEX, `$1${REDACTED_PLACEHOLDER}`)
-    .replace(SHOPIFY_ACCESS_TOKEN_REGEX, `$1${REDACTED_PLACEHOLDER}`);
+    .replace(SHOPIFY_ACCESS_TOKEN_REGEX, `$1${REDACTED_PLACEHOLDER}`)
+    .replace(EMBEDDED_SECRET_KEYVALUE_REGEX, `$1${REDACTED_PLACEHOLDER}`);
 }
 
 /**

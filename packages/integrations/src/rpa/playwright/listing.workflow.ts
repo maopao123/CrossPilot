@@ -18,6 +18,11 @@ export interface UpdateListingWorkflowParams {
   timeoutMs?: number;
   evidenceDir?: string;
   signal?: AbortSignal;
+  traceId?: string;
+  operationId?: string;
+  workspaceId?: string;
+  actionId?: string;
+  executionMode?: string;
 }
 
 export interface UpdateListingWorkflowOutput {
@@ -114,6 +119,11 @@ export class ListingUpdateWorkflow {
       service: 'playwright-listing-workflow',
       jobId,
       skuCode: params.skuCode,
+      traceId: params.traceId,
+      operationId: params.operationId,
+      workspaceId: params.workspaceId,
+      actionId: params.actionId,
+      executionMode: params.executionMode,
     });
 
     try {
@@ -202,7 +212,7 @@ export class ListingUpdateWorkflow {
       recordLog('SUBMIT_SAVE', 'Clicking "Save and finish" and waiting for confirmation banner');
       writeExecuted = true;
       workflowLogger.info({
-        event: 'adapter.rpa.step',
+        event: RuntimeEvents.ADAPTER_RPA_STEP,
         step: 'SUBMIT_SAVE',
         writeExecuted: true,
       });

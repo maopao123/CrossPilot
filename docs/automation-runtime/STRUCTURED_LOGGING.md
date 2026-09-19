@@ -99,19 +99,23 @@ export interface RuntimeLogContext {
 ```
 
 ### 级联透传机制
-1. **ActionRouter 入口**：提取 `proposal.traceId`（无则沿用或由上层传入），创建绑定上下文的子 logger：
+1. **ActionRouter 入口与 DI 注入**：
+   `ActionRouter` 支持构造注入 `logger?: StructuredLogger`（默认降级为全局 `runtimeLogger`），便于单元与集成测试注入独立 sink 拦截并校验实际事件。提取 `proposal.traceId`（或 `context.traceId`）与 `operationId`，创建绑定上下文的子 logger：
    ```ts
-   const opLogger = this.logger.child({
+   const routerLogger = this.logger.child({
      service: 'action-router',
-     traceId: proposal.traceId,
-     operationId: proposal.operationId,
-     workspaceId: proposal.workspaceId,
-     executionMode: proposal.executionMode,
-     provider: proposal.provider,
+     traceId: context.traceId ?? proposal.traceId,
+     operationId: context.operationId ?? proposal.operationId,
+     workspaceId: context.workspaceId,
+     actionId: proposal.id,
+     executionMode: mode,
    });
    ```
-2. **Adapter 内部**：在执行 `adapter.execute(...)` 时，透传上下文或由适配器基于入参生成 scoped logger，将 `traceId` 沉淀至每次请求与重试日志中。
-3. **Worker 恢复线程**：`AutomationRecoveryProcessor` 在轮询抢占操作后，即刻以该操作的 `traceId` 与 `operationId` 初始化子 logger，确保后续的反查与更新日志可全局检索。
+2. **Adapter 与 Workflow 内部**：在执行 `adapter.execute(input)` 时，将 `traceId`, `operationId`, `workspaceId`, `actionId`, `executionMode` 完整透传给底层适配器（如 `PlaywrightRpaAdapter`），并在内部调用 `ListingUpdateWorkflow.run` 时继续继承，使派发层、适配器层与自动化工作流层的日志完全共享相同的相关性凭据。在 `HttpERPAdapter` 与 `HttpShopifyGraphQLTransport` 中同样支持传递与记录。
+3. **异步恢复边界与持久关联语义（Async Boundary Correlation Semantics）**：
+   - **语义分工**：`traceId` 是单次同步请求/执行的瞬时链路追踪标识；而 `operationId` 则是跨越队列、定时扫描与长周期恢复的**持久化核心锚点（Durable Correlation Anchor）**。
+   - **证据链传承**：`ExecutionEvidence` 增加了纯 JSON 合约扩展字段 `traceId?: string`（无需改动数据库 Schema）。
+   - **严禁虚构**：`AutomationRecoveryProcessor` 在恢复抢占时，以 `operationId` 作为持久化根基；若历史 `evidence.traceId` 存在，恢复子 logger 与后续证据保留该 `traceId`；若无，绝不伪造随机 `traceId`。
 
 ---
 
@@ -164,7 +168,12 @@ export const DEFAULT_PINO_REDACT = [
    - Bearer Token: `Bearer eyJhbGciOi...` $\rightarrow$ `Bearer [REDACTED]`
    - Basic Auth: `Basic dXNlcjpwYXNz` $\rightarrow$ `Basic [REDACTED]`
    - Shopify Token: `shpat_abcdef123...` $\rightarrow$ `shpat_[REDACTED]`
-3. **敏感属性键名拦截**：
+3. **嵌入式键值参数脱敏**：
+   - 匹配字符串内嵌键值：`password=xxx`, `client_secret: xxx`, `api_key=xxx`, `access_token: xxx`, `refresh_token=xxx` 等直接替换为 `[REDACTED]`。
+4. **字符串与消息参数统一收口（String & Msg Bypass Fix）**：
+   - `logger.info("plain text string")` 直接传字符串场景：通过 `safeLog` 前置拦截，直接经由 `sanitizeString()` 过滤。
+   - `logger.info(obj, "msg text")` 携带 `msg` 场景：`obj` 经由 `sanitizeLogData`，`msg` 经由 `sanitizeString`，彻底杜绝纯文本参数或格式化文本绕过字段级脱敏的隐患。
+5. **敏感属性键名拦截**：
    - 包含 `password`, `secret`, `token`, `apikey`, `payloadenc`, `cookie` 等字段名直接替换为 `[REDACTED]`。
    - 智能排除元信息安全字段：`tokenCount`, `tokenType`, `tokensRemaining`, `tokenId`, `tokenStatus` 不受误伤。
    - 容器支持：对于 `credentials` 等对象容器，递归遍历其子属性并精确脱敏内部敏感叶子。

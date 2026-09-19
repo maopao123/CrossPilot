@@ -11,6 +11,7 @@ import {
   combineAbortSignals,
   runtimeLogger,
   RuntimeEvents,
+  StructuredLogger,
 } from '@crosspilot/shared';
 import { verifyApprovedPayloadBinding } from './approval-binding.js';
 
@@ -34,8 +35,14 @@ export class ActionRouter {
    * Failed or pending attempts are never cached to avoid permanently freezing recoverable operations.
    */
   private readonly completedOperations = new Map<string, CachedOperationRecord>();
+  private readonly logger: StructuredLogger;
 
-  constructor(private readonly rpaRegistry = defaultRpaRegistry) {}
+  constructor(
+    private readonly rpaRegistry = defaultRpaRegistry,
+    logger?: StructuredLogger,
+  ) {
+    this.logger = logger ?? runtimeLogger;
+  }
 
   /**
    * Evaluates if proposal requires human gate, validates mode/provider, or dispatches to chosen runtime
@@ -49,7 +56,7 @@ export class ActionRouter {
     const mode: AutomationMode = context.executionMode || 'LIVE';
     const operationId = context.operationId || proposal.id;
 
-    const routerLogger = runtimeLogger.child({
+    const routerLogger = this.logger.child({
       service: 'action-router',
       traceId,
       workspaceId: context.workspaceId,
@@ -92,6 +99,7 @@ export class ActionRouter {
           mode,
           provider: 'human-gate',
           operationId,
+          traceId,
           phase: 'READY',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
@@ -157,6 +165,7 @@ export class ActionRouter {
           mode,
           provider: 'idempotency-cache',
           operationId,
+          traceId,
           phase: 'FAILED',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
@@ -199,6 +208,7 @@ export class ActionRouter {
           mode,
           provider: context.providerId || 'action-router',
           operationId,
+          traceId,
           phase: 'FAILED',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
@@ -236,6 +246,7 @@ export class ActionRouter {
           mode,
           provider: context.providerId || 'action-router',
           operationId,
+          traceId,
           phase: 'FAILED',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
@@ -275,6 +286,7 @@ export class ActionRouter {
           mode,
           provider: context.providerId || 'action-router',
           operationId,
+          traceId,
           phase: 'FAILED',
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
@@ -313,6 +325,7 @@ export class ActionRouter {
               mode,
               provider: context.providerId || 'rpa',
               operationId,
+              traceId,
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: mode === 'LIVE' ? 'REAUTHORIZE' : 'MANUAL',
@@ -346,6 +359,7 @@ export class ActionRouter {
               mode: 'MOCK',
               provider: adapter.id,
               operationId,
+              traceId,
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: 'MANUAL',
@@ -374,6 +388,7 @@ export class ActionRouter {
               mode: 'SIMULATOR',
               provider: adapter.id,
               operationId,
+              traceId,
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: 'MANUAL',
@@ -402,6 +417,7 @@ export class ActionRouter {
               mode: 'LIVE',
               provider: adapter.id,
               operationId,
+              traceId,
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: 'REAUTHORIZE',
@@ -434,6 +450,7 @@ export class ActionRouter {
               mode,
               provider: adapter.id,
               operationId,
+              traceId,
               phase: 'FAILED',
               effect: 'NOT_APPLIED',
               recovery: 'NONE',
@@ -453,6 +470,11 @@ export class ActionRouter {
             params: payload,
             signal: combined.signal,
             timeoutMs: executionTimeoutMs,
+            traceId,
+            operationId,
+            workspaceId: context.workspaceId,
+            actionId: proposal.id,
+            executionMode: mode,
           });
 
           const isMock = mode === 'MOCK' || adapter.id === 'mock-rpa';
@@ -480,6 +502,7 @@ export class ActionRouter {
                 mode, // Preserve mode! Never hardcode isMock ? 'MOCK' : 'LIVE'
                 provider: adapter.id,
                 operationId,
+                traceId,
                 phase: isVerified ? 'COMPLETED' : (rpaResult.jobId ? 'SUBMITTED' : 'FAILED'),
                 effect: isVerified ? 'APPLIED' : 'UNKNOWN',
                 recovery: isVerified ? 'NONE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
@@ -506,6 +529,7 @@ export class ActionRouter {
                 mode,
                 provider: adapter.id,
                 operationId,
+                traceId,
                 phase: 'SUBMITTED',
                 effect: 'UNKNOWN',
                 recovery: adapter.getStatus ? 'QUERY' : 'MANUAL',
@@ -532,6 +556,7 @@ export class ActionRouter {
                 mode,
                 provider: adapter.id,
                 operationId,
+                traceId,
                 phase: 'FAILED',
                 effect: 'UNKNOWN',
                 recovery: adapter.getStatus ? 'QUERY' : 'MANUAL',
@@ -598,6 +623,7 @@ export class ActionRouter {
                 mode,
                 provider: adapter.id,
                 operationId,
+                traceId,
                 phase: 'FAILED',
                 effect: isSafeNotApplied ? 'NOT_APPLIED' : 'UNKNOWN',
                 recovery: isPreWriteCancel
@@ -639,6 +665,7 @@ export class ActionRouter {
               mode,
               provider: adapter.id,
               operationId,
+              traceId,
               phase: 'FAILED',
               effect,
               recovery,
@@ -673,6 +700,7 @@ export class ActionRouter {
             mode,
             provider: proposal.type,
             operationId,
+            traceId,
             phase: 'FAILED',
             effect: 'NOT_APPLIED',
             recovery: 'MANUAL',

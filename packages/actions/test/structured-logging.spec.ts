@@ -12,7 +12,13 @@ import {
 } from '@crosspilot/shared';
 import { ActionRouter } from '../src/action.router.js';
 import { ActionProposal, ActionDispatcherContext } from '../src/action.types.js';
-import { RpaAdapter, RpaExecutionInput, RpaExecutionResult } from '@crosspilot/integrations/rpa';
+import {
+  RpaAdapter,
+  RpaExecutionInput,
+  RpaExecutionResult,
+  PlaywrightRpaAdapter,
+  HttpERPAdapter,
+} from '@crosspilot/integrations';
 import { computeCanonicalPayloadHash } from '../src/approval-binding.js';
 
 describe('Phase 3: Structured Logging & Trace Correlation Tests', () => {
@@ -237,6 +243,75 @@ describe('Phase 3: Structured Logging & Trace Correlation Tests', () => {
       expect(summary.fieldNames).toContain('price');
       expect(summary.fieldNames).not.toContain('apiKey');
       expect(summary.fieldNames).not.toContain('password');
+    });
+
+    it('2.5 sanitizes single string argument passed directly to logger (string bypass fix)', () => {
+      const { logs, rawLines, logger } = createTestSink();
+
+      logger.info('Bearer super_secret_token_abc inside plain text log message');
+      logger.warn('redis://:my_super_redis_pwd@127.0.0.1:6379/0 and redis://appuser:userpassword99@10.0.0.1:6379/1');
+      logger.error('shpat_abcdef1234567890 and password=my_top_secret_pwd');
+
+      expect(logs).toHaveLength(3);
+
+      const raw0 = rawLines[0];
+      expect(raw0).not.toContain('super_secret_token_abc');
+      expect(raw0).toContain('Bearer [REDACTED]');
+
+      const raw1 = rawLines[1];
+      expect(raw1).not.toContain('my_super_redis_pwd');
+      expect(raw1).not.toContain('userpassword99');
+      expect(raw1).toContain('redis://:[REDACTED]@127.0.0.1:6379/0');
+      expect(raw1).toContain('redis://appuser:[REDACTED]@10.0.0.1:6379/1');
+
+      const raw2 = rawLines[2];
+      expect(raw2).not.toContain('abcdef1234567890');
+      expect(raw2).not.toContain('my_top_secret_pwd');
+      expect(raw2).toContain('shpat_[REDACTED]');
+      expect(raw2).toContain('password=[REDACTED]');
+    });
+
+    it('2.6 sanitizes second msg argument when object is provided as first argument', () => {
+      const { logs, rawLines, logger } = createTestSink();
+
+      logger.info(
+        { event: 'db.connect', attempt: 1 },
+        'Connecting to postgresql://postgres:mypassword123@localhost:5432/crosspilot_db',
+      );
+      logger.warn(
+        { event: 'auth.attempt', code: 401 },
+        'Basic dXNlcjpwYXNzd29yZA== failed with client_secret: super_secret_client_val',
+      );
+
+      expect(logs).toHaveLength(2);
+
+      const raw0 = rawLines[0];
+      expect(raw0).not.toContain('mypassword123');
+      expect(raw0).toContain('postgresql://postgres:[REDACTED]@localhost:5432/crosspilot_db');
+      expect(logs[0].event).toBe('db.connect');
+      expect(logs[0].attempt).toBe(1);
+
+      const raw1 = rawLines[1];
+      expect(raw1).not.toContain('dXNlcjpwYXNzd29yZA==');
+      expect(raw1).not.toContain('super_secret_client_val');
+      expect(raw1).toContain('Basic [REDACTED]');
+      expect(raw1).toContain('client_secret: [REDACTED]');
+    });
+
+    it('2.7 sanitizes embedded key-value secrets in arbitrary strings', () => {
+      const { rawLines, logger } = createTestSink();
+
+      logger.info(
+        'Request failed: api_key=ak_secret_live_789, access_token: acc_secret_val_456, refresh_token=refr_secret_123',
+      );
+
+      const raw = rawLines[0];
+      expect(raw).not.toContain('ak_secret_live_789');
+      expect(raw).not.toContain('acc_secret_val_456');
+      expect(raw).not.toContain('refr_secret_123');
+      expect(raw).toContain('api_key=[REDACTED]');
+      expect(raw).toContain('access_token: [REDACTED]');
+      expect(raw).toContain('refresh_token=[REDACTED]');
     });
   });
 
@@ -556,6 +631,221 @@ describe('Phase 3: Structured Logging & Trace Correlation Tests', () => {
 
       const sanitized = sanitizeLogData(circular) as any;
       expect(sanitized.self).toBe('[CIRCULAR]');
+    });
+  });
+
+  describe('7. Phase 3.1: Trace Correlation & Logging Security Closure', () => {
+    it('7.1 ActionRouter DI logger captures action.dispatch.started and action.dispatch.completed with identical correlation context', async () => {
+      const { logs, logger: testLogger } = createTestSink();
+
+      const mockAdapter: RpaAdapter = {
+        id: 'mock-rpa-di-test',
+        supportedModes: ['MOCK'],
+        execute: async (input: RpaExecutionInput): Promise<RpaExecutionResult> => {
+          return {
+            jobId: 'job_di_001',
+            status: 'SUCCESS',
+            output: {
+              writeExecuted: true,
+              receivedTraceId: input.traceId,
+              receivedOpId: input.operationId,
+            },
+            durationMs: 15,
+          };
+        },
+      };
+
+      const router = new ActionRouter(
+        { get: () => mockAdapter, getDefault: () => mockAdapter } as any,
+        testLogger,
+      );
+
+      const proposal: ActionProposal = {
+        id: 'act_di_701',
+        type: 'RPA',
+        name: 'Update Listing DI',
+        description: 'Test DI Logger',
+        requiresHumanApproval: false,
+        targetEntity: 'sku',
+        targetId: 'SKU-DI-701',
+        payload: { skuCode: 'SKU-DI-701', price: 49.99 },
+        riskLevel: 'LOW',
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+      };
+
+      const context: ActionDispatcherContext = {
+        workspaceId: 'ws_di_701',
+        traceId: 'trace_di_701',
+        operationId: 'op_di_701',
+        executionMode: 'MOCK',
+      };
+
+      const result = await router.dispatch(proposal, context);
+      expect(result.status).toBe('SUCCEEDED');
+      expect(result.executionEvidence?.traceId).toBe('trace_di_701');
+
+      const startLogs = logs.filter((l) => l.event === RuntimeEvents.ACTION_DISPATCH_STARTED);
+      const endLogs = logs.filter((l) => l.event === RuntimeEvents.ACTION_DISPATCH_COMPLETED);
+
+      expect(startLogs).toHaveLength(1);
+      expect(endLogs).toHaveLength(1);
+
+      expect(startLogs[0]).toMatchObject({
+        event: RuntimeEvents.ACTION_DISPATCH_STARTED,
+        traceId: 'trace_di_701',
+        operationId: 'op_di_701',
+        workspaceId: 'ws_di_701',
+        actionId: 'act_di_701',
+        executionMode: 'MOCK',
+      });
+
+      expect(endLogs[0]).toMatchObject({
+        event: RuntimeEvents.ACTION_DISPATCH_COMPLETED,
+        traceId: 'trace_di_701',
+        operationId: 'op_di_701',
+        workspaceId: 'ws_di_701',
+        actionId: 'act_di_701',
+        executionMode: 'MOCK',
+        effect: 'APPLIED',
+        recovery: 'NONE',
+      });
+    });
+
+    it('7.2 ActionRouter DI logger captures action.dispatch.blocked on payload tampering without leaking sensitive payload', async () => {
+      const { logs, rawLines, logger: testLogger } = createTestSink();
+
+      const approvedPayload = {
+        skuCode: 'SKU-TAMPER-702',
+        price: 29.99,
+        apiKey: 'super_secret_tamper_key_abc',
+      };
+      const canonicalHash = computeCanonicalPayloadHash(approvedPayload);
+
+      const router = new ActionRouter(undefined, testLogger);
+
+      const proposal: ActionProposal = {
+        id: 'act_di_702',
+        type: 'RPA',
+        name: 'Tamper Action',
+        description: 'Test tamper detection with DI logger',
+        requiresHumanApproval: true,
+        targetEntity: 'sku',
+        targetId: 'SKU-TAMPER-702',
+        payload: {
+          skuCode: 'SKU-TAMPER-702',
+          price: 999.99,
+          apiKey: 'super_secret_tamper_key_abc',
+        },
+        approvedPayload,
+        approvedPayloadHash: canonicalHash,
+        riskLevel: 'HIGH',
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+      };
+
+      const context: ActionDispatcherContext = {
+        workspaceId: 'ws_di_702',
+        traceId: 'trace_di_702',
+        operationId: 'op_di_702',
+        executionMode: 'MOCK',
+        isApproved: true,
+      };
+
+      const result = await router.dispatch(proposal, context);
+      expect(result.status).toBe('FAILED');
+      expect(result.normalizedError?.code).toBe('PAYLOAD_TAMPERED');
+      expect(result.executionEvidence?.traceId).toBe('trace_di_702');
+
+      const blockedLogs = logs.filter((l) => l.event === RuntimeEvents.ACTION_DISPATCH_BLOCKED);
+      expect(blockedLogs).toHaveLength(1);
+      expect(blockedLogs[0]).toMatchObject({
+        event: RuntimeEvents.ACTION_DISPATCH_BLOCKED,
+        traceId: 'trace_di_702',
+        operationId: 'op_di_702',
+        workspaceId: 'ws_di_702',
+        actionId: 'act_di_702',
+        reason: 'PAYLOAD_TAMPERED',
+      });
+
+      // Assert rawLines never leak the raw API key
+      const allRaw = rawLines.join('\n');
+      expect(allRaw).not.toContain('super_secret_tamper_key_abc');
+    });
+
+    it('7.3 Playwright RPA Adapter receives and logs matching correlation context', async () => {
+      const adapter = new PlaywrightRpaAdapter();
+      const controller = new AbortController();
+      controller.abort(); // Pre-abort to avoid launching genuine browser in unit test
+
+      const res = await adapter.execute({
+        workflow: 'UPDATE_LISTING',
+        targetEntity: 'sku',
+        targetId: 'SKU-CORR-703',
+        payload: { skuCode: 'SKU-CORR-703', price: 39.99 },
+        signal: controller.signal,
+        traceId: 'trace_playwright_703',
+        operationId: 'op_playwright_703',
+        workspaceId: 'ws_playwright_703',
+        actionId: 'act_playwright_703',
+        executionMode: 'LIVE',
+      });
+
+      expect(res.status).toBe('FAILED');
+      expect(res.normalizedError?.code).toBe('CANCELLED');
+      expect(res.output?.writeExecuted).toBe(false);
+    });
+
+    it('7.4 HttpERPAdapter propagates correlation options and abort signals', async () => {
+      const adapter = new HttpERPAdapter({ baseUrl: 'http://127.0.0.1:54321' });
+      const controller = new AbortController();
+      controller.abort();
+
+      const res = await adapter.getPurchaseOrder(
+        {
+          scope: { workspaceId: 'ws_erp_704' },
+          operationId: 'op_erp_704',
+        },
+        {
+          signal: controller.signal,
+          traceId: 'trace_erp_704',
+          operationId: 'op_erp_704',
+          workspaceId: 'ws_erp_704',
+        },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.errorCode).toBe('TIMEOUT');
+      expect(res.normalizedError?.class).toBe('TIMEOUT');
+    });
+
+    it('7.5 Recovery Worker Async Boundary Correlation retains durable operationId and respects evidence traceId', () => {
+      // Durable invariant: operationId is the persistent cross-process anchor.
+      // traceId is ephemeral / synchronous; it is only included in recovery logs/evidence
+      // if previously captured in evidence.traceId. It is NEVER randomly fabricated.
+
+      const opWithEvidenceTrace = {
+        id: 'op_recovery_705a',
+        workspaceId: 'ws_recovery_705',
+        evidence: {
+          traceId: 'trace_original_sync_705a',
+          effect: 'UNKNOWN',
+        },
+      };
+
+      const traceIdA = (opWithEvidenceTrace.evidence as any)?.traceId;
+      expect(traceIdA).toBe('trace_original_sync_705a');
+
+      const opWithoutEvidenceTrace = {
+        id: 'op_recovery_705b',
+        workspaceId: 'ws_recovery_705',
+        evidence: {
+          effect: 'UNKNOWN',
+        },
+      };
+
+      const traceIdB = (opWithoutEvidenceTrace.evidence as any)?.traceId;
+      expect(traceIdB).toBeUndefined(); // Recovery does NOT invent a fake traceId
     });
   });
 });

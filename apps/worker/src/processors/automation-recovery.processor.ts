@@ -49,7 +49,7 @@ async function syncLocalPurchaseOrder(
       const err = `SUPPLIER_NOT_FOUND: supplierId '${supplierId}' not found in workspace '${workspaceId}'`;
       runtimeLogger.warn({
         service: 'automation-recovery',
-        event: 'automation.recovery.sync_failed',
+        event: RuntimeEvents.AUTOMATION_RECOVERY_SYNC_FAILED,
         externalId,
         supplierId,
         workspaceId,
@@ -91,7 +91,7 @@ async function syncLocalPurchaseOrder(
   } catch (err: any) {
     runtimeLogger.warn({
       service: 'automation-recovery',
-      event: 'automation.recovery.sync_failed',
+      event: RuntimeEvents.AUTOMATION_RECOVERY_SYNC_FAILED,
       externalId,
       error: err,
     });
@@ -103,10 +103,9 @@ export async function processAutomationRecovery(
   prisma: PrismaClient,
   options: AutomationRecoveryOptions = {},
 ): Promise<AutomationRecoveryResult> {
+  const workerId = options.workerId || `worker-${Math.random().toString(36).slice(2, 8)}`;
   const store = new AutomationOperationStore(prisma);
-  const workerId = options.workerId || `recovery-worker-${Date.now()}`;
-  const erpBaseUrl = options.erpBaseUrl || process.env.SIMULATOR_ERP_URL || 'http://127.0.0.1:9099';
-  const adapter = new SimulatorERPAdapter({ baseUrl: erpBaseUrl });
+  const adapter = new SimulatorERPAdapter({ baseUrl: options.erpBaseUrl || 'http://127.0.0.1:3000' });
 
   const dueOps = await store.listDue(new Date(), options.limit || 20);
 
@@ -129,7 +128,7 @@ export async function processAutomationRecovery(
   for (const op of dueOps) {
     if (options.signal?.aborted) {
       recoveryLogger.info({
-        event: 'automation.recovery.sweep.aborted',
+        event: RuntimeEvents.AUTOMATION_RECOVERY_SWEEP_ABORTED,
         message: 'Recovery sweep aborted by worker signal',
       });
       break;
@@ -142,12 +141,16 @@ export async function processAutomationRecovery(
       continue;
     }
 
+    const evidenceObj = (claimed.evidence as Record<string, any>) || {};
+    const traceId = typeof evidenceObj.traceId === 'string' ? evidenceObj.traceId : undefined;
+
     const opLogger = recoveryLogger.child({
       operationId: claimed.id,
       workspaceId: claimed.workspaceId,
       actionId: claimed.actionId || undefined,
       attempt: claimed.attemptCount,
       provider: claimed.provider,
+      ...(traceId ? { traceId } : {}),
     });
 
     opLogger.info({
@@ -171,7 +174,12 @@ export async function processAutomationRecovery(
             scope: { workspaceId: claimed.workspaceId, connectionId: claimed.connectionId },
             operationId: claimed.id,
           },
-          { signal: options.signal },
+          {
+            signal: options.signal,
+            ...(traceId ? { traceId } : {}),
+            operationId: claimed.id,
+            workspaceId: claimed.workspaceId,
+          },
         );
 
         if (checkRes.success && checkRes.data?.externalId) {
@@ -252,6 +260,7 @@ export async function processAutomationRecovery(
             };
 
             const evidenceData: any = {
+              ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -296,6 +305,7 @@ export async function processAutomationRecovery(
           if (!syncRes.success) {
             // 远端已收敛生效但本地同步失败：落证据并进入 NEEDS_ATTENTION / MANUAL 可追踪状态，严禁静默吞掉
             const evidenceData: any = {
+              ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -338,6 +348,7 @@ export async function processAutomationRecovery(
 
           // 校验与本地同步均成功，收敛至 COMPLETED / APPLIED
           const evidenceData: any = {
+            ...(traceId ? { traceId } : {}),
             mode: claimed.mode as any,
             provider: claimed.provider,
             operationId: claimed.id,
@@ -380,6 +391,7 @@ export async function processAutomationRecovery(
         if (checkNormalized.class === 'AUTH' || checkNormalized.class === 'PERMISSION') {
           const recoveryAction = checkNormalized.class === 'AUTH' ? 'REAUTHORIZE' : 'MANUAL';
           const evidenceData: any = {
+            ...(traceId ? { traceId } : {}),
             mode: claimed.mode as any,
             provider: claimed.provider,
             operationId: claimed.id,
@@ -415,6 +427,7 @@ export async function processAutomationRecovery(
         if (isDefiniteNotFound) {
           if (claimed.attemptCount >= 3) {
             const evidenceData: any = {
+              ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -463,6 +476,7 @@ export async function processAutomationRecovery(
           // Timeout or network error during query: remote status remains UNKNOWN
           if (claimed.attemptCount >= 3) {
             const evidenceData: any = {
+              ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -513,6 +527,7 @@ export async function processAutomationRecovery(
       if (claimed.phase === 'READY' || claimed.recovery === 'RETRY') {
         if (claimed.attemptCount >= 3) {
           await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, {
+            ...(traceId ? { traceId } : {}),
             mode: claimed.mode as any,
             provider: claimed.provider,
             operationId: claimed.id,
@@ -555,7 +570,12 @@ export async function processAutomationRecovery(
                 supplierId: String(actionParams.supplierId || 'DEFAULT'),
                 lines: actionParams.lines || [],
               },
-              { signal: options.signal },
+              {
+                signal: options.signal,
+                ...(traceId ? { traceId } : {}),
+                operationId: claimed.id,
+                workspaceId: claimed.workspaceId,
+              },
             );
 
             if (erpRes.success && erpRes.data?.externalId) {
@@ -569,6 +589,7 @@ export async function processAutomationRecovery(
           const syncRes = await syncLocalPurchaseOrder(prisma, claimed.workspaceId, externalId, actionParams);
           if (!syncRes.success) {
             const evidenceData: any = {
+              ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -609,7 +630,8 @@ export async function processAutomationRecovery(
             continue;
           }
 
-          await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, {
+          const completedEvidence: any = {
+            ...(traceId ? { traceId } : {}),
             mode: claimed.mode as any,
             provider: claimed.provider,
             operationId: claimed.id,
@@ -618,7 +640,9 @@ export async function processAutomationRecovery(
             recovery: 'NONE',
             externalId,
             verifiedAt: new Date().toISOString(),
-          });
+          };
+
+          await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, completedEvidence);
 
           if (claimed.actionId) {
             await prisma.plannedAction.updateMany({
@@ -628,16 +652,7 @@ export async function processAutomationRecovery(
                 lastMessage: `ERP 采购单重试成功: ${externalId}`,
                 parameters: {
                   ...actionParams,
-                  _evidence: {
-                    mode: claimed.mode,
-                    provider: claimed.provider,
-                    operationId: claimed.id,
-                    phase: 'COMPLETED',
-                    effect: 'APPLIED',
-                    recovery: 'NONE',
-                    externalId,
-                    verifiedAt: new Date().toISOString(),
-                  },
+                  _evidence: completedEvidence,
                 },
               },
             });
@@ -659,6 +674,7 @@ export async function processAutomationRecovery(
           if (!erpNormalized.retryable && erpNormalized.class !== 'TIMEOUT') {
             const recoveryAction = erpNormalized.class === 'AUTH' ? 'REAUTHORIZE' : 'MANUAL';
             const evidenceData: any = {
+              ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,
@@ -694,6 +710,7 @@ export async function processAutomationRecovery(
           if (erpNormalized.class === 'TIMEOUT') {
             if (nextCount >= 3) {
               const evidenceData: any = {
+                ...(traceId ? { traceId } : {}),
                 mode: claimed.mode as any,
                 provider: claimed.provider,
                 operationId: claimed.id,
@@ -743,6 +760,7 @@ export async function processAutomationRecovery(
           // Retryable error (TRANSIENT, RATE_LIMIT, etc.)
           if (nextCount >= 3) {
             const evidenceData: any = {
+              ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
               operationId: claimed.id,

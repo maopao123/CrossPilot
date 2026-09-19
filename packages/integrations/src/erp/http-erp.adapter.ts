@@ -24,6 +24,9 @@ export interface HttpErpAdapterOptions {
 export interface ErpRequestOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
+  traceId?: string;
+  operationId?: string;
+  workspaceId?: string;
 }
 
 export class HttpERPAdapter {
@@ -49,6 +52,9 @@ export class HttpERPAdapter {
       headers?: Record<string, string>;
       timeoutMs?: number;
       signal?: AbortSignal;
+      traceId?: string;
+      operationId?: string;
+      workspaceId?: string;
     },
   ): Promise<ErpResult<T>> {
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
@@ -66,6 +72,9 @@ export class HttpERPAdapter {
     const erpLogger = runtimeLogger.child({
       service: 'http-erp-adapter',
       provider: 'erp',
+      traceId: options.traceId,
+      operationId: options.operationId,
+      workspaceId: options.workspaceId,
     });
 
     erpLogger.debug({
@@ -370,6 +379,9 @@ export class HttpERPAdapter {
       headers,
       signal: options?.signal,
       timeoutMs: options?.timeoutMs,
+      traceId: options?.traceId,
+      operationId: options?.operationId ?? cmd.operationId,
+      workspaceId: options?.workspaceId ?? cmd.scope.workspaceId,
     });
 
     if (!res.success) {
@@ -431,6 +443,9 @@ export class HttpERPAdapter {
       headers,
       signal: options?.signal,
       timeoutMs: options?.timeoutMs,
+      traceId: options?.traceId,
+      operationId: options?.operationId ?? lookup.operationId,
+      workspaceId: options?.workspaceId ?? lookup.scope.workspaceId,
     });
   }
 
@@ -448,6 +463,9 @@ export class HttpERPAdapter {
       headers,
       signal: options?.signal,
       timeoutMs: options?.timeoutMs,
+      traceId: options?.traceId,
+      operationId: options?.operationId,
+      workspaceId: options?.workspaceId ?? (scope?.workspaceId ? String(scope.workspaceId) : undefined),
     });
   }
 
@@ -467,6 +485,9 @@ export class HttpERPAdapter {
         headers,
         signal: options?.signal,
         timeoutMs: options?.timeoutMs,
+        traceId: options?.traceId,
+        operationId: options?.operationId,
+        workspaceId: options?.workspaceId ?? cmd.scope?.workspaceId,
       },
     );
 

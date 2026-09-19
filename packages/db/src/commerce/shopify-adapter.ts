@@ -53,6 +53,9 @@ export interface ShopifyGraphQLResponse<T = any> {
 export interface ShopifyGraphQLRequestOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
+  traceId?: string;
+  operationId?: string;
+  workspaceId?: string;
 }
 
 export interface ShopifyGraphQLTransport {
@@ -166,6 +169,9 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
       service: 'shopify-adapter',
       provider: 'shopify',
       shopSubdomain: subdomain,
+      traceId: options?.traceId,
+      operationId: options?.operationId,
+      workspaceId: options?.workspaceId,
     });
 
     shopifyLogger.debug({
@@ -446,7 +452,12 @@ export class ShopifyAdapter implements CommerceAdapter {
 
   async listProducts(ctx: CommerceContext): Promise<CanonicalProduct[]> {
     const bound = await this.bind(ctx);
-    const options = { signal: ctx?.signal, timeoutMs: ctx?.timeoutMs };
+    const options: ShopifyGraphQLRequestOptions = {
+      signal: ctx?.signal,
+      timeoutMs: ctx?.timeoutMs,
+      traceId: ctx?.traceId,
+      workspaceId: ctx?.workspaceId,
+    };
     const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret, options);
 
     const query = `
@@ -536,7 +547,12 @@ export class ShopifyAdapter implements CommerceAdapter {
 
   async getProduct(ctx: CommerceContext, offerId: string): Promise<CanonicalProduct | null> {
     const bound = await this.bind(ctx);
-    const options = { signal: ctx?.signal, timeoutMs: ctx?.timeoutMs };
+    const options: ShopifyGraphQLRequestOptions = {
+      signal: ctx?.signal,
+      timeoutMs: ctx?.timeoutMs,
+      traceId: ctx?.traceId,
+      workspaceId: ctx?.workspaceId,
+    };
     const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret, options);
 
     // 1. Direct variant GID lookup
@@ -678,7 +694,12 @@ export class ShopifyAdapter implements CommerceAdapter {
 
   async listOrders(ctx: CommerceContext, query: OrderQuery = {}): Promise<CanonicalOrder[]> {
     const bound = await this.bind(ctx);
-    const options = { signal: ctx?.signal, timeoutMs: ctx?.timeoutMs };
+    const options: ShopifyGraphQLRequestOptions = {
+      signal: ctx?.signal,
+      timeoutMs: ctx?.timeoutMs,
+      traceId: ctx?.traceId,
+      workspaceId: ctx?.workspaceId,
+    };
     const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret, options);
 
     const filterParts: string[] = [];
@@ -802,7 +823,12 @@ export class ShopifyAdapter implements CommerceAdapter {
 
   async getInventory(ctx: CommerceContext, offerId: string): Promise<CanonicalInventory | null> {
     const bound = await this.bind(ctx);
-    const options = { signal: ctx?.signal, timeoutMs: ctx?.timeoutMs };
+    const options: ShopifyGraphQLRequestOptions = {
+      signal: ctx?.signal,
+      timeoutMs: ctx?.timeoutMs,
+      traceId: ctx?.traceId,
+      workspaceId: ctx?.workspaceId,
+    };
     const token = await this.getAccessToken(bound.shop, bound.clientId, bound.clientSecret, options);
 
     // 1. Variant GID lookup

@@ -15,12 +15,14 @@ export const RuntimeEvents = {
   // Recovery Engine
   AUTOMATION_RECOVERY_SWEEP_STARTED: 'automation.recovery.sweep.started',
   AUTOMATION_RECOVERY_SWEEP_COMPLETED: 'automation.recovery.sweep.completed',
+  AUTOMATION_RECOVERY_SWEEP_ABORTED: 'automation.recovery.sweep.aborted',
   AUTOMATION_RECOVERY_QUERY_STARTED: 'automation.recovery.query.started',
   AUTOMATION_RECOVERY_QUERY_COMPLETED: 'automation.recovery.query.completed',
   AUTOMATION_RECOVERY_QUERY_FAILED: 'automation.recovery.query.failed',
   AUTOMATION_RECOVERY_RETRY_SCHEDULED: 'automation.recovery.retry.scheduled',
   AUTOMATION_RECOVERY_RETRY_STARTED: 'automation.recovery.retry.started',
   AUTOMATION_RECOVERY_ESCALATED: 'automation.recovery.escalated',
+  AUTOMATION_RECOVERY_SYNC_FAILED: 'automation.recovery.sync_failed',
 
   // External Adapter (Shopify / ERP / Playwright)
   ADAPTER_REQUEST_STARTED: 'adapter.request.started',
@@ -28,6 +30,7 @@ export const RuntimeEvents = {
   ADAPTER_REQUEST_FAILED: 'adapter.request.failed',
   ADAPTER_REQUEST_TIMEOUT: 'adapter.request.timeout',
   ADAPTER_REQUEST_CANCELLED: 'adapter.request.cancelled',
+  ADAPTER_RPA_STEP: 'adapter.rpa.step',
 
   // Remote Verification
   AUTOMATION_VERIFY_STARTED: 'automation.verify.started',
