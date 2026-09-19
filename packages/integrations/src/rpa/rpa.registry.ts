@@ -2,6 +2,7 @@ import { AutomationMode } from '@crosspilot/shared';
 import { RpaAdapter } from './rpa.interface.js';
 import { MockRpaAdapter } from './mock-rpa.adapter.js';
 import { YingdaoRpaAdapter } from './yingdao.adapter.js';
+import { PlaywrightRpaAdapter } from './playwright.adapter.js';
 
 export class RpaRegistry {
   private adapters = new Map<string, RpaAdapter>();
@@ -9,6 +10,7 @@ export class RpaRegistry {
   constructor() {
     this.register(new MockRpaAdapter());
     this.register(new YingdaoRpaAdapter());
+    this.register(new PlaywrightRpaAdapter());
   }
 
   register(adapter: RpaAdapter): void {

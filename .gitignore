@@ -11,5 +11,6 @@ coverage
 *.tsbuildinfo
 .checkpoints
 .runtime-pg
+.runtime-evidence
 docs/_ops_*
 .idea

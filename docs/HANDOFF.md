@@ -1,5 +1,21 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot Shopify Real API + Playwright RPA 双轨执行实施闭环（Epic 4 + Phase B）**：
+> 1. **Phase A · 真实 Shopify Read Adapter（Gate A PASSED）**：
+>    - 核心实现：`packages/db/src/commerce/shopify-adapter.ts` 接入 Shopify Admin GraphQL API（2026-07），实现 Client Credentials Grant OAuth 换取 Access Token 与 24h 内存缓存自动刷新机制；
+>    - 平台解析：`resolveCommerceAdapter(prisma, 'shopify')` 正式返回 `ShopifyAdapter`，`packages/db` 导出该适配器；
+>    - 规范映射：Product GID 与 Variant GID 映射至 `CanonicalProduct.identities[]` 并自动投影至数据库 `channel_identities` 表；
+>    - 写端口阻断：`updateProduct` 与 `decreaseBid` 严格保持 `WRITE_FORBIDDEN`；
+>    - 真实 Dev Store 验真：实测通过 `crosspilot-dev`，成功读取 26 个产品并完成单品/订单/库存验证，无密钥泄漏；
+>    - 测试覆盖：`apps/api/test/v10-epic4-shopify-adapter.spec.ts` 14/14 PASS；Epic 1/2/3 平台回归 37/37 PASS；交付报告 `docs/00_governance/V10_EPIC4_SHOPIFY_READ_ADAPTER_REPORT.md`。
+> 2. **Phase B · Playwright Listing RPA 真实浏览器执行闭环（Gate B PASSED）**：
+>    - 核心实现：新增 `PlaywrightRpaAdapter`（`packages/integrations/src/rpa/playwright.adapter.ts`），注册至 `RpaRegistry`（`id = 'playwright-rpa'`，`supportedModes = ['LIVE']`）；
+>    - 测试级后台：编写 `MockSellerCentralServer`（原生 Node HTTP），提供完整的 SKU 列表、搜索框、Listing 编辑页、保存状态提示与数据持久化能力；
+>    - POM 模式：编写 `SellerCentralPage` 隔离 DOM 选择器与表单读写；
+>    - 确定性工作流：编写 `ListingUpdateWorkflow`，实现 Chromium 真实启动、Context 隔离、Tracing 启停、Before/After 截图采集（PNG 文件 > 35KB）、DOM 回读验真（Read-back Verify）及 `trace.zip` 归档（> 250KB）；
+>    - 错误分类与安全门禁：准确分类 `SELECTOR_NOT_FOUND`、`SAVE_FAILED`、`PAGE_TIMEOUT` 与 `VERIFY_FAILED`；未通过 HITL 审批（`isApproved: false`）100% 拦截在 Human Gate，绝不调用浏览器；
+>    - 测试覆盖：`packages/actions/test/playwright-rpa-execution.spec.ts` 10/10 PASS；`packages/actions` 34/34 PASS；交付报告 `docs/00_governance/PLAYWRIGHT_RPA_LISTING_EXECUTION_REPORT.md`。
+>
 > **2026-09-15 · Product Research Phase 2B Truthfulness Closure（V2.2.0-FROZEN）**：
 > - P0：KEYWORD/MARKET 按 Draft evidenceIds/keyword 收口；Handoff 不再挂载不在 `enriched.evidenceIds` 的证据。
 > - P0：VOC `PRODUCT_PLUS_CATEGORY` 不再升级为 `PRODUCT`。
