@@ -3,20 +3,23 @@ import type {
   AutomationMode,
   AutomationPhase,
   ExecutionArtifactKind,
+  ExecutionArtifactSensitivity,
   ExecutionEvidence,
   ExecutionEvidenceArtifact,
   ExecutionSideEffectEvidence,
   ExecutionVerificationEvidence,
   PersistedExecutionError,
   RecoveryAction,
+  RemoteSideEffectState,
   VerificationMethod,
   VerificationStatus,
 } from './automation-contracts.js';
+import { VALID_EXECUTION_ARTIFACT_KINDS } from './automation-contracts.js';
 import { isSensitiveKey, sanitizeLogData, sanitizeString } from '../logging/log-redaction.js';
 
 /**
- * Maximum serialized size in bytes allowed for persisted execution evidence (64KB).
- * Guards against unbounded metadata bloat in JSON columns.
+ * Maximum serialized size in UTF-8 bytes allowed for persisted execution evidence (64KB).
+ * Strictly guards against unbounded metadata bloat in JSON columns across ASCII and multibyte characters.
  */
 const MAX_PERSISTED_EVIDENCE_BYTES = 65536;
 
@@ -24,6 +27,26 @@ const MAX_PERSISTED_EVIDENCE_BYTES = 65536;
  * Maximum number of artifacts stored in a single execution evidence record.
  */
 const MAX_PERSISTED_ARTIFACTS = 50;
+
+/**
+ * Determines default artifact sensitivity classification based on artifact kind.
+ */
+export function getDefaultArtifactSensitivity(kind: ExecutionArtifactKind): ExecutionArtifactSensitivity {
+  switch (kind) {
+    case 'SCREENSHOT_BEFORE':
+    case 'SCREENSHOT_AFTER':
+    case 'SCREENSHOT_FAILURE':
+    case 'DOM_SNAPSHOT':
+    case 'PAYLOAD_DUMP':
+      return 'SENSITIVE';
+    case 'NETWORK_HAR':
+    case 'PLAYWRIGHT_TRACE':
+    case 'LOG_CHUNK':
+    case 'OTHER':
+    default:
+      return 'INTERNAL';
+  }
+}
 
 /**
  * Converts an arbitrary host file path or URI into a safe, normalized logical evidence reference.
@@ -129,10 +152,12 @@ export function isSafeEvidenceRef(ref: unknown): boolean {
  *
  * Enforces:
  * 1. Schema version 2.
- * 2. normalizedError strictly mapped to PersistedExecutionError with `cause`, `stack`, and raw objects stripped.
- * 3. Secret redaction (Bearer tokens, passwords, cookies, connection strings, Shopify tokens).
- * 4. Logical reference sanitization for all attached artifacts.
- * 5. Size guards against unbounded JSON column growth.
+ * 2. Strict Core Runtime Truth validation (throws INVALID_EVIDENCE if mode, phase, effect, recovery, provider, operationId are invalid).
+ * 3. normalizedError strictly mapped to PersistedExecutionError with `cause`, `stack`, and raw objects stripped.
+ * 4. Secret redaction (Bearer tokens, passwords, cookies, connection strings, Shopify tokens).
+ * 5. Logical reference sanitization for all attached artifacts + artifact kind allowlist and sensitivity.
+ * 6. Drops invalid/unsafe legacy evidenceRef without fail-open leaks.
+ * 7. Hard UTF-8 byte size limit (<= 64KB) with progressive multi-stage pruning.
  */
 export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): ExecutionEvidence {
   if (!evidence || typeof evidence !== 'object') {
@@ -141,42 +166,54 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
 
   const raw = evidence as Record<string, any>;
 
-  const mode: AutomationMode = (raw.mode === 'MOCK' || raw.mode === 'SIMULATOR' || raw.mode === 'LIVE')
-    ? raw.mode
-    : 'LIVE';
+  // Strict validation of Core Runtime Truth fields
+  if (raw.mode !== 'MOCK' && raw.mode !== 'SIMULATOR' && raw.mode !== 'LIVE') {
+    throw new Error(`INVALID_EVIDENCE: Invalid or missing mode: "${raw.mode}"`);
+  }
+  const mode: AutomationMode = raw.mode;
 
-  const phase: AutomationPhase = (
-    raw.phase === 'READY' ||
-    raw.phase === 'SUBMITTED' ||
-    raw.phase === 'VERIFYING' ||
-    raw.phase === 'COMPLETED' ||
-    raw.phase === 'FAILED' ||
-    raw.phase === 'NEEDS_ATTENTION'
-  )
-    ? raw.phase
-    : 'FAILED';
+  if (
+    raw.phase !== 'READY' &&
+    raw.phase !== 'SUBMITTED' &&
+    raw.phase !== 'VERIFYING' &&
+    raw.phase !== 'COMPLETED' &&
+    raw.phase !== 'FAILED' &&
+    raw.phase !== 'NEEDS_ATTENTION'
+  ) {
+    throw new Error(`INVALID_EVIDENCE: Invalid or missing phase: "${raw.phase}"`);
+  }
+  const phase: AutomationPhase = raw.phase;
 
-  const effect: AutomationEffect = (
-    raw.effect === 'APPLIED' ||
-    raw.effect === 'NOT_APPLIED' ||
-    raw.effect === 'PARTIALLY_APPLIED' ||
-    raw.effect === 'UNKNOWN'
-  )
-    ? raw.effect
-    : 'UNKNOWN';
+  if (
+    raw.effect !== 'APPLIED' &&
+    raw.effect !== 'NOT_APPLIED' &&
+    raw.effect !== 'PARTIALLY_APPLIED' &&
+    raw.effect !== 'UNKNOWN'
+  ) {
+    throw new Error(`INVALID_EVIDENCE: Invalid or missing effect: "${raw.effect}"`);
+  }
+  const effect: AutomationEffect = raw.effect;
 
-  const recovery: RecoveryAction = (
-    raw.recovery === 'NONE' ||
-    raw.recovery === 'RETRY' ||
-    raw.recovery === 'QUERY' ||
-    raw.recovery === 'REAUTHORIZE' ||
-    raw.recovery === 'MANUAL'
-  )
-    ? raw.recovery
-    : 'MANUAL';
+  if (
+    raw.recovery !== 'NONE' &&
+    raw.recovery !== 'RETRY' &&
+    raw.recovery !== 'QUERY' &&
+    raw.recovery !== 'REAUTHORIZE' &&
+    raw.recovery !== 'MANUAL'
+  ) {
+    throw new Error(`INVALID_EVIDENCE: Invalid or missing recovery: "${raw.recovery}"`);
+  }
+  const recovery: RecoveryAction = raw.recovery;
 
-  const provider = raw.provider ? sanitizeString(String(raw.provider)) : 'unknown';
-  const operationId = raw.operationId ? sanitizeString(String(raw.operationId)) : '';
+  if (!raw.provider || typeof raw.provider !== 'string' || !raw.provider.trim()) {
+    throw new Error(`INVALID_EVIDENCE: Invalid or missing provider: "${raw.provider}"`);
+  }
+  const provider = sanitizeString(raw.provider.trim()).substring(0, 200);
+
+  if (!raw.operationId || typeof raw.operationId !== 'string' || !raw.operationId.trim()) {
+    throw new Error(`INVALID_EVIDENCE: Invalid or missing operationId: "${raw.operationId}"`);
+  }
+  const operationId = sanitizeString(raw.operationId.trim()).substring(0, 256);
 
   // 1. Process and strip normalizedError
   let normalizedError: PersistedExecutionError | undefined = undefined;
@@ -186,9 +223,9 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
     normalizedError = {
       class: String(rawErr.class || raw.errorClass || 'UNKNOWN'),
       code: String(rawErr.code || raw.errorCode || 'UNKNOWN'),
-      message: sanitizedMsg.length > 1000 ? sanitizedMsg.substring(0, 1000) : sanitizedMsg,
+      message: sanitizedMsg.length > 500 ? sanitizedMsg.substring(0, 500) : sanitizedMsg,
       retryable: Boolean(rawErr.retryable),
-      ...(rawErr.provider ? { provider: sanitizeString(String(rawErr.provider)) } : {}),
+      ...(rawErr.provider ? { provider: sanitizeString(String(rawErr.provider)).substring(0, 200) } : {}),
       ...(typeof rawErr.originalStatus === 'number' ? { originalStatus: rawErr.originalStatus } : {}),
     };
     // Explicitly verify `cause` is not attached
@@ -216,13 +253,24 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
 
       if (!safeRef) continue;
 
-      const kind = (item.kind && typeof item.kind === 'string' ? item.kind : 'OTHER') as ExecutionArtifactKind;
-      const mimeType = sanitizeString(String(item.mimeType || 'application/octet-stream'));
-      const capturedAt = item.capturedAt ? String(item.capturedAt) : new Date().toISOString();
-      const sizeBytes = typeof item.sizeBytes === 'number' && item.sizeBytes >= 0 ? item.sizeBytes : undefined;
+      const kindStr = String(item.kind || '');
+      const kind: ExecutionArtifactKind = (VALID_EXECUTION_ARTIFACT_KINDS as readonly string[]).includes(kindStr)
+        ? (kindStr as ExecutionArtifactKind)
+        : 'OTHER';
+
+      const mimeType = sanitizeString(String(item.mimeType || 'application/octet-stream')).substring(0, 100);
+      const capturedAt = item.capturedAt ? String(item.capturedAt).substring(0, 50) : new Date().toISOString();
+      const sizeBytes = typeof item.sizeBytes === 'number' && Number.isFinite(item.sizeBytes) && item.sizeBytes >= 0
+        ? item.sizeBytes
+        : undefined;
       const sha256 = typeof item.sha256 === 'string' && /^[a-fA-F0-9]{64}$/.test(item.sha256)
         ? item.sha256
         : undefined;
+
+      const sensitivity: ExecutionArtifactSensitivity =
+        item.sensitivity === 'INTERNAL' || item.sensitivity === 'SENSITIVE'
+          ? item.sensitivity
+          : getDefaultArtifactSensitivity(kind);
 
       const metadata = item.metadata && typeof item.metadata === 'object'
         ? (sanitizeLogData(item.metadata) as Record<string, unknown>)
@@ -233,6 +281,7 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
         kind,
         mimeType,
         capturedAt,
+        sensitivity,
         ...(sizeBytes !== undefined ? { sizeBytes } : {}),
         ...(sha256 ? { sha256 } : {}),
         ...(metadata ? { metadata } : {}),
@@ -269,7 +318,7 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
     verification = {
       status: vStatus,
       method: vMethod,
-      ...(rawVer.targetId ? { targetId: sanitizeString(String(rawVer.targetId)) } : {}),
+      ...(rawVer.targetId ? { targetId: sanitizeString(String(rawVer.targetId)).substring(0, 256) } : {}),
       ...(typeof rawVer.matched === 'boolean' ? { matched: rawVer.matched } : {}),
       ...(typeof rawVer.queryLatencyMs === 'number' ? { queryLatencyMs: rawVer.queryLatencyMs } : {}),
       ...(rawVer.remoteState && typeof rawVer.remoteState === 'object'
@@ -288,11 +337,20 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
   let sideEffect: ExecutionSideEffectEvidence | undefined = undefined;
   if (raw.sideEffect && typeof raw.sideEffect === 'object') {
     const rawEffect = raw.sideEffect;
+    const remoteState: RemoteSideEffectState | undefined =
+      rawEffect.remoteState === 'CONFIRMED_APPLIED' ||
+      rawEffect.remoteState === 'CONFIRMED_NOT_APPLIED' ||
+      rawEffect.remoteState === 'UNKNOWN'
+        ? rawEffect.remoteState
+        : undefined;
+
     sideEffect = {
       confirmed: Boolean(rawEffect.confirmed),
-      ...(rawEffect.occurredAt ? { occurredAt: String(rawEffect.occurredAt) } : {}),
-      ...(rawEffect.resourceType ? { resourceType: sanitizeString(String(rawEffect.resourceType)) } : {}),
-      ...(rawEffect.resourceId ? { resourceId: sanitizeString(String(rawEffect.resourceId)) } : {}),
+      ...(typeof rawEffect.writeExecuted === 'boolean' ? { writeExecuted: rawEffect.writeExecuted } : {}),
+      ...(remoteState ? { remoteState } : {}),
+      ...(rawEffect.occurredAt ? { occurredAt: String(rawEffect.occurredAt).substring(0, 50) } : {}),
+      ...(rawEffect.resourceType ? { resourceType: sanitizeString(String(rawEffect.resourceType)).substring(0, 100) } : {}),
+      ...(rawEffect.resourceId ? { resourceId: sanitizeString(String(rawEffect.resourceId)).substring(0, 256) } : {}),
       ...(rawEffect.details && typeof rawEffect.details === 'object'
         ? { details: sanitizeLogData(rawEffect.details) as Record<string, unknown> }
         : {}),
@@ -344,6 +402,19 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
     }
   }
 
+  // Safely sanitize evidenceRef: strictly drop if invalid/unsafe (never fallback to host paths)
+  let safeEvidenceRef: string | undefined = undefined;
+  if (raw.evidenceRef && typeof raw.evidenceRef === 'string') {
+    try {
+      const normalizedRef = toSafeEvidenceRef(raw.evidenceRef);
+      if (isSafeEvidenceRef(normalizedRef)) {
+        safeEvidenceRef = normalizedRef;
+      }
+    } catch {
+      // Strictly drop unsafe, traversing, or escaping evidenceRef
+    }
+  }
+
   // 5. Build clean evidence record
   const result: ExecutionEvidence & Record<string, unknown> = {
     ...extraProps,
@@ -354,27 +425,18 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
     phase,
     effect,
     recovery,
-    ...(raw.traceId ? { traceId: sanitizeString(String(raw.traceId)) } : {}),
-    ...(raw.errorCode ? { errorCode: sanitizeString(String(raw.errorCode)) } : {}),
+    ...(raw.traceId ? { traceId: sanitizeString(String(raw.traceId)).substring(0, 256) } : {}),
+    ...(raw.errorCode ? { errorCode: sanitizeString(String(raw.errorCode)).substring(0, 100) } : {}),
     ...(raw.errorClass ? { errorClass: raw.errorClass } : {}),
     ...(normalizedError ? { normalizedError } : {}),
-    ...(raw.externalId ? { externalId: sanitizeString(String(raw.externalId)) } : {}),
-    ...(raw.requestId ? { requestId: sanitizeString(String(raw.requestId)) } : {}),
-    ...(raw.evidenceRef
-      ? {
-          evidenceRef: (() => {
-            try {
-              return toSafeEvidenceRef(String(raw.evidenceRef));
-            } catch {
-              return sanitizeString(String(raw.evidenceRef));
-            }
-          })(),
-        }
-      : {}),
+    ...(raw.externalId ? { externalId: sanitizeString(String(raw.externalId)).substring(0, 512) } : {}),
+    ...(raw.requestId ? { requestId: sanitizeString(String(raw.requestId)).substring(0, 256) } : {}),
+    ...(raw.verifiedAt ? { verifiedAt: String(raw.verifiedAt).substring(0, 50) } : {}),
+    ...(safeEvidenceRef ? { evidenceRef: safeEvidenceRef } : {}),
     ...(raw.conflictDetails && typeof raw.conflictDetails === 'object'
       ? { conflictDetails: sanitizeLogData(raw.conflictDetails) as Record<string, unknown> }
       : {}),
-    ...(raw.syncError ? { syncError: sanitizeString(String(raw.syncError)) } : {}),
+    ...(raw.syncError ? { syncError: sanitizeString(String(raw.syncError)).substring(0, 1000) } : {}),
     ...(raw.manualResolution && typeof raw.manualResolution === 'object'
       ? { manualResolution: sanitizeLogData(raw.manualResolution) as Record<string, unknown> }
       : {}),
@@ -383,27 +445,101 @@ export function sanitizeExecutionEvidenceForPersistence(evidence: unknown): Exec
     ...(artifacts ? { artifacts } : {}),
   };
 
-  // 6. Size guard: clamp serialized payload size
-  let serialized = JSON.stringify(result);
-  if (serialized.length > MAX_PERSISTED_EVIDENCE_BYTES) {
-    // Progressively prune non-essential verbose data
-    if (result.verification?.remoteState) {
-      delete result.verification.remoteState;
-    }
-    if (result.verification?.assertionResults) {
-      delete result.verification.assertionResults;
-    }
-    if (result.artifacts) {
-      for (const art of result.artifacts) {
-        delete art.metadata;
-      }
-    }
-    if (result.conflictDetails) {
-      result.conflictDetails = { pruned: true, reason: 'PAYLOAD_TOO_LARGE' };
-    }
+  // 6. Strict UTF-8 Byte Size Guard (<= 64KB hard limit)
+  let byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+  if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) {
+    return result;
   }
 
-  return result;
+  // Stage 1: Prune remoteState
+  if (result.verification?.remoteState) {
+    delete result.verification.remoteState;
+    byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+    if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) return result;
+  }
+
+  // Stage 2: Prune assertionResults & verification details
+  if (result.verification?.assertionResults) {
+    delete result.verification.assertionResults;
+  }
+  if (result.verification?.details) {
+    delete result.verification.details;
+  }
+  byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+  if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) return result;
+
+  // Stage 3: Prune metadata from artifacts
+  if (result.artifacts) {
+    for (const art of result.artifacts) {
+      delete art.metadata;
+    }
+    byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+    if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) return result;
+  }
+
+  // Stage 4: Prune conflictDetails
+  if (result.conflictDetails) {
+    result.conflictDetails = { pruned: true, reason: 'PAYLOAD_TOO_LARGE' };
+    byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+    if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) return result;
+  }
+
+  // Stage 5: Prune extra properties
+  for (const k of Object.keys(extraProps)) {
+    delete (result as any)[k];
+  }
+  byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+  if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) return result;
+
+  // Stage 6: Prune manualResolution non-essential fields
+  if (result.manualResolution) {
+    result.manualResolution = { pruned: true, reason: 'PAYLOAD_TOO_LARGE' };
+    byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+    if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) return result;
+  }
+
+  // Stage 7: Shrink normalized error message and syncError
+  if (result.normalizedError) {
+    result.normalizedError.message = result.normalizedError.message.substring(0, 100);
+  }
+  if (result.syncError) {
+    result.syncError = result.syncError.substring(0, 100);
+  }
+  byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+  if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) return result;
+
+  // Stage 8: Truncate artifacts array
+  if (result.artifacts && result.artifacts.length > 0) {
+    while (result.artifacts.length > 0 && byteLength > MAX_PERSISTED_EVIDENCE_BYTES) {
+      result.artifacts.pop();
+      byteLength = Buffer.byteLength(JSON.stringify(result), 'utf8');
+    }
+    if (result.artifacts.length === 0) {
+      delete result.artifacts;
+    }
+    if (byteLength <= MAX_PERSISTED_EVIDENCE_BYTES) return result;
+  }
+
+  // Stage 9: Minimal fallback (Absolute Hard Guarantee)
+  const minimal: ExecutionEvidence = {
+    schemaVersion: 2,
+    mode: result.mode,
+    provider: result.provider.substring(0, 100),
+    operationId: result.operationId.substring(0, 100),
+    phase: result.phase,
+    effect: result.effect,
+    recovery: result.recovery,
+    ...(result.traceId ? { traceId: result.traceId.substring(0, 100) } : {}),
+    ...(result.errorCode ? { errorCode: result.errorCode.substring(0, 100) } : {}),
+    ...(result.errorClass ? { errorClass: result.errorClass } : {}),
+    normalizedError: {
+      class: result.normalizedError?.class || 'UNKNOWN',
+      code: result.normalizedError?.code || 'UNKNOWN',
+      message: 'Payload exceeded storage limit; truncated',
+      retryable: Boolean(result.normalizedError?.retryable),
+    },
+  };
+  return minimal;
 }
 
 /**

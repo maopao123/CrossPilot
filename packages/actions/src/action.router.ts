@@ -13,6 +13,8 @@ import {
   RuntimeEvents,
   StructuredLogger,
   runtimeMetrics,
+  getDefaultArtifactSensitivity,
+  ExecutionEvidenceArtifact,
 } from '@crosspilot/shared';
 import { verifyApprovedPayloadBinding } from './approval-binding.js';
 
@@ -525,6 +527,14 @@ export class ActionRouter {
           const isSimulator = mode === 'SIMULATOR';
           const targetSku = (payload.skuCode as string) || (payload.sku as string) || (rpaResult.output as any)?.skuCode;
 
+          const mappedArtifacts: ExecutionEvidenceArtifact[] | undefined =
+            rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
+              ? rpaResult.evidenceArtifacts.map((art: any) => ({
+                  ...art,
+                  sensitivity: art.sensitivity || getDefaultArtifactSensitivity(art.kind),
+                }))
+              : undefined;
+
           if (rpaResult.status === 'SUCCESS') {
             // Live bare SUCCESS without verified evidence cannot claim APPLIED
             const isVerified = Boolean(isMock || (isSimulator && rpaResult.jobId) || rpaResult.output?.verified);
@@ -555,25 +565,27 @@ export class ActionRouter {
                 externalId: rpaResult.jobId || undefined,
                 ...(isMock ? { verifiedAt: new Date().toISOString() } : {}),
                 verification: {
-                  status: isVerified ? 'VERIFIED' : 'FAILED',
+                  status: isVerified ? 'VERIFIED' : 'INCONCLUSIVE',
                   method: 'DOM_ASSERTION',
                   targetId: targetSku,
-                  matched: isVerified,
+                  ...(isVerified ? { matched: true } : {}),
                   details: rpaResult.output ? { changedFields: (rpaResult.output as any).changedFields } : undefined,
                 },
-                ...(isVerified
+                sideEffect: isVerified
                   ? {
-                      sideEffect: {
-                        confirmed: true,
-                        occurredAt: new Date().toISOString(),
-                        resourceType: 'LISTING',
-                        resourceId: targetSku,
-                      },
+                      confirmed: true,
+                      writeExecuted: true,
+                      remoteState: 'CONFIRMED_APPLIED',
+                      occurredAt: new Date().toISOString(),
+                      resourceType: 'LISTING',
+                      resourceId: targetSku,
                     }
-                  : {}),
-                ...(rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
-                  ? { artifacts: rpaResult.evidenceArtifacts }
-                  : {}),
+                  : {
+                      confirmed: false,
+                      writeExecuted: true,
+                      remoteState: 'UNKNOWN',
+                    },
+                ...(mappedArtifacts ? { artifacts: mappedArtifacts } : {}),
                 ...(isVerified
                   ? {}
                   : {
@@ -601,9 +613,7 @@ export class ActionRouter {
                 effect: 'UNKNOWN',
                 recovery: adapter.getStatus ? 'QUERY' : 'MANUAL',
                 externalId: rpaResult.jobId || undefined,
-                ...(rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
-                  ? { artifacts: rpaResult.evidenceArtifacts }
-                  : {}),
+                ...(mappedArtifacts ? { artifacts: mappedArtifacts } : {}),
               },
             };
           } else if (rpaResult.status === 'TIMEOUT') {
@@ -613,6 +623,7 @@ export class ActionRouter {
                 provider: adapter.id,
                 code: 'TIMEOUT',
               });
+            const writeExecuted = Boolean(rpaResult.output && (rpaResult.output as any).writeExecuted);
             result = {
               actionId: proposal.id,
               status: 'FAILED',
@@ -636,14 +647,16 @@ export class ActionRouter {
                 errorClass: timeoutNormalized.class,
                 normalizedError: timeoutNormalized,
                 verification: {
-                  status: 'FAILED',
+                  status: 'INCONCLUSIVE',
                   method: 'DOM_ASSERTION',
                   targetId: targetSku,
-                  matched: false,
                 },
-                ...(rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
-                  ? { artifacts: rpaResult.evidenceArtifacts }
-                  : {}),
+                sideEffect: {
+                  confirmed: false,
+                  writeExecuted,
+                  remoteState: 'UNKNOWN',
+                },
+                ...(mappedArtifacts ? { artifacts: mappedArtifacts } : {}),
               },
             };
           } else {
@@ -717,14 +730,17 @@ export class ActionRouter {
                 errorClass: failedNormalized.class,
                 normalizedError: failedNormalized,
                 verification: {
-                  status: 'FAILED',
+                  status: isSafeNotApplied ? 'PENDING' : 'FAILED',
                   method: 'DOM_ASSERTION',
                   targetId: targetSku,
-                  matched: false,
+                  ...(isSafeNotApplied ? {} : { matched: false }),
                 },
-                ...(rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
-                  ? { artifacts: rpaResult.evidenceArtifacts }
-                  : {}),
+                sideEffect: {
+                  confirmed: false,
+                  writeExecuted,
+                  remoteState: isSafeNotApplied ? 'CONFIRMED_NOT_APPLIED' : 'UNKNOWN',
+                },
+                ...(mappedArtifacts ? { artifacts: mappedArtifacts } : {}),
               },
             };
           }
@@ -744,6 +760,9 @@ export class ActionRouter {
           const effect = isProvenPreWrite ? 'NOT_APPLIED' : 'UNKNOWN';
           const recovery = isProvenPreWrite ? 'NONE' : (adapter.getStatus ? 'QUERY' : 'MANUAL');
 
+          const caughtPayload = (proposal.payload || {}) as Record<string, unknown>;
+          const targetSku = (caughtPayload.skuCode as string) || (caughtPayload.sku as string);
+
           result = {
             actionId: proposal.id,
             status: 'FAILED',
@@ -752,6 +771,7 @@ export class ActionRouter {
             durationMs: Date.now() - startTime,
             normalizedError: caughtNormalized,
             executionEvidence: {
+              schemaVersion: 2,
               mode,
               provider: adapter.id,
               operationId,
@@ -762,6 +782,16 @@ export class ActionRouter {
               errorCode: caughtNormalized.code,
               errorClass: caughtNormalized.class,
               normalizedError: caughtNormalized,
+              verification: {
+                status: isProvenPreWrite ? 'PENDING' : 'INCONCLUSIVE',
+                method: 'DOM_ASSERTION',
+                ...(targetSku ? { targetId: targetSku } : {}),
+              },
+              sideEffect: {
+                confirmed: false,
+                writeExecuted: isProvenPreWrite ? false : (err?.writeExecuted === true || err?.output?.writeExecuted === true),
+                remoteState: isProvenPreWrite ? 'CONFIRMED_NOT_APPLIED' : 'UNKNOWN',
+              },
             },
           };
         }

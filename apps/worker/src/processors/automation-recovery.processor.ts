@@ -332,6 +332,10 @@ export async function processAutomationRecovery(
                 matched: false,
                 details: conflictDetails,
               },
+              sideEffect: {
+                confirmed: false,
+                remoteState: 'UNKNOWN',
+              },
             };
 
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
@@ -413,6 +417,7 @@ export async function processAutomationRecovery(
               },
               sideEffect: {
                 confirmed: true,
+                remoteState: 'CONFIRMED_APPLIED',
                 occurredAt: new Date().toISOString(),
                 resourceType: 'PURCHASE_ORDER',
                 resourceId: externalId,
@@ -478,6 +483,7 @@ export async function processAutomationRecovery(
             },
             sideEffect: {
               confirmed: true,
+              remoteState: 'CONFIRMED_APPLIED',
               occurredAt: new Date().toISOString(),
               resourceType: 'PURCHASE_ORDER',
               resourceId: externalId,
@@ -552,9 +558,12 @@ export async function processAutomationRecovery(
             errorClass: checkNormalized.class,
             normalizedError: checkNormalized,
             verification: {
-              status: 'FAILED',
+              status: 'INCONCLUSIVE',
               method: 'REMOTE_QUERY',
-              matched: false,
+            },
+            sideEffect: {
+              confirmed: false,
+              remoteState: 'UNKNOWN',
             },
           };
 
@@ -612,9 +621,14 @@ export async function processAutomationRecovery(
               errorClass: checkNormalized.class,
               normalizedError: checkNormalized,
               verification: {
-                status: 'FAILED',
+                status: 'VERIFIED',
                 method: 'REMOTE_QUERY',
                 matched: false,
+              },
+              sideEffect: {
+                confirmed: false,
+                writeExecuted: false,
+                remoteState: 'CONFIRMED_NOT_APPLIED',
               },
             };
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
@@ -670,6 +684,27 @@ export async function processAutomationRecovery(
             },
           });
 
+          const notFoundRetryEvidence = {
+            schemaVersion: 2,
+            ...(traceId ? { traceId } : {}),
+            mode: claimed.mode as any,
+            provider: claimed.provider,
+            operationId: claimed.id,
+            phase: 'READY',
+            effect: 'NOT_APPLIED',
+            recovery: 'RETRY',
+            verification: {
+              status: 'VERIFIED',
+              method: 'REMOTE_QUERY',
+              matched: false,
+            },
+            sideEffect: {
+              confirmed: false,
+              writeExecuted: false,
+              remoteState: 'CONFIRMED_NOT_APPLIED',
+            },
+          };
+
           await store.attempts.safeFinishAttempt(
             {
               workspaceId: claimed.workspaceId,
@@ -678,10 +713,7 @@ export async function processAutomationRecovery(
               status: 'SUCCEEDED',
               effect: 'NOT_APPLIED',
               recovery: 'RETRY',
-              evidence: {
-                result: 'NOT_FOUND',
-                transitionedTo: 'READY',
-              },
+              evidence: notFoundRetryEvidence,
             },
             opLogger,
           );
@@ -708,9 +740,12 @@ export async function processAutomationRecovery(
               errorClass: checkNormalized.class,
               normalizedError: checkNormalized,
               verification: {
-                status: 'FAILED',
+                status: 'INCONCLUSIVE',
                 method: 'REMOTE_QUERY',
-                matched: false,
+              },
+              sideEffect: {
+                confirmed: false,
+                remoteState: 'UNKNOWN',
               },
             };
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
@@ -765,6 +800,28 @@ export async function processAutomationRecovery(
             },
           });
 
+          const queryTimeoutEvidence = {
+            schemaVersion: 2,
+            ...(traceId ? { traceId } : {}),
+            mode: claimed.mode as any,
+            provider: claimed.provider,
+            operationId: claimed.id,
+            phase: 'SUBMITTED',
+            effect: 'UNKNOWN',
+            recovery: 'QUERY',
+            errorCode: checkNormalized.code || 'QUERY_FAILED',
+            errorClass: checkNormalized.class,
+            normalizedError: checkNormalized,
+            verification: {
+              status: 'INCONCLUSIVE',
+              method: 'REMOTE_QUERY',
+            },
+            sideEffect: {
+              confirmed: false,
+              remoteState: 'UNKNOWN',
+            },
+          };
+
           await store.attempts.safeFinishAttempt(
             {
               workspaceId: claimed.workspaceId,
@@ -776,6 +833,7 @@ export async function processAutomationRecovery(
               errorMessage: checkNormalized.message,
               effect: 'UNKNOWN',
               recovery: 'QUERY',
+              evidence: queryTimeoutEvidence,
             },
             opLogger,
           );

@@ -1,4 +1,4 @@
-import * as fs from 'node:fs';
+import fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
@@ -271,6 +271,37 @@ describe('Phase 7 — Execution Evidence Schema, Artifact Integrity & Redaction'
       expect(() => resolveEvidenceArtifactPath('../../etc/passwd', baseDir)).toThrow(/PATH_TRAVERSAL/);
       expect(() => resolveEvidenceArtifactPath('/etc/passwd', baseDir)).toThrow(/PATH_TRAVERSAL/);
     });
+
+    it('sanitizeExecutionEvidenceForPersistence strictly drops unsafe or escaping evidenceRef', () => {
+      const basePayload = {
+        mode: 'LIVE',
+        provider: 'rpa',
+        operationId: 'op_ref_test',
+        phase: 'COMPLETED',
+        effect: 'APPLIED',
+        recovery: 'NONE',
+      };
+
+      // 1. Safe relative logical ref is preserved
+      const safeRel = sanitizeExecutionEvidenceForPersistence({ ...basePayload, evidenceRef: 'rpa/job_1/shot.png' });
+      expect(safeRel.evidenceRef).toBe('rpa/job_1/shot.png');
+
+      // 2. Safe evidence:// ref is normalized to relative logical ref
+      const safeScheme = sanitizeExecutionEvidenceForPersistence({ ...basePayload, evidenceRef: 'evidence://rpa/job_2/trace.zip' });
+      expect(safeScheme.evidenceRef).toBe('rpa/job_2/trace.zip');
+
+      // 3. Absolute host path must be DROPPED completely (not sanitized into host string)
+      const absHost = sanitizeExecutionEvidenceForPersistence({ ...basePayload, evidenceRef: '/etc/passwd' });
+      expect(absHost.evidenceRef).toBeUndefined();
+
+      // 4. Path traversal must be DROPPED completely
+      const traversal = sanitizeExecutionEvidenceForPersistence({ ...basePayload, evidenceRef: '../../.env' });
+      expect(traversal.evidenceRef).toBeUndefined();
+
+      // 5. Windows drive letter must be DROPPED completely
+      const winDrive = sanitizeExecutionEvidenceForPersistence({ ...basePayload, evidenceRef: 'C:\\Windows\\System32\\cmd.exe' });
+      expect(winDrive.evidenceRef).toBeUndefined();
+    });
   });
 
   describe('Part 3: Artifact Integrity Hashing & Fail-Safe Degradation', () => {
@@ -287,12 +318,94 @@ describe('Phase 7 — Execution Evidence Schema, Artifact Integrity & Redaction'
         baseEvidenceDir: tempDir,
       });
 
-      expect(artifact.kind).toBe('SCREENSHOT_AFTER');
-      expect(artifact.mimeType).toBe('image/png');
-      expect(artifact.sizeBytes).toBe(testContent.length);
-      expect(artifact.sha256).toBe(expectedSha256);
-      expect(artifact.ref).toBe('screenshot.png');
-      expect(artifact.capturedAt).toBeDefined();
+      expect(artifact).not.toBeNull();
+      expect(artifact?.kind).toBe('SCREENSHOT_AFTER');
+      expect(artifact?.mimeType).toBe('image/png');
+      expect(artifact?.sizeBytes).toBe(testContent.length);
+      expect(artifact?.sha256).toBe(expectedSha256);
+      expect(artifact?.ref).toBe('screenshot.png');
+      expect(artifact?.sensitivity).toBe('SENSITIVE');
+      expect(artifact?.capturedAt).toBeDefined();
+    });
+
+    it('P0: strictly fails closed and NEVER calls fs.statSync or fs.readFileSync on host root escape', () => {
+      const statSpy = jest.spyOn(fs, 'statSync');
+      const readSpy = jest.spyOn(fs, 'readFileSync');
+      const warnSpy = jest.spyOn(runtimeLogger, 'warn');
+
+      const result = buildEvidenceArtifact({
+        filePath: '/etc/passwd',
+        kind: 'SCREENSHOT_FAILURE',
+        baseEvidenceDir: tempDir,
+      });
+
+      // Must return null
+      expect(result).toBeNull();
+
+      // P0 INVARIANT: filesystem must NOT be accessed for escaping paths!
+      expect(statSpy).not.toHaveBeenCalledWith('/etc/passwd');
+      expect(readSpy).not.toHaveBeenCalledWith('/etc/passwd');
+
+      // Failure log must NOT leak the host path
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED,
+          kind: 'SCREENSHOT_FAILURE',
+          reason: 'ROOT_ESCAPE',
+        }),
+      );
+      const loggedCall = warnSpy.mock.calls.find((c) => c[0]?.event === RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED);
+      expect(JSON.stringify(loggedCall)).not.toContain('/etc/passwd');
+
+      statSpy.mockRestore();
+      readSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it('P0: strictly fails closed on path traversal attempting to escape base directory', () => {
+      const statSpy = jest.spyOn(fs, 'statSync');
+      const readSpy = jest.spyOn(fs, 'readFileSync');
+
+      const traversalPath = path.join(tempDir, '..', 'secret.env');
+
+      const result = buildEvidenceArtifact({
+        filePath: traversalPath,
+        kind: 'PLAYWRIGHT_TRACE',
+        baseEvidenceDir: tempDir,
+      });
+
+      expect(result).toBeNull();
+      expect(statSpy).not.toHaveBeenCalledWith(traversalPath);
+      expect(readSpy).not.toHaveBeenCalledWith(traversalPath);
+
+      statSpy.mockRestore();
+      readSpy.mockRestore();
+    });
+
+    it('assigns correct default artifact sensitivity based on kind', () => {
+      const dummyFile = path.join(tempDir, 'trace.zip');
+      fs.writeFileSync(dummyFile, 'dummy');
+
+      const screenshotArt = buildEvidenceArtifact({
+        filePath: dummyFile,
+        kind: 'SCREENSHOT_BEFORE',
+        baseEvidenceDir: tempDir,
+      });
+      expect(screenshotArt?.sensitivity).toBe('SENSITIVE');
+
+      const traceArt = buildEvidenceArtifact({
+        filePath: dummyFile,
+        kind: 'PLAYWRIGHT_TRACE',
+        baseEvidenceDir: tempDir,
+      });
+      expect(traceArt?.sensitivity).toBe('INTERNAL');
+
+      const logArt = buildEvidenceArtifact({
+        filePath: dummyFile,
+        kind: 'LOG_CHUNK',
+        baseEvidenceDir: tempDir,
+      });
+      expect(logArt?.sensitivity).toBe('INTERNAL');
     });
 
     it('degrades gracefully without throwing when file does not exist (Fail-Safe Invariant)', () => {
@@ -307,18 +420,23 @@ describe('Phase 7 — Execution Evidence Schema, Artifact Integrity & Redaction'
         baseEvidenceDir: tempDir,
       });
 
-      expect(artifact.kind).toBe('PLAYWRIGHT_TRACE');
-      expect(artifact.mimeType).toBe('application/zip');
-      expect(artifact.ref).toBe('missing-file.zip');
-      expect(artifact.sizeBytes).toBeUndefined();
-      expect(artifact.sha256).toBeUndefined();
+      expect(artifact).not.toBeNull();
+      expect(artifact?.kind).toBe('PLAYWRIGHT_TRACE');
+      expect(artifact?.mimeType).toBe('application/zip');
+      expect(artifact?.ref).toBe('missing-file.zip');
+      expect(artifact?.sizeBytes).toBeUndefined();
+      expect(artifact?.sha256).toBeUndefined();
 
-      // Logged structured warning event
+      // Logged structured warning event without host absolute path
       expect(warnSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           event: RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED,
+          ref: 'missing-file.zip',
+          reason: 'FILE_NOT_FOUND',
         }),
       );
+      const loggedCall = warnSpy.mock.calls.find((c) => c[0]?.event === RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED);
+      expect((loggedCall?.[0] as any)?.filePath).toBeUndefined();
 
       warnSpy.mockRestore();
     });
@@ -355,26 +473,143 @@ describe('Phase 7 — Execution Evidence Schema, Artifact Integrity & Redaction'
       expect(v2.evidenceRef).toBe('erp/po_123');
     });
 
-    it('guards against excessive JSON payload bloat (> 64KB)', () => {
-      const hugeData = 'x'.repeat(70000);
-      const bloatedEvidence = {
+    it('strictly enforces core Runtime Truth validation and throws INVALID_EVIDENCE on invalid fields', () => {
+      const valid = {
         mode: 'LIVE',
-        provider: 'rpa',
-        operationId: 'op_huge',
+        provider: 'rpa-provider',
+        operationId: 'op_valid_1',
         phase: 'COMPLETED',
         effect: 'APPLIED',
         recovery: 'NONE',
-        conflictDetails: { payload: hugeData },
+      };
+
+      // Valid must pass
+      expect(() => sanitizeExecutionEvidenceForPersistence(valid)).not.toThrow();
+
+      // Invalid or missing mode
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, mode: 'INVALID_MODE' })).toThrow(/INVALID_EVIDENCE/);
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, mode: undefined })).toThrow(/INVALID_EVIDENCE/);
+
+      // Invalid or missing phase
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, phase: 'UNKNOWN_PHASE' })).toThrow(/INVALID_EVIDENCE/);
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, phase: '' })).toThrow(/INVALID_EVIDENCE/);
+
+      // Invalid or missing effect
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, effect: 'INVALID_EFFECT' })).toThrow(/INVALID_EVIDENCE/);
+
+      // Invalid or missing recovery
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, recovery: 'INVALID_RECOVERY' })).toThrow(/INVALID_EVIDENCE/);
+
+      // Invalid or missing provider
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, provider: '' })).toThrow(/INVALID_EVIDENCE/);
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, provider: '   ' })).toThrow(/INVALID_EVIDENCE/);
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, provider: undefined })).toThrow(/INVALID_EVIDENCE/);
+
+      // Invalid or missing operationId
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, operationId: '' })).toThrow(/INVALID_EVIDENCE/);
+      expect(() => sanitizeExecutionEvidenceForPersistence({ ...valid, operationId: undefined })).toThrow(/INVALID_EVIDENCE/);
+    });
+
+    it('enforces artifact kind allowlist, sha256 validation, and default sensitivity in sanitizer', () => {
+      const evidenceWithBadArtifacts = {
+        mode: 'LIVE',
+        provider: 'rpa-provider',
+        operationId: 'op_art_val',
+        phase: 'COMPLETED',
+        effect: 'APPLIED',
+        recovery: 'NONE',
+        artifacts: [
+          {
+            ref: 'rpa/shot.png',
+            kind: 'INVALID_KIND_INJECTION' as any,
+            mimeType: 'image/png',
+            capturedAt: new Date().toISOString(),
+            sha256: 'invalid-not-64-hex',
+            sizeBytes: -50,
+          },
+          {
+            ref: 'rpa/before.png',
+            kind: 'SCREENSHOT_BEFORE' as const,
+            mimeType: 'image/png',
+            capturedAt: new Date().toISOString(),
+            sha256: 'a'.repeat(64),
+            sizeBytes: 2048,
+          },
+        ],
+      };
+
+      const sanitized = sanitizeExecutionEvidenceForPersistence(evidenceWithBadArtifacts);
+      expect(sanitized.artifacts).toHaveLength(2);
+
+      // 1. Invalid kind coerced to 'OTHER', bad sha256 and negative size dropped
+      expect(sanitized.artifacts?.[0].kind).toBe('OTHER');
+      expect(sanitized.artifacts?.[0].sha256).toBeUndefined();
+      expect(sanitized.artifacts?.[0].sizeBytes).toBeUndefined();
+      expect(sanitized.artifacts?.[0].sensitivity).toBe('INTERNAL'); // Default for OTHER
+
+      // 2. Valid artifact preserved with correct sensitivity
+      expect(sanitized.artifacts?.[1].kind).toBe('SCREENSHOT_BEFORE');
+      expect(sanitized.artifacts?.[1].sha256).toBe('a'.repeat(64));
+      expect(sanitized.artifacts?.[1].sizeBytes).toBe(2048);
+      expect(sanitized.artifacts?.[1].sensitivity).toBe('SENSITIVE'); // Default for SCREENSHOT_BEFORE
+    });
+
+    it('strictly enforces <= 64KB hard gate using UTF-8 byte length for ASCII and multi-byte Unicode', () => {
+      // 30,000 Chinese characters: each character is 3 bytes in UTF-8 (90,000 bytes).
+      // A naive character length check (30,000 < 65,536) would fail-open, but UTF-8 byte length is 90,000 > 65,536!
+      const multiByteChineseData = '测'.repeat(30000);
+      const bloatedChineseEvidence = {
+        mode: 'LIVE',
+        provider: 'rpa-provider',
+        operationId: 'op_multibyte_huge',
+        phase: 'COMPLETED',
+        effect: 'APPLIED',
+        recovery: 'NONE',
+        conflictDetails: { payload: multiByteChineseData },
         verification: {
           status: 'VERIFIED',
           method: 'REMOTE_QUERY',
-          remoteState: { dump: hugeData },
+          remoteState: { dump: multiByteChineseData },
         },
       };
 
-      const sanitized = sanitizeExecutionEvidenceForPersistence(bloatedEvidence);
-      const jsonLen = JSON.stringify(sanitized).length;
-      expect(jsonLen).toBeLessThan(65536);
+      const sanitizedChinese = sanitizeExecutionEvidenceForPersistence(bloatedChineseEvidence);
+      const byteLenChinese = Buffer.byteLength(JSON.stringify(sanitizedChinese), 'utf8');
+      expect(byteLenChinese).toBeLessThanOrEqual(65536);
+
+      // Worst-case payload with bloated fields across every single section
+      const bloatedEverywhere = {
+        mode: 'LIVE',
+        provider: 'provider-extreme',
+        operationId: 'op_extreme_bloat',
+        phase: 'FAILED',
+        effect: 'UNKNOWN',
+        recovery: 'MANUAL',
+        syncError: 'E'.repeat(10000),
+        conflictDetails: { extra: 'C'.repeat(30000) },
+        manualResolution: { details: 'M'.repeat(30000) },
+        arbitraryExtra: 'X'.repeat(30000),
+        verification: {
+          status: 'VERIFIED',
+          method: 'REMOTE_QUERY',
+          remoteState: { dump: 'R'.repeat(30000) },
+          details: { dump: 'D'.repeat(30000) },
+          assertionResults: [{ assertion: 'check', passed: false, message: 'A'.repeat(20000) }],
+        },
+        artifacts: Array.from({ length: 40 }, (_, i) => ({
+          ref: `rpa/file_${i}.png`,
+          kind: 'SCREENSHOT_AFTER' as const,
+          mimeType: 'image/png',
+          capturedAt: new Date().toISOString(),
+          metadata: { dump: 'Z'.repeat(1000) },
+        })),
+      };
+
+      const sanitizedWorstCase = sanitizeExecutionEvidenceForPersistence(bloatedEverywhere);
+      const worstCaseBytes = Buffer.byteLength(JSON.stringify(sanitizedWorstCase), 'utf8');
+      expect(worstCaseBytes).toBeLessThanOrEqual(65536);
+      expect(sanitizedWorstCase.schemaVersion).toBe(2);
+      expect(sanitizedWorstCase.mode).toBe('LIVE');
     });
   });
 
@@ -585,6 +820,309 @@ describe('Phase 7 — Execution Evidence Schema, Artifact Integrity & Redaction'
       expect(evidence?.artifacts).toHaveLength(1);
       expect(evidence?.artifacts?.[0].ref).toBe('rpa/rpa_job_999/screenshot-after.png');
       expect(evidence?.artifacts?.[0].kind).toBe('SCREENSHOT_AFTER');
+      expect(evidence?.artifacts?.[0].sensitivity).toBe('SENSITIVE');
+    });
+  });
+
+  describe('Part 7: ActionRouter SideEffect & Evidence Truth Matrix', () => {
+    it('handles POST-WRITE TIMEOUT: effect UNKNOWN, verification INCONCLUSIVE, writeExecuted true', async () => {
+      const mockRpaAdapter = {
+        id: 'playwright-rpa',
+        name: 'Mock Playwright RPA',
+        supportedModes: ['LIVE'],
+        getStatus: jest.fn(),
+        execute: jest.fn(async () => ({
+          status: 'TIMEOUT' as const,
+          error: 'Save operation timed out waiting for server response',
+          output: {
+            skuCode: 'SKU-TIMEOUT-1',
+            writeExecuted: true,
+          },
+          durationMs: 30000,
+        })),
+      };
+
+      const router = new ActionRouter({ get: () => mockRpaAdapter, getDefault: () => mockRpaAdapter } as any);
+      const result = await router.dispatch(
+        {
+          id: 'prop_timeout',
+          workspaceId: 'ws_truth',
+          type: 'RPA',
+          name: 'Update Listing',
+          payload: { skuCode: 'SKU-TIMEOUT-1', price: 19.99 },
+        },
+        { workspaceId: 'ws_truth', executionMode: 'LIVE' },
+      );
+
+      expect(result.status).toBe('FAILED');
+      const ev = result.executionEvidence;
+      expect(ev?.phase).toBe('FAILED');
+      expect(ev?.effect).toBe('UNKNOWN');
+      expect(ev?.recovery).toBe('QUERY');
+      expect(ev?.verification?.status).toBe('INCONCLUSIVE');
+      expect(ev?.verification?.matched).toBeUndefined();
+      expect(ev?.sideEffect?.confirmed).toBe(false);
+      expect(ev?.sideEffect?.writeExecuted).toBe(true);
+      expect(ev?.sideEffect?.remoteState).toBe('UNKNOWN');
+    });
+
+    it('handles PRE-WRITE CANCEL: effect NOT_APPLIED, verification PENDING, writeExecuted false', async () => {
+      const mockRpaAdapter = {
+        id: 'playwright-rpa',
+        name: 'Mock Playwright RPA',
+        supportedModes: ['LIVE'],
+        execute: jest.fn(async () => ({
+          status: 'FAILED' as const,
+          error: 'CANCELLED: Aborted before write',
+          normalizedError: {
+            class: 'TRANSIENT',
+            code: 'CANCELLED',
+            message: 'Cancelled before save was submitted',
+            retryable: false,
+          },
+          output: {
+            skuCode: 'SKU-CANCEL-1',
+            writeExecuted: false,
+          },
+          durationMs: 500,
+        })),
+      };
+
+      const router = new ActionRouter({ get: () => mockRpaAdapter, getDefault: () => mockRpaAdapter } as any);
+      const result = await router.dispatch(
+        {
+          id: 'prop_cancel',
+          workspaceId: 'ws_truth',
+          type: 'RPA',
+          name: 'Update Listing',
+          payload: { skuCode: 'SKU-CANCEL-1' },
+        },
+        { workspaceId: 'ws_truth', executionMode: 'LIVE' },
+      );
+
+      expect(result.status).toBe('FAILED');
+      const ev = result.executionEvidence;
+      expect(ev?.phase).toBe('FAILED');
+      expect(ev?.effect).toBe('NOT_APPLIED');
+      expect(ev?.recovery).toBe('NONE');
+      expect(ev?.verification?.status).toBe('PENDING');
+      expect(ev?.sideEffect?.confirmed).toBe(false);
+      expect(ev?.sideEffect?.writeExecuted).toBe(false);
+      expect(ev?.sideEffect?.remoteState).toBe('CONFIRMED_NOT_APPLIED');
+    });
+
+    it('handles UNVERIFIED LIVE SUCCESS: effect UNKNOWN, verification INCONCLUSIVE', async () => {
+      const mockRpaAdapter = {
+        id: 'playwright-rpa',
+        name: 'Mock Playwright RPA',
+        supportedModes: ['LIVE'],
+        getStatus: jest.fn(),
+        execute: jest.fn(async () => ({
+          status: 'SUCCESS' as const,
+          output: {
+            skuCode: 'SKU-UNVERIFIED-1',
+            verified: false,
+          },
+          durationMs: 1500,
+        })),
+      };
+
+      const router = new ActionRouter({ get: () => mockRpaAdapter, getDefault: () => mockRpaAdapter } as any);
+      const result = await router.dispatch(
+        {
+          id: 'prop_unverified',
+          workspaceId: 'ws_truth',
+          type: 'RPA',
+          name: 'Update Listing',
+          payload: { skuCode: 'SKU-UNVERIFIED-1' },
+        },
+        { workspaceId: 'ws_truth', executionMode: 'LIVE' },
+      );
+
+      expect(result.status).toBe('FAILED'); // Live unverified cannot report SUCCEEDED
+      const ev = result.executionEvidence;
+      expect(ev?.phase).toBe('FAILED');
+      expect(ev?.effect).toBe('UNKNOWN');
+      expect(ev?.recovery).toBe('QUERY');
+      expect(ev?.verification?.status).toBe('INCONCLUSIVE');
+      expect(ev?.sideEffect?.confirmed).toBe(false);
+      expect(ev?.sideEffect?.writeExecuted).toBe(true);
+      expect(ev?.sideEffect?.remoteState).toBe('UNKNOWN');
+    });
+
+    it('handles VERIFY MISMATCH: effect UNKNOWN, verification FAILED with matched false', async () => {
+      const mockRpaAdapter = {
+        id: 'playwright-rpa',
+        name: 'Mock Playwright RPA',
+        supportedModes: ['LIVE'],
+        getStatus: jest.fn(),
+        execute: jest.fn(async () => ({
+          status: 'FAILED' as const,
+          error: 'VERIFY_FAILED: Price on page $25.00 does not match requested $29.99',
+          output: {
+            skuCode: 'SKU-MISMATCH-1',
+            writeExecuted: true,
+          },
+          durationMs: 2500,
+        })),
+      };
+
+      const router = new ActionRouter({ get: () => mockRpaAdapter, getDefault: () => mockRpaAdapter } as any);
+      const result = await router.dispatch(
+        {
+          id: 'prop_mismatch',
+          workspaceId: 'ws_truth',
+          type: 'RPA',
+          name: 'Update Listing',
+          payload: { skuCode: 'SKU-MISMATCH-1', price: 29.99 },
+        },
+        { workspaceId: 'ws_truth', executionMode: 'LIVE' },
+      );
+
+      expect(result.status).toBe('FAILED');
+      const ev = result.executionEvidence;
+      expect(ev?.phase).toBe('FAILED');
+      expect(ev?.effect).toBe('UNKNOWN');
+      expect(ev?.recovery).toBe('QUERY');
+      expect(ev?.verification?.status).toBe('FAILED');
+      expect(ev?.verification?.matched).toBe(false);
+      expect(ev?.sideEffect?.confirmed).toBe(false);
+      expect(ev?.sideEffect?.writeExecuted).toBe(true);
+      expect(ev?.sideEffect?.remoteState).toBe('UNKNOWN');
+    });
+  });
+
+  describe('Part 8: Recovery Processor Verification Truth & SideEffect Matrix', () => {
+    it('proves canonical evidence contracts for REMOTE_MATCH, REMOTE_MISMATCH, NOT_FOUND, TIMEOUT, and AUTH', () => {
+      // 1. REMOTE MATCH: query verified state, proved confirmed applied
+      const matchEvidence: ExecutionEvidence = {
+        schemaVersion: 2,
+        mode: 'LIVE',
+        provider: 'erp-provider',
+        operationId: 'op_match',
+        phase: 'COMPLETED',
+        effect: 'APPLIED',
+        recovery: 'NONE',
+        externalId: 'PO-888',
+        verification: {
+          status: 'VERIFIED',
+          method: 'REMOTE_QUERY',
+          targetId: 'PO-888',
+          matched: true,
+        },
+        sideEffect: {
+          confirmed: true,
+          remoteState: 'CONFIRMED_APPLIED',
+          occurredAt: new Date().toISOString(),
+          resourceType: 'PURCHASE_ORDER',
+          resourceId: 'PO-888',
+        },
+      };
+      const sanitizedMatch = sanitizeExecutionEvidenceForPersistence(matchEvidence);
+      expect(sanitizedMatch.verification?.status).toBe('VERIFIED');
+      expect(sanitizedMatch.verification?.matched).toBe(true);
+      expect(sanitizedMatch.sideEffect?.confirmed).toBe(true);
+      expect(sanitizedMatch.sideEffect?.remoteState).toBe('CONFIRMED_APPLIED');
+
+      // 2. REMOTE MISMATCH: query executed, but payload mismatch occurred
+      const mismatchEvidence: ExecutionEvidence = {
+        schemaVersion: 2,
+        mode: 'LIVE',
+        provider: 'erp-provider',
+        operationId: 'op_mismatch',
+        phase: 'NEEDS_ATTENTION',
+        effect: 'NOT_APPLIED',
+        recovery: 'MANUAL',
+        verification: {
+          status: 'FAILED',
+          method: 'REMOTE_QUERY',
+          targetId: 'PO-888',
+          matched: false,
+        },
+        sideEffect: {
+          confirmed: false,
+          remoteState: 'UNKNOWN',
+        },
+      };
+      const sanitizedMismatch = sanitizeExecutionEvidenceForPersistence(mismatchEvidence);
+      expect(sanitizedMismatch.verification?.status).toBe('FAILED');
+      expect(sanitizedMismatch.verification?.matched).toBe(false);
+      expect(sanitizedMismatch.sideEffect?.confirmed).toBe(false);
+      expect(sanitizedMismatch.sideEffect?.remoteState).toBe('UNKNOWN');
+
+      // 3. Definite NOT_FOUND: query succeeded, proved order NOT created
+      const notFoundEvidence: ExecutionEvidence = {
+        schemaVersion: 2,
+        mode: 'LIVE',
+        provider: 'erp-provider',
+        operationId: 'op_not_found',
+        phase: 'READY',
+        effect: 'NOT_APPLIED',
+        recovery: 'RETRY',
+        verification: {
+          status: 'VERIFIED',
+          method: 'REMOTE_QUERY',
+          matched: false,
+        },
+        sideEffect: {
+          confirmed: false,
+          writeExecuted: false,
+          remoteState: 'CONFIRMED_NOT_APPLIED',
+        },
+      };
+      const sanitizedNotFound = sanitizeExecutionEvidenceForPersistence(notFoundEvidence);
+      expect(sanitizedNotFound.verification?.status).toBe('VERIFIED');
+      expect(sanitizedNotFound.verification?.matched).toBe(false);
+      expect(sanitizedNotFound.sideEffect?.confirmed).toBe(false);
+      expect(sanitizedNotFound.sideEffect?.writeExecuted).toBe(false);
+      expect(sanitizedNotFound.sideEffect?.remoteState).toBe('CONFIRMED_NOT_APPLIED');
+
+      // 4. QUERY TIMEOUT / NETWORK ERROR: query inconclusive
+      const timeoutEvidence: ExecutionEvidence = {
+        schemaVersion: 2,
+        mode: 'LIVE',
+        provider: 'erp-provider',
+        operationId: 'op_query_timeout',
+        phase: 'SUBMITTED',
+        effect: 'UNKNOWN',
+        recovery: 'QUERY',
+        verification: {
+          status: 'INCONCLUSIVE',
+          method: 'REMOTE_QUERY',
+        },
+        sideEffect: {
+          confirmed: false,
+          remoteState: 'UNKNOWN',
+        },
+      };
+      const sanitizedTimeout = sanitizeExecutionEvidenceForPersistence(timeoutEvidence);
+      expect(sanitizedTimeout.verification?.status).toBe('INCONCLUSIVE');
+      expect(sanitizedTimeout.verification?.matched).toBeUndefined();
+      expect(sanitizedTimeout.sideEffect?.confirmed).toBe(false);
+      expect(sanitizedTimeout.sideEffect?.remoteState).toBe('UNKNOWN');
+
+      // 5. AUTH / PERMISSION ERROR: query could not authenticate, inconclusive
+      const authEvidence: ExecutionEvidence = {
+        schemaVersion: 2,
+        mode: 'LIVE',
+        provider: 'erp-provider',
+        operationId: 'op_query_auth',
+        phase: 'NEEDS_ATTENTION',
+        effect: 'UNKNOWN',
+        recovery: 'REAUTHORIZE',
+        verification: {
+          status: 'INCONCLUSIVE',
+          method: 'REMOTE_QUERY',
+        },
+        sideEffect: {
+          confirmed: false,
+          remoteState: 'UNKNOWN',
+        },
+      };
+      const sanitizedAuth = sanitizeExecutionEvidenceForPersistence(authEvidence);
+      expect(sanitizedAuth.verification?.status).toBe('INCONCLUSIVE');
+      expect(sanitizedAuth.sideEffect?.confirmed).toBe(false);
+      expect(sanitizedAuth.sideEffect?.remoteState).toBe('UNKNOWN');
     });
   });
 });

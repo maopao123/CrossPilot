@@ -289,28 +289,25 @@ export class ListingUpdateWorkflow {
 
       const evidenceArtifacts: ExecutionEvidenceArtifact[] = [];
       if (fs.existsSync(afterScreenshot)) {
-        evidenceArtifacts.push(
-          buildEvidenceArtifact(
-            { filePath: afterScreenshot, kind: 'SCREENSHOT_AFTER', baseEvidenceDir },
-            workflowLogger,
-          ),
+        const art = buildEvidenceArtifact(
+          { filePath: afterScreenshot, kind: 'SCREENSHOT_AFTER', baseEvidenceDir },
+          workflowLogger,
         );
+        if (art) evidenceArtifacts.push(art);
       }
       if (fs.existsSync(beforeScreenshot)) {
-        evidenceArtifacts.push(
-          buildEvidenceArtifact(
-            { filePath: beforeScreenshot, kind: 'SCREENSHOT_BEFORE', baseEvidenceDir },
-            workflowLogger,
-          ),
+        const art = buildEvidenceArtifact(
+          { filePath: beforeScreenshot, kind: 'SCREENSHOT_BEFORE', baseEvidenceDir },
+          workflowLogger,
         );
+        if (art) evidenceArtifacts.push(art);
       }
       if (fs.existsSync(tracePath)) {
-        evidenceArtifacts.push(
-          buildEvidenceArtifact(
-            { filePath: tracePath, kind: 'PLAYWRIGHT_TRACE', baseEvidenceDir },
-            workflowLogger,
-          ),
+        const art = buildEvidenceArtifact(
+          { filePath: tracePath, kind: 'PLAYWRIGHT_TRACE', baseEvidenceDir },
+          workflowLogger,
         );
+        if (art) evidenceArtifacts.push(art);
       }
 
       return {
@@ -352,28 +349,25 @@ export class ListingUpdateWorkflow {
       const screenshotUrls = fs.existsSync(failureScreenshot) ? [failureScreenshot] : [];
       const evidenceArtifacts: ExecutionEvidenceArtifact[] = [];
       if (fs.existsSync(failureScreenshot)) {
-        evidenceArtifacts.push(
-          buildEvidenceArtifact(
-            { filePath: failureScreenshot, kind: 'SCREENSHOT_FAILURE', baseEvidenceDir },
-            workflowLogger,
-          ),
+        const art = buildEvidenceArtifact(
+          { filePath: failureScreenshot, kind: 'SCREENSHOT_FAILURE', baseEvidenceDir },
+          workflowLogger,
         );
+        if (art) evidenceArtifacts.push(art);
       }
       if (fs.existsSync(beforeScreenshot)) {
-        evidenceArtifacts.push(
-          buildEvidenceArtifact(
-            { filePath: beforeScreenshot, kind: 'SCREENSHOT_BEFORE', baseEvidenceDir },
-            workflowLogger,
-          ),
+        const art = buildEvidenceArtifact(
+          { filePath: beforeScreenshot, kind: 'SCREENSHOT_BEFORE', baseEvidenceDir },
+          workflowLogger,
         );
+        if (art) evidenceArtifacts.push(art);
       }
       if (fs.existsSync(tracePath)) {
-        evidenceArtifacts.push(
-          buildEvidenceArtifact(
-            { filePath: tracePath, kind: 'PLAYWRIGHT_TRACE', baseEvidenceDir },
-            workflowLogger,
-          ),
+        const art = buildEvidenceArtifact(
+          { filePath: tracePath, kind: 'PLAYWRIGHT_TRACE', baseEvidenceDir },
+          workflowLogger,
         );
+        if (art) evidenceArtifacts.push(art);
       }
 
       let errorClassification = 'RPA_EXECUTION_FAILED';

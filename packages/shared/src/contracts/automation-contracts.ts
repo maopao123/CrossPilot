@@ -42,24 +42,33 @@ export interface ExecutionVerificationEvidence {
   details?: Record<string, unknown>;
 }
 
+export type RemoteSideEffectState = 'CONFIRMED_APPLIED' | 'CONFIRMED_NOT_APPLIED' | 'UNKNOWN';
+
 export interface ExecutionSideEffectEvidence {
   confirmed: boolean;
+  writeExecuted?: boolean;
+  remoteState?: RemoteSideEffectState;
   occurredAt?: string;
   resourceType?: string;
   resourceId?: string;
   details?: Record<string, unknown>;
 }
 
-export type ExecutionArtifactKind =
-  | 'SCREENSHOT_BEFORE'
-  | 'SCREENSHOT_AFTER'
-  | 'SCREENSHOT_FAILURE'
-  | 'DOM_SNAPSHOT'
-  | 'NETWORK_HAR'
-  | 'PLAYWRIGHT_TRACE'
-  | 'LOG_CHUNK'
-  | 'PAYLOAD_DUMP'
-  | 'OTHER';
+export type ExecutionArtifactSensitivity = 'INTERNAL' | 'SENSITIVE';
+
+export const VALID_EXECUTION_ARTIFACT_KINDS = [
+  'SCREENSHOT_BEFORE',
+  'SCREENSHOT_AFTER',
+  'SCREENSHOT_FAILURE',
+  'DOM_SNAPSHOT',
+  'NETWORK_HAR',
+  'PLAYWRIGHT_TRACE',
+  'LOG_CHUNK',
+  'PAYLOAD_DUMP',
+  'OTHER',
+] as const;
+
+export type ExecutionArtifactKind = (typeof VALID_EXECUTION_ARTIFACT_KINDS)[number];
 
 export interface ExecutionEvidenceArtifact {
   ref: string;
@@ -68,6 +77,7 @@ export interface ExecutionEvidenceArtifact {
   sizeBytes?: number;
   sha256?: string;
   capturedAt: string;
+  sensitivity?: ExecutionArtifactSensitivity;
   metadata?: Record<string, unknown>;
 }
 

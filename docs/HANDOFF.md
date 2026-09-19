@@ -1,5 +1,40 @@
 # CrossPilot 交接
 
+> **2026-09-20 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 7.1 完成（Phase 7.1 Evidence Security & Truth Semantics Closure Complete）**：
+> - **基线 Commit**: `014028efba3a8184910eb3e5e3048f91d621e923` (`014028e`, Phase 7)
+> - **目标达成**：全面收口 Phase 7 审查发现的 Artifact 路径校验 fail-open、Legacy evidenceRef 逃逸、64KB 限制未按 UTF-8 字节计算以及超时/取消/自愈反查的 Evidence Truth 语义不准四大问题，完成 Phase 7 最终冻结闭环。
+> - **1. Fail-Closed Artifact 路径校验与宿主零接触防御（`packages/integrations/src/rpa/artifact-builder.ts`）**：
+>   - `buildEvidenceArtifact()` 在调用 `fs.statSync` / `fs.readFileSync` 前进行路径范围断言；
+>   - 若宿主路径尝试逃逸出 `baseDir`（例如 `/etc/passwd`、`../../.env`），立即 fail-closed 返回 `null`，**严禁产生任何文件系统元数据读取或内容读取**；
+>   - 告警日志彻底剥离宿主绝对路径，仅记录 `{ kind, reason, ref }`；
+>   - 自动赋予类型化敏感度分类（`INTERNAL` vs `SENSITIVE`）。
+> - **2. Legacy evidenceRef 安全收敛与白名单（`packages/shared/src/contracts/evidence-sanitizer.ts`）**：
+>   - 经清洗时若历史 `evidenceRef` 不符合 `isSafeEvidenceRef(ref)`，直接安全丢弃（omitted），严禁回退存储未经脱敏或宿主路径；
+>   - 引入 `VALID_EXECUTION_ARTIFACT_KINDS` 白名单校验并纠正未知 artifact 类型；
+>   - 强制 Core Runtime Truth 校验：`mode`, `phase`, `effect`, `recovery`, `provider`, `operationId` 非法或缺失时坚决抛出 `INVALID_EVIDENCE`。
+> - **3. 严格 64KB UTF-8 字节 Hard Limit 与 9 级递进修剪**：
+>   - 精确采用 `Buffer.byteLength(JSON.stringify(evidence), 'utf8') <= 65536` 作为硬门禁，有效阻断多字节中文字符引发的 PostgreSQL JSON 溢出；
+>   - 配套 9 级递进裁剪策略，在极端高膨胀负载下有序安全瘦身，绝不截断结构破坏 JSON 格式。
+> - **4. Truth & Side-Effect 语义精确矩阵**：
+>   - `ExecutionSideEffectEvidence` 扩充 `writeExecuted?: boolean` 与 `remoteState?: RemoteSideEffectState`；
+>   - **Verified Success**: `verification: { status: 'VERIFIED', matched: true }`, `sideEffect: { confirmed: true, writeExecuted: true, remoteState: 'CONFIRMED_APPLIED' }`；
+>   - **Unverified LIVE Success**: `verification: { status: 'INCONCLUSIVE' }`, `sideEffect: { confirmed: false, writeExecuted: true, remoteState: 'UNKNOWN' }`；
+>   - **Post-Write Timeout**: `verification: { status: 'INCONCLUSIVE' }`, `sideEffect: { confirmed: false, writeExecuted: boolean, remoteState: 'UNKNOWN' }`；
+>   - **Pre-Write Cancel**: `verification: { status: 'PENDING' }`, `sideEffect: { confirmed: false, writeExecuted: false, remoteState: 'CONFIRMED_NOT_APPLIED' }`；
+>   - **Recovery NOT_FOUND**: `verification: { status: 'VERIFIED', matched: false }`, `sideEffect: { confirmed: false, writeExecuted: false, remoteState: 'CONFIRMED_NOT_APPLIED' }`，且在 Attempt 记录中规范写入完整 V2 证据；
+>   - **Recovery Query Timeout / Auth / Network**: `verification: { status: 'INCONCLUSIVE' }`, `sideEffect: { confirmed: false, remoteState: 'UNKNOWN' }`。
+> - **5. 交付物与质量门禁**：
+>   - 规范文档：更新 `docs/automation-runtime/EXECUTION_EVIDENCE.md`；
+>   - 自动化测试：更新 `packages/actions/test/execution-evidence.spec.ts`（27/27 全部 PASS，新增根目录逃逸零 fs 接触测试、UTF-8 多字节中文 64KB 压测、ActionRouter 5 态 Truth 矩阵用例与 Recovery 反查矩阵用例）；
+>   - 全套回归门禁验证：
+>     - `pnpm -r run build` 全部 PASS (0 错误)
+>     - `pnpm -r run typecheck` 10/10 workspaces 全部 PASS (0 错误)
+>     - `@crosspilot/actions` 231/231 全部 PASS (10 个测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/worker` 18/18 全部 PASS (4 个测试套件)
+>     - `@crosspilot/api` 核心测试套件全部 PASS
+>   - 严格红线执行：0 新增数据库表，0 DB Migration，零状态机核心语义改动，未进入 Phase 8 (Execution Center API) 与 Phase 9 (Execution Center UI)。
+>
 > **2026-09-20 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 7 完成（Phase 7 Execution Evidence Schema, Artifact Integrity & Redaction Complete）**：
 > - **基线 Commit**: `fbb48a195b411e5277923836ce15c55e41e0cd68` (`fbb48a1`, Phase 6.1)
 > - **目标达成**：统一 Automation Runtime Execution Evidence 的结构、持久化安全、Artifact 引用、Verify 证据和完整性校验。彻底隔离商业研究证据与自动化执行凭据，落实 P0 错误剥离（DB 零 `cause`/`stack`）、深度脱敏（Bearer/Shopify/DB 连接串/密码）、防路径遍历逻辑引用体系与 Fail-Safe 产物哈希降级防护。

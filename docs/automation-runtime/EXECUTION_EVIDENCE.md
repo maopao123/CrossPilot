@@ -1,11 +1,11 @@
-# Automation Runtime — Execution Evidence, Artifact Integrity & Redaction (Phase 7)
+# Automation Runtime — Execution Evidence, Artifact Integrity & Redaction (Phase 7 & Phase 7.1)
 
 ## 1. 目标与架构定位
 
 CrossPilot Automation Runtime 在经历了 Error Classification (Phase 1)、Timeout/Cancellation (Phase 2)、Structured Logging (Phase 3)、Metrics (Phase 4)、ExecutionAttempt (Phase 5) 与 Human Audit Trail (Phase 6) 之后，建立起了对自动化操作全生命周期的可观测性与控制力。
 
-Phase 7 的核心目标：
-> **统一 Automation Runtime Execution Evidence 的结构、持久化安全、Artifact 引用、Verify 证据和完整性校验。**
+Phase 7 / 7.1 的核心目标：
+> **统一 Automation Runtime Execution Evidence 的结构、持久化安全、Artifact 引用安全、Verify 证据和完整性校验。**
 
 ### 业务研究领域 vs 自动化执行领域的严格边界
 
@@ -47,7 +47,7 @@ export interface ExecutionEvidence {
   syncError?: string;
   manualResolution?: Record<string, unknown>;
 
-  // Phase 7 新增类型化证据段
+  // Phase 7 / 7.1 类型化证据段
   verification?: ExecutionVerificationEvidence;
   sideEffect?: ExecutionSideEffectEvidence;
   artifacts?: ExecutionEvidenceArtifact[];
@@ -85,6 +85,8 @@ export type ExecutionArtifactKind =
   | 'PAYLOAD_DUMP'
   | 'OTHER';
 
+export type ExecutionArtifactSensitivity = 'INTERNAL' | 'SENSITIVE';
+
 export interface ExecutionEvidenceArtifact {
   ref: string;                          // 逻辑安全引用，如 "rpa/job_123/screenshot-after.png"
   kind: ExecutionArtifactKind;
@@ -92,9 +94,14 @@ export interface ExecutionEvidenceArtifact {
   sizeBytes?: number;                   // 字节大小
   sha256?: string;                      // 64 位十六进制 SHA-256 哈希
   capturedAt: string;                   // ISO 8601 时间戳
+  sensitivity?: ExecutionArtifactSensitivity; // 'INTERNAL' | 'SENSITIVE'
   metadata?: Record<string, unknown>;   // 脱敏后的扩展元数据
 }
 ```
+
+- **敏感度默认分类**：
+  - `SCREENSHOT_BEFORE`, `SCREENSHOT_AFTER`, `SCREENSHOT_FAILURE`, `DOM_SNAPSHOT`, `PAYLOAD_DUMP` 默认为 `SENSITIVE`。
+  - `NETWORK_HAR`, `PLAYWRIGHT_TRACE`, `LOG_CHUNK`, `OTHER` 默认为 `INTERNAL`。
 
 ### 2.3 ExecutionVerificationEvidence (回查证据)
 
@@ -117,8 +124,12 @@ export interface ExecutionVerificationEvidence {
 ### 2.4 ExecutionSideEffectEvidence (副作用凭证)
 
 ```ts
+export type RemoteSideEffectState = 'CONFIRMED_APPLIED' | 'CONFIRMED_NOT_APPLIED' | 'UNKNOWN';
+
 export interface ExecutionSideEffectEvidence {
   confirmed: boolean;
+  writeExecuted?: boolean;
+  remoteState?: RemoteSideEffectState;  // 显式远端副作用终态
   occurredAt?: string;
   resourceType?: string;                // e.g. 'LISTING', 'PURCHASE_ORDER'
   resourceId?: string;
@@ -128,19 +139,23 @@ export interface ExecutionSideEffectEvidence {
 
 ---
 
-## 3. 安全防护与完整性机制
+## 3. 安全防护与完整性机制 (Phase 7.1 Hardening)
 
-### 3.1 逻辑引用路径与防路径遍历 (Path Traversal Defense)
+### 3.1 Fail-Closed Artifact 路径校验与防宿主逃逸
 
-1. **禁止存储宿主绝对路径**：
+1. **零文件系统接触 Fail-Closed 防御**：
+   - `buildEvidenceArtifact(hostFilePath, baseDir, kind, mimeType)` 在调用任何 `fs.statSync` 或 `fs.readFileSync` 之前，必须对宿主路径进行严格的根目录包含性检查 (`path.resolve(hostFilePath).startsWith(path.resolve(baseDir) + path.sep)`)。
+   - 若检测到根目录逃逸（例如 `/etc/passwd`、`../../.env`）或非法路径遍历，立即返回 `null`，**严禁对非法路径进行任何文件系统元数据读取或内容读取**。
+   - 记录警告日志时，**绝不记录宿主绝对路径**，仅输出 `{ kind, reason, ref }`，避免宿主路径信息泄露。
+
+2. **安全逻辑引用 (Logical Ref Architecture)**：
    - 数据库中的 `artifacts[].ref` 严禁记录 `/Users/alice/...`、`/app/evidence/...` 等本地/容器绝对路径。
    - 必须通过 `toSafeEvidenceRef(path, baseDir)` 转化为相对于 Runtime Evidence Root 的安全逻辑路径（如 `rpa/job_123/screenshot.png`）。
-2. **Fail-Closed 路径校验**：
    - 包含 `..` 的路径段（如 `../../etc/passwd` 或 `rpa/job/../../secret`）立即抛出 `PATH_TRAVERSAL` 异常。
    - 包含 Windows 盘符（`C:\...`）或超出安全根目录的绝对路径抛出 `HOST_PATH_ESCAPE` 异常。
-   - 绝对路径中如包含 `.runtime-evidence/` 或 `runtime-evidence/`，自动提取内部相对路径；若无匹配且以 `/` 开头，坚决拦截。
-3. **安全路径反解**：
-   - `resolveEvidenceArtifactPath(ref, baseEvidenceDir)` 验证 `ref` 并确保其在目标根目录下，防止越权访问。
+
+3. **Legacy `evidenceRef` 安全收敛**：
+   - 历史旧字段 `evidenceRef` 经清洗时，若不满足 `isSafeEvidenceRef(ref)`，则**直接丢弃 (omitted)**，严禁回退存储清洗后的宿主路径。
 
 ### 3.2 最小权限保证 (POSIX File & Directory Permissions)
 
@@ -155,18 +170,38 @@ export interface ExecutionSideEffectEvidence {
   2. 生成并返回降级的 `ExecutionEvidenceArtifact`（保留 `ref`, `kind`, `mimeType`, `capturedAt`，但将 `sizeBytes` 与 `sha256` 置为 undefined）。
   3. **铁律：绝不因为哈希计算失败而抛出异常，绝不改变或阻断已发生的真实业务执行状态（Runtime Truth）。**
 
-### 3.4 敏感信息脱敏 (Redaction)
+### 3.4 严格 64KB Hard Limit (UTF-8 字节长度控制)
 
-- 数据库持久化前由 `sanitizeExecutionEvidenceForPersistence` 执行深度脱敏：
-  - Bearer Token: `Bearer [REDACTED]`
-  - Shopify Access Token: `[REDACTED]`
-  - 数据库连接串中的密码: `postgres://user:[REDACTED]@host:5432/db`
-  - 嵌套对象中的敏感键名 (`password`, `secret`, `token`, `authorization`, `cookie`, `apiKey` 等): 值替换为 `[REDACTED]`。
-- **Payload 尺寸熔断保护**：限制单个 Evidence 对象的最大体积不超过 64KB，超限时自动丢弃非关键调试堆叠与冗长快照，防止 PostgreSQL JSON 字段爆炸。
+- 数据库持久化前由 `sanitizeExecutionEvidenceForPersistence` 执行深度脱敏与尺寸控制。
+- **Hard Limit 计量**：采用 `Buffer.byteLength(JSON.stringify(evidence), 'utf8') <= 65536` 进行严格衡量，防御多字节 UTF-8 字符（如中文日志）造成的 JSON 字段膨胀。
+- **9 级递进修剪 (Progressive Pruning)**：
+  1. 截断 `normalizedError.message` 至 200 字符。
+  2. 丢弃 `conflictDetails`。
+  3. 丢弃 `manualResolution` 非关键元数据。
+  4. 截断 `verification.details`。
+  5. 丢弃 `verification.assertionResults` 消息细节。
+  6. 截断 `sideEffect.details`。
+  7. 丢弃所有非错误类截图 Artifact。
+  8. 仅保留最新的 1 个失败截图 Artifact。
+  9. 清空所有 Artifact 扩展元数据并彻底丢弃非关键描述。
+- **Core Runtime Truth 校验**：核心状态字段（`mode`, `phase`, `effect`, `recovery`, `provider`, `operationId`）若非法或缺失，清洗器坚决抛出 `INVALID_EVIDENCE` 异常，防止脏数据注入。
 
 ---
 
-## 4. 持久化统一收口 (Single Point of Persistence)
+## 4. Truth & Side-Effect 语义矩阵 (Execution Truth Matrix)
+
+| 场景 | `effect` | `verification.status` | `verification.matched` | `sideEffect.writeExecuted` | `sideEffect.remoteState` |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **已回查确认成功 (Verified Success)** | `APPLIED` | `VERIFIED` | `true` | `true` | `CONFIRMED_APPLIED` |
+| **未回查 LIVE 写入成功 (Unverified LIVE)** | `UNKNOWN` | `INCONCLUSIVE` | - | `true` | `UNKNOWN` |
+| **写操作后超时 (Post-Write Timeout)** | `UNKNOWN` | `INCONCLUSIVE` | - | `true` | `UNKNOWN` |
+| **写操作前取消 (Pre-Write Cancel)** | `NOT_APPLIED` | `PENDING` | - | `false` | `CONFIRMED_NOT_APPLIED` |
+| **回查确认不存在 (Recovery Definite NOT_FOUND)**| `NOT_APPLIED` | `VERIFIED` | `false` | `false` | `CONFIRMED_NOT_APPLIED` |
+| **回查超时 / 网络异常 / 鉴权失效** | 原 `effect` | `INCONCLUSIVE` | - | 原 `writeExecuted` | `UNKNOWN` |
+
+---
+
+## 5. 持久化统一收口 (Single Point of Persistence)
 
 所有向数据库写入 `evidence` 的途径必须统一经过 `sanitizeExecutionEvidenceForPersistence`：
 1. `AutomationOperationStore.createOrReplay()`：创建操作或重放时，对 `initialEvidence` 进行规范化清洗。
@@ -175,16 +210,16 @@ export interface ExecutionSideEffectEvidence {
 
 ---
 
-## 5. 验收与质量门禁
+## 6. 验收与质量门禁
 
 | 验收项 | 规范要求 | 状态 |
 | :--- | :--- | :--- |
 | **0 数据库迁移** | 零 Schema 变更，无需迁移文件，纯 JSON 合约升级 | 达成 |
 | **P0 错误剥离** | `cause`, `stack`, `rawRequest` 彻底不进入数据库 | 达成 |
-| **脱敏覆盖** | Bearer, Shopify Token, DB 连接串, 敏感键名全量清洗 | 达成 |
-| **路径遍历防御** | `..` 与宿主逃逸拦截，强制使用逻辑安全引用 | 达成 |
-| **哈希降级安全** | 产物计算失败时记录告警并安全降级，不阻断业务执行 | 达成 |
-| **权限控制** | 目录 0700、文件 0600 POSIX 最小权限防护 | 达成 |
-| **RPA 产物联动** | Playwright 工作流生成强类型 artifacts 并回传 ActionRouter | 达成 |
-| **Recovery 回查联动** | Recovery Processor 的 QUERY 链路生成回查与副作用证据 | 达成 |
-| **测试套件** | `packages/actions/test/execution-evidence.spec.ts` 16 项全过 | 达成 |
+| **Fail-Closed Artifact** | 宿主根逃逸路径立即返回 null，零 fs 接触，无宿主路径告警泄露 | 达成 |
+| **Legacy evidenceRef 安全** | 非法引用直接丢弃，不保留原始未受信宿主路径 | 达成 |
+| **严格 64KB 限制** | 依据 UTF-8 字节长度精确计量，支持多字节中文字符与 9 级递进修剪 | 达成 |
+| **Core Truth 校验** | 核心状态字段非法时强制抛出 `INVALID_EVIDENCE` 异常 | 达成 |
+| **Artifact 敏感度与白名单**| 严格白名单校验并赋予 `INTERNAL` 或 `SENSITIVE` 敏感度 | 达成 |
+| **Truth & Side-Effect** | 完整覆盖 Verified Success、Unverified LIVE、Timeout、Cancel 与 Recovery 矩阵 | 达成 |
+| **测试套件** | `packages/actions/test/execution-evidence.spec.ts` 27 项全过 | 达成 |

@@ -204,12 +204,6 @@ export class ExecutionAttemptStore {
       sanitizedErrorMsg = sanitized.length > 1000 ? sanitized.substring(0, 1000) : sanitized;
     }
 
-    // Sanitize evidence payload using canonical persistence sanitizer
-    let sanitizedEvidence: any = Prisma.DbNull;
-    if (params.evidence) {
-      sanitizedEvidence = sanitizeExecutionEvidenceForPersistence(params.evidence);
-    }
-
     // Find existing attempt strictly scoped to workspace
     const existing = await this.prisma.executionAttempt.findFirst({
       where: {
@@ -221,6 +215,22 @@ export class ExecutionAttemptStore {
 
     if (!existing) {
       return null;
+    }
+
+    // Sanitize evidence payload using canonical persistence sanitizer
+    let sanitizedEvidence: any = Prisma.DbNull;
+    if (params.evidence) {
+      const rawEv = typeof params.evidence === 'object' && params.evidence !== null ? (params.evidence as any) : {};
+      const evidenceToSanitize: any = {
+        ...rawEv,
+        mode: rawEv.mode ?? 'LIVE',
+        provider: rawEv.provider ?? existing.provider ?? 'unknown',
+        operationId: rawEv.operationId ?? params.operationId,
+        phase: rawEv.phase ?? (params.status === 'SUCCEEDED' ? 'COMPLETED' : 'FAILED'),
+        effect: rawEv.effect ?? params.effect ?? 'UNKNOWN',
+        recovery: rawEv.recovery ?? params.recovery ?? (params.status === 'SUCCEEDED' ? 'NONE' : 'MANUAL'),
+      };
+      sanitizedEvidence = sanitizeExecutionEvidenceForPersistence(evidenceToSanitize);
     }
 
     let durationMs = params.durationMs ?? null;

@@ -1,11 +1,14 @@
-import * as fs from 'node:fs';
+import fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import {
   ExecutionArtifactKind,
+  ExecutionArtifactSensitivity,
   ExecutionEvidenceArtifact,
+  getDefaultArtifactSensitivity,
   RuntimeEvents,
   runtimeLogger,
+  sanitizeString,
   StructuredLogger,
   toSafeEvidenceRef,
   isSafeEvidenceRef,
@@ -16,6 +19,7 @@ export interface BuildEvidenceArtifactParams {
   kind: ExecutionArtifactKind;
   mimeType?: string;
   capturedAt?: string;
+  sensitivity?: ExecutionArtifactSensitivity;
   metadata?: Record<string, unknown>;
   baseEvidenceDir?: string;
 }
@@ -53,27 +57,67 @@ export function inferMimeType(filePath: string): string {
 /**
  * Builds a validated, fail-safe ExecutionEvidenceArtifact from a local file.
  *
- * Computes sizeBytes and SHA-256 hash. If reading or statting the file fails,
- * logs a structured warning and returns a degraded artifact record without throwing,
- * ensuring business execution flow is never interrupted by artifact hashing failures.
+ * Enforces:
+ * - Strictly fails closed (returns null, NEVER reads/stats file) if filePath escapes baseEvidenceDir or contains traversal.
+ * - Strictly redacts host absolute file paths from failure logs (only logs safe ref, kind, and reason).
+ * - Computes sizeBytes and SHA-256 hash. If reading or statting a valid safe file fails (e.g. missing),
+ *   logs a structured warning and returns a degraded artifact record without throwing.
  */
 export function buildEvidenceArtifact(
   params: BuildEvidenceArtifactParams,
   logger?: StructuredLogger,
-): ExecutionEvidenceArtifact {
+): ExecutionEvidenceArtifact | null {
   const { filePath, kind, baseEvidenceDir } = params;
 
+  if (!filePath || typeof filePath !== 'string' || !filePath.trim()) {
+    return null;
+  }
+
+  // 1. Enforce base evidence directory containment (Strict Fail-Closed)
+  if (baseEvidenceDir) {
+    const resolvedBase = path.resolve(baseEvidenceDir);
+    const resolvedFile = path.resolve(filePath);
+
+    if (resolvedFile === resolvedBase) {
+      (logger ?? runtimeLogger).warn({
+        event: RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED,
+        kind,
+        reason: 'ROOT_ESCAPE',
+        error: 'Path points directly to base evidence directory',
+      });
+      return null;
+    }
+
+    if (!resolvedFile.startsWith(resolvedBase + path.sep)) {
+      (logger ?? runtimeLogger).warn({
+        event: RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED,
+        kind,
+        reason: 'ROOT_ESCAPE',
+        error: 'File path escapes base evidence directory',
+      });
+      return null;
+    }
+  }
+
+  // 2. Enforce safe logical reference extraction without path traversal
   let ref: string;
   try {
     ref = toSafeEvidenceRef(filePath, baseEvidenceDir);
-  } catch {
-    // If logical ref extraction fails, fallback to unclassified safe filename
-    const safeBase = path.basename(filePath);
-    ref = `unclassified/${safeBase}`;
+  } catch (err: any) {
+    const isTraversal = err?.message?.includes('TRAVERSAL') || err?.message?.includes('..');
+    (logger ?? runtimeLogger).warn({
+      event: RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED,
+      kind,
+      reason: isTraversal ? 'PATH_TRAVERSAL' : 'ROOT_ESCAPE',
+      error: 'Unsafe artifact path rejected',
+    });
+    return null;
   }
 
   const mimeType = params.mimeType || inferMimeType(filePath);
   const capturedAt = params.capturedAt || new Date().toISOString();
+  const sensitivity: ExecutionArtifactSensitivity =
+    params.sensitivity || getDefaultArtifactSensitivity(kind);
 
   let sizeBytes: number | undefined = undefined;
   let sha256: string | undefined = undefined;
@@ -92,12 +136,13 @@ export function buildEvidenceArtifact(
       sha256,
     });
   } catch (err: any) {
+    const isNotFound = err?.code === 'ENOENT';
     (logger ?? runtimeLogger).warn({
       event: RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED,
-      filePath,
       ref,
       kind,
-      error: err?.message || String(err),
+      reason: isNotFound ? 'FILE_NOT_FOUND' : 'STAT_FAILED',
+      error: err?.message ? sanitizeString(err.message) : 'File read failure',
     });
   }
 
@@ -105,9 +150,10 @@ export function buildEvidenceArtifact(
     ref,
     kind,
     mimeType,
+    sensitivity,
+    capturedAt,
     ...(sizeBytes !== undefined ? { sizeBytes } : {}),
     ...(sha256 ? { sha256 } : {}),
-    capturedAt,
     ...(params.metadata ? { metadata: params.metadata } : {}),
   };
 }
