@@ -124,6 +124,11 @@ export class ListingUpdateWorkflow {
       // Step 2: Read Before State
       recordLog('READ_BEFORE', 'Reading baseline listing details before applying modification');
       const before = await sellerPage.getListingDetails();
+      if (before.sku && before.sku !== params.skuCode) {
+        throw new Error(
+          `VERIFY_FAILED: TARGET_MISMATCH: Page SKU "${before.sku}" does not match requested SKU "${params.skuCode}" before edit`,
+        );
+      }
       await page.screenshot({ path: beforeScreenshot, fullPage: true });
       recordLog('CAPTURE_BEFORE', `Captured before screenshot at ${beforeScreenshot}`);
 
@@ -145,6 +150,11 @@ export class ListingUpdateWorkflow {
       // Step 5: Reload and Verify Read-Back Truth
       recordLog('VERIFY_RELOAD', 'Reloading page to verify true persistence on Seller Central');
       const after = await sellerPage.reloadAndVerify();
+      if (after.sku && after.sku !== params.skuCode) {
+        throw new Error(
+          `VERIFY_FAILED: TARGET_MISMATCH: Page SKU "${after.sku}" does not match requested SKU "${params.skuCode}" after reload`,
+        );
+      }
       await page.screenshot({ path: afterScreenshot, fullPage: true });
       recordLog('CAPTURE_AFTER', `Captured after screenshot at ${afterScreenshot}`);
 

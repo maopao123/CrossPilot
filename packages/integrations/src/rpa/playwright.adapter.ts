@@ -37,7 +37,6 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
   }
 
   async execute(input: RpaExecutionInput): Promise<RpaExecutionResult> {
-    const jobId = `rpa_playwright_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     const startTime = Date.now();
 
     const params = (input.params || {}) as Record<string, any>;
@@ -52,7 +51,7 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
 
     if (!isSupported) {
       const failedResult: RpaExecutionResult = {
-        jobId,
+        jobId: '',
         status: 'FAILED',
         error: `UNSUPPORTED_WORKFLOW: Playwright RPA adapter does not support workflow "${input.workflow}"`,
         logs: [
@@ -64,7 +63,6 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
         ],
         durationMs: Date.now() - startTime,
       };
-      this.executionResults.set(jobId, failedResult);
       return failedResult;
     }
 
@@ -81,7 +79,7 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
     // Fail-closed: Never auto-spin mock server in LIVE mode if target URL is missing!
     if (!baseUrl) {
       const configErrorResult: RpaExecutionResult = {
-        jobId,
+        jobId: '',
         status: 'FAILED',
         error: 'CONFIG_ERROR: No Seller Central target URL provided for LIVE RPA execution. Set SELLER_CENTRAL_URL or configure baseUrl.',
         logs: [
@@ -93,9 +91,10 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
         ],
         durationMs: Date.now() - startTime,
       };
-      this.executionResults.set(jobId, configErrorResult);
       return configErrorResult;
     }
+
+    const jobId = `rpa_playwright_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
 
     const workflowParams: UpdateListingWorkflowParams = {
       skuCode,

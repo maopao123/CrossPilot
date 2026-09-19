@@ -822,4 +822,107 @@ describe('V10 Epic 4 ShopifyAdapter', () => {
     expect(orders[0].status).toBe('PAID');
     expect(ordersTransport.execute).toHaveBeenCalledTimes(2);
   });
+
+  it('Regression R2-3: getInventory correctly sums committed and reserved inventory without overwriting reserved when committed is 0', async () => {
+    const prisma = memoryShopifyPrisma();
+
+    const inventoryTransport: ShopifyGraphQLTransport = {
+      execute: jest.fn(async () => ({
+        data: {
+          productVariant: {
+            id: 'gid://shopify/ProductVariant/54443961713004',
+            inventoryItem: {
+              inventoryLevels: {
+                pageInfo: { hasNextPage: false, endCursor: null },
+                nodes: [
+                  {
+                    // Location 1: committed=0, reserved=5 (Shopify normal output when committed bucket is present with 0)
+                    // Must NOT wipe reserved to 0!
+                    quantities: [
+                      { name: 'available', quantity: 42 },
+                      { name: 'on_hand', quantity: 47 },
+                      { name: 'committed', quantity: 0 },
+                      { name: 'reserved', quantity: 5 },
+                      { name: 'incoming', quantity: 10 },
+                    ],
+                  },
+                  {
+                    // Location 2: committed=3, reserved=2 (both non-overlapping buckets present)
+                    // Must sum to 5 reserved!
+                    quantities: [
+                      { name: 'available', quantity: 15 },
+                      { name: 'committed', quantity: 3 },
+                      { name: 'reserved', quantity: 2 },
+                      { name: 'incoming', quantity: 4 },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      })) as any,
+    };
+
+    const adapter = createMockAdapter(prisma, inventoryTransport);
+    const ctx = createCommerceContext('ws-1', 'store_sh1', 'trace_test');
+
+    const inv = await adapter.getInventory(ctx, 'gid://shopify/ProductVariant/54443961713004');
+    expect(inv).not.toBeNull();
+    // Available: Location 1 (42, not 42+47=89) + Location 2 (15) = 57
+    expect(inv?.available).toBe(57);
+    // Reserved: Location 1 (0 + 5 = 5) + Location 2 (3 + 2 = 5) = 10
+    expect(inv?.reserved).toBe(10);
+    // Inbound: Location 1 (10) + Location 2 (4) = 14
+    expect(inv?.inbound).toBe(14);
+  });
+
+  it('Regression R2-4: listOrders with limit: 0 returns empty array immediately without making API calls', async () => {
+    const prisma = memoryShopifyPrisma();
+
+    const ordersTransport: ShopifyGraphQLTransport = {
+      execute: jest.fn(async () => ({
+        data: {
+          orders: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [
+              {
+                id: 'gid://shopify/Order/201',
+                name: '#201',
+                createdAt: '2026-09-02T10:00:00Z',
+                displayFinancialStatus: 'PAID',
+                currentTotalPriceSet: { shopMoney: { amount: '50.00', currencyCode: 'USD' } },
+                lineItems: { nodes: [] },
+              },
+              {
+                id: 'gid://shopify/Order/202',
+                name: '#202',
+                createdAt: '2026-09-03T10:00:00Z',
+                displayFinancialStatus: 'PAID',
+                currentTotalPriceSet: { shopMoney: { amount: '75.00', currencyCode: 'USD' } },
+                lineItems: { nodes: [] },
+              },
+            ],
+          },
+        },
+      })) as any,
+    };
+
+    const adapter = createMockAdapter(prisma, ordersTransport);
+    const ctx = createCommerceContext('ws-1', 'store_sh1', 'trace_test');
+
+    // 1. limit: 0 must return [] immediately without executing GraphQL request
+    const zeroOrders = await adapter.listOrders(ctx, { limit: 0 });
+    expect(zeroOrders).toEqual([]);
+    expect(ordersTransport.execute).not.toHaveBeenCalled();
+
+    // 2. limit: 1 returns exactly 1 order
+    const oneOrder = await adapter.listOrders(ctx, { limit: 1 });
+    expect(oneOrder.length).toBe(1);
+    expect(ordersTransport.execute).toHaveBeenCalledTimes(1);
+
+    // 3. no limit returns all orders
+    const allOrders = await adapter.listOrders(ctx, {});
+    expect(allOrders.length).toBe(2);
+  });
 });

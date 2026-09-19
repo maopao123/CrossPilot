@@ -562,8 +562,12 @@ export class ShopifyAdapter implements CommerceAdapter {
       }
     `;
 
-    const targetLimit = typeof query.limit === 'number' && query.limit > 0 ? query.limit : Infinity;
-    const pageSize = typeof query.limit === 'number' && query.limit > 0 ? Math.min(query.limit, 100) : 50;
+    if (typeof query.limit === 'number' && query.limit <= 0) {
+      return [];
+    }
+
+    const targetLimit = typeof query.limit === 'number' ? query.limit : Infinity;
+    const pageSize = typeof query.limit === 'number' ? Math.min(query.limit, 100) : 50;
 
     const matchedOrders: CanonicalOrder[] = [];
     let hasNextPage = true;
@@ -1250,13 +1254,11 @@ export class ShopifyAdapter implements CommerceAdapter {
         totalAvailable += qtyMap.get('on_hand')!;
       }
 
-      // 2. Reserved: prioritize 'committed' (Shopify standard for orders awaiting fulfillment), fallback to 'reserved'.
-      // Never add committed and reserved together in the same level.
-      if (qtyMap.has('committed')) {
-        totalReserved += qtyMap.get('committed')!;
-      } else if (qtyMap.has('reserved')) {
-        totalReserved += qtyMap.get('reserved')!;
-      }
+      // 2. Reserved: In Shopify, 'committed' (orders awaiting fulfillment) and 'reserved' (holds/drafts)
+      // are distinct non-overlapping buckets. Sum both for canonical reserved inventory.
+      const committed = qtyMap.get('committed') || 0;
+      const reserved = qtyMap.get('reserved') || 0;
+      totalReserved += committed + reserved;
 
       // 3. Inbound: Shopify uses 'incoming'
       if (qtyMap.has('incoming')) {

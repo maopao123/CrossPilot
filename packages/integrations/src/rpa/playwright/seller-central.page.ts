@@ -1,6 +1,7 @@
 import type { Page } from 'playwright';
 
 export interface ListingFormData {
+  sku?: string;
   title: string;
   price: number;
 }
@@ -37,6 +38,7 @@ export class SellerCentralPage {
 
   /**
    * Searches for a SKU on the dashboard and opens its Edit Listing page.
+   * Strictly matches the exact SKU row and rejects substring collisions.
    */
   async searchAndOpenEdit(sku: string, timeoutMs = 15000): Promise<void> {
     const searchInput = this.page.locator('#search-input');
@@ -46,9 +48,31 @@ export class SellerCentralPage {
     await searchButton.click();
 
     const escapedSkuAttr = sku.replace(/["\\]/g, '\\$&');
-    const editButton = this.page
-      .locator(`tr[data-sku="${escapedSkuAttr}"] .btn-edit, a.btn-edit[href*="sku=${encodeURIComponent(sku)}"]`)
-      .first();
+    const exactRow = this.page.locator(`tr[data-sku="${escapedSkuAttr}"]`);
+    let editButton = exactRow.locator('.btn-edit').first();
+
+    // Strict fallback: if no tr[data-sku="..."] attribute is rendered, inspect
+    // anchor elements and match the parsed URL query parameter "sku" exactly.
+    if ((await exactRow.count()) === 0) {
+      const candidates = this.page.locator('a.btn-edit');
+      const count = await candidates.count();
+      for (let i = 0; i < count; i++) {
+        const candidate = candidates.nth(i);
+        const href = await candidate.getAttribute('href');
+        if (href) {
+          try {
+            const parsed = new URL(href, 'http://localhost');
+            if (parsed.searchParams.get('sku') === sku) {
+              editButton = candidate;
+              break;
+            }
+          } catch {
+            // ignore invalid URLs
+          }
+        }
+      }
+    }
+
     await editButton.waitFor({ state: 'visible', timeout: timeoutMs });
     await editButton.click();
 
@@ -56,17 +80,26 @@ export class SellerCentralPage {
   }
 
   /**
-   * Reads current Title and Price from the listing edit form.
+   * Reads current SKU, Title, and Price from the listing edit form.
    */
   async getListingDetails(): Promise<ListingFormData> {
     const titleInput = this.page.locator('#listing-title');
     const priceInput = this.page.locator('#listing-price');
+    const skuInput = this.page.locator('#listing-sku');
+    const displaySku = this.page.locator('#display-sku');
+
+    let sku: string | undefined;
+    if ((await skuInput.count()) > 0) {
+      sku = (await skuInput.inputValue()).trim();
+    } else if ((await displaySku.count()) > 0) {
+      sku = (await displaySku.textContent() || '').trim();
+    }
 
     const title = (await titleInput.inputValue()).trim();
     const priceRaw = (await priceInput.inputValue()).trim();
     const price = parseFloat(priceRaw) || 0;
 
-    return { title, price };
+    return { sku, title, price };
   }
 
   /**

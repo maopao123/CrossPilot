@@ -515,4 +515,120 @@ describe('V10 Phase B: Playwright Listing RPA Execution Truth Tests', () => {
     expect(updated?.title).toBe('Punctuation SKU Updated Title');
     expect(updated?.price).toBe(23.5);
   }, 20000);
+
+  it('21. Regression R2-1: Modifying shorter prefix SKU (SKU-00) when longer SKU (SKU-001) appears earlier strictly updates SKU-00 and leaves SKU-001 untouched', async () => {
+    // 1. SKU-001 is already in mockServer with default title and price 24.99
+    // 2. Add SKU-00 with different title and price 10.00
+    mockServer.setListing('SKU-00', {
+      sku: 'SKU-00',
+      asin: 'B0C7M8W000',
+      title: 'Exact requested item',
+      price: 10.0,
+      status: 'Active',
+    });
+
+    const registry = new RpaRegistry();
+    const liveAdapter = new PlaywrightRpaAdapter({
+      baseUrl: serverUrl,
+      headless: true,
+      timeoutMs: 15000,
+    });
+    registry.register(liveAdapter);
+    const router = new ActionRouter(registry);
+
+    const approvedProposal: ActionProposal = {
+      ...baseListingProposal,
+      id: 'act_sku_prefix_test',
+      isApproved: true,
+      payload: {
+        workflow: 'UPDATE_LISTING',
+        skuCode: 'SKU-00',
+        title: 'Only intended for SKU-00',
+        price: 11.0,
+        baseUrl: serverUrl,
+      },
+    };
+
+    const result = await router.dispatch(approvedProposal, {
+      workspaceId: 'ws_demo',
+      isApproved: true,
+      executionMode: 'LIVE',
+      providerId: 'playwright-rpa',
+    });
+
+    expect(result.status).toBe('SUCCEEDED');
+    const out = result.data?.output as any;
+    expect(out.verified).toBe(true);
+    expect(out.skuCode).toBe('SKU-00');
+
+    // Verify SKU-00 was strictly modified
+    const sku00Listing = mockServer.getListing('SKU-00');
+    expect(sku00Listing?.title).toBe('Only intended for SKU-00');
+    expect(sku00Listing?.price).toBe(11.0);
+
+    // Verify SKU-001 was NOT modified
+    const sku001Listing = mockServer.getListing('SKU-001');
+    expect(sku001Listing?.title).toBe('Marble Toothbrush Holder White');
+    expect(sku001Listing?.price).toBe(24.99);
+  }, 25000);
+
+  it('22. Regression R2-2: Remote RPA job failure with jobId and AUTH_REQUIRED or CONFIG_ERROR preserves UNKNOWN effect and retains externalId', async () => {
+    const remoteAuthFailedAdapter = {
+      id: 'remote-test-rpa',
+      name: 'Remote RPA Provider',
+      supportedModes: ['LIVE' as const],
+      execute: async () => ({
+        jobId: 'remote-accepted-job-123',
+        status: 'FAILED' as const,
+        error: 'AUTH_REQUIRED: Session expired during post-save verification',
+        durationMs: 120,
+      }),
+    };
+
+    const registry = new RpaRegistry();
+    registry.register(remoteAuthFailedAdapter as any);
+    const router = new ActionRouter(registry);
+
+    const result = await router.dispatch(baseListingProposal, {
+      workspaceId: 'ws_demo',
+      isApproved: true,
+      executionMode: 'LIVE',
+      providerId: 'remote-test-rpa',
+    });
+
+    // Remote job dispatched must retain effect UNKNOWN and preserve remote externalId
+    expect(result.status).toBe('FAILED');
+    expect(result.executionEvidence?.mode).toBe('LIVE');
+    expect(result.executionEvidence?.phase).toBe('FAILED');
+    expect(result.executionEvidence?.effect).toBe('UNKNOWN');
+    expect(result.executionEvidence?.effect).not.toBe('NOT_APPLIED');
+    expect(result.executionEvidence?.externalId).toBe('remote-accepted-job-123');
+    expect(result.executionEvidence?.errorCode).toBe('AUTH_REQUIRED');
+
+    // Also test with remote CONFIG_ERROR once job was accepted
+    const remoteConfigFailedAdapter = {
+      id: 'remote-test-rpa-2',
+      name: 'Remote RPA Provider 2',
+      supportedModes: ['LIVE' as const],
+      execute: async () => ({
+        jobId: 'remote-accepted-job-456',
+        status: 'FAILED' as const,
+        error: 'CONFIG_ERROR: Remote profile invalid',
+        durationMs: 95,
+      }),
+    };
+    registry.register(remoteConfigFailedAdapter as any);
+
+    const result2 = await router.dispatch(baseListingProposal, {
+      workspaceId: 'ws_demo',
+      isApproved: true,
+      executionMode: 'LIVE',
+      providerId: 'remote-test-rpa-2',
+    });
+
+    expect(result2.status).toBe('FAILED');
+    expect(result2.executionEvidence?.effect).toBe('UNKNOWN');
+    expect(result2.executionEvidence?.externalId).toBe('remote-accepted-job-456');
+    expect(result2.executionEvidence?.errorCode).toBe('CONFIG_ERROR');
+  });
 });
