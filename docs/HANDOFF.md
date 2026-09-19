@@ -1,5 +1,41 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 3 完成（Phase 3 Structured Logging & Trace Correlation Complete）**：
+> - **基线 Commit**: `a1e5c4d956b8c932963f6e094085e997e80d695a` (`a1e5c4d`, Phase 2.1)
+> - **目标达成**：基于 `pino` 建立统一高性能、单行 JSON 结构化日志体系，彻底消除了 Critical Path（ActionRouter / ERP / Shopify / Playwright / AutomationRecovery / WorkerService）中散落的 `console.*` 打印，将已有 `traceId` / `operationId` / `workspaceId` / `actionId` / `attempt` / `provider` / `executionMode` 等上下文全面贯穿运行时。
+> - **1. 结构化日志与上下文继承基础设施（`@crosspilot/shared`）**：
+>   - 实现 `StructuredLogger`、`RuntimeLogContext`、标准化事件命名空间 `RuntimeEvents`（`dispatch.*`, `adapter.*`, `operation.*`, `recovery.*`, `worker.*`, `step.*`）；
+>   - 深度支持 `logger.child({ traceId, operationId, ... })` 多层级上下文自动继承与不可变隔离；
+>   - 提供单例 `runtimeLogger` 与工厂 `createRuntimeLogger({ level, destination, baseContext })`，全方法内建 fail-safe 容错，循环引用或序列化异常绝不阻断业务流。
+> - **2. P0 凭据脱敏双重防线与载荷安全摘要（`log-redaction.ts`）**：
+>   - 第一层防线：Pino 原生 `redact` 配置精确拦截与通配符拦截；
+>   - 第二层防线：递归深度扫描 `sanitizeLogData`，拦截 `authorization`, `password`, `secret`, `cookie`, `apiKey`, `payloadEnc`, `accessToken` 等字段；支持 `credentials` 等对象容器递归脱敏，并保留 `tokenCount`/`tokenType` 等良性元字段；
+>   - 字符串敏感信息脱敏：支持带用户名与无用户名连接串（`postgresql://...`, `redis://:...`, `mongodb://...`）密码脱敏；嵌入式 Bearer/Basic 授权头脱敏；Shopify 访问令牌（`shpat_`）脱敏；
+>   - `summarizePayload`：在派发日志中仅记录安全 key 列表与关键标识，隔离敏感业务明文。
+> - **3. 安全错误序列化与 `.cause` 严格剥离（`error-serializer.ts`）**：
+>   - `serializeExecutionError` 提取标准 safe properties（`name`, `message`, `class`, `code`, `retryable`, `status`）；
+>   - 绝对不序列化底层 `.cause` 对象，彻底杜绝 Axios/Fetch/Node 原生请求上下文携带 Authorization 标头或明文凭据泄露。
+> - **4. 关键路径全面接入与 Console 清零**：
+>   - `packages/actions/src/action.router.ts`：接入 `dispatch.started`, `dispatch.blocked`（记录审批、幂等、防篡改等原因）, `dispatch.completed`, `dispatch.failed`；
+>   - `packages/integrations/src/erp/http-erp.adapter.ts`：记录 HTTP 请求生命周期事件（`adapter.request.started`, `completed`, `timeout`, `cancelled`, `failed`）；
+>   - `packages/db/src/commerce/shopify-adapter.ts`：GraphQL 传输层记录耗时、状态码与超时取消事件；
+>   - `packages/integrations/src/rpa/playwright.adapter.ts` & `listing.workflow.ts`：记录 RPA 各步骤事件（`step.navigate`, `step.submit`, `step.verify`, `AUTOMATION_VERIFY_MISMATCH`）；
+>   - `apps/worker/src/processors/automation-recovery.processor.ts`：彻底清零 4 处 `console.*`，引入全流程恢复事件（`recovery.sweep.started`, `operation.claimed`, `operation.completed`, `operation.failed`）；
+>   - `apps/worker/src/worker.service.ts`：彻底清零全部 24 处 `console.*`，转换为 Worker 生命周期与 Job 调度结构化事件；
+>   - Critical Path console 数量由改造前的 28 处彻底清零为 0 处。
+> - **5. 交付物与质量门禁**：
+>   - 新增规范文档：`docs/automation-runtime/STRUCTURED_LOGGING.md`；
+>   - 纠正 Phase 1.1 SHA 文档拼写为 `347bcf4247ea06b8c29d3170368faebffe2e0d32`；
+>   - 新增自动化测试：`packages/actions/test/structured-logging.spec.ts`（16/16 全部 PASS）；
+>   - 全套门禁验证：
+>     - `pnpm -r run build` 全部 PASS
+>     - `pnpm -r run typecheck` 10/10 PASS
+>     - `@crosspilot/actions` 130/130 全部 PASS (6 个测试套件)
+>     - `@crosspilot/worker` 10/10 全部 PASS (2 个测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/api` `v93-action-layer.spec.ts` + `automation-erp-http.spec.ts` 11/11 全部 PASS；
+>   - 严格遵守红线：零 DB 迁移，零状态机核心语义破坏，未引入 Prometheus/指标系统，严格在 Phase 3 边界停止，未进入 Phase 4。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 2.1 完成（Phase 2.1 Timeout & Cancellation Closure Complete）**：
 > - **基线 Commit**: `edbd2c207b572b4097dd120baa5148bd332e0f31` (`edbd2c2`, Phase 2)
 > - **目标达成**：全面修复 Phase 2 审查发现的信号传播与副作用安全边界缺口，严格闭环 Shopify 响应体流读取超时保护、Shopify 嵌套分页超时与取消完整透传、ActionRouter 对非受控第三方 Adapter 抛错的副作用保守判定，以及 Playwright RPA 页面级 Abort 监听器和 WorkerService 重启生命周期安全。严格遵循红线：零 DB migration，未进入 Phase 3，不做 Structured Logging。
@@ -32,7 +68,7 @@
 >   - 零 DB migration，零状态机核心语义破坏，未进入 Phase 3。
 >
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 2 完成（Phase 2 Timeout, Cancellation & AbortSignal Propagation Complete）**：
-> - **基线 Commit**: `347bcf4c1ea9f4e2439ba8fdbbc27161b32d20e7` (`347bcf4`, Phase 1.1)
+> - **基线 Commit**: `347bcf4247ea06b8c29d3170368faebffe2e0d32` (`347bcf4`, Phase 1.1)
 > - **目标达成**：在不修改现有 AutomationOperation 状态机、不重建 Worker、不改变 Retry / Recovery 语义的前提下，建立统一超时配置，并将 `AbortSignal` 贯穿整个执行链路（ActionRouter -> Shopify / ERP / Playwright）。
 > - **核心安全公理落实**：严格落实 `TIMEOUT ≠ 确认失败`。写操作或点击 Save 后的超时与取消严格标记为 `effect: UNKNOWN`、`recovery: QUERY`，严禁直接 `RETRY`，必须待 Worker 通过 IdempotencyKey / 查询远端真实状态后决策。仅确认发生在写操作前的取消方可标记为 `effect: NOT_APPLIED`、`recovery: NONE`。
 > - **1. 统一超时配置体系与组合信号管理器（`@crosspilot/shared`）**：

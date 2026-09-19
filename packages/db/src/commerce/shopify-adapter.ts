@@ -3,6 +3,8 @@ import {
   ErrorCodes,
   getAutomationTimeoutConfig,
   combineAbortSignals,
+  runtimeLogger,
+  RuntimeEvents,
 } from '@crosspilot/shared';
 import {
   CommercePortError,
@@ -159,6 +161,16 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
     const timeoutMs = options?.timeoutMs ?? timeoutConfig.httpTimeoutMs;
 
     const combined = combineAbortSignals([options?.signal], timeoutMs);
+    const startTime = Date.now();
+    const shopifyLogger = runtimeLogger.child({
+      service: 'shopify-adapter',
+      provider: 'shopify',
+      shopSubdomain: subdomain,
+    });
+
+    shopifyLogger.debug({
+      event: RuntimeEvents.ADAPTER_REQUEST_STARTED,
+    });
 
     try {
       const res = await this.fetchFn(url, {
@@ -172,9 +184,21 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
       });
 
       if (res.status === 429) {
+        shopifyLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          durationMs: Date.now() - startTime,
+          errorClass: 'RATE_LIMIT',
+          errorCode: 'PROVIDER_RATE_LIMIT',
+        });
         throw new CommercePortError('PROVIDER_RATE_LIMIT', 'Shopify rate limit exceeded', true);
       }
       if (res.status === 401 || res.status === 403) {
+        shopifyLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          durationMs: Date.now() - startTime,
+          errorClass: 'AUTH',
+          errorCode: ErrorCodes.AUTH_REQUIRED,
+        });
         throw new CommercePortError(
           ErrorCodes.AUTH_REQUIRED,
           'Shopify authentication failed / access token invalid or expired',
@@ -182,6 +206,11 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
         );
       }
       if (!res.ok) {
+        shopifyLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          statusCode: res.status,
+          durationMs: Date.now() - startTime,
+        });
         throw new CommercePortError(
           ErrorCodes.PROVIDER_UNAVAILABLE,
           `Shopify GraphQL returned HTTP ${res.status}: ${res.statusText}`,
@@ -198,6 +227,12 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
           errMsg.toLowerCase().includes('throttled') ||
           code === 'THROTTLED';
         if (isThrottled) {
+          shopifyLogger.warn({
+            event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+            durationMs: Date.now() - startTime,
+            errorClass: 'RATE_LIMIT',
+            errorCode: 'PROVIDER_RATE_LIMIT',
+          });
           throw new CommercePortError('PROVIDER_RATE_LIMIT', errMsg, true);
         }
         const isAuth =
@@ -206,10 +241,25 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
           code === 'ACCESS_DENIED' ||
           code === 'UNAUTHORIZED';
         if (isAuth) {
+          shopifyLogger.warn({
+            event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+            durationMs: Date.now() - startTime,
+            errorClass: 'AUTH',
+            errorCode: ErrorCodes.AUTH_REQUIRED,
+          });
           throw new CommercePortError(ErrorCodes.AUTH_REQUIRED, errMsg, false);
         }
+        shopifyLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          durationMs: Date.now() - startTime,
+        });
         throw new CommercePortError('COMMERCE_PORT_ERROR', errMsg, false);
       }
+
+      shopifyLogger.debug({
+        event: RuntimeEvents.ADAPTER_REQUEST_COMPLETED,
+        durationMs: Date.now() - startTime,
+      });
 
       return json;
     } catch (err: any) {
@@ -217,6 +267,16 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
         throw err;
       }
       if (combined.isTimedOut() || err?.name === 'TimeoutError') {
+        shopifyLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_TIMEOUT,
+          timeoutMs,
+          durationMs: Date.now() - startTime,
+          errorClass: 'TIMEOUT',
+          errorCode: 'TIMEOUT',
+          retryable: false,
+          effect: 'UNKNOWN',
+          recovery: 'QUERY',
+        });
         throw new CommercePortError(
           'TIMEOUT',
           `Shopify GraphQL request timed out after ${timeoutMs}ms`,
@@ -224,12 +284,24 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
         );
       }
       if (combined.isCancelled() || err?.name === 'AbortError') {
+        shopifyLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_CANCELLED,
+          durationMs: Date.now() - startTime,
+          errorClass: 'TIMEOUT',
+          errorCode: 'CANCELLED',
+          retryable: false,
+        });
         throw new CommercePortError(
           'CANCELLED',
           'Shopify GraphQL request was cancelled by caller',
           false,
         );
       }
+      shopifyLogger.error({
+        event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+        durationMs: Date.now() - startTime,
+        error: err,
+      });
       throw new CommercePortError(
         ErrorCodes.PROVIDER_UNAVAILABLE,
         `Failed to reach Shopify GraphQL API: ${err?.message || String(err)}`,

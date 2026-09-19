@@ -1,7 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
-import { getAutomationTimeoutConfig } from '@crosspilot/shared';
+import {
+  getAutomationTimeoutConfig,
+  runtimeLogger,
+  RuntimeEvents,
+} from '@crosspilot/shared';
 import { RpaExecutionLog } from '../rpa.interface.js';
 import { SellerCentralPage, ListingFormData } from './seller-central.page.js';
 
@@ -106,6 +110,12 @@ export class ListingUpdateWorkflow {
     let page: Page | null = null;
     let onAbort: (() => void) | null = null;
 
+    const workflowLogger = runtimeLogger.child({
+      service: 'playwright-listing-workflow',
+      jobId,
+      skuCode: params.skuCode,
+    });
+
     try {
       params.signal?.throwIfAborted();
       recordLog('BROWSER_LAUNCH', 'Launching headless Chromium browser instance');
@@ -147,6 +157,11 @@ export class ListingUpdateWorkflow {
       // Step 1: Open Seller Central Dashboard & Search SKU
       params.signal?.throwIfAborted();
       recordLog('NAVIGATE', `Navigating to Seller Central dashboard at ${baseUrl}`);
+      workflowLogger.info({
+        event: RuntimeEvents.ADAPTER_REQUEST_STARTED,
+        step: 'NAVIGATE',
+        baseUrl,
+      });
       await sellerPage.gotoDashboard(baseUrl, navTimeoutMs);
 
       params.signal?.throwIfAborted();
@@ -186,6 +201,11 @@ export class ListingUpdateWorkflow {
       params.signal?.throwIfAborted();
       recordLog('SUBMIT_SAVE', 'Clicking "Save and finish" and waiting for confirmation banner');
       writeExecuted = true;
+      workflowLogger.info({
+        event: 'adapter.rpa.step',
+        step: 'SUBMIT_SAVE',
+        writeExecuted: true,
+      });
       await sellerPage.saveAndWaitForConfirmation(timeoutMs);
 
       // Step 5: Reload and Verify Read-Back Truth
@@ -193,6 +213,10 @@ export class ListingUpdateWorkflow {
         throw new Error('ABORTED_AFTER_WRITE: Operation was cancelled after save was submitted, remote state unknown');
       }
       recordLog('VERIFY_RELOAD', 'Reloading page to verify true persistence on Seller Central');
+      workflowLogger.info({
+        event: RuntimeEvents.AUTOMATION_VERIFY_STARTED,
+        step: 'VERIFY_RELOAD',
+      });
       page.setDefaultTimeout(verifyTimeoutMs);
       const after = await sellerPage.reloadAndVerify();
       if (!after.sku) {
@@ -221,6 +245,11 @@ export class ListingUpdateWorkflow {
       }
 
       recordLog('VERIFIED', `Read-back verification successful. Updated state: ${JSON.stringify(after)}`);
+      workflowLogger.info({
+        event: RuntimeEvents.AUTOMATION_VERIFY_COMPLETED,
+        step: 'VERIFY',
+        verified: true,
+      });
 
       // Stop Tracing
       await context.tracing.stop({ path: tracePath });
@@ -249,6 +278,12 @@ export class ListingUpdateWorkflow {
         writeExecuted: true,
       };
     } catch (err: any) {
+      if (err?.message?.includes('VERIFY_FAILED') || err?.message?.includes('TARGET_MISMATCH')) {
+        workflowLogger.warn({
+          event: RuntimeEvents.AUTOMATION_VERIFY_MISMATCH,
+          error: err,
+        });
+      }
       recordLog('ERROR', `Workflow execution failed: ${err.message || String(err)}`);
 
       try {

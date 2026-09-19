@@ -16,11 +16,16 @@ import {
   processAutomationRecovery,
   AUTOMATION_RECOVERY_QUEUE_NAME,
 } from './processors/automation-recovery.processor.js';
+import { runtimeLogger, RuntimeEvents } from '@crosspilot/shared';
 
 const SIMULATOR_QUEUE_NAME = 'crosspilot-simulator-tick';
 const OUTCOME_QUEUE_NAME = 'crosspilot-outcome-evaluator';
 export const CLOSED_LOOP_V2_QUEUE_NAME = 'crosspilot-closed-loop-v2';
 export { AUTOMATION_RECOVERY_QUEUE_NAME };
+
+const workerLogger = runtimeLogger.child({
+  service: 'worker-service',
+});
 
 export class WorkerService {
   private worker: Worker<AgentTaskJobData> | null = null;
@@ -50,7 +55,7 @@ export class WorkerService {
   }
 
   public async start(): Promise<void> {
-    console.log('🔄 Initializing CrossPilot Background Worker...');
+    workerLogger.info({ event: RuntimeEvents.WORKER_STARTED, message: 'Initializing CrossPilot Background Worker' });
 
     // Lifecycle invariant: if previous run aborted shutdownController, recreate a fresh controller for new run
     if (this.shutdownController.signal.aborted) {
@@ -61,8 +66,8 @@ export class WorkerService {
       // Check redis connection
       const health = await this.redisService.healthCheck();
       if (health.status === 'down') {
-        console.warn('⚠️ Redis is not available locally. Worker running in idle/standby mode.');
-        console.warn('⚠️ Simulator scheduler skipped (requires Redis for BullMQ repeatable jobs).');
+        workerLogger.warn({ event: 'worker.redis_unavailable', message: 'Redis is not available locally. Worker running in idle/standby mode.' });
+        workerLogger.warn({ event: 'worker.scheduler.skipped', scheduler: 'simulator', message: 'Simulator scheduler skipped (requires Redis for BullMQ repeatable jobs).' });
         this.isRunning = true;
         return;
       }
@@ -97,17 +102,17 @@ export class WorkerService {
       );
 
       this.worker.on('completed', (job: Job) => {
-        console.log(`✅ Job ${job.id} completed successfully`);
+        workerLogger.info({ event: RuntimeEvents.WORKER_JOB_COMPLETED, queue: 'crosspilot-tasks', jobId: job.id });
       });
 
       this.worker.on('failed', (job: Job | undefined, err: Error) => {
-        console.error(`❌ Job ${job?.id} failed:`, err.message);
+        workerLogger.error({ event: RuntimeEvents.WORKER_JOB_FAILED, queue: 'crosspilot-tasks', jobId: job?.id, error: err });
       });
 
       this.isRunning = true;
-      console.log('🚀 CrossPilot Worker listening for queue events.');
+      workerLogger.info({ event: 'worker.listening', message: 'CrossPilot Worker listening for queue events' });
     } catch (err: any) {
-      console.warn('⚠️ Worker initialization warning:', err.message);
+      workerLogger.warn({ event: 'worker.init_warning', error: err });
       this.isRunning = true;
     }
   }
@@ -121,7 +126,7 @@ export class WorkerService {
    */
   private async startSimulatorScheduler(): Promise<void> {
     if (process.env.SIMULATOR_ENABLED !== 'true') {
-      console.log('ℹ️ Simulator scheduler disabled (set SIMULATOR_ENABLED=true to enable).');
+      workerLogger.info({ event: 'worker.scheduler.disabled', scheduler: 'simulator' });
       return;
     }
 
@@ -157,14 +162,16 @@ export class WorkerService {
         { connection: this.simulatorRedis as any },
       );
       this.simulatorWorker.on('failed', (job: Job | undefined, err: Error) => {
-        console.warn(`⚠️ Simulator tick job ${job?.id} failed:`, err.message);
+        workerLogger.warn({ event: RuntimeEvents.WORKER_JOB_FAILED, queue: SIMULATOR_QUEUE_NAME, jobId: job?.id, error: err });
       });
 
-      console.log(
-        `🕐 Simulator scheduler enabled: 1 simulated day every ${intervalMinutes} minute(s).`,
-      );
+      workerLogger.info({
+        event: 'worker.scheduler.enabled',
+        scheduler: 'simulator',
+        intervalMinutes,
+      });
     } catch (err: any) {
-      console.warn('⚠️ Simulator scheduler initialization warning:', err.message);
+      workerLogger.warn({ event: 'worker.scheduler.init_warning', scheduler: 'simulator', error: err });
     }
   }
 
@@ -206,14 +213,16 @@ export class WorkerService {
         { connection: this.outcomeRedis as any },
       );
       this.outcomeWorker.on('failed', (job: Job | undefined, err: Error) => {
-        console.warn(`⚠️ Outcome evaluator job ${job?.id} failed:`, err.message);
+        workerLogger.warn({ event: RuntimeEvents.WORKER_JOB_FAILED, queue: OUTCOME_QUEUE_NAME, jobId: job?.id, error: err });
       });
 
-      console.log(
-        `📊 Outcome evaluator enabled: sweep every ${intervalMinutes} minute(s).`,
-      );
+      workerLogger.info({
+        event: 'worker.scheduler.enabled',
+        scheduler: 'outcome-evaluator',
+        intervalMinutes,
+      });
     } catch (err: any) {
-      console.warn('⚠️ Outcome evaluator initialization warning:', err.message);
+      workerLogger.warn({ event: 'worker.scheduler.init_warning', scheduler: 'outcome-evaluator', error: err });
     }
   }
 
@@ -246,9 +255,11 @@ export class WorkerService {
             removeOnFail: 100,
           },
         );
-        console.log(
-          `🕐 ClosedLoopV2 scheduler enabled: sweep every ${intervalMinutes} minute(s).`,
-        );
+        workerLogger.info({
+          event: 'worker.scheduler.enabled',
+          scheduler: 'closed-loop-v2',
+          intervalMinutes,
+        });
       }
 
       this.closedLoopWorker = new Worker(
@@ -268,14 +279,14 @@ export class WorkerService {
       );
 
       this.closedLoopWorker.on('completed', (job: Job) => {
-        console.log(`✅ ClosedLoopV2 Job ${job.id} completed successfully`);
+        workerLogger.info({ event: RuntimeEvents.WORKER_JOB_COMPLETED, queue: CLOSED_LOOP_V2_QUEUE_NAME, jobId: job.id });
       });
 
       this.closedLoopWorker.on('failed', (job: Job | undefined, err: Error) => {
-        console.warn(`⚠️ ClosedLoopV2 Job ${job?.id} failed:`, err.message);
+        workerLogger.warn({ event: RuntimeEvents.WORKER_JOB_FAILED, queue: CLOSED_LOOP_V2_QUEUE_NAME, jobId: job?.id, error: err });
       });
     } catch (err: any) {
-      console.warn('⚠️ ClosedLoopV2 scheduler initialization warning:', err.message);
+      workerLogger.warn({ event: 'worker.scheduler.init_warning', scheduler: 'closed-loop-v2', error: err });
     }
   }
 
@@ -320,23 +331,25 @@ export class WorkerService {
       );
 
       this.recoveryWorker.on('completed', (job: Job) => {
-        console.log(`✅ AutomationRecovery Job ${job.id} completed`);
+        workerLogger.info({ event: RuntimeEvents.WORKER_JOB_COMPLETED, queue: AUTOMATION_RECOVERY_QUEUE_NAME, jobId: job.id });
       });
 
       this.recoveryWorker.on('failed', (job: Job | undefined, err: Error) => {
-        console.warn(`⚠️ AutomationRecovery Job ${job?.id} failed:`, err.message);
+        workerLogger.warn({ event: RuntimeEvents.WORKER_JOB_FAILED, queue: AUTOMATION_RECOVERY_QUEUE_NAME, jobId: job?.id, error: err });
       });
 
-      console.log(
-        `🔄 Automation recovery enabled: sweep every ${intervalMinutes} minute(s).`,
-      );
+      workerLogger.info({
+        event: 'worker.scheduler.enabled',
+        scheduler: 'automation-recovery',
+        intervalMinutes,
+      });
     } catch (err: any) {
-      console.warn('⚠️ Automation recovery scheduler initialization warning:', err.message);
+      workerLogger.warn({ event: 'worker.scheduler.init_warning', scheduler: 'automation-recovery', error: err });
     }
   }
 
   public async stop(): Promise<void> {
-    console.log('🛑 Shutting down CrossPilot Worker...');
+    workerLogger.info({ event: RuntimeEvents.WORKER_STOPPING, message: 'Shutting down CrossPilot Worker' });
     this.shutdownController.abort();
     if (this.worker) {
       await this.worker.close();
@@ -412,7 +425,7 @@ export class WorkerService {
     }
     await this.redisService.disconnect();
     this.isRunning = false;
-    console.log('🏁 Worker shutdown complete.');
+    workerLogger.info({ event: RuntimeEvents.WORKER_STOPPED, message: 'Worker shutdown complete' });
   }
 
   public getStatus(): { isRunning: boolean; queueName: string } {

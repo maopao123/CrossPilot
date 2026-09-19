@@ -9,6 +9,8 @@ import {
   normalizeExecutionError,
   getAutomationTimeoutConfig,
   combineAbortSignals,
+  runtimeLogger,
+  RuntimeEvents,
 } from '@crosspilot/shared';
 import { verifyApprovedPayloadBinding } from './approval-binding.js';
 
@@ -47,6 +49,23 @@ export class ActionRouter {
     const mode: AutomationMode = context.executionMode || 'LIVE';
     const operationId = context.operationId || proposal.id;
 
+    const routerLogger = runtimeLogger.child({
+      service: 'action-router',
+      traceId,
+      workspaceId: context.workspaceId,
+      actionId: proposal.id,
+      operationId,
+      executionMode: mode,
+      provider: context.providerId,
+    });
+
+    routerLogger.info({
+      event: RuntimeEvents.ACTION_DISPATCH_STARTED,
+      actionType: proposal.type,
+      targetEntity: proposal.targetEntity,
+      targetId: proposal.targetId,
+    });
+
     const timeoutConfig = getAutomationTimeoutConfig();
     const executionTimeoutMs = context.timeoutMs ?? timeoutConfig.executionTimeoutMs;
     const combined = combineAbortSignals([context.signal], executionTimeoutMs);
@@ -54,6 +73,11 @@ export class ActionRouter {
     // 0. Check Human Gate FIRST (before checking any cache or dispatching)
     if (proposal.requiresHumanApproval && !context.isApproved) {
       combined.cleanup();
+      routerLogger.warn({
+        event: RuntimeEvents.ACTION_DISPATCH_BLOCKED,
+        reason: 'APPROVAL_REQUIRED',
+        durationMs: Date.now() - startTime,
+      });
       return {
         actionId: proposal.id,
         status: 'WAITING_APPROVAL',
@@ -95,6 +119,14 @@ export class ActionRouter {
         // Only Mock mode can replay cached results; LIVE/SIMULATOR must not silently replay
         if (mode === 'MOCK') {
           combined.cleanup();
+          routerLogger.info({
+            event: RuntimeEvents.ACTION_DISPATCH_COMPLETED,
+            isReplay: true,
+            durationMs: Date.now() - startTime,
+            phase: cached.result.executionEvidence?.phase || 'COMPLETED',
+            effect: cached.result.executionEvidence?.effect || 'APPLIED',
+            recovery: cached.result.executionEvidence?.recovery || 'NONE',
+          });
           return {
             ...cached.result,
             traceId,
@@ -109,6 +141,11 @@ export class ActionRouter {
         code: 'IDEMPOTENCY_CONFLICT',
       });
       combined.cleanup();
+      routerLogger.warn({
+        event: RuntimeEvents.ACTION_DISPATCH_BLOCKED,
+        reason: 'IDEMPOTENCY_CONFLICT',
+        durationMs: Date.now() - startTime,
+      });
       return {
         actionId: proposal.id,
         status: 'FAILED',
@@ -145,6 +182,11 @@ export class ActionRouter {
         code: 'TARGET_MISMATCH',
       });
       combined.cleanup();
+      routerLogger.warn({
+        event: RuntimeEvents.ACTION_DISPATCH_BLOCKED,
+        reason: 'TARGET_MISMATCH',
+        durationMs: Date.now() - startTime,
+      });
       return {
         actionId: proposal.id,
         status: 'FAILED',
@@ -177,6 +219,11 @@ export class ActionRouter {
         code: 'PAYLOAD_TAMPERED',
       });
       combined.cleanup();
+      routerLogger.warn({
+        event: RuntimeEvents.ACTION_DISPATCH_BLOCKED,
+        reason: 'PAYLOAD_TAMPERED',
+        durationMs: Date.now() - startTime,
+      });
       return {
         actionId: proposal.id,
         status: 'FAILED',
@@ -211,6 +258,11 @@ export class ActionRouter {
         code: 'WRITE_FORBIDDEN',
       });
       combined.cleanup();
+      routerLogger.warn({
+        event: RuntimeEvents.ACTION_DISPATCH_BLOCKED,
+        reason: 'WRITE_FORBIDDEN',
+        durationMs: Date.now() - startTime,
+      });
       return {
         actionId: proposal.id,
         status: 'FAILED',
@@ -652,6 +704,35 @@ export class ActionRouter {
     }
 
     combined.cleanup();
+
+    if (result.status === 'SUCCEEDED') {
+      routerLogger.info({
+        event: RuntimeEvents.ACTION_DISPATCH_COMPLETED,
+        durationMs: Date.now() - startTime,
+        phase: result.executionEvidence?.phase || 'COMPLETED',
+        effect: result.executionEvidence?.effect || 'APPLIED',
+        recovery: result.executionEvidence?.recovery || 'NONE',
+      });
+    } else {
+      const errorCode = result.normalizedError?.code || result.executionEvidence?.errorCode;
+      const errorClass = result.normalizedError?.class || result.executionEvidence?.errorClass;
+      const isExpectedWarn =
+        errorCode === 'CANCELLED' ||
+        errorClass === 'TIMEOUT' ||
+        result.status === 'WAITING_APPROVAL';
+
+      const logFn = isExpectedWarn ? routerLogger.warn.bind(routerLogger) : routerLogger.error.bind(routerLogger);
+      logFn({
+        event: RuntimeEvents.ACTION_DISPATCH_FAILED,
+        durationMs: Date.now() - startTime,
+        errorClass,
+        errorCode,
+        phase: result.executionEvidence?.phase || 'FAILED',
+        effect: result.executionEvidence?.effect,
+        recovery: result.executionEvidence?.recovery,
+      });
+    }
+
     return result;
   }
 }

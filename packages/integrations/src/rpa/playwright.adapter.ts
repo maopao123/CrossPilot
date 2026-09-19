@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { AutomationMode, normalizeExecutionError } from '@crosspilot/shared';
+import {
+  AutomationMode,
+  normalizeExecutionError,
+  runtimeLogger,
+  RuntimeEvents,
+} from '@crosspilot/shared';
 import {
   RpaAdapter,
   RpaExecutionInput,
@@ -110,9 +115,25 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
 
   async execute(input: RpaExecutionInput): Promise<RpaExecutionResult> {
     const startTime = Date.now();
+    const rpaLogger = runtimeLogger.child({
+      service: 'playwright-rpa-adapter',
+      provider: 'playwright-rpa',
+      workflow: input.workflow,
+    });
+
+    rpaLogger.info({
+      event: RuntimeEvents.ADAPTER_REQUEST_STARTED,
+      workflow: input.workflow,
+    });
 
     if (input.signal?.aborted) {
       const errorMsg = 'ABORTED_BEFORE_WRITE: Playwright RPA execution cancelled before launch';
+      rpaLogger.warn({
+        event: RuntimeEvents.ADAPTER_REQUEST_CANCELLED,
+        workflow: input.workflow,
+        writeExecuted: false,
+        durationMs: Date.now() - startTime,
+      });
       return {
         jobId: '',
         status: 'FAILED',
@@ -306,9 +327,51 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
         durationMs: outcome.durationMs,
       };
 
+      if (status === 'SUCCESS') {
+        rpaLogger.info({
+          event: RuntimeEvents.ADAPTER_REQUEST_COMPLETED,
+          jobId,
+          workflow: input.workflow,
+          durationMs: outcome.durationMs,
+        });
+      } else if (status === 'TIMEOUT') {
+        rpaLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_TIMEOUT,
+          jobId,
+          workflow: input.workflow,
+          errorCode,
+          durationMs: outcome.durationMs,
+          writeExecuted: outcome.writeExecuted,
+        });
+      } else if (errorCode === 'CANCELLED') {
+        rpaLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_CANCELLED,
+          jobId,
+          workflow: input.workflow,
+          errorCode,
+          durationMs: outcome.durationMs,
+          writeExecuted: outcome.writeExecuted,
+        });
+      } else {
+        rpaLogger.error({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          jobId,
+          workflow: input.workflow,
+          errorCode,
+          durationMs: outcome.durationMs,
+        });
+      }
+
       this.executionResults.set(jobId, result);
       return result;
     } catch (err: any) {
+      rpaLogger.error({
+        event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+        jobId,
+        workflow: input.workflow,
+        durationMs: Date.now() - startTime,
+        error: err,
+      });
       const errorMsg = `EXECUTION_ERROR: ${err?.message || String(err)}`;
       const normalizedError = normalizeExecutionError(err, {
         provider: 'playwright-rpa',

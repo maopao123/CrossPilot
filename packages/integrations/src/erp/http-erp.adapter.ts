@@ -9,6 +9,8 @@ import {
   normalizeExecutionError,
   combineAbortSignals,
   getAutomationTimeoutConfig,
+  runtimeLogger,
+  RuntimeEvents,
 } from '@crosspilot/shared';
 
 export interface HttpErpAdapterOptions {
@@ -60,6 +62,18 @@ export class HttpERPAdapter {
       ...options.headers,
     };
 
+    const startTime = Date.now();
+    const erpLogger = runtimeLogger.child({
+      service: 'http-erp-adapter',
+      provider: 'erp',
+    });
+
+    erpLogger.debug({
+      event: RuntimeEvents.ADAPTER_REQUEST_STARTED,
+      method: options.method,
+      endpoint,
+    });
+
     try {
       const response = await this.fetchFn(url, {
         method: options.method,
@@ -88,6 +102,13 @@ export class HttpERPAdapter {
       if (status === 401 || status === 403) {
         const errorCode = status === 401 ? 'AUTH_FAILED' : 'VALIDATION_ERROR';
         const errorMessage = parsedJson?.message || parsedJson?.error || `Authentication failed with HTTP ${status}`;
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          method: options.method,
+          endpoint,
+          statusCode: status,
+          durationMs: Date.now() - startTime,
+        });
         return {
           success: false,
           errorCode: status === 401 ? 'AUTH_FAILED' : 'VALIDATION_ERROR',
@@ -103,6 +124,15 @@ export class HttpERPAdapter {
 
       if (status === 429) {
         const errorMessage = parsedJson?.message || parsedJson?.error || 'Rate limit exceeded';
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          method: options.method,
+          endpoint,
+          statusCode: status,
+          durationMs: Date.now() - startTime,
+          errorClass: 'RATE_LIMIT',
+          errorCode: 'RATE_LIMITED',
+        });
         return {
           success: false,
           errorCode: 'RATE_LIMITED',
@@ -118,6 +148,13 @@ export class HttpERPAdapter {
 
       if (status === 404) {
         const errorMessage = parsedJson?.message || parsedJson?.error || 'Resource not found';
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          method: options.method,
+          endpoint,
+          statusCode: status,
+          durationMs: Date.now() - startTime,
+        });
         return {
           success: false,
           errorCode: 'NOT_FOUND',
@@ -133,6 +170,13 @@ export class HttpERPAdapter {
 
       if (status === 400 || status === 422) {
         const errorMessage = parsedJson?.message || parsedJson?.error || 'Validation error';
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          method: options.method,
+          endpoint,
+          statusCode: status,
+          durationMs: Date.now() - startTime,
+        });
         return {
           success: false,
           errorCode: 'VALIDATION_ERROR',
@@ -148,6 +192,13 @@ export class HttpERPAdapter {
 
       if (status === 409) {
         const errorMessage = parsedJson?.message || parsedJson?.error || 'Conflict detected';
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          method: options.method,
+          endpoint,
+          statusCode: status,
+          durationMs: Date.now() - startTime,
+        });
         return {
           success: false,
           errorCode: 'UNKNOWN_ERROR',
@@ -163,6 +214,13 @@ export class HttpERPAdapter {
 
       if (status >= 500) {
         const errorMessage = parsedJson?.message || parsedJson?.error || `ERP server error HTTP ${status}`;
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          method: options.method,
+          endpoint,
+          statusCode: status,
+          durationMs: Date.now() - startTime,
+        });
         return {
           success: false,
           errorCode: 'UNKNOWN_ERROR',
@@ -178,6 +236,13 @@ export class HttpERPAdapter {
 
       if (status < 200 || status >= 300) {
         const errorMessage = parsedJson?.message || parsedJson?.error || `ERP server error HTTP ${status}`;
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          method: options.method,
+          endpoint,
+          statusCode: status,
+          durationMs: Date.now() - startTime,
+        });
         return {
           success: false,
           errorCode: 'UNKNOWN_ERROR',
@@ -193,6 +258,14 @@ export class HttpERPAdapter {
 
       if (!parsedJson || typeof parsedJson !== 'object') {
         const errorMessage = 'Malformed 200 response: expected JSON object';
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+          method: options.method,
+          endpoint,
+          statusCode: status,
+          durationMs: Date.now() - startTime,
+          errorMessage,
+        });
         return {
           success: false,
           errorCode: 'UNKNOWN_ERROR',
@@ -206,6 +279,14 @@ export class HttpERPAdapter {
         };
       }
 
+      erpLogger.debug({
+        event: RuntimeEvents.ADAPTER_REQUEST_COMPLETED,
+        method: options.method,
+        endpoint,
+        statusCode: status,
+        durationMs: Date.now() - startTime,
+      });
+
       return {
         success: true,
         data: (parsedJson.data ?? parsedJson) as T,
@@ -215,6 +296,18 @@ export class HttpERPAdapter {
     } catch (err: any) {
       if (combined.isTimedOut() || err.name === 'TimeoutError' || err.code === 'UND_ERR_CONNECT_TIMEOUT') {
         const errorMessage = `Request timed out after ${timeout}ms`;
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_TIMEOUT,
+          method: options.method,
+          endpoint,
+          timeoutMs: timeout,
+          durationMs: Date.now() - startTime,
+          errorClass: 'TIMEOUT',
+          errorCode: 'TIMEOUT',
+          retryable: false,
+          effect: 'UNKNOWN',
+          recovery: 'QUERY',
+        });
         return {
           success: false,
           errorCode: 'TIMEOUT',
@@ -224,6 +317,15 @@ export class HttpERPAdapter {
       }
       if (combined.isCancelled() || err.name === 'AbortError') {
         const errorMessage = 'Request was cancelled by caller';
+        erpLogger.warn({
+          event: RuntimeEvents.ADAPTER_REQUEST_CANCELLED,
+          method: options.method,
+          endpoint,
+          durationMs: Date.now() - startTime,
+          errorClass: 'TIMEOUT',
+          errorCode: 'CANCELLED',
+          retryable: false,
+        });
         return {
           success: false,
           errorCode: 'TIMEOUT',
@@ -231,6 +333,13 @@ export class HttpERPAdapter {
           normalizedError: normalizeExecutionError(err, { provider: 'erp', code: 'CANCELLED' }),
         };
       }
+      erpLogger.error({
+        event: RuntimeEvents.ADAPTER_REQUEST_FAILED,
+        method: options.method,
+        endpoint,
+        durationMs: Date.now() - startTime,
+        error: err,
+      });
       return {
         success: false,
         errorCode: 'UNKNOWN_ERROR',

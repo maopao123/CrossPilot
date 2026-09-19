@@ -1,7 +1,13 @@
 import { PrismaClient, AutomationOperation } from '@prisma/client';
 import { AutomationOperationStore } from '@crosspilot/db';
 import { SimulatorERPAdapter } from '@crosspilot/integrations';
-import { ExecutionErrorClass, NormalizedExecutionError, normalizeExecutionError } from '@crosspilot/shared';
+import {
+  ExecutionErrorClass,
+  NormalizedExecutionError,
+  normalizeExecutionError,
+  runtimeLogger,
+  RuntimeEvents,
+} from '@crosspilot/shared';
 
 export const AUTOMATION_RECOVERY_QUEUE_NAME = 'crosspilot-automation-recovery';
 
@@ -41,7 +47,14 @@ async function syncLocalPurchaseOrder(
     const sup = await prisma.supplier.findFirst({ where: { workspaceId, id: supplierId } });
     if (!sup) {
       const err = `SUPPLIER_NOT_FOUND: supplierId '${supplierId}' not found in workspace '${workspaceId}'`;
-      console.warn(`[AutomationRecovery] Failed to sync local PurchaseOrder for ${externalId}: ${err}`);
+      runtimeLogger.warn({
+        service: 'automation-recovery',
+        event: 'automation.recovery.sync_failed',
+        externalId,
+        supplierId,
+        workspaceId,
+        reason: 'SUPPLIER_NOT_FOUND',
+      });
       return { success: false, error: err };
     }
 
@@ -76,7 +89,12 @@ async function syncLocalPurchaseOrder(
     });
     return { success: true };
   } catch (err: any) {
-    console.warn(`[AutomationRecovery] Failed to sync local PurchaseOrder for ${externalId}: ${err.message}`);
+    runtimeLogger.warn({
+      service: 'automation-recovery',
+      event: 'automation.recovery.sync_failed',
+      externalId,
+      error: err,
+    });
     return { success: false, error: err.message || 'UNKNOWN_LOCAL_SYNC_ERROR' };
   }
 }
@@ -92,6 +110,17 @@ export async function processAutomationRecovery(
 
   const dueOps = await store.listDue(new Date(), options.limit || 20);
 
+  const recoveryLogger = runtimeLogger.child({
+    service: 'automation-recovery',
+    workerId,
+  });
+
+  recoveryLogger.info({
+    event: RuntimeEvents.AUTOMATION_RECOVERY_SWEEP_STARTED,
+    limit: options.limit || 20,
+    dueCount: dueOps.length,
+  });
+
   let recovered = 0;
   let retried = 0;
   let escalated = 0;
@@ -99,7 +128,10 @@ export async function processAutomationRecovery(
 
   for (const op of dueOps) {
     if (options.signal?.aborted) {
-      console.log(`[AutomationRecovery] Recovery sweep aborted by worker signal`);
+      recoveryLogger.info({
+        event: 'automation.recovery.sweep.aborted',
+        message: 'Recovery sweep aborted by worker signal',
+      });
       break;
     }
     let claimed: AutomationOperation;
@@ -109,6 +141,20 @@ export async function processAutomationRecovery(
     } catch {
       continue;
     }
+
+    const opLogger = recoveryLogger.child({
+      operationId: claimed.id,
+      workspaceId: claimed.workspaceId,
+      actionId: claimed.actionId || undefined,
+      attempt: claimed.attemptCount,
+      provider: claimed.provider,
+    });
+
+    opLogger.info({
+      event: RuntimeEvents.AUTOMATION_OPERATION_CLAIMED,
+      phase: claimed.phase,
+      recovery: claimed.recovery,
+    });
 
     try {
       // Case 1: In SUBMITTED / VERIFYING or recovery=QUERY -> Check remote reality
@@ -741,10 +787,24 @@ export async function processAutomationRecovery(
         }
       }
     } catch (err: any) {
-      console.error(`[AutomationRecovery] Recovery processing failed for op ${op.id}: ${err.message}`);
+      recoveryLogger.error({
+        event: RuntimeEvents.AUTOMATION_OPERATION_FAILED,
+        operationId: op.id,
+        workspaceId: op.workspaceId,
+        error: err,
+      });
       failed++;
     }
   }
+
+  recoveryLogger.info({
+    event: RuntimeEvents.AUTOMATION_RECOVERY_SWEEP_COMPLETED,
+    scanned: dueOps.length,
+    recovered,
+    retried,
+    escalated,
+    failed,
+  });
 
   return {
     scanned: dueOps.length,
