@@ -38,12 +38,15 @@ export type CreateOrReplayResult =
   | { kind: 'REPLAYED'; operation: AutomationOperation };
 
 import { ExecutionAttemptStore } from './execution-attempt-store.js';
+import { ExecutionAuditStore } from './execution-audit-store.js';
 
 export class AutomationOperationStore {
   readonly attempts: ExecutionAttemptStore;
+  readonly audits: ExecutionAuditStore;
 
   constructor(private readonly prisma: PrismaClient) {
     this.attempts = new ExecutionAttemptStore(this.prisma);
+    this.audits = new ExecutionAuditStore(this.prisma);
   }
 
   /**

@@ -51,6 +51,10 @@ export const RuntimeEvents = {
   EXECUTION_ATTEMPT_COMPLETED: 'execution.attempt.completed',
   EXECUTION_ATTEMPT_FAILED: 'execution.attempt.failed',
   EXECUTION_ATTEMPT_RECORD_FAILED: 'execution.attempt.record_failed',
+
+  // Execution Human Audit Trail (Phase 6)
+  EXECUTION_AUDIT_RECORDED: 'execution.audit.recorded',
+  EXECUTION_AUDIT_RECORD_FAILED: 'execution.audit.record_failed',
 } as const;
 
 export type RuntimeEventName = (typeof RuntimeEvents)[keyof typeof RuntimeEvents] | (string & {});

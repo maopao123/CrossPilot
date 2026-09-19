@@ -1,7 +1,46 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 6 完成（Phase 6 Human Audit Trail Complete）**：
+> - **基线 Commit**: `9b2976d4c6a88ca209df63aa682df81f8d6cdddb` (`9b2976d`, Phase 5.1)
+> - **目标达成**：为 `AutomationOperation` 的人工状态变更（`FORCE_ADOPT`、`DISMISS`、`RETRY_SYNC`）构建独立、不可变、workspace-safe、actor-grounded 的 `ExecutionAudit` 人工操作审计流水；落实 Fail-Closed 原子事务（Operation Update + Action Update + Audit Insert），彻底消除历史证据覆写与无审计篡改隐患；严格保证与已有 Approval、ActionExecution、ExecutionAttempt 职责边界的绝对隔离。
+> - **1. 数据库数据模型与非破坏性增量迁移（`packages/db/prisma/`）**：
+>   - 在 Prisma Schema 中新增 `ExecutionAudit` 模型，建立级联复合外键关联：`@relation(fields: [operationId, workspaceId], references: [id, workspaceId], onDelete: Cascade)`，从物理层强制租户隔离；
+>   - 包含核心字段：`id`, `workspaceId`, `operationId`, `actionId`, `actorId`, `actorType`, `auditAction`, `reason`, `beforeState`, `afterState`, `metadata`, `traceId`, `createdAt`；
+>   - 表级物理零 `updatedAt` 字段，严格奠定不可篡改（Append-only）语义基石；
+>   - 建立高频复合索引：`[workspaceId, operationId, createdAt]`, `[workspaceId, actorId, createdAt]`, `[operationId, createdAt]`；
+>   - 交付纯增量安全 Migration SQL：`20260920000000_add_execution_audit_trail`。
+> - **2. 不可变 Store 与租户隔离防线（`ExecutionAuditStore`）**：
+>   - 挂载至 `AutomationOperationStore.audits`；
+>   - 严格 Append-only：仅提供 `appendAudit`、`listAudits`、`getAudit`，彻底禁止提供 `updateAudit`、`deleteAudit`、`overwriteAudit`；
+>   - 支持直接传入 `Prisma.TransactionClient`，保障审计与业务变更同处原子事务；
+>   - 严格租户隔离校验：`appendAudit` 显式验证父操作在目标 `workspaceId` 下存在（不存在抛 `AutomationOperationNotFoundError`）；查询方法均强制 workspace 作用域绑定；
+>   - 双层敏感凭据脱敏：复用 `sanitizeString` 抹除 Token / 密码 / 数据库连接串并截断 reason 至 <= 2000 字符；`sanitizeLogData` 深度过滤 metadata 载荷；
+>   - 结构化事件日志：记录 `RuntimeEvents.EXECUTION_AUDIT_RECORDED`，写入异常记录 `EXECUTION_AUDIT_RECORD_FAILED` 并抛错（Fail-Closed）。
+> - **3. 真实 Actor 身份强制验真与 Controller 防伪造**：
+>   - 核心原则：“无法审计的人工状态变更，绝对不允许提交”；
+>   - `OperationAutomationController` 统一由 `CurrentUser.user.sub` 提取真实 actor 并强制注入，客户端 Body 传参一律被硬覆盖；
+>   - `resolveNeedsAttention` 强制校验 `actorId` 真实有效（非空非空白），未提供时一律抛出 400 `BadRequestException` 拒绝执行，坚决废除 `userId || 'manual-operator'` 匿名 fallback。
+> - **4. P0 事务原子性与业务流程重构（`OperationAutomationService`）**：
+>   - **DISMISS 流程**：`tx.automationOperation.update(FAILED/NOT_APPLIED/NONE)` + `tx.plannedAction.update(FAILED)` + `tx.executionAudit.create(DISMISS)` 全程原子事务；
+>   - **FORCE_ADOPT 流程**：前置执行幂等本地单据同步 `syncLocalPurchaseOrder`，成功后开启原子事务，同步写入 Operation(COMPLETED/APPLIED/NONE)、PlannedAction(SUCCESS) 与 FORCE_ADOPT 审计；
+>   - **RETRY_SYNC 流程**：前置执行本地同步，若失败立即拒绝且不记录错误审计；同步成功后开启原子事务流转状态并写入 RETRY_SYNC 审计（附带 `localSync: SUCCEEDED` 元数据）；
+>   - **原子回滚防线（P0）**：若审计插入因任何原因（磁盘满/约束冲突等）失败，整个事务立即回滚，Operation 保持 `NEEDS_ATTENTION`，Action 保持 `FAILED`，杜绝幽灵变更；
+>   - **双轨兼容快照**：同步更新 `evidence.manualResolution` 供旧版 UI / API 兼容读取，不伪造存量数据（No-Backfill Policy）。
+> - **5. 交付物与质量门禁**：
+>   - 规范文档：新增 `docs/automation-runtime/HUMAN_AUDIT_TRAIL.md`；
+>   - 自动化测试：新增 `packages/actions/test/human-audit-trail.spec.ts`（16/16 全部 PASS，覆盖不可变追加、工作区租户隔离、Actor 真实性强校验、受控 Action 范围、敏感凭据脱敏、FORCE_ADOPT/DISMISS/RETRY_SYNC 全链路流转、P0 事务原子回滚、Controller 身份防伪造、四类历史职责隔离，并附带真实 PostgreSQL 事务回滚集成用例）；
+>   - 全套回归门禁验证：
+>     - `pnpm -r run build` 全部 PASS
+>     - `pnpm -r run typecheck` 10/10 workspaces 全部 PASS (0 错误)
+>     - `@crosspilot/actions` 200/200 全部 PASS (9 个测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/worker` 18/18 全部 PASS (4 个测试套件)
+>     - `@crosspilot/api` 核心测试套件全部 PASS；
+>   - 严格红线执行：零核心状态机逻辑篡改，零 Retry / Timeout / Error Classification 破坏，未引入 Prometheus 指标污染，未进入 Phase 7 (Evidence Enhancement) 与 Phase 8 (Execution Center API)。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 5.1 完成（Phase 5.1 Attempt Invariant & Workspace Isolation Closure Complete）**：
 > - **基线 Commit**: `b1fe4cc2591ff3644d5d686c04d597215c678035` (`b1fe4cc`, Phase 5)
+> - **Phase 5.1 Commit**: `9b2976d4c6a88ca209df63aa682df81f8d6cdddb` (`9b2976d`, Phase 5.1)
 > - **目标达成**：全面收口 Phase 5 审查发现的 Attempt 租户隔离漏洞、生命周期语义边界与日志状态问题，确立“1 次真实外部交互 = 1 条 Attempt”的不变式，并在数据库层与 Store 层建立坚不可摧的租户隔离硬防线，补充完整的应用层 Runtime 真实接线测试。
 > - **1. 数据库级多租户硬防线（Prisma & Migration）**：
 >   - `AutomationOperation` 增加 `@@unique([id, workspaceId])`；

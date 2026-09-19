@@ -71,8 +71,10 @@ export class OperationAutomationController {
     @Body() body: { resolution: 'FORCE_ADOPT' | 'DISMISS' | 'RETRY_SYNC'; comment?: string },
   ) {
     return this.automationService.resolveNeedsAttention(workspaceId, operationId, {
-      ...body,
+      resolution: body.resolution,
+      comment: body.comment,
       userId: user?.sub,
+      actorId: user?.sub,
     });
   }
 }

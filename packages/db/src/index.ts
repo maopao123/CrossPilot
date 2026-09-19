@@ -12,6 +12,7 @@ export * from './commerce/shopify-adapter.js';
 export * from './commerce/resolve-adapter.js';
 export * from './automation/automation-operation-store.js';
 export * from './automation/execution-attempt-store.js';
+export * from './automation/execution-audit-store.js';
 
 declare global {
   // eslint-disable-next-line no-var

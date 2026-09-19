@@ -1869,6 +1869,7 @@ model AutomationOperation {
   workspace           Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   action              PlannedAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
   attempts            ExecutionAttempt[]
+  audits              ExecutionAudit[]
 
   @@unique([id, workspaceId])
   @@unique([workspaceId, connectionId, operationKind, idempotencyKey])
@@ -1912,4 +1913,40 @@ model ExecutionAttempt {
   @@index([workspaceId, startedAt])
   @@map("execution_attempts")
 }
+
+// V10 AI Automation — Execution Audit History (Phase 6)
+// Tracks human and administrative mutations (FORCE_ADOPT, DISMISS, RETRY_SYNC).
+// Strictly append-only, immutable, workspace-isolated, actor-grounded.
+// ==========================================
+
+model ExecutionAudit {
+  id           String   @id @default(uuid())
+
+  workspaceId  String   @map("workspace_id")
+  operationId  String   @map("operation_id")
+  actionId     String?  @map("action_id")
+
+  actorId      String   @map("actor_id")
+  actorType    String   @map("actor_type")
+
+  auditAction  String   @map("audit_action")
+  reason       String?  @db.Text
+
+  beforeState  Json     @map("before_state")
+  afterState   Json     @map("after_state")
+  metadata     Json?
+
+  traceId      String?  @map("trace_id")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  operation    AutomationOperation @relation(fields: [operationId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+
+  @@index([workspaceId, operationId, createdAt])
+  @@index([workspaceId, actorId, createdAt])
+  @@index([operationId, createdAt])
+
+  @@map("execution_audits")
+}
+
 
