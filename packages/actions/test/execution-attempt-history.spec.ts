@@ -3,8 +3,13 @@ import {
   ExecutionAttemptStore,
   ExecutionAttemptType,
   ExecutionAttemptStatus,
+  ExecutionAttemptTerminalStatus,
+  VALID_EXECUTION_ATTEMPT_TYPES,
+  VALID_EXECUTION_ATTEMPT_TERMINAL_STATUSES,
   StartAttemptParams,
   FinishAttemptParams,
+  AutomationOperationNotFoundError,
+  AutomationOperationConflictError,
 } from '@crosspilot/db';
 import {
   RuntimeEvents,
@@ -19,6 +24,26 @@ import {
  */
 function createMockPrismaClient() {
   const store: ExecutionAttempt[] = [];
+  const opStore: any[] = [];
+
+  const automationOperation = {
+    findFirst: jest.fn(async ({ where }: { where: any }) => {
+      const found = opStore.find((op) => {
+        if (where.id && op.id !== where.id) return false;
+        if (where.workspaceId && op.workspaceId !== where.workspaceId) return false;
+        return true;
+      });
+      return found ? { ...found } : null;
+    }),
+    findUnique: jest.fn(async ({ where }: { where: any }) => {
+      const found = opStore.find((op) => op.id === where.id);
+      return found ? { ...found } : null;
+    }),
+    create: jest.fn(async ({ data }: { data: any }) => {
+      opStore.push(data);
+      return { ...data };
+    }),
+  };
 
   const executionAttempt = {
     create: jest.fn(async ({ data }: { data: any }) => {
@@ -121,9 +146,11 @@ function createMockPrismaClient() {
   };
 
   return {
+    automationOperation,
     executionAttempt,
     _store: store,
-  } as unknown as PrismaClient & { _store: ExecutionAttempt[] };
+    _opStore: opStore,
+  } as unknown as PrismaClient & { _store: ExecutionAttempt[]; _opStore: any[] };
 }
 
 describe('Phase 5 — Execution Attempt History Specification', () => {
@@ -135,6 +162,12 @@ describe('Phase 5 — Execution Attempt History Specification', () => {
 
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
+    mockPrisma._opStore.push({
+      id: operationId,
+      workspaceId,
+      provider: 'simulator-erp',
+      attemptCount: 1,
+    });
     attemptStore = new ExecutionAttemptStore(mockPrisma);
   });
 
@@ -201,7 +234,7 @@ describe('Phase 5 — Execution Attempt History Specification', () => {
   });
 
   describe('2. Idempotency & Unique Protection (operationId, attemptNo)', () => {
-    it('returns existing attempt without error on duplicate startAttempt() calls', async () => {
+    it('returns existing attempt without error on duplicate startAttempt() calls with identical identity', async () => {
       const first = await attemptStore.startAttempt({
         workspaceId,
         operationId,
@@ -525,6 +558,11 @@ describe('Phase 5 — Execution Attempt History Specification', () => {
       const wsB = 'ws-beta';
       const sharedOpId = 'op-shared-id';
 
+      mockPrisma._opStore.push({
+        id: sharedOpId,
+        workspaceId: wsA,
+      });
+
       await attemptStore.startAttempt({
         workspaceId: wsA,
         operationId: sharedOpId,
@@ -591,9 +629,13 @@ describe('Phase 5 — Execution Attempt History Specification', () => {
   describe('9. Fail-Safe Guarantee: Attempt DB failures must not crash business execution', () => {
     it('safeStartAttempt returns null and logs warning without throwing if DB is unavailable', async () => {
       const faultyClient = {
+        automationOperation: {
+          findFirst: jest.fn().mockResolvedValue({ id: operationId, workspaceId }),
+        },
         executionAttempt: {
           create: jest.fn().mockRejectedValue(new Error('PostgreSQL connection timeout')),
           findUnique: jest.fn(),
+          findFirst: jest.fn(),
         },
       } as unknown as PrismaClient;
 
@@ -621,7 +663,7 @@ describe('Phase 5 — Execution Attempt History Specification', () => {
     it('safeFinishAttempt returns null and logs warning without throwing if DB update fails', async () => {
       const faultyClient = {
         executionAttempt: {
-          findUnique: jest.fn().mockResolvedValue({ startedAt: new Date() }),
+          findFirst: jest.fn().mockResolvedValue({ startedAt: new Date() }),
           updateMany: jest.fn().mockRejectedValue(new Error('Deadlock detected')),
         },
       } as unknown as PrismaClient;
@@ -654,6 +696,249 @@ describe('Phase 5 — Execution Attempt History Specification', () => {
 
       expect(history).toEqual([]);
       // Confirms no fake backfill records were fabricated
+    });
+  });
+
+  describe('11. Phase 5.1 Closure: Parent Workspace Validation & Cross-Tenant Protection', () => {
+    it('throws AutomationOperationNotFoundError if parent operation does not exist in workspace', async () => {
+      const wrongWorkspace = 'ws-unauthorized';
+
+      await expect(
+        attemptStore.startAttempt({
+          workspaceId: wrongWorkspace,
+          operationId, // exists in workspaceId, NOT in wrongWorkspace
+          attemptNo: 1,
+          attemptType: 'EXECUTE',
+          provider: 'simulator-erp',
+        }),
+      ).rejects.toThrow(AutomationOperationNotFoundError);
+
+      // Verify no attempts were created
+      const attempts = await attemptStore.listAttempts(wrongWorkspace, operationId);
+      expect(attempts).toHaveLength(0);
+    });
+
+    it('duplicate start with wrong workspace must NOT return other workspace attempt', async () => {
+      // Create Attempt #1 in workspace A
+      await attemptStore.startAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        attemptType: 'EXECUTE',
+        provider: 'simulator-erp',
+      });
+
+      // Now Workspace B tries to call startAttempt for same operationId + attemptNo
+      // Add op to wsB as well to test P2002 duplicate branch
+      mockPrisma._opStore.push({
+        id: 'op-collision',
+        workspaceId: 'ws-b',
+      });
+
+      // Directly simulate P2002 collision by crafting mock
+      jest.spyOn(mockPrisma.executionAttempt, 'create').mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '6.19.3',
+        }),
+      );
+
+      // When ws-b tries to start attempt with same operationId, it must NOT receive ws-a's attempt
+      await expect(
+        attemptStore.startAttempt({
+          workspaceId: 'ws-b',
+          operationId: 'op-collision',
+          attemptNo: 1,
+          attemptType: 'EXECUTE',
+          provider: 'simulator-erp',
+        }),
+      ).rejects.toThrow(AutomationOperationConflictError);
+    });
+  });
+
+  describe('12. Phase 5.1 Closure: Attempt Identity Validation on Duplicate Start', () => {
+    it('duplicate start with different attemptType throws conflict error', async () => {
+      await attemptStore.startAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        attemptType: 'EXECUTE',
+        provider: 'simulator-erp',
+      });
+
+      // Duplicate delivery tries to use RETRY instead of EXECUTE
+      await expect(
+        attemptStore.startAttempt({
+          workspaceId,
+          operationId,
+          attemptNo: 1,
+          attemptType: 'RETRY',
+          provider: 'simulator-erp',
+        }),
+      ).rejects.toThrow(AutomationOperationConflictError);
+    });
+
+    it('duplicate start with different provider throws conflict error', async () => {
+      await attemptStore.startAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        attemptType: 'EXECUTE',
+        provider: 'simulator-erp',
+      });
+
+      // Duplicate delivery tries to use shopify instead of simulator-erp
+      await expect(
+        attemptStore.startAttempt({
+          workspaceId,
+          operationId,
+          attemptNo: 1,
+          attemptType: 'EXECUTE',
+          provider: 'shopify',
+        }),
+      ).rejects.toThrow(AutomationOperationConflictError);
+    });
+
+    it('safeStartAttempt returns null and logs failed event on identity conflict', async () => {
+      await attemptStore.startAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        attemptType: 'EXECUTE',
+        provider: 'simulator-erp',
+      });
+
+      const warnSpy = jest.spyOn(runtimeLogger, 'warn').mockImplementation(() => {});
+
+      const result = await attemptStore.safeStartAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        attemptType: 'QUERY',
+        provider: 'simulator-erp',
+      });
+
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: RuntimeEvents.EXECUTION_ATTEMPT_RECORD_FAILED,
+          action: 'startAttempt',
+        }),
+      );
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('13. Phase 5.1 Closure: Finish Attempt Workspace Scope & Status Validation', () => {
+    it('finishAttempt with wrong workspace returns null and makes no mutations', async () => {
+      await attemptStore.startAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        attemptType: 'EXECUTE',
+        provider: 'simulator-erp',
+      });
+
+      // Workspace B tries to finish Attempt from Workspace A
+      const res = await attemptStore.finishAttempt({
+        workspaceId: 'ws-intruder',
+        operationId,
+        attemptNo: 1,
+        status: 'SUCCEEDED',
+      });
+
+      expect(res).toBeNull();
+
+      // Ensure attempt in Workspace A remains RUNNING
+      const attempt = await attemptStore.getAttempt(workspaceId, operationId, 1);
+      expect(attempt?.status).toBe('RUNNING');
+    });
+
+    it('finishAttempt rejects non-terminal status RUNNING at runtime', async () => {
+      await attemptStore.startAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        attemptType: 'EXECUTE',
+        provider: 'simulator-erp',
+      });
+
+      await expect(
+        attemptStore.finishAttempt({
+          workspaceId,
+          operationId,
+          attemptNo: 1,
+          status: 'RUNNING' as any,
+        }),
+      ).rejects.toThrow(/Invalid execution attempt terminal status/);
+    });
+  });
+
+  describe('14. Phase 5.1 Closure: Terminal Status Logging Semantics', () => {
+    it('logs EXECUTION_ATTEMPT_COMPLETED for SUCCEEDED', async () => {
+      await attemptStore.startAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        attemptType: 'EXECUTE',
+        provider: 'simulator-erp',
+      });
+
+      const infoSpy = jest.spyOn(runtimeLogger, 'info').mockImplementation(() => {});
+
+      await attemptStore.safeFinishAttempt({
+        workspaceId,
+        operationId,
+        attemptNo: 1,
+        status: 'SUCCEEDED',
+      });
+
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: RuntimeEvents.EXECUTION_ATTEMPT_COMPLETED,
+          status: 'SUCCEEDED',
+        }),
+      );
+      infoSpy.mockRestore();
+    });
+
+    it('logs EXECUTION_ATTEMPT_FAILED for CANCELLED, UNKNOWN, TIMEOUT, and FAILED', async () => {
+      const nonSuccessStatuses: ExecutionAttemptTerminalStatus[] = [
+        'CANCELLED',
+        'UNKNOWN',
+        'TIMEOUT',
+        'FAILED',
+      ];
+
+      for (let i = 0; i < nonSuccessStatuses.length; i++) {
+        const terminalStatus = nonSuccessStatuses[i];
+        const attemptNo = i + 1;
+
+        await attemptStore.startAttempt({
+          workspaceId,
+          operationId,
+          attemptNo,
+          attemptType: 'EXECUTE',
+          provider: 'simulator-erp',
+        });
+
+        const infoSpy = jest.spyOn(runtimeLogger, 'info').mockImplementation(() => {});
+
+        await attemptStore.safeFinishAttempt({
+          workspaceId,
+          operationId,
+          attemptNo,
+          status: terminalStatus,
+        });
+
+        expect(infoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: RuntimeEvents.EXECUTION_ATTEMPT_FAILED,
+            status: terminalStatus,
+          }),
+        );
+        infoSpy.mockRestore();
+      }
     });
   });
 });

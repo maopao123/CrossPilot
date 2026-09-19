@@ -1870,6 +1870,7 @@ model AutomationOperation {
   action              PlannedAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
   attempts            ExecutionAttempt[]
 
+  @@unique([id, workspaceId])
   @@unique([workspaceId, connectionId, operationKind, idempotencyKey])
   @@index([workspaceId])
   @@index([actionId])
@@ -1903,7 +1904,7 @@ model ExecutionAttempt {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  operation    AutomationOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  operation    AutomationOperation @relation(fields: [operationId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
 
   @@unique([operationId, attemptNo])
   @@index([workspaceId, operationId])

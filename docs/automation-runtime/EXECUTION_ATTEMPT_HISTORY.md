@@ -13,9 +13,10 @@ Phase 5 正式引入持久化的 **Execution Attempt History（执行尝试历�
    - `ExecutionAttempt` 仅作为**历史明细投影（Historical Projection）**，仅供可观测性、审计溯源与未来 Execution Center 聚合展示使用。
    - 严格禁止由 `ExecutionAttempt.status` 反向驱动或篡改 `AutomationOperation.phase`。
 
-2. **原子单调编号（Monotonic Attempt Numbering）**：
-   - 禁止应用层执行 `SELECT MAX(attempt_no) + 1` 猜测序号。
-   - 1 次成功的 `store.claim()` 租约认领原子累加并返回 `claimed.attemptCount`，直接作为对应 `ExecutionAttempt.attemptNo`。
+2. **单调编号与真实尝试不变式（Concrete Attempt Invariant）**：
+   - **核心不变式**：`1 concrete external execution/query attempt = 1 ExecutionAttempt row`（不是 “1 次 claim = 1 条 attempt”）。
+   - 非同步预约操作认领（如 `action-layer.service.ts` 的 `isSync = false` 路径）仅锁定租约并流转状态至 `EXECUTING`，因未发生任何真实外部调用，**严禁伪造外部 Attempt 记录**。
+   - 后续由 Worker 执行反查（QUERY）或重试（RETRY）认领时直接继承原子累加后的 `claimed.attemptCount`（例如 Attempt #2）。历史尝试编号稀疏（例如仅有 `[Attempt #2]`）完全合法且真实反映外部物理交互。
    - 数据库层通过 `@@unique([operationId, attemptNo])` 约束提供并发唯一性保护。
 
 3. **写操作与只读反查明确区分（Distinguishable Query vs Write）**：
@@ -62,6 +63,7 @@ model AutomationOperation {
   action              PlannedAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
   attempts            ExecutionAttempt[]
 
+  @@unique([id, workspaceId])
   @@unique([workspaceId, connectionId, operationKind, idempotencyKey])
   @@index([workspaceId])
   @@index([actionId])
@@ -91,7 +93,7 @@ model ExecutionAttempt {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  operation    AutomationOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  operation    AutomationOperation @relation(fields: [operationId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
 
   @@unique([operationId, attemptNo])
   @@index([workspaceId, operationId])
@@ -101,9 +103,10 @@ model ExecutionAttempt {
 }
 ```
 
-### 2. 数据库迁移 (`20260919230000_add_execution_attempt_history`)
+### 2. 数据库迁移
 
-- **非破坏性（Purely Additive）**：仅新增 `execution_attempts` 数据表、级联外键约束及相关索引；
+- **Phase 5 (`20260919230000_add_execution_attempt_history`)**：新增 `execution_attempts` 数据表及基础外键索引；
+- **Phase 5.1 (`20260919235000_add_execution_attempt_tenant_integrity`)**：建立 `(operation_id, workspace_id) -> automation_operations(id, workspace_id)` 复合外键约束，将租户隔离直接内化为数据库层物理硬约束。
 - **级联删除（Cascade Delete）**：父表 `automation_operations` 被清理时自动清理关联的历史尝试记录，避免产生孤儿数据。
 
 ---
@@ -182,17 +185,21 @@ model ExecutionAttempt {
    - 递归扫描对象与数组中的敏感键（`authorization`, `cookie`, `password`, `secret`, `apiKey`, `clientSecret`, `privateKey` 等），统一替换为 `[REDACTED]`；
    - 限制遍历深度（最大 8 层），防止循环引用或超深嵌套。
 
-### 2. 工作区租户隔离（Workspace Isolation）
+### 2. 工作区租户隔离（Workspace Isolation & Tenant Integrity）
 
-`ExecutionAttemptStore` 的所有查询与更新接口均严格绑定 `workspaceId`：
+`ExecutionAttemptStore` 在 Store 层与数据库约束层建立双重租户隔离防线：
 
-```ts
-// 严格要求 workspaceId 与 operationId 双重匹配
-await attemptStore.listAttempts(workspaceId, operationId);
-await attemptStore.getAttempt(workspaceId, operationId, attemptNo);
-```
-
-跨租户查询（例如 Workspace B 使用 Workspace A 的 `operationId` 检索）将严格返回空结果集 `[]` 或 `null`，确保租户间隔离。
+1. **数据库层硬约束（DB-level Composite Foreign Key）**：
+   - `AutomationOperation` 建立 `@@unique([id, workspaceId])`；
+   - `ExecutionAttempt` 通过 `(operation_id, workspace_id) REFERENCES automation_operations(id, workspace_id)` 复合外键关联，从底层数据库层面杜绝跨租户数据串接。
+2. **父操作存在性与租户校验**：
+   - `startAttempt()` 执行前优先检索 `automationOperation.findFirst({ where: { id: operationId, workspaceId } })`，若不存在或跨租户抛出 `AutomationOperationNotFoundError`。
+3. **P2002 并发重放防泄露与身份验真**：
+   - 捕获 `(operationId, attemptNo)` 冲突时，严格限制在当前 `workspaceId` 范围内反查；若属于跨租户冲突，拒绝返回外部租户数据，直接抛出 `AutomationOperationConflictError`；
+   - 对本工作区内的重复调用，严格校验 `attemptType` 与 `provider` 必须与已有记录完全吻合，防止异构参数静默覆盖。
+4. **终态校验与日志映射修正**：
+   - `finishAttempt()` 严格拒绝 `status: 'RUNNING'`（必须为终态 `SUCCEEDED | FAILED | TIMEOUT | CANCELLED | UNKNOWN`）；
+   - `safeFinishAttempt()` 仅在 `SUCCEEDED` 时触发 `EXECUTION_ATTEMPT_COMPLETED` 日志，其他终态（`FAILED` / `TIMEOUT` / `CANCELLED` / `UNKNOWN`）均触发 `EXECUTION_ATTEMPT_FAILED` 日志。
 
 ### 3. 故障容错保证（Fail-Safe Guarantee）
 
@@ -245,16 +252,23 @@ await attemptStore.getAttempt(workspaceId, operationId, attemptNo);
 
 ## 八、验收与验证覆盖
 
-测试文件：`packages/actions/test/execution-attempt-history.spec.ts`
+测试体系分为 Store 层单元测试与应用层 Runtime 真实接线测试：
 
-覆盖的核心验证点：
-- [x] **1 Claim = 1 Attempt**：认领后严格使用 `claimed.attemptCount` 作为 `attemptNo`；
-- [x] **幂等性与唯一保护**：重复调用 `startAttempt()` 返回已有记录，不抛出唯一约束冲突；
-- [x] **执行耗时计算**：`durationMs` 准确反映 `startedAt` 到 `finishedAt` 的耗时；
-- [x] **敏感信息脱敏**：密码、Bearer Token、Shopify 密钥、Postgres URL 自动抹除，超长错误截断；
-- [x] **读写类型区分**：清晰区分写操作（`EXECUTE` / `RETRY`）与只读反查（`QUERY`）；
-- [x] **历史完整保留**：多轮重试（Attempt #1 -> #2 -> #3）历史完整共存，旧数据不被新数据覆盖；
-- [x] **工作区严格隔离**：跨 Workspace 无法读取操作历史；
-- [x] **崩溃语义保证**：崩溃未完成的记录保持 `RUNNING`，新轮次不覆盖旧轮次；
-- [x] **写入容错机制**：Attempt Store 数据库异常不阻断外部执行，绝不导致重复副作用；
-- [x] **存量数据策略**：存量数据返回空历史，不伪造合成记录。
+1. **Store 层全量边界测试**（`packages/actions/test/execution-attempt-history.spec.ts`，25 项测试全通）：
+   - [x] **真实外部交互不变式**：仅在外部物理交互发生时落 Attempt；
+   - [x] **幂等性与唯一保护**：重复调用 `startAttempt()` 返回已有记录，校验 `attemptType` 与 `provider` 一致性；
+   - [x] **工作区隔离与父表校验**：父操作跨租户或不存在时拒绝创建 Attempt；并发重放杜绝跨租户泄露；
+   - [x] **执行耗时计算**：`durationMs` 准确反映 `startedAt` 到 `finishedAt` 的耗时；
+   - [x] **终态严格校验**：`finishAttempt()` 拒绝 `RUNNING`；
+   - [x] **日志事件映射**：仅 `SUCCEEDED` 触发 `COMPLETED`，其他终态均触发 `FAILED`；
+   - [x] **敏感信息脱敏**：密码、Bearer Token、Shopify 密钥、Postgres URL 自动抹除，超长错误截断；
+   - [x] **写入容错机制**：Attempt Store 数据库异常不阻断外部执行，绝不导致重复副作用。
+
+2. **API ActionLayer 真实接线测试**（`apps/api/test/action-layer-attempt-wiring.spec.ts`，3 项测试全通）：
+   - [x] **非同步预约不落伪 Attempt**：`syncExecution=false` 认领租约并流转 `EXECUTING`，`listAttempts` 为 0；
+   - [x] **同步 ERP 执行成功**：记录 Attempt #1（`attemptType: 'EXECUTE'`, `status: 'SUCCEEDED'`, `effect: 'APPLIED'`）；
+   - [x] **同步 ERP 执行超时**：记录 Attempt #1（`attemptType: 'EXECUTE'`, `status: 'TIMEOUT'`, `effect: 'UNKNOWN'`, `recovery: 'QUERY'`）。
+
+3. **Worker 恢复自愈真实接线测试**（`apps/worker/test/automation-recovery-attempt-wiring.spec.ts`，2 项测试全通）：
+   - [x] **SUBMITTED + QUERY 链路**：认领后生成 Attempt #2（`attemptType: 'QUERY'`），远端单据核验一致后流转 `SUCCEEDED`；
+   - [x] **READY + RETRY 链路**：认领后生成 Attempt #2（`attemptType: 'RETRY'`），重试创建成功后流转 `SUCCEEDED`。

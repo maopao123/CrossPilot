@@ -1,5 +1,36 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 5.1 完成（Phase 5.1 Attempt Invariant & Workspace Isolation Closure Complete）**：
+> - **基线 Commit**: `b1fe4cc2591ff3644d5d686c04d597215c678035` (`b1fe4cc`, Phase 5)
+> - **目标达成**：全面收口 Phase 5 审查发现的 Attempt 租户隔离漏洞、生命周期语义边界与日志状态问题，确立“1 次真实外部交互 = 1 条 Attempt”的不变式，并在数据库层与 Store 层建立坚不可摧的租户隔离硬防线，补充完整的应用层 Runtime 真实接线测试。
+> - **1. 数据库级多租户硬防线（Prisma & Migration）**：
+>   - `AutomationOperation` 增加 `@@unique([id, workspaceId])`；
+>   - `ExecutionAttempt` 与父表关联升级为复合外键：`@relation(fields: [operationId, workspaceId], references: [id, workspaceId], onDelete: Cascade)`；
+>   - 交付纯增量 Migration SQL：`20260919235000_add_execution_attempt_tenant_integrity`。
+> - **2. Store 层租户隔离与身份验真（`ExecutionAttemptStore`）**：
+>   - `startAttempt()` 显式核验父操作在目标 `workspaceId` 下存在，杜绝跨租户幽灵关联（不存在抛 `AutomationOperationNotFoundError`）；
+>   - P2002 并发重放防泄露：限定当前 `workspaceId` 检索已存在行，杜绝跨租户数据泄露（跨租户抛 `AutomationOperationConflictError`）；同时对本租户重复调用核验 `attemptType` 与 `provider` 一致性；
+>   - `finishAttempt()` 严格限定更新作用域 `[workspaceId, operationId, attemptNo]`，并强制类型与运行时拒绝 `status: 'RUNNING'`，仅允许终态；
+>   - `safeFinishAttempt()` 日志映射修正：仅 `SUCCEEDED` 触发 `EXECUTION_ATTEMPT_COMPLETED`，其他终态触发 `EXECUTION_ATTEMPT_FAILED`。
+> - **3. Attempt 核心不变式与生命周期修正**：
+>   - 确立 `1 concrete external execution/query attempt = 1 ExecutionAttempt row`（绝非 “1 claim = 1 attempt”）；
+>   - 明确非同步预约执行（`isSync = false`）因未发生真实外部调用，严禁落伪 Attempt；
+>   - 允许并规范稀疏 Attempt 序号（如异步预约认领为 Attempt 1，后续 Worker 反查认领为 Attempt 2，仅落真实 Attempt #2），完全符合物理事实。
+> - **4. Runtime 真实接线集成测试**：
+>   - `apps/api/test/action-layer-attempt-wiring.spec.ts`（3/3 PASS）：
+>     - 非同步预约操作认领转 `EXECUTING` 但不创建任何伪 Attempt；
+>     - 同步 ERP 执行成功落 Attempt #1（`EXECUTE` / `SUCCEEDED`）；
+>     - 同步 ERP 执行超时落 Attempt #1（`EXECUTE` / `TIMEOUT`）。
+>   - `apps/worker/test/automation-recovery-attempt-wiring.spec.ts`（2/2 PASS）：
+>     - `SUBMITTED + QUERY` 链路产生 `attemptType: 'QUERY'`，反查匹配后流转 `SUCCEEDED`；
+>     - `READY + RETRY` 链路产生 `attemptType: 'RETRY'`，重试成功后流转 `SUCCEEDED`。
+>   - `packages/actions/test/execution-attempt-history.spec.ts` 扩展至 25/25 PASS（覆盖父操作租户校验、跨租户防泄露、类型/Provider 不匹配冲突、终态限制与日志事件映射）。
+> - **5. 严格红线执行**：
+>   - 未修改 `AutomationOperation` 状态机语义；
+>   - 未修改 Retry Policy / Timeout / Abort / Error Classification / Idempotency / Recovery 业务语义；
+>   - 数据库迁移安全纯增量；
+>   - 未进入 Phase 6 (Human Audit Trail)。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 5 完成（Phase 5 Execution Attempt History Complete）**：
 > - **基线 Commit**: `ec02d17c618f991ccc874689d804c1cedb49232e` (`ec02d17`, Phase 4.1)
 > - **目标达成**：增加持久化的 `ExecutionAttempt` 历史明细表，使每次 AutomationOperation 的首次执行、故障重试、远端反查以及自愈尝试都能够独立追踪，彻底解决累计 `attemptCount` 仅存次数、单槽位 `evidence` 覆盖导致历史执行无法溯源的问题；同时严格确立 `AutomationOperation` 为唯一运行时状态真相，`ExecutionAttempt` 仅作为历史明细投影。

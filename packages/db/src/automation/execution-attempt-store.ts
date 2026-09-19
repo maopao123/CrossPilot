@@ -6,23 +6,39 @@ import {
   runtimeLogger,
   StructuredLogger,
 } from '@crosspilot/shared';
+import {
+  AutomationOperationNotFoundError,
+  AutomationOperationConflictError,
+} from './automation-operation-store.js';
 
-export type ExecutionAttemptType =
-  | 'EXECUTE'
-  | 'RETRY'
-  | 'QUERY'
-  | 'VERIFY'
-  | 'RECOVERY'
-  | (string & {});
+export const VALID_EXECUTION_ATTEMPT_TYPES = [
+  'EXECUTE',
+  'RETRY',
+  'QUERY',
+  'VERIFY',
+  'RECOVERY',
+] as const;
+
+export type ExecutionAttemptType = (typeof VALID_EXECUTION_ATTEMPT_TYPES)[number];
+
+export const VALID_EXECUTION_ATTEMPT_TERMINAL_STATUSES = [
+  'SUCCEEDED',
+  'FAILED',
+  'TIMEOUT',
+  'CANCELLED',
+  'UNKNOWN',
+] as const;
+
+export type ExecutionAttemptTerminalStatus =
+  (typeof VALID_EXECUTION_ATTEMPT_TERMINAL_STATUSES)[number];
+
+export const VALID_EXECUTION_ATTEMPT_STATUSES = [
+  'RUNNING',
+  ...VALID_EXECUTION_ATTEMPT_TERMINAL_STATUSES,
+] as const;
 
 export type ExecutionAttemptStatus =
-  | 'RUNNING'
-  | 'SUCCEEDED'
-  | 'FAILED'
-  | 'TIMEOUT'
-  | 'CANCELLED'
-  | 'UNKNOWN'
-  | (string & {});
+  (typeof VALID_EXECUTION_ATTEMPT_STATUSES)[number];
 
 export interface StartAttemptParams {
   workspaceId: string;
@@ -39,7 +55,7 @@ export interface FinishAttemptParams {
   workspaceId: string;
   operationId: string;
   attemptNo: number;
-  status: ExecutionAttemptStatus;
+  status: ExecutionAttemptTerminalStatus;
   finishedAt?: Date;
   durationMs?: number | null;
   errorClass?: string | null;
@@ -55,10 +71,35 @@ export class ExecutionAttemptStore {
 
   /**
    * Idempotently starts an execution attempt.
-   * If an attempt for (operationId, attemptNo) already exists, returns the existing record.
-   * Invariant: 1 successful claim = 1 ExecutionAttempt row.
+   * Invariant:
+   * 1 concrete external execution/query attempt = 1 ExecutionAttempt row.
+   *
+   * Validates:
+   * 1. Parent AutomationOperation exists in the specified workspaceId (P0 workspace isolation).
+   * 2. attemptType is within the strict controlled union.
+   * 3. On duplicate P2002 conflict: verifies workspace match and attempt identity (attemptType, provider).
    */
   async startAttempt(params: StartAttemptParams): Promise<ExecutionAttempt> {
+    if (!VALID_EXECUTION_ATTEMPT_TYPES.includes(params.attemptType)) {
+      throw new Error(
+        `Invalid execution attempt type: '${params.attemptType}'. Allowed types: ${VALID_EXECUTION_ATTEMPT_TYPES.join(', ')}`,
+      );
+    }
+
+    // Step 1: Validate parent operation strictly exists in the requested workspace
+    const parentOp = await this.prisma.automationOperation.findFirst({
+      where: {
+        id: params.operationId,
+        workspaceId: params.workspaceId,
+      },
+    });
+
+    if (!parentOp) {
+      throw new AutomationOperationNotFoundError(
+        `Automation operation '${params.operationId}' not found in workspace '${params.workspaceId}'`,
+      );
+    }
+
     const startedAt = params.startedAt ?? new Date();
 
     try {
@@ -77,17 +118,32 @@ export class ExecutionAttemptStore {
       });
     } catch (err: any) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        const existing = await this.prisma.executionAttempt.findUnique({
+        // Step 2: Query existing attempt strictly scoped to workspace
+        const existing = await this.prisma.executionAttempt.findFirst({
           where: {
-            operationId_attemptNo: {
-              operationId: params.operationId,
-              attemptNo: params.attemptNo,
-            },
+            workspaceId: params.workspaceId,
+            operationId: params.operationId,
+            attemptNo: params.attemptNo,
           },
         });
-        if (existing) {
-          return existing;
+
+        if (!existing) {
+          // P2002 hit on (operationId, attemptNo) but does not match this workspace
+          throw new AutomationOperationConflictError(
+            `Execution attempt ${params.attemptNo} conflict for operation '${params.operationId}' in workspace '${params.workspaceId}'`,
+          );
         }
+
+        // Step 3: Verify attempt identity (attemptType and provider must match)
+        if (existing.attemptType !== params.attemptType || existing.provider !== params.provider) {
+          throw new AutomationOperationConflictError(
+            `Attempt identity mismatch for operation '${params.operationId}' attempt ${params.attemptNo}: ` +
+              `existing (type=${existing.attemptType}, provider=${existing.provider}) vs ` +
+              `incoming (type=${params.attemptType}, provider=${params.provider})`,
+          );
+        }
+
+        return existing;
       }
       throw err;
     }
@@ -128,8 +184,16 @@ export class ExecutionAttemptStore {
 
   /**
    * Finalizes an execution attempt with sanitized error and evidence.
+   * Enforces workspace scoping for all existing lookups and updates.
+   * Rejects non-terminal statuses such as 'RUNNING'.
    */
   async finishAttempt(params: FinishAttemptParams): Promise<ExecutionAttempt | null> {
+    if (!VALID_EXECUTION_ATTEMPT_TERMINAL_STATUSES.includes(params.status)) {
+      throw new Error(
+        `Invalid execution attempt terminal status: '${params.status}'. Allowed terminal statuses: ${VALID_EXECUTION_ATTEMPT_TERMINAL_STATUSES.join(', ')}`,
+      );
+    }
+
     const finishedAt = params.finishedAt ?? new Date();
 
     // Sanitize and truncate error message (max 1000 characters)
@@ -145,18 +209,21 @@ export class ExecutionAttemptStore {
       sanitizedEvidence = sanitizeLogData(params.evidence);
     }
 
-    // Find existing attempt to calculate durationMs if not provided
-    const existing = await this.prisma.executionAttempt.findUnique({
+    // Find existing attempt strictly scoped to workspace
+    const existing = await this.prisma.executionAttempt.findFirst({
       where: {
-        operationId_attemptNo: {
-          operationId: params.operationId,
-          attemptNo: params.attemptNo,
-        },
+        workspaceId: params.workspaceId,
+        operationId: params.operationId,
+        attemptNo: params.attemptNo,
       },
     });
 
+    if (!existing) {
+      return null;
+    }
+
     let durationMs = params.durationMs ?? null;
-    if (durationMs == null && existing?.startedAt) {
+    if (durationMs == null && existing.startedAt) {
       durationMs = Math.max(0, finishedAt.getTime() - existing.startedAt.getTime());
     }
 
@@ -185,12 +252,11 @@ export class ExecutionAttemptStore {
       return null;
     }
 
-    return this.prisma.executionAttempt.findUnique({
+    return this.prisma.executionAttempt.findFirst({
       where: {
-        operationId_attemptNo: {
-          operationId: params.operationId,
-          attemptNo: params.attemptNo,
-        },
+        workspaceId: params.workspaceId,
+        operationId: params.operationId,
+        attemptNo: params.attemptNo,
       },
     });
   }
@@ -198,6 +264,10 @@ export class ExecutionAttemptStore {
   /**
    * Fail-safe wrapper around finishAttempt.
    * Historical record failures MUST NEVER abort business execution or duplicate external writes.
+   *
+   * Logging rule:
+   * status === 'SUCCEEDED' -> EXECUTION_ATTEMPT_COMPLETED
+   * other terminal statuses (FAILED, TIMEOUT, CANCELLED, UNKNOWN) -> EXECUTION_ATTEMPT_FAILED
    */
   async safeFinishAttempt(
     params: FinishAttemptParams,
@@ -205,11 +275,11 @@ export class ExecutionAttemptStore {
   ): Promise<ExecutionAttempt | null> {
     try {
       const attempt = await this.finishAttempt(params);
-      const isFailed = params.status === 'FAILED' || params.status === 'TIMEOUT';
+      const isSucceeded = params.status === 'SUCCEEDED';
       (logger ?? runtimeLogger).info({
-        event: isFailed
-          ? RuntimeEvents.EXECUTION_ATTEMPT_FAILED
-          : RuntimeEvents.EXECUTION_ATTEMPT_COMPLETED,
+        event: isSucceeded
+          ? RuntimeEvents.EXECUTION_ATTEMPT_COMPLETED
+          : RuntimeEvents.EXECUTION_ATTEMPT_FAILED,
         workspaceId: params.workspaceId,
         operationId: params.operationId,
         attempt: params.attemptNo,
