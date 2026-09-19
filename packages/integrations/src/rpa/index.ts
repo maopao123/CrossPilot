@@ -6,3 +6,4 @@ export * from './playwright/mock-seller-central.server.js';
 export * from './playwright/seller-central.page.js';
 export * from './playwright/listing.workflow.js';
 export * from './rpa.registry.js';
+export * from './artifact-builder.js';

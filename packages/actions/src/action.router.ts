@@ -523,6 +523,7 @@ export class ActionRouter {
 
           const isMock = mode === 'MOCK' || adapter.id === 'mock-rpa';
           const isSimulator = mode === 'SIMULATOR';
+          const targetSku = (payload.skuCode as string) || (payload.sku as string) || (rpaResult.output as any)?.skuCode;
 
           if (rpaResult.status === 'SUCCESS') {
             // Live bare SUCCESS without verified evidence cannot claim APPLIED
@@ -543,6 +544,7 @@ export class ActionRouter {
               durationMs: Date.now() - startTime,
               normalizedError: unverifiedNormalized,
               executionEvidence: {
+                schemaVersion: 2,
                 mode, // Preserve mode! Never hardcode isMock ? 'MOCK' : 'LIVE'
                 provider: adapter.id,
                 operationId,
@@ -552,6 +554,26 @@ export class ActionRouter {
                 recovery: isVerified ? 'NONE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
                 externalId: rpaResult.jobId || undefined,
                 ...(isMock ? { verifiedAt: new Date().toISOString() } : {}),
+                verification: {
+                  status: isVerified ? 'VERIFIED' : 'FAILED',
+                  method: 'DOM_ASSERTION',
+                  targetId: targetSku,
+                  matched: isVerified,
+                  details: rpaResult.output ? { changedFields: (rpaResult.output as any).changedFields } : undefined,
+                },
+                ...(isVerified
+                  ? {
+                      sideEffect: {
+                        confirmed: true,
+                        occurredAt: new Date().toISOString(),
+                        resourceType: 'LISTING',
+                        resourceId: targetSku,
+                      },
+                    }
+                  : {}),
+                ...(rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
+                  ? { artifacts: rpaResult.evidenceArtifacts }
+                  : {}),
                 ...(isVerified
                   ? {}
                   : {
@@ -570,6 +592,7 @@ export class ActionRouter {
               traceId,
               durationMs: Date.now() - startTime,
               executionEvidence: {
+                schemaVersion: 2,
                 mode,
                 provider: adapter.id,
                 operationId,
@@ -578,6 +601,9 @@ export class ActionRouter {
                 effect: 'UNKNOWN',
                 recovery: adapter.getStatus ? 'QUERY' : 'MANUAL',
                 externalId: rpaResult.jobId || undefined,
+                ...(rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
+                  ? { artifacts: rpaResult.evidenceArtifacts }
+                  : {}),
               },
             };
           } else if (rpaResult.status === 'TIMEOUT') {
@@ -597,6 +623,7 @@ export class ActionRouter {
               durationMs: Date.now() - startTime,
               normalizedError: timeoutNormalized,
               executionEvidence: {
+                schemaVersion: 2,
                 mode,
                 provider: adapter.id,
                 operationId,
@@ -608,6 +635,15 @@ export class ActionRouter {
                 errorCode: timeoutNormalized.code,
                 errorClass: timeoutNormalized.class,
                 normalizedError: timeoutNormalized,
+                verification: {
+                  status: 'FAILED',
+                  method: 'DOM_ASSERTION',
+                  targetId: targetSku,
+                  matched: false,
+                },
+                ...(rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
+                  ? { artifacts: rpaResult.evidenceArtifacts }
+                  : {}),
               },
             };
           } else {
@@ -664,6 +700,7 @@ export class ActionRouter {
               durationMs: Date.now() - startTime,
               normalizedError: failedNormalized,
               executionEvidence: {
+                schemaVersion: 2,
                 mode,
                 provider: adapter.id,
                 operationId,
@@ -679,6 +716,15 @@ export class ActionRouter {
                 errorCode: failedNormalized.code,
                 errorClass: failedNormalized.class,
                 normalizedError: failedNormalized,
+                verification: {
+                  status: 'FAILED',
+                  method: 'DOM_ASSERTION',
+                  targetId: targetSku,
+                  matched: false,
+                },
+                ...(rpaResult.evidenceArtifacts && rpaResult.evidenceArtifacts.length > 0
+                  ? { artifacts: rpaResult.evidenceArtifacts }
+                  : {}),
               },
             };
           }

@@ -2,6 +2,7 @@ import { PrismaClient, Prisma, ExecutionAttempt } from '@prisma/client';
 import {
   sanitizeString,
   sanitizeLogData,
+  sanitizeExecutionEvidenceForPersistence,
   RuntimeEvents,
   runtimeLogger,
   StructuredLogger,
@@ -203,10 +204,10 @@ export class ExecutionAttemptStore {
       sanitizedErrorMsg = sanitized.length > 1000 ? sanitized.substring(0, 1000) : sanitized;
     }
 
-    // Sanitize evidence payload
+    // Sanitize evidence payload using canonical persistence sanitizer
     let sanitizedEvidence: any = Prisma.DbNull;
     if (params.evidence) {
-      sanitizedEvidence = sanitizeLogData(params.evidence);
+      sanitizedEvidence = sanitizeExecutionEvidenceForPersistence(params.evidence);
     }
 
     // Find existing attempt strictly scoped to workspace

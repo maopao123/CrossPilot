@@ -357,6 +357,7 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
         error: outcome.error,
         normalizedError,
         durationMs: outcome.durationMs,
+        evidenceArtifacts: outcome.evidenceArtifacts,
       };
 
       if (status === 'SUCCESS') {

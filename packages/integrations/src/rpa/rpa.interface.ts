@@ -1,4 +1,4 @@
-import { AutomationMode, NormalizedExecutionError } from '@crosspilot/shared';
+import { AutomationMode, ExecutionEvidenceArtifact, NormalizedExecutionError } from '@crosspilot/shared';
 
 export type RpaStatus = 'SUCCESS' | 'FAILED' | 'RUNNING' | 'TIMEOUT';
 
@@ -29,6 +29,7 @@ export interface RpaExecutionResult {
   error?: string;
   durationMs: number;
   normalizedError?: NormalizedExecutionError;
+  evidenceArtifacts?: ExecutionEvidenceArtifact[];
 }
 
 export interface RpaAdapter {

@@ -15,7 +15,7 @@ export class AutomationOperationNotFoundError extends Error {
 }
 
 import { PrismaClient, Prisma, AutomationOperation } from '@prisma/client';
-import type { ExecutionEvidence } from '@crosspilot/shared';
+import { type ExecutionEvidence, sanitizeExecutionEvidenceForPersistence } from '@crosspilot/shared';
 
 export interface AutomationScope {
   workspaceId: string;
@@ -62,6 +62,10 @@ export class AutomationOperationStore {
     const { workspaceId, connectionId } = scope;
     const { actionId, operationKind, idempotencyKey, payloadHash, approvedPayloadHash, mode, provider } = command;
 
+    const sanitizedInitialEvidence = command.initialEvidence
+      ? sanitizeExecutionEvidenceForPersistence(command.initialEvidence)
+      : undefined;
+
     try {
       const created = await this.prisma.automationOperation.create({
         data: {
@@ -74,11 +78,11 @@ export class AutomationOperationStore {
           approvedPayloadHash,
           mode,
           provider,
-          phase: command.initialEvidence?.phase || 'READY',
-          effect: command.initialEvidence?.effect || 'NOT_APPLIED',
-          recovery: command.initialEvidence?.recovery || 'MANUAL',
-          externalId: command.initialEvidence?.externalId,
-          evidence: (command.initialEvidence as any) || Prisma.DbNull,
+          phase: sanitizedInitialEvidence?.phase || 'READY',
+          effect: sanitizedInitialEvidence?.effect || 'NOT_APPLIED',
+          recovery: sanitizedInitialEvidence?.recovery || 'MANUAL',
+          externalId: sanitizedInitialEvidence?.externalId,
+          evidence: (sanitizedInitialEvidence as any) || Prisma.DbNull,
           version: 1,
           attemptCount: 0,
         },
@@ -188,6 +192,8 @@ export class AutomationOperationStore {
     expectedVersion: number,
     evidence: ExecutionEvidence,
   ): Promise<AutomationOperation> {
+    const sanitizedEvidence = sanitizeExecutionEvidenceForPersistence(evidence);
+
     const result = await this.prisma.automationOperation.updateMany({
       where: {
         id: operationId,
@@ -196,12 +202,12 @@ export class AutomationOperationStore {
       },
       data: {
         version: { increment: 1 },
-        phase: evidence.phase,
-        effect: evidence.effect,
-        recovery: evidence.recovery,
-        externalId: evidence.externalId || null,
-        lastErrorCode: evidence.errorCode || null,
-        evidence: (evidence as any) || Prisma.DbNull,
+        phase: sanitizedEvidence.phase,
+        effect: sanitizedEvidence.effect,
+        recovery: sanitizedEvidence.recovery,
+        externalId: sanitizedEvidence.externalId || null,
+        lastErrorCode: sanitizedEvidence.errorCode || null,
+        evidence: (sanitizedEvidence as any) || Prisma.DbNull,
         leaseOwner: null,
         leaseUntil: null,
       },

@@ -9,4 +9,5 @@ export * from './rpa/playwright.adapter.js';
 export * from './provider-framework/index.js';
 export * from './storage/object-storage.service.js';
 export * from './erp/index.js';
+export * from './rpa/artifact-builder.js';
 

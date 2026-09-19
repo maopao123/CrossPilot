@@ -305,6 +305,7 @@ export async function processAutomationRecovery(
             };
 
             const evidenceData: any = {
+              schemaVersion: 2,
               ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
@@ -324,6 +325,13 @@ export async function processAutomationRecovery(
                 },
               ),
               conflictDetails,
+              verification: {
+                status: 'FAILED',
+                method: 'REMOTE_QUERY',
+                targetId: externalId,
+                matched: false,
+                details: conflictDetails,
+              },
             };
 
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
@@ -376,6 +384,7 @@ export async function processAutomationRecovery(
           if (!syncRes.success) {
             // 远端已收敛生效但本地同步失败：落证据并进入 NEEDS_ATTENTION / MANUAL 可追踪状态，严禁静默吞掉
             const evidenceData: any = {
+              schemaVersion: 2,
               ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
@@ -396,6 +405,18 @@ export async function processAutomationRecovery(
               ),
               verifiedAt: new Date().toISOString(),
               syncError: syncRes.error,
+              verification: {
+                status: 'VERIFIED',
+                method: 'REMOTE_QUERY',
+                targetId: externalId,
+                matched: true,
+              },
+              sideEffect: {
+                confirmed: true,
+                occurredAt: new Date().toISOString(),
+                resourceType: 'PURCHASE_ORDER',
+                resourceId: externalId,
+              },
             };
 
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
@@ -439,6 +460,7 @@ export async function processAutomationRecovery(
 
           // 校验与本地同步均成功，收敛至 COMPLETED / APPLIED
           const evidenceData: any = {
+            schemaVersion: 2,
             ...(traceId ? { traceId } : {}),
             mode: claimed.mode as any,
             provider: claimed.provider,
@@ -448,6 +470,18 @@ export async function processAutomationRecovery(
             recovery: 'NONE',
             externalId,
             verifiedAt: new Date().toISOString(),
+            verification: {
+              status: 'VERIFIED',
+              method: 'REMOTE_QUERY',
+              targetId: externalId,
+              matched: true,
+            },
+            sideEffect: {
+              confirmed: true,
+              occurredAt: new Date().toISOString(),
+              resourceType: 'PURCHASE_ORDER',
+              resourceId: externalId,
+            },
           };
 
           await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
@@ -506,6 +540,7 @@ export async function processAutomationRecovery(
         if (checkNormalized.class === 'AUTH' || checkNormalized.class === 'PERMISSION') {
           const recoveryAction = checkNormalized.class === 'AUTH' ? 'REAUTHORIZE' : 'MANUAL';
           const evidenceData: any = {
+            schemaVersion: 2,
             ...(traceId ? { traceId } : {}),
             mode: claimed.mode as any,
             provider: claimed.provider,
@@ -516,6 +551,11 @@ export async function processAutomationRecovery(
             errorCode: checkNormalized.code,
             errorClass: checkNormalized.class,
             normalizedError: checkNormalized,
+            verification: {
+              status: 'FAILED',
+              method: 'REMOTE_QUERY',
+              matched: false,
+            },
           };
 
           await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
@@ -560,6 +600,7 @@ export async function processAutomationRecovery(
         if (isDefiniteNotFound) {
           if (claimed.attemptCount >= 3) {
             const evidenceData: any = {
+              schemaVersion: 2,
               ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
@@ -570,6 +611,11 @@ export async function processAutomationRecovery(
               errorCode: 'MAX_RETRIES_EXCEEDED',
               errorClass: checkNormalized.class,
               normalizedError: checkNormalized,
+              verification: {
+                status: 'FAILED',
+                method: 'REMOTE_QUERY',
+                matched: false,
+              },
             };
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 
@@ -650,6 +696,7 @@ export async function processAutomationRecovery(
           // Timeout or network error during query: remote status remains UNKNOWN
           if (claimed.attemptCount >= 3) {
             const evidenceData: any = {
+              schemaVersion: 2,
               ...(traceId ? { traceId } : {}),
               mode: claimed.mode as any,
               provider: claimed.provider,
@@ -660,6 +707,11 @@ export async function processAutomationRecovery(
               errorCode: 'QUERY_TIMEOUT_MAX',
               errorClass: checkNormalized.class,
               normalizedError: checkNormalized,
+              verification: {
+                status: 'FAILED',
+                method: 'REMOTE_QUERY',
+                matched: false,
+              },
             };
             await store.recordEvidence(claimed.workspaceId, claimed.id, claimed.version, evidenceData);
 

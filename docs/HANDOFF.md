@@ -1,5 +1,43 @@
 # CrossPilot 交接
 
+> **2026-09-20 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 7 完成（Phase 7 Execution Evidence Schema, Artifact Integrity & Redaction Complete）**：
+> - **基线 Commit**: `fbb48a195b411e5277923836ce15c55e41e0cd68` (`fbb48a1`, Phase 6.1)
+> - **目标达成**：统一 Automation Runtime Execution Evidence 的结构、持久化安全、Artifact 引用、Verify 证据和完整性校验。彻底隔离商业研究证据与自动化执行凭据，落实 P0 错误剥离（DB 零 `cause`/`stack`）、深度脱敏（Bearer/Shopify/DB 连接串/密码）、防路径遍历逻辑引用体系与 Fail-Safe 产物哈希降级防护。
+> - **1. V2 Execution Evidence 核心契约（`packages/shared/src/contracts/automation-contracts.ts`）**：
+>   - 引入 `schemaVersion: 2` 标识规范化演进；
+>   - 扩展类型化字段：`normalizedError?: PersistedExecutionError`、`verification?: ExecutionVerificationEvidence`、`sideEffect?: ExecutionSideEffectEvidence`、`artifacts?: ExecutionEvidenceArtifact[]`；
+>   - 严格区分业务研究领域（`EvidenceMeta`, `CommerceFact`, `EvidenceItem`）与执行真实性领域，零符号破坏性冲突。
+> - **2. P0 错误清洗与规范化持久化器（`packages/shared/src/contracts/evidence-sanitizer.ts`）**：
+>   - `sanitizeExecutionEvidenceForPersistence`：强制过滤 `cause`, `stack`, `rawRequest`，确保持久化时 `cause` 键彻底不存在；
+>   - 全字段双层敏感词脱敏：自动脱敏 Bearer tokens, Shopify access tokens (`shpat_`), DB 连接串密码, 以及任意嵌套对象中的敏感键名 (`password`, `secret`, `token`, `authorization`, `cookie`, `apiKey`)；
+>   - 单记录 JSON 体积熔断守卫（<= 64KB），防止大 payload 导致 PostgreSQL JSON 列爆炸；
+>   - `normalizeLegacyExecutionEvidence`：无缝兼容并将历史 V1 证据清洗升级为 V2 规范。
+> - **3. 逻辑安全引用体系与防路径遍历防御**：
+>   - `toSafeEvidenceRef`：严禁在数据库保存宿主绝对路径（`/Users/...`, `/app/...`），统一转换为相对根路径（`rpa/<jobId>/<file>`）；
+>   - Fail-Closed 拦截：严密阻断 `..` 路径穿越与宿主目录逃逸（抛出 `PATH_TRAVERSAL` / `HOST_PATH_ESCAPE`）；
+>   - `resolveEvidenceArtifactPath`：安全反解并严格校验不超出配置的 Evidence 根目录。
+> - **4. 产物完整性哈希与 Fail-Safe 降级防护（`packages/integrations/src/rpa/artifact-builder.ts`）**：
+>   - `buildEvidenceArtifact` 计算本地文件的 MIME 类型、`sizeBytes` 与 SHA-256 哈希；
+>   - Fail-Safe 铁律：文件占锁、缺失或哈希异常时记录 `RuntimeEvents.EXECUTION_EVIDENCE_ARTIFACT_FAILED` 警告日志并优雅降级，**绝不改变或阻断已发生的真实业务执行状态（Runtime Truth）**；
+>   - POSIX 最小权限防护：目录 `0o700`、文件 `0o600`，跨平台异常捕获不崩溃。
+> - **5. 运行时全链路收口与持久化统一**：
+>   - `AutomationOperationStore.createOrReplay()` 与 `recordEvidence()` 统一调用持久化清洗器；
+>   - `ExecutionAttemptStore.finishAttempt()` 统一调用持久化清洗器；
+>   - `PlaywrightRpaAdapter` 与 `ListingUpdateWorkflow` 生成强类型 before/after/failure 截图与 trace.zip 产物列表；
+>   - `ActionRouter` 对 RPA 执行结果挂载强类型 `verification` (DOM_ASSERTION), `sideEffect`, 与 `artifacts`；
+>   - `AutomationRecoveryProcessor` 对 Recovery Query 挂载强类型 `verification` (REMOTE_QUERY) 与 `sideEffect`。
+> - **6. 交付物与质量门禁**：
+>   - 规范文档：创建 `docs/automation-runtime/EXECUTION_EVIDENCE.md`；
+>   - 自动化测试：创建 `packages/actions/test/execution-evidence.spec.ts`（16 项高覆盖率测试全过，使用 `os.tmpdir()` 自动清理）；
+>   - 全套回归门禁验证：
+>     - `pnpm -r run build` 全部 PASS (0 错误)
+>     - `pnpm -r run typecheck` 10/10 workspaces 全部 PASS (0 错误)
+>     - `@crosspilot/actions` 220/220 全部 PASS (10 个测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/worker` 18/18 全部 PASS (4 个测试套件)
+>     - `@crosspilot/api` 核心测试套件全部 PASS
+>   - 严格红线执行：0 新增数据库表，0 DB Migration，零状态机核心语义改动，未进入 Phase 8/9。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 6.1 完成（Phase 6.1 Human Audit Concurrency & Actor Identity Closure Complete）**：
 > - **基线 Commit**: `ed65005f9ef647e88b0aa430d566925d0a743c81` (`ed65005`, Phase 6)
 > - **目标达成**：全面收口 Phase 6 人工审计流的并发安全（OCC）与 Actor 身份契约，确立 Single-Winner 竞态安全准则，消除多操作员并发决议导致的状态踩踏与幽灵审计隐患，完成 Phase 6 最终冻结闭环。

@@ -5,9 +5,15 @@ import {
   getAutomationTimeoutConfig,
   runtimeLogger,
   RuntimeEvents,
+  ExecutionEvidenceArtifact,
 } from '@crosspilot/shared';
 import { RpaExecutionLog } from '../rpa.interface.js';
 import { SellerCentralPage, ListingFormData } from './seller-central.page.js';
+import {
+  buildEvidenceArtifact,
+  ensureSafeEvidenceDirectory,
+  setSafeFilePermissions,
+} from '../artifact-builder.js';
 
 export interface UpdateListingWorkflowParams {
   skuCode: string;
@@ -44,6 +50,7 @@ export interface UpdateListingWorkflowResult {
   error?: string;
   durationMs: number;
   writeExecuted?: boolean;
+  evidenceArtifacts?: ExecutionEvidenceArtifact[];
 }
 
 /**
@@ -101,9 +108,7 @@ export class ListingUpdateWorkflow {
       path.join(process.cwd(), '.runtime-evidence', 'rpa');
     const evidenceDir = path.join(baseEvidenceDir, jobId);
 
-    if (!fs.existsSync(evidenceDir)) {
-      fs.mkdirSync(evidenceDir, { recursive: true });
-    }
+    ensureSafeEvidenceDirectory(evidenceDir);
 
     const tracePath = path.join(evidenceDir, 'trace.zip');
     const beforeScreenshot = path.join(evidenceDir, 'screenshot-before.png');
@@ -193,6 +198,7 @@ export class ListingUpdateWorkflow {
         );
       }
       await page.screenshot({ path: beforeScreenshot, fullPage: true });
+      setSafeFilePermissions(beforeScreenshot);
       recordLog('CAPTURE_BEFORE', `Captured before screenshot at ${beforeScreenshot}`);
 
       // Step 3: Apply Updates
@@ -240,6 +246,7 @@ export class ListingUpdateWorkflow {
         );
       }
       await page.screenshot({ path: afterScreenshot, fullPage: true });
+      setSafeFilePermissions(afterScreenshot);
       recordLog('CAPTURE_AFTER', `Captured after screenshot at ${afterScreenshot}`);
 
       // Step 6: Verify Values
@@ -263,6 +270,7 @@ export class ListingUpdateWorkflow {
 
       // Stop Tracing
       await context.tracing.stop({ path: tracePath });
+      setSafeFilePermissions(tracePath);
       recordLog('TRACING_SAVED', `Playwright trace archive saved at ${tracePath}`);
 
       await browser.close();
@@ -279,6 +287,32 @@ export class ListingUpdateWorkflow {
         tracePath,
       };
 
+      const evidenceArtifacts: ExecutionEvidenceArtifact[] = [];
+      if (fs.existsSync(afterScreenshot)) {
+        evidenceArtifacts.push(
+          buildEvidenceArtifact(
+            { filePath: afterScreenshot, kind: 'SCREENSHOT_AFTER', baseEvidenceDir },
+            workflowLogger,
+          ),
+        );
+      }
+      if (fs.existsSync(beforeScreenshot)) {
+        evidenceArtifacts.push(
+          buildEvidenceArtifact(
+            { filePath: beforeScreenshot, kind: 'SCREENSHOT_BEFORE', baseEvidenceDir },
+            workflowLogger,
+          ),
+        );
+      }
+      if (fs.existsSync(tracePath)) {
+        evidenceArtifacts.push(
+          buildEvidenceArtifact(
+            { filePath: tracePath, kind: 'PLAYWRIGHT_TRACE', baseEvidenceDir },
+            workflowLogger,
+          ),
+        );
+      }
+
       return {
         success: true,
         output,
@@ -286,6 +320,7 @@ export class ListingUpdateWorkflow {
         logs,
         durationMs: Date.now() - startTime,
         writeExecuted: true,
+        evidenceArtifacts,
       };
     } catch (err: any) {
       if (err?.message?.includes('VERIFY_FAILED') || err?.message?.includes('TARGET_MISMATCH')) {
@@ -299,10 +334,12 @@ export class ListingUpdateWorkflow {
       try {
         if (page) {
           await page.screenshot({ path: failureScreenshot, fullPage: true }).catch(() => {});
+          setSafeFilePermissions(failureScreenshot);
           recordLog('CAPTURE_FAILURE', `Captured failure screenshot at ${failureScreenshot}`);
         }
         if (context) {
           await context.tracing.stop({ path: tracePath }).catch(() => {});
+          setSafeFilePermissions(tracePath);
         }
       } catch {
         // Ignore secondary evidence capture errors
@@ -313,6 +350,31 @@ export class ListingUpdateWorkflow {
       }
 
       const screenshotUrls = fs.existsSync(failureScreenshot) ? [failureScreenshot] : [];
+      const evidenceArtifacts: ExecutionEvidenceArtifact[] = [];
+      if (fs.existsSync(failureScreenshot)) {
+        evidenceArtifacts.push(
+          buildEvidenceArtifact(
+            { filePath: failureScreenshot, kind: 'SCREENSHOT_FAILURE', baseEvidenceDir },
+            workflowLogger,
+          ),
+        );
+      }
+      if (fs.existsSync(beforeScreenshot)) {
+        evidenceArtifacts.push(
+          buildEvidenceArtifact(
+            { filePath: beforeScreenshot, kind: 'SCREENSHOT_BEFORE', baseEvidenceDir },
+            workflowLogger,
+          ),
+        );
+      }
+      if (fs.existsSync(tracePath)) {
+        evidenceArtifacts.push(
+          buildEvidenceArtifact(
+            { filePath: tracePath, kind: 'PLAYWRIGHT_TRACE', baseEvidenceDir },
+            workflowLogger,
+          ),
+        );
+      }
 
       let errorClassification = 'RPA_EXECUTION_FAILED';
       const msg = String(err?.message || '');
@@ -345,6 +407,7 @@ export class ListingUpdateWorkflow {
         logs,
         durationMs: Date.now() - startTime,
         writeExecuted,
+        evidenceArtifacts,
       };
     } finally {
       if (params.signal && onAbort) {
