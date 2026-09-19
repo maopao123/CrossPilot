@@ -13,6 +13,7 @@ import {
   type PlannedActionRecord,
   type ActionExecutionRecord,
   type CommerceActionType,
+  normalizeExecutionError,
 } from '@crosspilot/shared';
 import {
   ActionLayerError,
@@ -466,13 +467,28 @@ export class ActionLayerService {
     });
 
     if (!erpRes.success) {
-      const isTimeout = erpRes.errorCode === 'TIMEOUT' || erpRes.errorCode === 'UNKNOWN_ERROR';
-      const isRateLimited = erpRes.errorCode === 'RATE_LIMITED';
-      const isAuthFailed = erpRes.errorCode === 'AUTH_FAILED';
+      const normalized =
+        erpRes.normalizedError ??
+        normalizeExecutionError(erpRes.errorMessage || erpRes, {
+          provider: String(target.provider || 'simulator-erp'),
+          code: erpRes.errorCode,
+          originalStatus: erpRes.statusCode,
+        });
+
+      const isTimeout = normalized.class === 'TIMEOUT';
+      const isRateLimited = normalized.class === 'RATE_LIMIT';
+      const isTransient = normalized.class === 'TRANSIENT';
+      const isAuthFailed = normalized.class === 'AUTH';
 
       const phase = isTimeout ? 'SUBMITTED' : 'FAILED';
       const effect = isTimeout ? 'UNKNOWN' : 'NOT_APPLIED';
-      const recovery = isTimeout ? 'QUERY' : isRateLimited ? 'RETRY' : isAuthFailed ? 'REAUTHORIZE' : 'MANUAL';
+      const recovery = isTimeout
+        ? 'QUERY'
+        : isRateLimited || isTransient
+          ? 'RETRY'
+          : isAuthFailed
+            ? 'REAUTHORIZE'
+            : 'MANUAL';
 
       const evidenceData: any = {
         mode: mode as any,
@@ -481,7 +497,9 @@ export class ActionLayerService {
         phase,
         effect,
         recovery,
-        errorCode: erpRes.errorCode || 'UNKNOWN_ERROR',
+        errorCode: normalized.code || erpRes.errorCode || 'UNKNOWN_ERROR',
+        errorClass: normalized.class,
+        normalizedError: normalized,
       };
 
       await this.operationStore.recordEvidence(

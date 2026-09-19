@@ -3,7 +3,7 @@ import {
   ExecutionErrorClass,
   NormalizedExecutionError,
 } from '@crosspilot/shared';
-import { HttpERPAdapter, PlaywrightRpaAdapter } from '@crosspilot/integrations';
+import { HttpERPAdapter, PlaywrightRpaAdapter, RpaRegistry } from '@crosspilot/integrations';
 import { ActionRouter, ActionProposal } from '../src/index.js';
 
 describe('Phase 1: Unified Execution Error Classification Tests', () => {
@@ -349,6 +349,316 @@ describe('Phase 1: Unified Execution Error Classification Tests', () => {
       expect(result.executionEvidence?.errorClass).toBe('VALIDATION');
       expect(result.executionEvidence?.errorCode).toBe('UNSUPPORTED_RUNTIME');
       expect(result.executionEvidence?.effect).toBe('NOT_APPLIED');
+    });
+  });
+
+  describe('5. Shopify and Commerce Error Classification Closure', () => {
+    it('5.1 maps Shopify HTTP 429 and PROVIDER_RATE_LIMIT to RATE_LIMIT (retryable=true)', () => {
+      const err1 = { code: 'PROVIDER_RATE_LIMIT', message: 'Shopify rate limit exceeded' };
+      const norm1 = normalizeExecutionError(err1, { retryable: true, provider: 'shopify' });
+      expect(norm1.class).toBe('RATE_LIMIT');
+      expect(norm1.retryable).toBe(true);
+
+      const err2 = { originalStatus: 429, message: 'Too Many Requests' };
+      const norm2 = normalizeExecutionError(err2, { originalStatus: 429, provider: 'shopify' });
+      expect(norm2.class).toBe('RATE_LIMIT');
+      expect(norm2.retryable).toBe(true);
+    });
+
+    it('5.2 maps Shopify 5xx and PROVIDER_UNAVAILABLE with retryable=true to TRANSIENT (retryable=true)', () => {
+      const err500 = { originalStatus: 500, message: 'Shopify internal server error' };
+      const norm500 = normalizeExecutionError(err500, { originalStatus: 500, provider: 'shopify' });
+      expect(norm500.class).toBe('TRANSIENT');
+      expect(norm500.retryable).toBe(true);
+
+      const errNet = { code: 'PROVIDER_UNAVAILABLE', message: 'Failed to reach Shopify GraphQL API: fetch failed' };
+      const normNet = normalizeExecutionError(errNet, { retryable: true, provider: 'shopify' });
+      expect(normNet.class).toBe('TRANSIENT');
+      expect(normNet.retryable).toBe(true);
+      expect(normNet.class).not.toBe('UNKNOWN');
+    });
+
+    it('5.3 maps PROVIDER_UNAVAILABLE with retryable=false to PROVIDER_ERROR (retryable=false)', () => {
+      const errPlatform = { code: 'PROVIDER_UNAVAILABLE', message: 'No Commerce Adapter registered for platform=unsupported' };
+      const normPlatform = normalizeExecutionError(errPlatform, { retryable: false, provider: 'shopify' });
+      expect(normPlatform.class).toBe('PROVIDER_ERROR');
+      expect(normPlatform.retryable).toBe(false);
+      expect(normPlatform.class).not.toBe('UNKNOWN');
+    });
+
+    it('5.4 maps Shopify AUTH_REQUIRED and HTTP 401/403 to AUTH (retryable=false)', () => {
+      const errAuth = { code: 'AUTH_REQUIRED', message: 'Shopify store is not connected (no client credentials found)' };
+      const normAuth = normalizeExecutionError(errAuth, { provider: 'shopify' });
+      expect(normAuth.class).toBe('AUTH');
+      expect(normAuth.retryable).toBe(false);
+
+      const err401 = { originalStatus: 401, message: 'Unauthorized access token' };
+      const norm401 = normalizeExecutionError(err401, { originalStatus: 401, provider: 'shopify' });
+      expect(norm401.class).toBe('AUTH');
+      expect(norm401.retryable).toBe(false);
+
+      // Shopify token expiration on HTTP 403 with auth code
+      const err403Auth = { originalStatus: 403, code: 'AUTH_REQUIRED', message: 'Shopify authentication failed / access token invalid or expired' };
+      const norm403Auth = normalizeExecutionError(err403Auth, { originalStatus: 403, code: 'AUTH_REQUIRED', provider: 'shopify' });
+      expect(norm403Auth.class).toBe('AUTH');
+      expect(norm403Auth.retryable).toBe(false);
+    });
+
+    it('5.5 maps Shopify COMMERCE_PORT_ERROR to PROVIDER_ERROR (retryable=false)', () => {
+      const errCommerce = { code: 'COMMERCE_PORT_ERROR', message: 'Product variant GID does not exist' };
+      const normCommerce = normalizeExecutionError(errCommerce, { provider: 'shopify', retryable: false });
+      expect(normCommerce.class).toBe('PROVIDER_ERROR');
+      expect(normCommerce.retryable).toBe(false);
+      expect(normCommerce.class).not.toBe('UNKNOWN');
+    });
+
+    it('5.6 maps Shopify GraphQL THROTTLED to RATE_LIMIT (retryable=true)', () => {
+      const gqlThrottled = { code: 'THROTTLED', message: 'Throttled by Shopify GraphQL endpoint' };
+      const normThrottled = normalizeExecutionError(gqlThrottled, { provider: 'shopify' });
+      expect(normThrottled.class).toBe('RATE_LIMIT');
+      expect(normThrottled.retryable).toBe(true);
+
+      const gqlThrottledMsg = new Error('Shopify query error: Throttled');
+      const normMsg = normalizeExecutionError(gqlThrottledMsg, { provider: 'shopify' });
+      expect(normMsg.class).toBe('RATE_LIMIT');
+      expect(normMsg.retryable).toBe(true);
+    });
+
+    it('5.7 maps GraphQL validation and user errors to VALIDATION (retryable=false)', () => {
+      const gqlValidation = { code: 'GRAPHQL_VALIDATION_FAILED', message: 'Variable $id of type ID! was provided invalid value' };
+      const normValidation = normalizeExecutionError(gqlValidation, { provider: 'shopify' });
+      expect(normValidation.class).toBe('VALIDATION');
+      expect(normValidation.retryable).toBe(false);
+
+      const userInputErr = { code: 'BAD_USER_INPUT', message: 'Field "price" must be positive' };
+      const normUserInput = normalizeExecutionError(userInputErr, { provider: 'shopify' });
+      expect(normUserInput.class).toBe('VALIDATION');
+      expect(normUserInput.retryable).toBe(false);
+    });
+
+    it('5.8 guarantees that retryable=true error NEVER falls into UNKNOWN class', () => {
+      const obscureRetryable = { code: 'OBSCURE_UPSTREAM_ERROR', message: 'Something temporary happened upstream' };
+      const norm = normalizeExecutionError(obscureRetryable, { retryable: true, provider: 'shopify' });
+      expect(norm.class).toBe('TRANSIENT');
+      expect(norm.retryable).toBe(true);
+      expect(norm.class).not.toBe('UNKNOWN');
+    });
+  });
+
+  describe('6. Action Layer Synchronous ERP State Machine Decision Driven by normalizedError.class', () => {
+    // Simulates the decision logic in apps/api/src/modules/action-layer/action-layer.service.ts:
+    function evaluateActionLayerErpRecovery(erpRes: {
+      success: boolean;
+      errorCode?: string;
+      errorMessage?: string;
+      statusCode?: number;
+      normalizedError?: NormalizedExecutionError;
+    }) {
+      const normalized =
+        erpRes.normalizedError ??
+        normalizeExecutionError(erpRes.errorMessage || erpRes, {
+          provider: 'simulator-erp',
+          code: erpRes.errorCode,
+          originalStatus: erpRes.statusCode,
+        });
+
+      const isTimeout = normalized.class === 'TIMEOUT';
+      const isRateLimited = normalized.class === 'RATE_LIMIT';
+      const isTransient = normalized.class === 'TRANSIENT';
+      const isAuthFailed = normalized.class === 'AUTH';
+
+      const phase = isTimeout ? 'SUBMITTED' : 'FAILED';
+      const effect = isTimeout ? 'UNKNOWN' : 'NOT_APPLIED';
+      const recovery = isTimeout
+        ? 'QUERY'
+        : isRateLimited || isTransient
+          ? 'RETRY'
+          : isAuthFailed
+            ? 'REAUTHORIZE'
+            : 'MANUAL';
+
+      const actionStatus = isTimeout ? 'EXECUTING' : 'FAILED';
+
+      return { phase, effect, recovery, actionStatus, errorClass: normalized.class };
+    }
+
+    it('routes TIMEOUT to SUBMITTED / UNKNOWN / QUERY / EXECUTING regardless of custom errorCode string', () => {
+      const decision = evaluateActionLayerErpRecovery({
+        success: false,
+        errorCode: 'CUSTOM_TIMEOUT_OCCURRED',
+        normalizedError: {
+          class: 'TIMEOUT',
+          code: 'TIMEOUT',
+          message: 'Operation timed out',
+          retryable: false,
+        },
+      });
+
+      expect(decision.phase).toBe('SUBMITTED');
+      expect(decision.effect).toBe('UNKNOWN');
+      expect(decision.recovery).toBe('QUERY');
+      expect(decision.actionStatus).toBe('EXECUTING');
+      expect(decision.errorClass).toBe('TIMEOUT');
+    });
+
+    it('routes RATE_LIMIT to FAILED / NOT_APPLIED / RETRY / FAILED', () => {
+      const decision = evaluateActionLayerErpRecovery({
+        success: false,
+        errorCode: '429_TOO_MANY_REQUESTS',
+        normalizedError: {
+          class: 'RATE_LIMIT',
+          code: 'RATE_LIMITED',
+          message: 'Rate limit exceeded',
+          retryable: true,
+        },
+      });
+
+      expect(decision.phase).toBe('FAILED');
+      expect(decision.effect).toBe('NOT_APPLIED');
+      expect(decision.recovery).toBe('RETRY');
+      expect(decision.actionStatus).toBe('FAILED');
+      expect(decision.errorClass).toBe('RATE_LIMIT');
+    });
+
+    it('routes TRANSIENT to FAILED / NOT_APPLIED / RETRY / FAILED', () => {
+      const decision = evaluateActionLayerErpRecovery({
+        success: false,
+        errorCode: 'HTTP_503',
+        normalizedError: {
+          class: 'TRANSIENT',
+          code: 'HTTP_503',
+          message: 'Service Unavailable',
+          retryable: true,
+        },
+      });
+
+      expect(decision.phase).toBe('FAILED');
+      expect(decision.effect).toBe('NOT_APPLIED');
+      expect(decision.recovery).toBe('RETRY');
+      expect(decision.actionStatus).toBe('FAILED');
+      expect(decision.errorClass).toBe('TRANSIENT');
+    });
+
+    it('routes AUTH to FAILED / NOT_APPLIED / REAUTHORIZE / FAILED', () => {
+      const decision = evaluateActionLayerErpRecovery({
+        success: false,
+        errorCode: 'TOKEN_INVALID',
+        normalizedError: {
+          class: 'AUTH',
+          code: 'AUTH_REQUIRED',
+          message: 'Session token invalid',
+          retryable: false,
+        },
+      });
+
+      expect(decision.phase).toBe('FAILED');
+      expect(decision.effect).toBe('NOT_APPLIED');
+      expect(decision.recovery).toBe('REAUTHORIZE');
+      expect(decision.actionStatus).toBe('FAILED');
+      expect(decision.errorClass).toBe('AUTH');
+    });
+
+    it('routes VALIDATION to FAILED / NOT_APPLIED / MANUAL / FAILED', () => {
+      const decision = evaluateActionLayerErpRecovery({
+        success: false,
+        errorCode: 'INVALID_PO_FORMAT',
+        normalizedError: {
+          class: 'VALIDATION',
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid purchase order schema',
+          retryable: false,
+        },
+      });
+
+      expect(decision.phase).toBe('FAILED');
+      expect(decision.effect).toBe('NOT_APPLIED');
+      expect(decision.recovery).toBe('MANUAL');
+      expect(decision.actionStatus).toBe('FAILED');
+      expect(decision.errorClass).toBe('VALIDATION');
+    });
+  });
+
+  describe('7. ActionRouter Primary vs Legacy Compatibility Fallback', () => {
+    const baseProposal: ActionProposal = {
+      id: 'act_rpa_test_001',
+      type: 'RPA',
+      name: 'Amazon Listing Publish',
+      description: 'Publish SKU',
+      requiresHumanApproval: true,
+      targetEntity: 'SKU',
+      targetId: 'SKU-RPA-001',
+      payload: { skuCode: 'SKU-RPA-001', price: 29.99 },
+      riskLevel: 'HIGH',
+      status: 'PENDING',
+      createdAt: '2026-09-19T00:00:00.000Z',
+    };
+
+    it('uses typed normalizedError.class directly without depending on string message prefix', async () => {
+      const customAdapter = {
+        id: 'custom-rpa-adapter',
+        name: 'Custom RPA',
+        supportedModes: ['LIVE' as const],
+        execute: async () => ({
+          jobId: '',
+          status: 'FAILED' as const,
+          // Notice: error message does NOT start with CONFIG_ERROR or AUTH_REQUIRED
+          error: 'Remote credentials verification failed during initial handshake',
+          normalizedError: {
+            class: 'AUTH' as ExecutionErrorClass,
+            code: 'CREDENTIAL_HANDSHAKE_FAILED',
+            message: 'Remote credentials verification failed during initial handshake',
+            retryable: false,
+          },
+          durationMs: 40,
+        }),
+      };
+
+      const registry = new RpaRegistry();
+      registry.register(customAdapter as any);
+      const router = new ActionRouter(registry);
+
+      const result = await router.dispatch(baseProposal, {
+        workspaceId: 'ws_demo',
+        isApproved: true,
+        executionMode: 'LIVE',
+        providerId: 'custom-rpa-adapter',
+      });
+
+      expect(result.status).toBe('FAILED');
+      // Proves: isExplicitPreflight recognized via normalizedError.class === 'AUTH'
+      expect(result.executionEvidence?.effect).toBe('NOT_APPLIED');
+      expect(result.executionEvidence?.recovery).toBe('REAUTHORIZE');
+      expect(result.executionEvidence?.errorClass).toBe('AUTH');
+    });
+
+    it('falls back to legacy string prefix only when adapter does not provide normalizedError', async () => {
+      const legacyAdapter = {
+        id: 'legacy-rpa-adapter',
+        name: 'Legacy RPA Adapter',
+        supportedModes: ['LIVE' as const],
+        execute: async () => ({
+          jobId: '',
+          status: 'FAILED' as const,
+          error: 'CONFIG_ERROR: legacy adapter missing target profile',
+          // NO normalizedError provided!
+          durationMs: 30,
+        }),
+      };
+
+      const registry = new RpaRegistry();
+      registry.register(legacyAdapter as any);
+      const router = new ActionRouter(registry);
+
+      const result = await router.dispatch(baseProposal, {
+        workspaceId: 'ws_demo',
+        isApproved: true,
+        executionMode: 'LIVE',
+        providerId: 'legacy-rpa-adapter',
+      });
+
+      expect(result.status).toBe('FAILED');
+      expect(result.executionEvidence?.effect).toBe('NOT_APPLIED');
+      expect(result.executionEvidence?.errorCode).toBe('CONFIG_ERROR');
     });
   });
 });

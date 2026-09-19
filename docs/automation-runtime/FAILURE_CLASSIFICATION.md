@@ -1,7 +1,7 @@
 # Automation Runtime 错误分类规范 (FAILURE CLASSIFICATION)
 
-> **版本**: v1.0.0 (Phase 1)  
-> **基线 Commit**: `ca4a291`  
+> **版本**: v1.1.0 (Phase 1.1 — Error Classification Closure)  
+> **基线 Commit**: `ca4a291` (Phase 1: `9eaffe4`)  
 > **最后更新**: 2026-09-19  
 > **状态**: Active / Implemented
 
@@ -106,8 +106,34 @@ export interface NormalizedExecutionError {
   - 审批后载荷篡改 (`PAYLOAD_TAMPERED`)：归一为 `VALIDATION`，`effect: NOT_APPLIED`。
   - 演示模板保护 (`DEMO_PAYLOAD_FORBIDDEN`)：归一为 `PERMISSION`，`errorCode: WRITE_FORBIDDEN`。
   - 不支持的运行时 (`UNSUPPORTED_RUNTIME`)：归一为 `VALIDATION`。
-- **执行结果封装**：
-  - `ActionExecutionResult` 与 `ExecutionEvidence` 均附带 `errorClass` 与 `normalizedError`。
+- **执行结果封装与主备流控**：
+  - **主控路径**：直接使用适配器返回的 `normalizedError.class` (`VALIDATION`, `AUTH`, `PERMISSION`) 与 `code` 确定 `effect` 与 `recovery`。
+  - **遗留兼容降级（Legacy Compatibility Fallback）**：针对未提供 `normalizedError` 的旧版或第三方适配器，仅在 `!rpaResult.normalizedError` 时回退检查 `CONFIG_ERROR` / `AUTH_REQUIRED` 字符串前缀；已全面隔离在降级分支，不影响主控路径。
+  - `ActionExecutionResult` 与 `ExecutionEvidence` 均附带强类型 `errorClass` 与 `normalizedError`。
+
+### 4.4 Shopify Adapter & CommercePortError 归一化矩阵 (`packages/shared/src/contracts/execution-error.ts`)
+在 Commerce Port 及 Shopify 执行中，各类异常严格映射如下：
+- **限流**：HTTP 429 / GraphQL `THROTTLED` / `PROVIDER_RATE_LIMIT` / `TOO_MANY_REQUESTS` → `class: RATE_LIMIT`, `retryable: true`
+- **瞬时网络/网关异常**：HTTP 500, 502, 503 / `ECONNRESET` / `socket hang up` / `fetch failed` → `class: TRANSIENT`, `retryable: true`
+- **下游服务可用性（PROVIDER_UNAVAILABLE）**：
+  - 若 `options.retryable === true` → `class: TRANSIENT`, `retryable: true`
+  - 若 `options.retryable === false` → `class: PROVIDER_ERROR`, `retryable: false`
+- **认证与鉴权**：
+  - HTTP 401 / `AUTH_REQUIRED` / `TOKEN_EXPIRED` / 带认证错误码的 HTTP 403 → `class: AUTH`, `retryable: false`
+  - 一般 HTTP 403 / `WRITE_FORBIDDEN` → `class: PERMISSION`, `retryable: false`
+- **GraphQL 与参数校验**：
+  - `BAD_USER_INPUT` / `GRAPHQL_VALIDATION_FAILED` / `USER_ERROR` / `VARIABLE_VALUE_INVALID` / HTTP 400 / HTTP 422 → `class: VALIDATION`, `retryable: false`
+- **底层端口与通用接口错误**：
+  - `COMMERCE_PORT_ERROR` / `GRAPHQL_ERROR` → `class: PROVIDER_ERROR`, `retryable: false`
+- **可重试兜底铁律**：任何标记为 `retryable: true` 的错误，兜底归一化绝不允许落入 `class: UNKNOWN`，严格归为 `TRANSIENT`。
+
+### 4.5 Action Layer 同步 ERP 状态机流转 (`apps/api/src/modules/action-layer/action-layer.service.ts`)
+在同步执行 ERP 调用时，彻底废除原始 `erpRes.errorCode === 'TIMEOUT' | 'RATE_LIMITED' | 'AUTH_FAILED'` 字符串判断，全面切换为 `erpRes.normalizedError ?? normalizeExecutionError(...)`：
+- `TIMEOUT`：`phase: SUBMITTED`, `effect: UNKNOWN`, `recovery: QUERY`, 状态为 `EXECUTING`（必须进入探活，禁止直接判定失败或盲目重试）。
+- `RATE_LIMIT` / `TRANSIENT`：`phase: FAILED`, `effect: NOT_APPLIED`, `recovery: RETRY`, 状态为 `FAILED`（安全重试）。
+- `AUTH`：`phase: FAILED`, `effect: NOT_APPLIED`, `recovery: REAUTHORIZE`, 状态为 `FAILED`（重签授权）。
+- `PERMISSION` / `VALIDATION` / `CONFLICT` / 其他：`phase: FAILED`, `effect: NOT_APPLIED`, `recovery: MANUAL`, 状态为 `FAILED`（人工核验）。
+- `evidenceData` 必须包含强类型 `errorClass` 与完整的 `normalizedError` 对象。
 
 ---
 

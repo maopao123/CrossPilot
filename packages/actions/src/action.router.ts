@@ -449,17 +449,29 @@ export class ActionRouter {
               });
 
             const hasRemoteJob = Boolean(rpaResult.jobId);
-            const isExplicitPreflight =
+
+            // Primary control path: typed normalized error
+            let isExplicitPreflight =
               !hasRemoteJob &&
               (failedNormalized.class === 'VALIDATION' ||
                 failedNormalized.class === 'AUTH' ||
+                failedNormalized.class === 'PERMISSION' ||
                 failedNormalized.code === 'CONFIG_ERROR' ||
                 failedNormalized.code === 'AUTH_REQUIRED' ||
                 failedNormalized.code === 'UNSUPPORTED_WORKFLOW' ||
-                Boolean(rpaResult.error?.startsWith('CONFIG_ERROR')) ||
-                Boolean(rpaResult.error?.startsWith('AUTH_REQUIRED')) ||
-                Boolean(rpaResult.error?.startsWith('UNSUPPORTED_WORKFLOW')) ||
-                Boolean(rpaResult.error?.startsWith('PREFLIGHT')));
+                failedNormalized.code === 'PREFLIGHT');
+
+            // LEGACY COMPATIBILITY FALLBACK: Only when rpaResult.normalizedError was missing
+            // from adapter and typed classification did not match, check legacy raw string prefix.
+            if (!isExplicitPreflight && !rpaResult.normalizedError && rpaResult.error) {
+              const rawErr = rpaResult.error;
+              isExplicitPreflight =
+                !hasRemoteJob &&
+                (rawErr.startsWith('CONFIG_ERROR') ||
+                  rawErr.startsWith('AUTH_REQUIRED') ||
+                  rawErr.startsWith('UNSUPPORTED_WORKFLOW') ||
+                  rawErr.startsWith('PREFLIGHT'));
+            }
 
             result = {
               actionId: proposal.id,

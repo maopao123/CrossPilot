@@ -120,10 +120,11 @@ export function normalizeExecutionError(
       };
     }
     if (originalStatus === 403) {
+      const isAuthCode = code === 'AUTH_REQUIRED' || code === 'AUTH_FAILED' || code === 'TOKEN_EXPIRED';
       return {
-        class: 'PERMISSION',
-        code: code || 'PERMISSION_DENIED',
-        message: message || 'Permission denied (HTTP 403)',
+        class: isAuthCode ? 'AUTH' : 'PERMISSION',
+        code: code || (isAuthCode ? 'AUTH_REQUIRED' : 'PERMISSION_DENIED'),
+        message: message || (isAuthCode ? 'Authentication failed (HTTP 403)' : 'Permission denied (HTTP 403)'),
         retryable: false,
         provider,
         originalStatus,
@@ -192,7 +193,8 @@ export function normalizeExecutionError(
   if (
     normalizedCode === 'RATE_LIMITED' ||
     normalizedCode === 'PROVIDER_RATE_LIMIT' ||
-    normalizedCode === 'THROTTLED'
+    normalizedCode === 'THROTTLED' ||
+    normalizedCode === 'TOO_MANY_REQUESTS'
   ) {
     return {
       class: 'RATE_LIMIT',
@@ -209,13 +211,71 @@ export function normalizeExecutionError(
     normalizedCode === 'AUTH_FAILED' ||
     normalizedCode === 'AUTH_REQUIRED' ||
     normalizedCode === 'UNAUTHORIZED' ||
-    normalizedCode === 'ACCESS_DENIED'
+    normalizedCode === 'ACCESS_DENIED' ||
+    normalizedCode === 'TOKEN_EXPIRED'
   ) {
     return {
       class: 'AUTH',
       code: code || 'AUTH_REQUIRED',
       message: message || 'Authentication failed',
       retryable: false,
+      provider,
+      originalStatus,
+      cause,
+    };
+  }
+
+  if (normalizedCode === 'PROVIDER_UNAVAILABLE') {
+    const isRetryable = options?.retryable ?? false;
+    return {
+      class: isRetryable ? 'TRANSIENT' : 'PROVIDER_ERROR',
+      code: code || 'PROVIDER_UNAVAILABLE',
+      message: message || (isRetryable ? 'Provider temporarily unavailable' : 'Provider unavailable'),
+      retryable: isRetryable,
+      provider,
+      originalStatus,
+      cause,
+    };
+  }
+
+  if (
+    normalizedCode === 'COMMERCE_PORT_ERROR' ||
+    normalizedCode === 'COMMERCE_ERROR'
+  ) {
+    return {
+      class: 'PROVIDER_ERROR',
+      code: code || 'COMMERCE_PORT_ERROR',
+      message: message || 'Commerce port downstream error',
+      retryable: false,
+      provider,
+      originalStatus,
+      cause,
+    };
+  }
+
+  if (
+    normalizedCode === 'BAD_USER_INPUT' ||
+    normalizedCode === 'GRAPHQL_VALIDATION_FAILED' ||
+    normalizedCode === 'USER_ERROR' ||
+    normalizedCode === 'VARIABLE_VALUE_INVALID'
+  ) {
+    return {
+      class: 'VALIDATION',
+      code: code || 'VALIDATION_ERROR',
+      message: message || 'GraphQL user or validation error',
+      retryable: false,
+      provider,
+      originalStatus,
+      cause,
+    };
+  }
+
+  if (normalizedCode === 'GRAPHQL_ERROR' || normalizedCode === 'COMMERCE_GRAPHQL_ERROR') {
+    return {
+      class: 'PROVIDER_ERROR',
+      code: code || 'GRAPHQL_ERROR',
+      message: message || 'GraphQL downstream error',
+      retryable: options?.retryable ?? false,
       provider,
       originalStatus,
       cause,
@@ -523,9 +583,25 @@ export function normalizeExecutionError(
   }
 
   if (
+    lowerMsg.includes('provider_unavailable') ||
+    lowerMsg.includes('provider unavailable') ||
+    lowerMsg.includes('failed to reach shopify')
+  ) {
+    const isRetryable = options?.retryable ?? false;
+    return {
+      class: isRetryable ? 'TRANSIENT' : 'PROVIDER_ERROR',
+      code: code || 'PROVIDER_UNAVAILABLE',
+      message,
+      retryable: isRetryable,
+      provider,
+      originalStatus,
+      cause,
+    };
+  }
+
+  if (
     lowerMsg.includes('local_sync_failed') ||
     lowerMsg.includes('save_failed') ||
-    lowerMsg.includes('provider_unavailable') ||
     lowerMsg.includes('commerce_port_error')
   ) {
     return {
@@ -541,8 +617,14 @@ export function normalizeExecutionError(
 
   // 5. Default Fallback
   return {
-    class: options?.defaultClass || 'UNKNOWN',
-    code: code || (options?.defaultClass ? String(options.defaultClass) : 'UNKNOWN_ERROR'),
+    class: options?.defaultClass || (options?.retryable ? 'TRANSIENT' : 'UNKNOWN'),
+    code:
+      code ||
+      (options?.defaultClass
+        ? String(options.defaultClass)
+        : options?.retryable
+          ? 'TRANSIENT_ERROR'
+          : 'UNKNOWN_ERROR'),
     message: message || 'An unknown execution error occurred',
     retryable:
       options?.retryable ??
