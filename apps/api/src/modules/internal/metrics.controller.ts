@@ -14,7 +14,17 @@ export class InternalMetricsController {
       return;
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
     const bearerToken = process.env.METRICS_BEARER_TOKEN;
+
+    // Fail-closed in production if METRICS_BEARER_TOKEN is missing
+    if (isProduction && !bearerToken) {
+      res
+        .status(HttpStatus.SERVICE_UNAVAILABLE)
+        .send('Service Unavailable: METRICS_BEARER_TOKEN is required in production\n');
+      return;
+    }
+
     if (bearerToken) {
       const authHeader = req.headers.authorization;
       if (!authHeader || authHeader !== `Bearer ${bearerToken}`) {

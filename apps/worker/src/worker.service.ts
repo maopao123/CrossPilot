@@ -498,8 +498,21 @@ export class WorkerService {
     }
 
     const port = Number.parseInt(process.env.WORKER_METRICS_PORT ?? '', 10) || 9100;
-    const host = process.env.WORKER_METRICS_HOST || '0.0.0.0';
+    const host = process.env.WORKER_METRICS_HOST || '127.0.0.1';
     const bearerToken = process.env.WORKER_METRICS_TOKEN || process.env.METRICS_BEARER_TOKEN;
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isLoopback = host === '127.0.0.1' || host === '::1' || host === 'localhost';
+
+    if (isProduction && !isLoopback && !bearerToken) {
+      workerLogger.warn({
+        event: 'worker.metrics_server.config_rejected',
+        host,
+        port,
+        message:
+          'Worker metrics server disabled: non-loopback binding in production requires WORKER_METRICS_TOKEN or METRICS_BEARER_TOKEN',
+      });
+      return;
+    }
 
     const server = http.createServer(async (req, res) => {
       const url = req.url?.split('?')[0];
@@ -562,6 +575,9 @@ export class WorkerService {
       const server = this.metricsServer;
       this.metricsServer = null;
       await new Promise<void>((resolve) => {
+        if (typeof (server as any).closeAllConnections === 'function') {
+          (server as any).closeAllConnections();
+        }
         server.close(() => {
           workerLogger.info({
             event: 'worker.metrics_server.stopped',

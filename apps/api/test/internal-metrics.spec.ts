@@ -34,7 +34,8 @@ describe('InternalMetricsController (Scrape Endpoint)', () => {
     expect(mockRes.send).toHaveBeenCalledWith('Not Found\n');
   });
 
-  it('returns 200 and Prometheus metrics text when METRICS_ENABLED is true and no token required', async () => {
+  it('returns 200 and Prometheus metrics text when METRICS_ENABLED is true and no token required in non-production (test/dev)', async () => {
+    process.env.NODE_ENV = 'test';
     process.env.METRICS_ENABLED = 'true';
     delete process.env.METRICS_BEARER_TOKEN;
 
@@ -54,11 +55,31 @@ describe('InternalMetricsController (Scrape Endpoint)', () => {
     expect(sentText).toContain('crosspilot_');
   });
 
-  it('enforces METRICS_BEARER_TOKEN when configured', async () => {
+  it('fails closed with 503 in production when METRICS_BEARER_TOKEN is missing', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.METRICS_ENABLED = 'true';
+    delete process.env.METRICS_BEARER_TOKEN;
+
+    const mockReq: any = { headers: {} };
+    const mockRes: any = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+      setHeader: jest.fn().mockReturnThis(),
+    };
+
+    await controller.getMetrics(mockReq, mockRes);
+    expect(mockRes.status).toHaveBeenCalledWith(503);
+    expect(mockRes.send).toHaveBeenCalledWith(
+      expect.stringContaining('METRICS_BEARER_TOKEN is required in production'),
+    );
+  });
+
+  it('enforces METRICS_BEARER_TOKEN in production: strictly rejects missing, wrong, query, and cookie auth', async () => {
+    process.env.NODE_ENV = 'production';
     process.env.METRICS_ENABLED = 'true';
     process.env.METRICS_BEARER_TOKEN = 'secret-scrape-token-123';
 
-    // 1. Missing Authorization header
+    // 1. Missing Authorization header -> 401
     const reqMissing: any = { headers: {} };
     const resMissing: any = {
       status: jest.fn().mockReturnThis(),
@@ -69,7 +90,7 @@ describe('InternalMetricsController (Scrape Endpoint)', () => {
     expect(resMissing.status).toHaveBeenCalledWith(401);
     expect(resMissing.send).toHaveBeenCalledWith('Unauthorized\n');
 
-    // 2. Wrong token
+    // 2. Wrong token -> 401
     const reqWrong: any = { headers: { authorization: 'Bearer wrong-token' } };
     const resWrong: any = {
       status: jest.fn().mockReturnThis(),
@@ -79,7 +100,32 @@ describe('InternalMetricsController (Scrape Endpoint)', () => {
     await controller.getMetrics(reqWrong, resWrong);
     expect(resWrong.status).toHaveBeenCalledWith(401);
 
-    // 3. Correct token
+    // 3. Query parameter attempt cannot bypass -> 401
+    const reqQuery: any = {
+      headers: {},
+      query: { token: 'secret-scrape-token-123', bearer: 'secret-scrape-token-123' },
+    };
+    const resQuery: any = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+      setHeader: jest.fn().mockReturnThis(),
+    };
+    await controller.getMetrics(reqQuery, resQuery);
+    expect(resQuery.status).toHaveBeenCalledWith(401);
+
+    // 4. Cookie attempt cannot bypass -> 401
+    const reqCookie: any = {
+      headers: { cookie: 'token=secret-scrape-token-123' },
+    };
+    const resCookie: any = {
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+      setHeader: jest.fn().mockReturnThis(),
+    };
+    await controller.getMetrics(reqCookie, resCookie);
+    expect(resCookie.status).toHaveBeenCalledWith(401);
+
+    // 5. Correct Authorization Bearer header -> 200
     const reqOk: any = { headers: { authorization: 'Bearer secret-scrape-token-123' } };
     const resOk: any = {
       status: jest.fn().mockReturnThis(),
@@ -90,5 +136,22 @@ describe('InternalMetricsController (Scrape Endpoint)', () => {
     expect(resOk.status).toHaveBeenCalledWith(200);
     expect(resOk.setHeader).toHaveBeenCalledWith('Content-Type', runtimeMetrics.contentType);
     expect(resOk.send.mock.calls[0][0]).toContain('crosspilot_');
+  });
+
+  it('verifies redirect handlers route /metrics and /internal/metrics with 307 to /api/v1/internal/metrics without direct output', () => {
+    const createRedirectHandler = (targetUrl: string) => {
+      return (_req: any, res: any) => res.redirect(307, targetUrl);
+    };
+
+    const handlerMetrics = createRedirectHandler('/api/v1/internal/metrics');
+    const handlerInternal = createRedirectHandler('/api/v1/internal/metrics');
+
+    const res1: any = { redirect: jest.fn() };
+    handlerMetrics({}, res1);
+    expect(res1.redirect).toHaveBeenCalledWith(307, '/api/v1/internal/metrics');
+
+    const res2: any = { redirect: jest.fn() };
+    handlerInternal({}, res2);
+    expect(res2.redirect).toHaveBeenCalledWith(307, '/api/v1/internal/metrics');
   });
 });

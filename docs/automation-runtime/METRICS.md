@@ -123,16 +123,33 @@ Prometheus 时序数据库在标签基数过大时会发生内存膨胀甚至 OO
 
 ## 六、安全与配置（Security & Configuration）
 
-生产环境下，指标端点默认关闭，需显式开启并可配置 Token 保护：
+生产环境下，指标端点遵循 **Fail-Closed（默认拒绝）** 原则：
+
+### 1. 环境变量配置参考
 
 | 环境变量 | 默认值 | 作用域 | 说明 |
 | :--- | :--- | :--- | :--- |
 | `METRICS_ENABLED` | `false` | API 进程 | 是否开启 API 指标暴露接口。未开启时请求返回 `404 Not Found` |
-| `METRICS_BEARER_TOKEN` | 无 (可选) | API / Worker | 若配置，请求必须携带 `Authorization: Bearer <TOKEN>`，否则返回 `401 Unauthorized` |
-| `WORKER_METRICS_ENABLED` | `false` | Worker 进程 | 是否启动 Worker 独立指标 HTTP 服务 |
+| `METRICS_BEARER_TOKEN` | 无 (可选) | API / Worker | API 端点鉴权 Token（Worker 端点 Fallback Token）。必须以 `Authorization: Bearer <TOKEN>` 提供 |
+| `WORKER_METRICS_ENABLED` | `false` | Worker 进程 | 是否启动 Worker 独立指标 HTTP 服务。未开启时不监听端口 |
 | `WORKER_METRICS_PORT` | `9100` | Worker 进程 | Worker 指标服务监听端口 |
-| `WORKER_METRICS_HOST` | `0.0.0.0` | Worker 进程 | Worker 指标服务监听地址 |
-| `WORKER_METRICS_TOKEN` | 同 `METRICS_BEARER_TOKEN` | Worker 进程 | Worker 专用 Bearer Token（优先于通用 Token） |
+| `WORKER_METRICS_HOST` | `127.0.0.1` | Worker 进程 | Worker 指标服务监听地址。默认仅监听本机 Loopback，跨容器/跨主机需显式指定 `0.0.0.0` |
+| `WORKER_METRICS_TOKEN` | 同 `METRICS_BEARER_TOKEN` | Worker 进程 | Worker 专用 Bearer Token（优先于通用 Token `METRICS_BEARER_TOKEN`） |
+
+### 2. 生产环境 Fail-Closed 安全防护规则
+
+1. **API 指标端点生产 Fail-Closed**：
+   - 当 `NODE_ENV === 'production'` 且 `METRICS_ENABLED === 'true'` 时：必须配置 `METRICS_BEARER_TOKEN`。若未配置 Token，禁止退化为公网匿名暴露，请求直接返回 `503 Service Unavailable`（配置不完整拒绝服务）；
+   - 在开发与测试环境（`NODE_ENV !== 'production'`）下，未配置 Token 时允许直接抓取以方便本地调试；
+   - 鉴权凭证仅接受标准标头 `Authorization: Bearer <TOKEN>`，禁止 URL Query 参数或 Cookie 传递 Token，鉴权失败返回 `401 Unauthorized`，且严禁在日志中记录任何 Token 明文或 Authorization 标头。
+2. **Worker 指标端点非 Loopback 生产 Fail-Closed**：
+   - 默认监听地址为 `127.0.0.1`（仅本机可访问）；
+   - 当 `NODE_ENV === 'production'` 且用户将 `WORKER_METRICS_HOST` 显式配置为非回环地址（如 `0.0.0.0`）时，**必须配置 `WORKER_METRICS_TOKEN` 或 `METRICS_BEARER_TOKEN`**；
+   - 若未配置 Token，Worker Metrics HTTP 服务将**拒绝启动并打印安全警告**，但**绝不崩溃 Worker 核心任务调度运行时**；
+   - 端点 `/metrics` 与 `/internal/metrics` 共享同一鉴权逻辑，杜绝旁路绕过。
+3. **双进程独立 Registry 声明（Process Isolation）**：
+   - API 进程（`apps/api`）与 Worker 进程（`apps/worker`）运行于独立 Node.js 运行时，两者的 `prom-client` Registry 互不共享、内存完全隔离；
+   - Prometheus 应分别抓取 API 端点（如 `:3001/api/v1/internal/metrics`）与 Worker 端点（如 `:9100/metrics`），聚合统计在 Prometheus Server 端完成。
 
 ---
 
@@ -163,4 +180,5 @@ scrape_configs:
 
 1. **非业务 BI 统计**：本指标体系不记录 GMV、采购订单总金额、店铺销量等业务分析数据（此类由专门的 Data Pipeline / OLAP 负责）；
 2. **非分布式追踪替代品**：指标用于聚合统计（Rate, Errors, Duration），单个具体任务的上下文请参考 Phase 3 结构化日志中的 `traceId` 与 `operationId`；
-3. **内存型 Registry 声明**：指标保存在单进程内存中，Pod / 进程重启后计数器重置为 0（符合 Prometheus Counter 设计哲学，Prometheus `rate()` 与 `increase()` 算子原生支持 counter reset）。
+3. **内存型 Registry 声明**：指标保存在单进程内存中，Pod / 进程重启后计数器重置为 0（符合 Prometheus Counter 设计哲学，Prometheus `rate()` 与 `increase()` 算子原生支持 counter reset）；
+4. **指标内容脱敏与防基数膨胀保证**：所有指标 Label 均经过强类型白名单校验过滤，抓取响应中绝对不包含 `traceId`, `operationId`, `workspaceId`, `actionId`, `jobId`, `userId`, `SKU`, `token`, `password`, `secret` 等高基数或敏感信息。

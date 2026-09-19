@@ -1,5 +1,36 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 4.1 完成（Phase 4.1 Metrics Endpoint Security Closure Complete）**：
+> - **基线 Commit**: `2ed266dd89b87f1b53684c87e265016f23812259` (`2ed266d`, Phase 4)
+> - **目标达成**：全面收口 Phase 4 审查发现的 Metrics 端点安全暴露漏洞与生产环境安全边界，落实严格的 Fail-Closed（默认拒绝）防护；纠正文档与配置口径，统一指标标签描述；严格执行零数据库迁移与零状态机改动红线。
+> - **1. API Metrics 生产 Fail-Closed（`apps/api/src/modules/internal/metrics.controller.ts`）**：
+>   - 在 `NODE_ENV === 'production'` 且 `METRICS_ENABLED === 'true'` 时，严格强制要求 `METRICS_BEARER_TOKEN`；若未配置 Token，绝不退化为公网匿名暴露，直接返回 `503 Service Unavailable`（拒绝服务）；
+>   - 本地开发与测试环境（`NODE_ENV !== 'production'`）允许无 Token 访问以便利调试；
+>   - 鉴权凭证仅接受标准标头 `Authorization: Bearer <TOKEN>`，禁止 Query 参数（`?token=...`）或 Cookie 绕过（返回 401），且绝对不将预期/收到 Token 写入任何日志。
+> - **2. Worker Metrics 默认回环绑定与非 Loopback 生产 Fail-Closed（`apps/worker/src/worker.service.ts`）**：
+>   - `WORKER_METRICS_HOST` 默认监听地址由 `0.0.0.0` 收紧为 `127.0.0.1`（默认仅本机可达）；
+>   - 当 `NODE_ENV === 'production'` 且显式绑定非回环地址（如 `0.0.0.0`）时，强制要求配置 `WORKER_METRICS_TOKEN`（优先）或 `METRICS_BEARER_TOKEN`（fallback）；若均未配置，Worker Metrics HTTP 服务直接拒绝启动并输出安全告警，但**绝不崩溃 Worker 核心调度与消费运行时**；
+>   - 统一配置变量名称为 `WORKER_METRICS_TOKEN`，移除所有歧义配置别名；`/metrics` 与 `/internal/metrics` 共享同一套鉴权拦截逻辑。
+> - **3. 重定向别名安全一致性与指标内容脱敏防护**：
+>   - API 根路由 `/metrics` 与 `/internal/metrics` 维持 307 重定向至 `/api/v1/internal/metrics`，自身不输出任何指标内容，绝无法绕过最终鉴权；
+>   - 增加完整抓取内容脱敏断言（`runtime-metrics.spec.ts`），严格证明抓取输出中绝对不包含任何 `traceId`, `operationId`, `workspaceId`, `actionId`, `jobId`, `userId`, `SKU`, `token`, `password`, `secret` 等高基数或敏感信息。
+> - **4. 规范文档与环境配置统一**：
+>   - `docs/automation-runtime/METRICS.md`：锁定 `crosspilot_action_dispatch_duration_seconds` 的 labels 为 `provider, mode, status`；修正 `WORKER_METRICS_HOST` 默认值为 `127.0.0.1`；记录生产 Fail-Closed 规则与 API/Worker 独立 Registry 架构；
+>   - 修正历史交接中有关 `WORKER_METRICS_BEARER_TOKEN` 的冗余表述，统一为 `WORKER_METRICS_TOKEN`。
+> - **5. 交付物与质量门禁**：
+>   - 自动化测试全面覆盖：
+>     - `apps/api/test/internal-metrics.spec.ts`（5/5 PASS，覆盖 404/503/401/200 及 Query/Cookie 绕过拦截与 307 重定向验证）；
+>     - `apps/worker/test/worker-metrics-server.spec.ts`（6/6 PASS，覆盖默认 127.0.0.1 绑定、生产非 Loopback 拒绝启动、Token 优先级与生命周期重启）；
+>     - `packages/actions/test/runtime-metrics.spec.ts`（20/20 PASS，新增全量抓取高基数与凭据脱敏断言）；
+>   - 全套门禁验证：
+>     - `pnpm -r run build` 全部 PASS
+>     - `pnpm -r run typecheck` 10/10 PASS
+>     - `@crosspilot/actions` 158/158 全部 PASS (7 个测试套件)
+>     - `@crosspilot/worker` 16/16 全部 PASS (3 个测试套件)
+>     - `@crosspilot/api` 16/16 全部 PASS (3 个核心测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)；
+>   - 严格遵守红线：零数据库迁移，零状态机核心语义修改，未进入 Phase 5。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 4 完成（Phase 4 Runtime Metrics & Prometheus Exposure Complete）**：
 > - **基线 Commit**: `52dc239343b623a0f6488541ca38f2aba3a1201f` (`52dc239`, Phase 3.1)
 > - **目标达成**：构建与 Prometheus 兼容的操作级低基数聚合运行时指标体系（统一前缀 `crosspilot_`），精准覆盖派发流控、适配器往返耗时与超时、重试/降级/恢复治理、恢复巡检与反查延迟、BullMQ 队列等待时长等关键可观测维度；在 API 与 Worker 分别建立安全 Scrape Endpoint，严格隔离敏感业务高基数字段。
@@ -37,7 +68,7 @@
 >     - 安全开关：受环境变量 `METRICS_ENABLED === 'true'` 控制，关闭时返回 404；可选配置 `METRICS_BEARER_TOKEN` 强制校验 Bearer 凭证；
 >   - **Worker 端点**：
 >     - 在 `WorkerService` 中基于原生 `node:http` 实现独立 metrics 服务（默认端口 9100，可通过 `WORKER_METRICS_PORT` 配置）；
->     - 同样受 `WORKER_METRICS_ENABLED === 'true'` 与可选 `WORKER_METRICS_BEARER_TOKEN` 保护；
+>     - 同样受 `WORKER_METRICS_ENABLED === 'true'` 与可选 `WORKER_METRICS_TOKEN`（优先）及 `METRICS_BEARER_TOKEN` 保护；
 >     - 深度绑定 Worker `start()` 与 `stop()` 生命周期，支持服务优雅关闭与重启，杜绝端口冲突；
 >   - **Next.js Webpack 客户端构建兼容**：
 >     - 在 `apps/web/next.config.mjs` 中为非服务端打包配置 `prom-client: false` 及 Node 内建模块 fallback，规避浏览器 bundle 构建错误。

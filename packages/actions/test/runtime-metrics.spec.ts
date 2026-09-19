@@ -297,6 +297,23 @@ describe('Phase 4 — Runtime Metrics & Prometheus Exposure', () => {
       const countAfter = matchAfter ? Number(matchAfter[1]) : 0;
 
       expect(countAfter).toBe(countBefore + 1);
+
+      // Section 10 regression: scrape output must never contain high-cardinality values or forbidden labels
+      expect(afterText).not.toContain('trace_met_001');
+      expect(afterText).not.toContain('op_met_001');
+      expect(afterText).not.toContain('ws_metrics_test');
+      expect(afterText).not.toContain('act_metrics_001');
+      expect(afterText).not.toContain('job_ok_001');
+      expect(afterText).not.toContain('SKU-001');
+
+      // Assert no sensitive/high-cardinality label keys exist in any metric label set
+      expect(afterText).not.toMatch(/[,{](traceId|operationId|workspaceId|actionId|jobId|userId|sku|token|password|secret)=/i);
+    });
+
+    it('asserts full scrape output contains zero high-cardinality keys and zero credential tokens', async () => {
+      const fullMetricsText = await runtimeMetrics.getMetricsAsText();
+      const forbiddenLabelPattern = /[,{](traceId|operationId|workspaceId|actionId|jobId|userId|sku|token|password|secret)=/i;
+      expect(fullMetricsText).not.toMatch(forbiddenLabelPattern);
     });
   });
 });
