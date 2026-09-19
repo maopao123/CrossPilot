@@ -1,3 +1,4 @@
+import http, { type Server as HttpServer } from 'node:http';
 import { Worker, Job, Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { PrismaClient } from '@prisma/client';
@@ -16,7 +17,7 @@ import {
   processAutomationRecovery,
   AUTOMATION_RECOVERY_QUEUE_NAME,
 } from './processors/automation-recovery.processor.js';
-import { runtimeLogger, RuntimeEvents } from '@crosspilot/shared';
+import { runtimeLogger, RuntimeEvents, runtimeMetrics } from '@crosspilot/shared';
 
 const SIMULATOR_QUEUE_NAME = 'crosspilot-simulator-tick';
 const OUTCOME_QUEUE_NAME = 'crosspilot-outcome-evaluator';
@@ -30,6 +31,7 @@ const workerLogger = runtimeLogger.child({
 export class WorkerService {
   private worker: Worker<AgentTaskJobData> | null = null;
   private taskRedis: Redis | null = null;
+  private metricsServer: HttpServer | null = null;
   private simulatorWorker: Worker | null = null;
   private simulatorQueue: Queue | null = null;
   private simulatorRedis: Redis | null = null;
@@ -63,6 +65,12 @@ export class WorkerService {
     }
 
     try {
+      await this.startMetricsServer();
+    } catch (err: any) {
+      workerLogger.warn({ event: 'worker.metrics_server.init_warning', error: err });
+    }
+
+    try {
       // Check redis connection
       const health = await this.redisService.healthCheck();
       if (health.status === 'down') {
@@ -93,6 +101,12 @@ export class WorkerService {
       this.worker = new Worker<AgentTaskJobData>(
         'crosspilot-tasks',
         async (job: Job<AgentTaskJobData>) => {
+          if (job.timestamp) {
+            runtimeMetrics.observeQueueWait({
+              queue: 'crosspilot-tasks',
+              waitSeconds: (Date.now() - job.timestamp) / 1000,
+            });
+          }
           return processAgentTaskJob(job.data);
         },
         {
@@ -158,7 +172,15 @@ export class WorkerService {
 
       this.simulatorWorker = new Worker(
         SIMULATOR_QUEUE_NAME,
-        async () => runSimulatorTick(prisma),
+        async (job: Job) => {
+          if (job.timestamp) {
+            runtimeMetrics.observeQueueWait({
+              queue: SIMULATOR_QUEUE_NAME,
+              waitSeconds: (Date.now() - job.timestamp) / 1000,
+            });
+          }
+          return runSimulatorTick(prisma);
+        },
         { connection: this.simulatorRedis as any },
       );
       this.simulatorWorker.on('failed', (job: Job | undefined, err: Error) => {
@@ -209,7 +231,15 @@ export class WorkerService {
 
       this.outcomeWorker = new Worker(
         OUTCOME_QUEUE_NAME,
-        async () => runOutcomeEvaluation(prisma),
+        async (job: Job) => {
+          if (job.timestamp) {
+            runtimeMetrics.observeQueueWait({
+              queue: OUTCOME_QUEUE_NAME,
+              waitSeconds: (Date.now() - job.timestamp) / 1000,
+            });
+          }
+          return runOutcomeEvaluation(prisma);
+        },
         { connection: this.outcomeRedis as any },
       );
       this.outcomeWorker.on('failed', (job: Job | undefined, err: Error) => {
@@ -265,6 +295,12 @@ export class WorkerService {
       this.closedLoopWorker = new Worker(
         CLOSED_LOOP_V2_QUEUE_NAME,
         async (job: Job) => {
+          if (job.timestamp) {
+            runtimeMetrics.observeQueueWait({
+              queue: CLOSED_LOOP_V2_QUEUE_NAME,
+              waitSeconds: (Date.now() - job.timestamp) / 1000,
+            });
+          }
           const { runId, days, maxDays, userId } = job.data || {};
           if (runId) {
             return await advanceClosedLoopRun(prisma, runId, {
@@ -322,7 +358,13 @@ export class WorkerService {
 
       this.recoveryWorker = new Worker(
         AUTOMATION_RECOVERY_QUEUE_NAME,
-        async (_job: Job) => {
+        async (job: Job) => {
+          if (job.timestamp) {
+            runtimeMetrics.observeQueueWait({
+              queue: AUTOMATION_RECOVERY_QUEUE_NAME,
+              waitSeconds: (Date.now() - job.timestamp) / 1000,
+            });
+          }
           return await processAutomationRecovery(prisma, {
             signal: this.shutdownController.signal,
           });
@@ -351,6 +393,7 @@ export class WorkerService {
   public async stop(): Promise<void> {
     workerLogger.info({ event: RuntimeEvents.WORKER_STOPPING, message: 'Shutting down CrossPilot Worker' });
     this.shutdownController.abort();
+    await this.stopMetricsServer();
     if (this.worker) {
       await this.worker.close();
       this.worker = null;
@@ -440,5 +483,93 @@ export class WorkerService {
       isRegistered: this.recoveryWorker !== null,
       queueName: AUTOMATION_RECOVERY_QUEUE_NAME,
     };
+  }
+
+  public getMetricsServer(): HttpServer | null {
+    return this.metricsServer;
+  }
+
+  private async startMetricsServer(): Promise<void> {
+    if (process.env.WORKER_METRICS_ENABLED !== 'true') {
+      return;
+    }
+    if (this.metricsServer) {
+      return;
+    }
+
+    const port = Number.parseInt(process.env.WORKER_METRICS_PORT ?? '', 10) || 9100;
+    const host = process.env.WORKER_METRICS_HOST || '0.0.0.0';
+    const bearerToken = process.env.WORKER_METRICS_TOKEN || process.env.METRICS_BEARER_TOKEN;
+
+    const server = http.createServer(async (req, res) => {
+      const url = req.url?.split('?')[0];
+
+      if (req.method !== 'GET') {
+        res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Method Not Allowed\n');
+        return;
+      }
+
+      if (url !== '/metrics' && url !== '/internal/metrics') {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not Found\n');
+        return;
+      }
+
+      if (bearerToken) {
+        const auth = req.headers.authorization;
+        if (!auth || auth !== `Bearer ${bearerToken}`) {
+          res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end('Unauthorized\n');
+          return;
+        }
+      }
+
+      try {
+        const metrics = await runtimeMetrics.getMetricsAsText();
+        res.writeHead(200, { 'Content-Type': runtimeMetrics.contentType });
+        res.end(metrics);
+      } catch {
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Failed to collect metrics\n');
+      }
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      server.listen(port, host, () => {
+        workerLogger.info({
+          event: 'worker.metrics_server.started',
+          host,
+          port,
+          message: `Worker metrics server listening on http://${host}:${port}/metrics`,
+        });
+        resolve();
+      });
+      server.on('error', (err) => {
+        workerLogger.error({
+          event: 'worker.metrics_server.error',
+          error: err,
+        });
+        reject(err);
+      });
+    });
+
+    this.metricsServer = server;
+  }
+
+  private async stopMetricsServer(): Promise<void> {
+    if (this.metricsServer) {
+      const server = this.metricsServer;
+      this.metricsServer = null;
+      await new Promise<void>((resolve) => {
+        server.close(() => {
+          workerLogger.info({
+            event: 'worker.metrics_server.stopped',
+            message: 'Worker metrics server stopped',
+          });
+          resolve();
+        });
+      });
+    }
   }
 }

@@ -1,5 +1,61 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 4 完成（Phase 4 Runtime Metrics & Prometheus Exposure Complete）**：
+> - **基线 Commit**: `52dc239343b623a0f6488541ca38f2aba3a1201f` (`52dc239`, Phase 3.1)
+> - **目标达成**：构建与 Prometheus 兼容的操作级低基数聚合运行时指标体系（统一前缀 `crosspilot_`），精准覆盖派发流控、适配器往返耗时与超时、重试/降级/恢复治理、恢复巡检与反查延迟、BullMQ 队列等待时长等关键可观测维度；在 API 与 Worker 分别建立安全 Scrape Endpoint，严格隔离敏感业务高基数字段。
+> - **1. 运行时聚合指标核心基础设施（`@crosspilot/shared`）**：
+>   - 引入 `prom-client`，在 `packages/shared/src/metrics/` 下实现 `RuntimeMetrics` 类、`createRuntimeMetrics` 工厂与全局单例 `runtimeMetrics`；
+>   - 实现严格受控的低基数标签规范与归一化（`metric-labels.ts`），杜绝 `traceId`, `operationId`, `workspaceId`, `actionId`, `userId`, `SKU`, `jobId` 进入标签：
+>     - `provider`: `shopify` | `erp` | `playwright` | `unknown`
+>     - `mode`: `api` | `rpa` | `hybrid` | `unknown`
+>     - `status`: 派发状态 (`executed` | `blocked_approval` | `blocked_idempotency` | `blocked_policy` | `failed` | `unknown`) 与适配器状态 (`success` | `failed` | `timeout` | `cancelled` | `unknown`)
+>     - `error_class`: 13 类标准错误分类（`TRANSIENT`, `RATE_LIMIT`, `TIMEOUT`, `AUTH`, `PERMISSION`, `VALIDATION`, `CONFLICT`, `NOT_FOUND`, `PROVIDER_ERROR`, `RPA_SELECTOR`, `RPA_NAVIGATION`, `VERIFY_MISMATCH`, `UNKNOWN`）
+>     - `reason`: 7 大需人工介入原因 (`MAX_RETRIES_EXCEEDED`, `UNSUPPORTED_PROVIDER`, `PAYLOAD_CORRUPTED`, `VERIFY_MISMATCH`, `VERIFY_FAILED`, `RECOVERY_FAILED`, `CRASH_MANUAL_REQUIRED`)
+>     - `strategy`: 恢复策略 (`verify` | `retry` | `none`)
+>     - `sweep_result`: 恢复巡检结果 (`completed` | `aborted` | `failed`)
+>     - `verify_result`: 状态反查结果 (`verified` | `mismatch` | `timeout` | `failed`)
+>     - `queue`: 队列标识 (`crosspilot-tasks`, `crosspilot-simulator-tick`, `crosspilot-outcome-evaluator`, `crosspilot-closed-loop-v2`, `crosspilot-automation-recovery`)
+>   - 涵盖 14 个核心指标：`crosspilot_action_dispatch_total`, `crosspilot_action_dispatch_duration_seconds`, `crosspilot_adapter_requests_total`, `crosspilot_adapter_request_duration_seconds`, `crosspilot_automation_retry_total`, `crosspilot_automation_timeout_total`, `crosspilot_automation_needs_attention_total`, `crosspilot_automation_recovered_total`, `crosspilot_recovery_sweep_total`, `crosspilot_recovery_sweep_duration_seconds`, `crosspilot_recovery_due_operations`, `crosspilot_queue_wait_seconds`, `crosspilot_verify_total`, `crosspilot_verify_duration_seconds`；所有度量记录方法内置 fail-safe，异常绝不反噬业务。
+> - **2. 单一口径观测埋点（Single-Accounting Instrumentation）**：
+>   - **Action Router 派发层**：`ActionRouter.dispatch()` 出口处单点记录 `action_dispatch_total` 与 `action_dispatch_duration_seconds`；
+>   - **适配器层**：
+>     - `HttpShopifyGraphQLTransport.execute`: 记录 `adapter_requests_total`, `adapter_request_duration_seconds`，并在超时时触发 `automation_timeout_total`；
+>     - `HttpERPAdapter.request`: 记录请求总数、耗时分布与超时指标；
+>     - `PlaywrightRpaAdapter.execute`: 记录 RPA 执行耗时、状态与超时指标；
+>   - **恢复自愈与巡检层（`automation-recovery.processor.ts`）**：
+>     - 巡检轮次：记录 `recovery_sweep_total` 与耗时直方图 `recovery_sweep_duration_seconds`，以及待恢复数量 `recovery_due_operations`；
+>     - 验证反查：在执行 `getPurchaseOrder` / 反查逻辑处记录 `verify_total` 与 `verify_duration_seconds`；
+>     - 升级介入：在 7 处人工介入分支记录 `automation_needs_attention_total`；
+>     - 重试与恢复：在重试分支记录 `automation_retry_total`，自愈成功时记录 `automation_recovered_total`；
+>   - **Worker 队列等待时长**：
+>     - `WorkerService` 在全部 5 个 Worker 的 processor 入口统一提取 `job.timestamp`，精准记录进入 `crosspilot_queue_wait_seconds`。
+> - **3. API 与 Worker 双 Scrape 端点及安全防护**：
+>   - **API 端点**：
+>     - 实现 `InternalMetricsController`（`apps/api/src/modules/internal/metrics.controller.ts`），暴露标准端点 `GET /api/v1/internal/metrics`；
+>     - `main.ts` 配置根路由重定向（`/internal/metrics` 与 `/metrics` 重定向至 `/api/v1/internal/metrics`）；
+>     - 在 `transform.interceptor.ts` 中针对 `/metrics` 跳过 JSON 格式化包装，直接输出 Prometheus 标准纯文本格式；
+>     - 安全开关：受环境变量 `METRICS_ENABLED === 'true'` 控制，关闭时返回 404；可选配置 `METRICS_BEARER_TOKEN` 强制校验 Bearer 凭证；
+>   - **Worker 端点**：
+>     - 在 `WorkerService` 中基于原生 `node:http` 实现独立 metrics 服务（默认端口 9100，可通过 `WORKER_METRICS_PORT` 配置）；
+>     - 同样受 `WORKER_METRICS_ENABLED === 'true'` 与可选 `WORKER_METRICS_BEARER_TOKEN` 保护；
+>     - 深度绑定 Worker `start()` 与 `stop()` 生命周期，支持服务优雅关闭与重启，杜绝端口冲突；
+>   - **Next.js Webpack 客户端构建兼容**：
+>     - 在 `apps/web/next.config.mjs` 中为非服务端打包配置 `prom-client: false` 及 Node 内建模块 fallback，规避浏览器 bundle 构建错误。
+> - **4. 交付物与质量门禁**：
+>   - 新增规范文档：`docs/automation-runtime/METRICS.md`；
+>   - 新增自动化测试：
+>     - `packages/actions/test/runtime-metrics.spec.ts`（19/19 PASS，覆盖标签归一化、基数控制、单次入账、适配器指标、恢复指标、队列等待、路由派发）；
+>     - `apps/api/test/internal-metrics.spec.ts`（3/3 PASS，覆盖开关控制、Token 校验与 Prometheus 格式输出）；
+>     - `apps/worker/test/worker-metrics-server.spec.ts`（3/3 PASS，覆盖独立 HTTP 服务拉取、Token 鉴权与生命周期重启）；
+>   - 全套门禁验证：
+>     - `pnpm -r run build` 全部 PASS
+>     - `pnpm -r run typecheck` 10/10 PASS
+>     - `@crosspilot/actions` 157/157 全部 PASS (7 个测试套件)
+>     - `@crosspilot/worker` 13/13 全部 PASS (3 个测试套件)
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/api` `v93-action-layer.spec.ts` + `automation-erp-http.spec.ts` + `internal-metrics.spec.ts` 14/14 全部 PASS；
+>   - 严格红线执行：零 DB 迁移，零核心状态机修改，无 OpenTelemetry，无 Pushgateway，未触碰业务 BI 指标，标签严格低基数。
+>
 > **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 3.1 完成（Phase 3.1 Trace Correlation & Logging Security Closure Complete）**：
 > - **基线 Commit**: `3357b265e8ef0bdeba5b5ad9939b06c7a2ba811d` (`3357b26`, Phase 3)
 > - **目标达成**：全面修复 Phase 3 审查发现的日志脱敏绕过隐患与链路标识穿透缺口。闭环直接传字符串与 `msg` 文本的脱敏防线；将 `traceId` / `operationId` / `workspaceId` / `actionId` / `executionMode` 从 ActionRouter 贯穿至 Playwright RPA Adapter、ListingUpdateWorkflow、Shopify GraphQL Transport 与 HttpERPAdapter；支持 ActionRouter 日志依赖注入（DI）；明确异步恢复边界关联合约（`operationId` 为持久化核心锚点，纯 JSON 扩展 `evidence.traceId`，严禁伪造虚构 `traceId`）。

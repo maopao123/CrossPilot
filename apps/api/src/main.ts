@@ -30,6 +30,12 @@ async function bootstrap() {
   httpAdapter.get('/health', (_req: any, res: any) =>
     res.redirect(307, '/api/v1/health'),
   );
+  httpAdapter.get('/internal/metrics', (_req: any, res: any) =>
+    res.redirect(307, '/api/v1/internal/metrics'),
+  );
+  httpAdapter.get('/metrics', (_req: any, res: any) =>
+    res.redirect(307, '/api/v1/internal/metrics'),
+  );
 
   const port = Number(process.env.PORT || process.env.API_PORT) || 3001;
   const server = await app.listen(port);

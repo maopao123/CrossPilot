@@ -27,8 +27,9 @@ export class TransformInterceptor<T>
       url.includes('/generate/stream') ||
       url.endsWith('/stream') ||
       url.includes('/stream?');
+    const isMetrics = url.includes('/metrics');
 
-    if (isSse) {
+    if (isSse || isMetrics) {
       return next.handle();
     }
 

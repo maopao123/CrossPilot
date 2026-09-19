@@ -25,3 +25,4 @@ export * from './contracts/candidate-enrichment-contracts.js';
 export * from './contracts/execution-error.js';
 export * from './contracts/timeout-cancellation.js';
 export * from './logging/index.js';
+export * from './metrics/index.js';

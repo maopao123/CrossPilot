@@ -7,6 +7,7 @@ import {
   normalizeExecutionError,
   runtimeLogger,
   RuntimeEvents,
+  runtimeMetrics,
 } from '@crosspilot/shared';
 
 export const AUTOMATION_RECOVERY_QUEUE_NAME = 'crosspilot-automation-recovery';
@@ -103,11 +104,22 @@ export async function processAutomationRecovery(
   prisma: PrismaClient,
   options: AutomationRecoveryOptions = {},
 ): Promise<AutomationRecoveryResult> {
+  const sweepStartTime = Date.now();
   const workerId = options.workerId || `worker-${Math.random().toString(36).slice(2, 8)}`;
   const store = new AutomationOperationStore(prisma);
   const adapter = new SimulatorERPAdapter({ baseUrl: options.erpBaseUrl || 'http://127.0.0.1:3000' });
 
-  const dueOps = await store.listDue(new Date(), options.limit || 20);
+  let dueOps: AutomationOperation[] = [];
+  try {
+    dueOps = await store.listDue(new Date(), options.limit || 20);
+    runtimeMetrics.setRecoveryDueOperations(dueOps.length);
+  } catch (err: any) {
+    runtimeMetrics.recordRecoverySweep({
+      result: 'failed',
+      durationSeconds: (Date.now() - sweepStartTime) / 1000,
+    });
+    throw err;
+  }
 
   const recoveryLogger = runtimeLogger.child({
     service: 'automation-recovery',
@@ -124,12 +136,18 @@ export async function processAutomationRecovery(
   let retried = 0;
   let escalated = 0;
   let failed = 0;
+  let wasAborted = false;
 
   for (const op of dueOps) {
     if (options.signal?.aborted) {
       recoveryLogger.info({
         event: RuntimeEvents.AUTOMATION_RECOVERY_SWEEP_ABORTED,
         message: 'Recovery sweep aborted by worker signal',
+      });
+      wasAborted = true;
+      runtimeMetrics.recordRecoverySweep({
+        result: 'aborted',
+        durationSeconds: (Date.now() - sweepStartTime) / 1000,
       });
       break;
     }
@@ -169,6 +187,7 @@ export async function processAutomationRecovery(
           params = (action?.parameters as any) || {};
         }
 
+        const verifyStart = Date.now();
         const checkRes = await adapter.getPurchaseOrder(
           {
             scope: { workspaceId: claimed.workspaceId, connectionId: claimed.connectionId },
@@ -181,6 +200,7 @@ export async function processAutomationRecovery(
             workspaceId: claimed.workspaceId,
           },
         );
+        const verifyDuration = (Date.now() - verifyStart) / 1000;
 
         if (checkRes.success && checkRes.data?.externalId) {
           const externalId = checkRes.data.externalId;
@@ -233,6 +253,12 @@ export async function processAutomationRecovery(
           );
 
           if (supplierMismatch || amountMismatch || quantityMismatch) {
+            runtimeMetrics.recordVerify({
+              provider: claimed.provider,
+              result: 'MISMATCH',
+              durationSeconds: verifyDuration,
+            });
+
             const conflictDetails = {
               reason: 'REMOTE_PAYLOAD_MISMATCH',
               mismatches: [
@@ -296,9 +322,19 @@ export async function processAutomationRecovery(
                 },
               });
             }
+            runtimeMetrics.recordNeedsAttention({
+              provider: claimed.provider,
+              reason: 'VERIFY_MISMATCH',
+            });
             escalated++;
             continue;
           }
+
+          runtimeMetrics.recordVerify({
+            provider: claimed.provider,
+            result: 'MATCH',
+            durationSeconds: verifyDuration,
+          });
 
           // 内容校验一致，执行本地 PurchaseOrder 同步
           const syncRes = await syncLocalPurchaseOrder(prisma, claimed.workspaceId, externalId, params);
@@ -342,6 +378,10 @@ export async function processAutomationRecovery(
                 },
               });
             }
+            runtimeMetrics.recordNeedsAttention({
+              provider: claimed.provider,
+              reason: 'LOCAL_SYNC_FAILED',
+            });
             escalated++;
             continue;
           }
@@ -374,6 +414,10 @@ export async function processAutomationRecovery(
               },
             });
           }
+          runtimeMetrics.recordRecovered({
+            provider: claimed.provider,
+            strategy: 'VERIFY_EXISTS',
+          });
           recovered++;
           continue;
         }
@@ -386,6 +430,13 @@ export async function processAutomationRecovery(
             code: checkRes.errorCode,
             originalStatus: checkRes.statusCode,
           });
+
+        const isDefiniteNotFound = checkNormalized.class === 'NOT_FOUND';
+        runtimeMetrics.recordVerify({
+          provider: claimed.provider,
+          result: isDefiniteNotFound ? 'NOT_FOUND' : 'ERROR',
+          durationSeconds: verifyDuration,
+        });
 
         // Query failure: AUTH / PERMISSION errors cannot be resolved by retrying query
         if (checkNormalized.class === 'AUTH' || checkNormalized.class === 'PERMISSION') {
@@ -418,11 +469,13 @@ export async function processAutomationRecovery(
               },
             });
           }
+          runtimeMetrics.recordNeedsAttention({
+            provider: claimed.provider,
+            reason: checkNormalized.class,
+          });
           escalated++;
           continue;
         }
-
-        const isDefiniteNotFound = checkNormalized.class === 'NOT_FOUND';
 
         if (isDefiniteNotFound) {
           if (claimed.attemptCount >= 3) {
@@ -453,6 +506,10 @@ export async function processAutomationRecovery(
                 },
               });
             }
+            runtimeMetrics.recordNeedsAttention({
+              provider: claimed.provider,
+              reason: 'MAX_RETRIES_EXCEEDED',
+            });
             escalated++;
             continue;
           }
@@ -469,6 +526,10 @@ export async function processAutomationRecovery(
               leaseOwner: null,
               leaseUntil: null,
             },
+          });
+          runtimeMetrics.recordRetry({
+            provider: claimed.provider,
+            errorClass: checkNormalized.class,
           });
           retried++;
           continue;
@@ -502,6 +563,10 @@ export async function processAutomationRecovery(
                 },
               });
             }
+            runtimeMetrics.recordNeedsAttention({
+              provider: claimed.provider,
+              reason: 'QUERY_TIMEOUT_MAX',
+            });
             escalated++;
             continue;
           }
@@ -517,6 +582,10 @@ export async function processAutomationRecovery(
               leaseOwner: null,
               leaseUntil: null,
             },
+          });
+          runtimeMetrics.recordRetry({
+            provider: claimed.provider,
+            errorClass: checkNormalized.class,
           });
           retried++;
           continue;
@@ -546,6 +615,10 @@ export async function processAutomationRecovery(
               },
             });
           }
+          runtimeMetrics.recordNeedsAttention({
+            provider: claimed.provider,
+            reason: 'MAX_RETRIES_EXCEEDED',
+          });
           escalated++;
           continue;
         }
@@ -626,6 +699,10 @@ export async function processAutomationRecovery(
                 },
               });
             }
+            runtimeMetrics.recordNeedsAttention({
+              provider: claimed.provider,
+              reason: 'LOCAL_SYNC_FAILED',
+            });
             escalated++;
             continue;
           }
@@ -657,6 +734,10 @@ export async function processAutomationRecovery(
               },
             });
           }
+          runtimeMetrics.recordRecovered({
+            provider: claimed.provider,
+            strategy: 'RETRY_SUCCESS',
+          });
           recovered++;
         } else {
           const erpNormalized: NormalizedExecutionError =
@@ -701,6 +782,10 @@ export async function processAutomationRecovery(
                 },
               });
             }
+            runtimeMetrics.recordNeedsAttention({
+              provider: claimed.provider,
+              reason: erpNormalized.class,
+            });
             escalated++;
             continue;
           }
@@ -736,6 +821,10 @@ export async function processAutomationRecovery(
                   },
                 });
               }
+              runtimeMetrics.recordNeedsAttention({
+                provider: claimed.provider,
+                reason: 'RETRY_TIMEOUT_MAX',
+              });
               escalated++;
               continue;
             }
@@ -752,6 +841,10 @@ export async function processAutomationRecovery(
                 leaseOwner: null,
                 leaseUntil: null,
               },
+            });
+            runtimeMetrics.recordRetry({
+              provider: claimed.provider,
+              errorClass: erpNormalized.class,
             });
             retried++;
             continue;
@@ -786,6 +879,10 @@ export async function processAutomationRecovery(
                 },
               });
             }
+            runtimeMetrics.recordNeedsAttention({
+              provider: claimed.provider,
+              reason: 'RETRY_FAILED_MAX',
+            });
             escalated++;
           } else {
             await prisma.automationOperation.update({
@@ -800,6 +897,10 @@ export async function processAutomationRecovery(
                 leaseUntil: null,
               },
             });
+            runtimeMetrics.recordRetry({
+              provider: claimed.provider,
+              errorClass: erpNormalized.class,
+            });
             retried++;
           }
         }
@@ -813,6 +914,13 @@ export async function processAutomationRecovery(
       });
       failed++;
     }
+  }
+
+  if (!wasAborted) {
+    runtimeMetrics.recordRecoverySweep({
+      result: 'completed',
+      durationSeconds: (Date.now() - sweepStartTime) / 1000,
+    });
   }
 
   recoveryLogger.info({

@@ -5,6 +5,7 @@ import {
   combineAbortSignals,
   runtimeLogger,
   RuntimeEvents,
+  runtimeMetrics,
 } from '@crosspilot/shared';
 import {
   CommercePortError,
@@ -158,13 +159,59 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
     variables?: Record<string, unknown>,
     options?: ShopifyGraphQLRequestOptions,
   ): Promise<ShopifyGraphQLResponse<T>> {
+    const startTime = Date.now();
+    try {
+      const res = await this.doExecute<T>(shop, accessToken, query, variables, options, startTime);
+      runtimeMetrics.recordAdapterRequest({
+        provider: 'shopify',
+        status: 'success',
+        errorClass: 'none',
+        durationSeconds: (Date.now() - startTime) / 1000,
+      });
+      return res;
+    } catch (err: any) {
+      const durationSeconds = (Date.now() - startTime) / 1000;
+      let status: 'failed' | 'timeout' | 'cancelled' = 'failed';
+      let errorClass = 'PROVIDER_ERROR';
+
+      if (err?.code === 'CANCELLED' || options?.signal?.aborted) {
+        status = 'cancelled';
+        errorClass = 'TIMEOUT';
+      } else if (err?.code === 'TIMEOUT' || err?.name === 'TimeoutError') {
+        status = 'timeout';
+        errorClass = 'TIMEOUT';
+        runtimeMetrics.recordTimeout({ provider: 'shopify' });
+      } else if (err?.code === ErrorCodes.AUTH_REQUIRED) {
+        errorClass = 'AUTH';
+      } else if (err?.code === 'PROVIDER_RATE_LIMIT') {
+        errorClass = 'RATE_LIMIT';
+      }
+
+      runtimeMetrics.recordAdapterRequest({
+        provider: 'shopify',
+        status,
+        errorClass,
+        durationSeconds,
+      });
+
+      throw err;
+    }
+  }
+
+  private async doExecute<T = any>(
+    shop: string,
+    accessToken: string,
+    query: string,
+    variables: Record<string, unknown> | undefined,
+    options: ShopifyGraphQLRequestOptions | undefined,
+    startTime: number,
+  ): Promise<ShopifyGraphQLResponse<T>> {
     const subdomain = validateAndNormalizeShopSubdomain(shop);
     const url = `https://${subdomain}.myshopify.com/admin/api/${this.apiVersion}/graphql.json`;
     const timeoutConfig = getAutomationTimeoutConfig();
     const timeoutMs = options?.timeoutMs ?? timeoutConfig.httpTimeoutMs;
 
     const combined = combineAbortSignals([options?.signal], timeoutMs);
-    const startTime = Date.now();
     const shopifyLogger = runtimeLogger.child({
       service: 'shopify-adapter',
       provider: 'shopify',

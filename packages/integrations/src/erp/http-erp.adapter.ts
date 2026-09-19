@@ -11,6 +11,7 @@ import {
   getAutomationTimeoutConfig,
   runtimeLogger,
   RuntimeEvents,
+  runtimeMetrics,
 } from '@crosspilot/shared';
 
 export interface HttpErpAdapterOptions {
@@ -44,7 +45,7 @@ export class HttpERPAdapter {
     this.fetchFn = options.fetchFn ?? fetch;
   }
 
-  private async request<T>(
+  protected async request<T>(
     endpoint: string,
     options: {
       method: string;
@@ -57,6 +58,52 @@ export class HttpERPAdapter {
       workspaceId?: string;
     },
   ): Promise<ErpResult<T>> {
+    const startTime = Date.now();
+    const result = await this.doRequest<T>(endpoint, options, startTime);
+    const durationSeconds = (Date.now() - startTime) / 1000;
+
+    let status: 'success' | 'failed' | 'timeout' | 'cancelled';
+    let errorClass: string = 'none';
+
+    if (result.success) {
+      status = 'success';
+      errorClass = 'none';
+    } else if (result.normalizedError?.code === 'CANCELLED' || options.signal?.aborted) {
+      status = 'cancelled';
+      errorClass = 'TIMEOUT';
+    } else if (result.errorCode === 'TIMEOUT' || result.normalizedError?.class === 'TIMEOUT') {
+      status = 'timeout';
+      errorClass = 'TIMEOUT';
+      runtimeMetrics.recordTimeout({ provider: 'erp' });
+    } else {
+      status = 'failed';
+      errorClass = result.normalizedError?.class ?? 'PROVIDER_ERROR';
+    }
+
+    runtimeMetrics.recordAdapterRequest({
+      provider: 'erp',
+      status,
+      errorClass,
+      durationSeconds,
+    });
+
+    return result;
+  }
+
+  private async doRequest<T>(
+    endpoint: string,
+    options: {
+      method: string;
+      body?: unknown;
+      headers?: Record<string, string>;
+      timeoutMs?: number;
+      signal?: AbortSignal;
+      traceId?: string;
+      operationId?: string;
+      workspaceId?: string;
+    },
+    startTime: number,
+  ): Promise<ErpResult<T>> {
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     const timeout = options.timeoutMs ?? this.timeoutMs;
     const combined = combineAbortSignals([options.signal], timeout);
@@ -68,7 +115,6 @@ export class HttpERPAdapter {
       ...options.headers,
     };
 
-    const startTime = Date.now();
     const erpLogger = runtimeLogger.child({
       service: 'http-erp-adapter',
       provider: 'erp',

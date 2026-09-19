@@ -12,6 +12,7 @@ import {
   runtimeLogger,
   RuntimeEvents,
   StructuredLogger,
+  runtimeMetrics,
 } from '@crosspilot/shared';
 import { verifyApprovedPayloadBinding } from './approval-binding.js';
 
@@ -35,6 +36,7 @@ export class ActionRouter {
    * Failed or pending attempts are never cached to avoid permanently freezing recoverable operations.
    */
   private readonly completedOperations = new Map<string, CachedOperationRecord>();
+  private readonly MAX_CACHE_SIZE = 1000;
   private readonly logger: StructuredLogger;
 
   constructor(
@@ -52,6 +54,48 @@ export class ActionRouter {
     context: ActionDispatcherContext,
   ): Promise<ActionExecutionResult> {
     const startTime = Date.now();
+    const result = await this.doDispatch(proposal, context, startTime);
+
+    const durationSeconds = (Date.now() - startTime) / 1000;
+    const provider = result.executionEvidence?.provider ?? context.providerId ?? proposal.type;
+    const mode = result.executionEvidence?.mode ?? context.executionMode ?? 'DRY_RUN';
+
+    let status: 'succeeded' | 'failed' | 'blocked' | 'waiting_approval';
+    if (result.status === 'WAITING_APPROVAL') {
+      status = 'waiting_approval';
+    } else if (result.status === 'SUCCEEDED') {
+      status = 'succeeded';
+    } else {
+      const errorCode = result.normalizedError?.code || result.executionEvidence?.errorCode;
+      if (
+        errorCode === 'APPROVAL_REQUIRED' ||
+        errorCode === 'PAYLOAD_TAMPERED' ||
+        errorCode === 'TARGET_MISMATCH' ||
+        errorCode === 'DEMO_RESTRICTED' ||
+        errorCode === 'IDEMPOTENCY_CONFLICT' ||
+        result.status === ('BLOCKED' as any)
+      ) {
+        status = 'blocked';
+      } else {
+        status = 'failed';
+      }
+    }
+
+    runtimeMetrics.recordActionDispatch({
+      provider,
+      mode,
+      status,
+      durationSeconds,
+    });
+
+    return result;
+  }
+
+  private async doDispatch<T = any>(
+    proposal: ActionProposal<T>,
+    context: ActionDispatcherContext,
+    startTime: number,
+  ): Promise<ActionExecutionResult> {
     const traceId = context.traceId || `act_trace_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const mode: AutomationMode = context.executionMode || 'LIVE';
     const operationId = context.operationId || proposal.id;

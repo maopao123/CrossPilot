@@ -30,6 +30,7 @@ import { OperationsTodayModule } from './modules/operations-today/operations-tod
 import { ActionLayerModule } from './modules/action-layer/action-layer.module.js';
 import { OutcomeTrackingModule } from './modules/outcome-tracking/outcome-tracking.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
+import { InternalModule } from './modules/internal/internal.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { WorkspaceGuard } from './common/guards/workspace.guard.js';
 import { ViewerWriteGuard } from './common/guards/viewer-write.guard.js';
@@ -72,6 +73,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
     ActionLayerModule,
     OutcomeTrackingModule,
     StorageModule,
+    InternalModule,
   ],
   providers: [
     {

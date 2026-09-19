@@ -4,6 +4,7 @@ import {
   normalizeExecutionError,
   runtimeLogger,
   RuntimeEvents,
+  runtimeMetrics,
 } from '@crosspilot/shared';
 import {
   RpaAdapter,
@@ -59,38 +60,26 @@ export function isAllowedTargetHost(
     // 1. Loopback hosts: ONLY allowed in test or development environments
     const isTestOrDev = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
     if (isLoopback) {
-      return Boolean(isTestOrDev && (protocol === 'http:' || protocol === 'https:'));
+      return isTestOrDev;
     }
 
-    // 2. All remote / non-loopback LIVE addresses MUST enforce HTTPS
+    // 2. Production/Live hosts: MUST be HTTPS
     if (protocol !== 'https:') {
       return false;
     }
 
-    // 3. Check explicit Seller Central allowlist
-    for (const pattern of ALLOWED_SELLER_CENTRAL_HOST_PATTERNS) {
-      if (pattern.test(hostname)) return true;
-    }
-
-    // 4. Check options.allowedHosts (server-side explicitly allowed hosts)
-    if (options.allowedHosts) {
-      for (const allowed of options.allowedHosts) {
-        if (typeof allowed === 'string' && allowed.toLowerCase() === hostname) return true;
-        if (allowed instanceof RegExp && allowed.test(hostname)) return true;
-      }
-    }
-
-    // 5. Check if hostname matches server-configured options.baseUrl
-    if (options.baseUrl) {
-      try {
-        const configured = new URL(options.baseUrl);
-        if (configured.protocol === 'https:' && configured.hostname.toLowerCase() === hostname) {
-          return true;
+    // 3. Check custom allowedHosts if configured
+    if (options.allowedHosts && options.allowedHosts.length > 0) {
+      return options.allowedHosts.some((pattern) => {
+        if (typeof pattern === 'string') {
+          return hostname === pattern.toLowerCase();
         }
-      } catch {}
+        return pattern.test(hostname);
+      });
     }
 
-    return false;
+    // 4. Default: Match official Seller Central host patterns
+    return ALLOWED_SELLER_CENTRAL_HOST_PATTERNS.some((pattern) => pattern.test(hostname));
   } catch {
     return false;
   }
@@ -115,6 +104,39 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
 
   async execute(input: RpaExecutionInput): Promise<RpaExecutionResult> {
     const startTime = Date.now();
+    const result = await this.doExecute(input, startTime);
+
+    const durationSeconds = (Date.now() - startTime) / 1000;
+    let status: 'success' | 'failed' | 'timeout' | 'cancelled';
+    let errorClass: string = 'none';
+
+    if (result.status === 'SUCCESS') {
+      status = 'success';
+      errorClass = 'none';
+    } else if (result.status === 'TIMEOUT' || result.normalizedError?.class === 'TIMEOUT') {
+      if (input.signal?.aborted || result.normalizedError?.code === 'CANCELLED') {
+        status = 'cancelled';
+      } else {
+        status = 'timeout';
+        runtimeMetrics.recordTimeout({ provider: 'playwright-rpa' });
+      }
+      errorClass = 'TIMEOUT';
+    } else {
+      status = 'failed';
+      errorClass = result.normalizedError?.class ?? 'PROVIDER_ERROR';
+    }
+
+    runtimeMetrics.recordAdapterRequest({
+      provider: 'playwright-rpa',
+      status,
+      errorClass,
+      durationSeconds,
+    });
+
+    return result;
+  }
+
+  private async doExecute(input: RpaExecutionInput, startTime: number): Promise<RpaExecutionResult> {
     const rpaLogger = runtimeLogger.child({
       service: 'playwright-rpa-adapter',
       provider: 'playwright-rpa',
