@@ -5,6 +5,7 @@ import {
 } from './action.types.js';
 import { defaultRpaRegistry, RpaAdapter } from '@crosspilot/integrations/rpa';
 import { AutomationMode } from '@crosspilot/shared';
+import { verifyApprovedPayloadBinding } from './approval-binding.js';
 
 export type { ActionDispatcherContext } from './action.types.js';
 
@@ -133,6 +134,29 @@ export class ActionRouter {
           effect: 'NOT_APPLIED',
           recovery: 'MANUAL',
           errorCode: 'TARGET_MISMATCH',
+        },
+      };
+    }
+
+    // 2.1 Check Approved Payload Immutability: Enforce that approved proposal parameters
+    // (skuCode, title, price, workflow) cannot be tampered with after approval.
+    const payloadBindingCheck = verifyApprovedPayloadBinding(proposal, context);
+    if (!payloadBindingCheck.valid) {
+      return {
+        actionId: proposal.id,
+        status: 'FAILED',
+        isMock: mode === 'MOCK',
+        error: `PAYLOAD_TAMPERED: Approved execution parameters were tampered (${payloadBindingCheck.reason})`,
+        traceId,
+        durationMs: Date.now() - startTime,
+        executionEvidence: {
+          mode,
+          provider: context.providerId || 'action-router',
+          operationId,
+          phase: 'FAILED',
+          effect: 'NOT_APPLIED',
+          recovery: 'MANUAL',
+          errorCode: 'PAYLOAD_TAMPERED',
         },
       };
     }

@@ -292,8 +292,8 @@ describe('V10 Epic 4 ShopifyAdapter', () => {
         expect.objectContaining({
           storeId: 'store_sh1',
           platform: 'shopify',
-          entityType: 'offer',
-          entityId: 'gid://shopify/ProductVariant/54443961713004',
+          entityType: 'product',
+          entityId: 'gid://shopify/Product/15299021275500',
           externalId: 'gid://shopify/Product/15299021275500',
         }),
         expect.objectContaining({
@@ -312,6 +312,146 @@ describe('V10 Epic 4 ShopifyAdapter', () => {
         }),
       ]),
     );
+  });
+
+  it('multi-variant identity mapping: 1 Product with 2 Variants preserves distinct ChannelIdentities without last-write-wins', async () => {
+    const multiVariantData = {
+      data: {
+        products: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [
+            {
+              id: 'gid://shopify/Product/100',
+              title: 'Multi Variant T-Shirt',
+              handle: 'multi-variant-t-shirt',
+              status: 'ACTIVE',
+              productType: 'Apparel',
+              variants: {
+                pageInfo: { hasNextPage: false, endCursor: null },
+                nodes: [
+                  {
+                    id: 'gid://shopify/ProductVariant/101',
+                    title: 'Red / Small',
+                    sku: 'TSHIRT-RED-S',
+                    price: '19.99',
+                    inventoryItem: { id: 'gid://shopify/InventoryItem/201' },
+                  },
+                  {
+                    id: 'gid://shopify/ProductVariant/102',
+                    title: 'Blue / Medium',
+                    sku: 'TSHIRT-BLUE-M',
+                    price: '24.99',
+                    inventoryItem: { id: 'gid://shopify/InventoryItem/202' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    const prisma = memoryShopifyPrisma();
+    const adapter = createMockAdapter(prisma, {
+      execute: jest.fn(async () => multiVariantData) as any,
+    });
+    const ctx = createCommerceContext('ws-1', 'store_sh1', 'trace_test');
+
+    const products = await adapter.listProducts(ctx);
+    expect(products.length).toBe(2);
+
+    const writes = prisma.identityWrites;
+    // Must contain Product GID with entityType=product
+    const productWrites = writes.filter((w: any) => w.externalId === 'gid://shopify/Product/100');
+    expect(productWrites.length).toBeGreaterThanOrEqual(1);
+    expect(productWrites[0].entityType).toBe('product');
+    expect(productWrites[0].entityId).toBe('gid://shopify/Product/100');
+
+    // Must contain Variant 101 with entityType=offer pointing to Variant 101
+    const v1Write = writes.find((w: any) => w.externalId === 'gid://shopify/ProductVariant/101');
+    expect(v1Write).toBeDefined();
+    expect(v1Write?.entityType).toBe('offer');
+    expect(v1Write?.entityId).toBe('gid://shopify/ProductVariant/101');
+
+    // Must contain Variant 102 with entityType=offer pointing to Variant 102
+    const v2Write = writes.find((w: any) => w.externalId === 'gid://shopify/ProductVariant/102');
+    expect(v2Write).toBeDefined();
+    expect(v2Write?.entityType).toBe('offer');
+    expect(v2Write?.entityId).toBe('gid://shopify/ProductVariant/102');
+
+    // Distinct SKU identities
+    const sku1Write = writes.find((w: any) => w.externalId === 'TSHIRT-RED-S');
+    const sku2Write = writes.find((w: any) => w.externalId === 'TSHIRT-BLUE-M');
+    expect(sku1Write?.entityId).toBe('gid://shopify/ProductVariant/101');
+    expect(sku2Write?.entityId).toBe('gid://shopify/ProductVariant/102');
+  });
+
+  it('getProduct by Product GID returns CanonicalProduct with Product GID and matching ChannelIdentity semantics', async () => {
+    const singleProductNode = {
+      data: {
+        product: {
+          id: 'gid://shopify/Product/100',
+          title: 'Multi Variant T-Shirt',
+          handle: 'multi-variant-t-shirt',
+          status: 'ACTIVE',
+          productType: 'Apparel',
+          variants: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [
+              {
+                id: 'gid://shopify/ProductVariant/101',
+                title: 'Red / Small',
+                sku: 'TSHIRT-RED-S',
+                price: '19.99',
+              },
+            ],
+          },
+        },
+      },
+    };
+
+    const prisma = memoryShopifyPrisma();
+    const adapter = createMockAdapter(prisma, {
+      execute: jest.fn(async () => singleProductNode) as any,
+    });
+    const ctx = createCommerceContext('ws-1', 'store_sh1', 'trace_test');
+
+    const product = await adapter.getProduct(ctx, 'gid://shopify/Product/100');
+    expect(product).not.toBeNull();
+    expect(product?.id).toBe('gid://shopify/Product/100');
+    expect(product?.title).toBe('Multi Variant T-Shirt');
+  });
+
+  it('rejects invalid or arbitrary external shop hostnames to protect access token', async () => {
+    const prisma = memoryShopifyPrisma();
+    // Configure store with arbitrary external host
+    (prisma.store.findUnique as jest.Mock).mockResolvedValue({
+      id: 'store_evil',
+      workspaceId: 'ws-1',
+      platform: 'shopify',
+      name: 'evil.com',
+    });
+    (prisma.commerceAccount.findUnique as jest.Mock).mockResolvedValue({
+      id: 'acct_evil',
+      storeId: 'store_evil',
+      defaultMarketplaceCode: 'https://evil.com',
+    });
+    (prisma.providerCredential.findUnique as jest.Mock).mockResolvedValue({
+      accountId: 'acct_evil',
+      kind: 'SHOPIFY_CLIENT_CREDENTIALS',
+      payloadEnc: JSON.stringify({
+        clientId: 'test-client-id',
+        clientSecret: 'test-client-secret',
+        shop: 'evil.com',
+      }),
+    });
+
+    const adapter = createMockAdapter(prisma);
+    const ctx = createCommerceContext('ws-1', 'store_evil', 'trace_test');
+
+    await expect(adapter.listProducts(ctx)).rejects.toMatchObject({
+      code: 'CONFIG_ERROR',
+    });
   });
 
   it('getProduct retrieves a single CanonicalProduct by variant GID', async () => {

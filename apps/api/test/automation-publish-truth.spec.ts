@@ -144,5 +144,83 @@ describe('A2: Automation Publish Truth Tests (OperationAutomationService)', () =
       expect(step5?.status).toBe('RUNNING');
       expect(step5?.details?.executionEvidence).toEqual(upstreamEvidence);
     });
+
+    it('Explicit HITL LIVE approval path reconstructs action from requestedPayload, dispatches with executionMode=LIVE and providerId=playwright-rpa, sets syncVerified=true, and stores evidence', async () => {
+      const liveEvidence = {
+        mode: 'LIVE' as const,
+        provider: 'playwright-rpa',
+        operationId: 'live-operation',
+        phase: 'COMPLETED' as const,
+        effect: 'APPLIED' as const,
+        recovery: 'AUTOMATIC' as const,
+        evidence: {
+          screenshotBefore: 'screenshot_before.png',
+          screenshotAfter: 'screenshot_after.png',
+          readBackVerified: true,
+          traceZip: 'trace.zip',
+        },
+      };
+
+      let capturedProposal: any;
+      let capturedContext: any;
+      (service as any).actionRouter = {
+        dispatch: jest.fn().mockImplementation(async (proposal, context) => {
+          capturedProposal = proposal;
+          capturedContext = context;
+          return {
+            actionId: proposal.id,
+            status: 'SUCCEEDED',
+            data: {
+              jobId: 'rpa_live_12345',
+              status: 'SUCCESS',
+              output: {
+                sellerCentralUrl: 'https://sellercentral.amazon.com/inventory/view/MTH-GREEN-001',
+              },
+            },
+            executionEvidence: liveEvidence,
+          };
+        }),
+      };
+
+      const initial = await service.startListingPublishWorkflow(
+        { skuCode: 'MTH-GREEN-001', targetPrice: 29.99 },
+        'ws_demo',
+      );
+
+      const completed = await service.approveAndExecute(initial.approvalId!, 'ws_demo', 'OP_ADMIN', {
+        executionMode: 'LIVE',
+        providerId: 'playwright-rpa',
+      });
+
+      // Verify reconstructed Action parameters
+      expect(capturedContext.executionMode).toBe('LIVE');
+      expect(capturedContext.providerId).toBe('playwright-rpa');
+      expect(capturedContext.isApproved).toBe(true);
+      expect(capturedContext.approvedPayload.skuCode).toBe('MTH-GREEN-001');
+      expect(capturedContext.approvedPayload.price).toBe(29.99);
+      expect(capturedContext.approvedPayload.workflow).toBe('UPDATE_LISTING');
+      expect(capturedContext.approvedPayloadHash).toBeDefined();
+
+      // Verify run outcomes for LIVE mode
+      expect(completed.status).toBe('SUCCEEDED');
+      expect(completed.result.isMock).toBe(false);
+      expect(completed.result.mode).toBe('LIVE');
+      expect(completed.result.syncVerified).toBe(true);
+      expect(completed.result.catalogStatus).toBe('VERIFIED');
+      expect(completed.result.sellerCentralUrl).toBe(
+        'https://sellercentral.amazon.com/inventory/view/MTH-GREEN-001',
+      );
+
+      const step5 = completed.steps.find((s) => s.stepNumber === 5);
+      expect(step5?.name).toBe('RPA 提交 Seller Central (Playwright)');
+      expect(step5?.status).toBe('COMPLETED');
+      expect(step5?.summary).toMatch(/Read-back Verify: PASS/);
+
+      const step6 = completed.steps.find((s) => s.stepNumber === 6);
+      expect(step6?.name).toBe('发布后回传与页面核验（真实执行）');
+      expect(step6?.details.syncVerified).toBe(true);
+      expect(step6?.details.catalogStatus).toBe('VERIFIED');
+      expect(step6?.details.mode).toBe('LIVE');
+    });
   });
 });

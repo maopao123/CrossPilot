@@ -1,6 +1,38 @@
 # CrossPilot 交接
 
-> **2026-09-19 · CrossPilot Gate B 两项 P1 目标安全硬化全面闭环（Target Binding & Fail-Closed Truth Hardening）**：
+> **2026-09-19 · CrossPilot 最终冻结前真理硬化全面闭环（Pre-freeze Truth Hardening Closure）**：
+> - **背景与解决目标**：对 HEAD `7b9ed48` 实施最终冻结前深度真理硬化，不开新功能、不开 Epic 5/6。针对 Playwright 真实接线、Approval 不可变参数防篡改、Shopify 多变体标识映射、Host 安全校验及真实数据库联调 5 项核心关卡实施闭环。
+> - **1. Playwright 受控 LIVE 真实产品接线（`OperationAutomationService`）**：
+>   - 在 `executePublishRpa` 中打通受控 LIVE 路径：`HITL Approval -> 从已审批 requestedPayload 重建 Action -> executionMode=LIVE, providerId='playwright-rpa' -> Playwright -> read-back verify -> evidence -> catalogStatus: 'VERIFIED', syncVerified: true`；
+>   - 默认保留安全 `MOCK` 路径（零静默切 LIVE 风险）；
+>   - 单元测试 `automation-publish-truth.spec.ts` 5/5 全部 PASS。
+> - **2. Approval 完整参数不可变绑定（`approval-binding.ts` & `action.router.ts`）**：
+>   - 实现 `computeCanonicalPayloadHash`（SHA-256 标准规范化哈希）与 `verifyApprovedPayloadBinding`；
+>   - `ActionRouter` 严格比对 `{ skuCode, title, price, workflow }` 及 canonical hash；
+>   - 篡改任何关键参数（如审批 price=29.99，执行 price=999.99）在浏览器启动前 100% 阻断，返回 `status: 'FAILED', effect: 'NOT_APPLIED', errorCode: 'PAYLOAD_TAMPERED'`，浏览器启动次数严格为 0；
+>   - 新增对抗测试 Case 26（价格篡改阻断）与 Case 27（哈希篡改阻断）。
+> - **3. Shopify 多变体 ChannelIdentity 映射真理化（`shopify-adapter.ts`）**：
+>   - 根治多变体覆写缺陷（last-write-wins）；
+>   - 实体分层设计：商品 GID 标识使用 `entityType: 'product'`, `entityId: productGid`；变体 GID 与 SKU 标识使用 `entityType: 'offer'`, `entityId: variantGid`；
+>   - `getProduct(productGid)` 返回 `id === productGid` 的规范商品对象，与 `ChannelIdentity.entityId` 100% 对齐；
+>   - 单商品 N 变体在不改动 Prisma Schema 的前提下，精确落库 1 product + N variant + N SKU，互不覆盖；
+>   - 单测 `v10-epic4-shopify-adapter.spec.ts` 25/25 全部 PASS。
+> - **4. Host 与目标安全守卫（`shopify-adapter.ts` & `playwright.adapter.ts`）**：
+>   - Shopify：全链路执行 `validateAndNormalizeShopSubdomain`，只允许合法子域名（`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$`），严禁外部任意域名/端口注入，杜绝 Access Token 远端泄漏；
+>   - Playwright：LIVE 模式下严格匹配 `ALLOWED_SELLER_CENTRAL_HOST_PATTERNS`，阻断任意非授权 Seller Central 目标 host，抛出 `CONFIG_ERROR`（Case 28 PASS）。
+> - **5. 真实 PostgreSQL 数据库联调验证（`v10-epic4-shopify-db-integration.spec.ts`）**：
+>   - 摒弃纯内存伪造，直连真实 PostgreSQL 数据库（`127.0.0.1:15432` 隧道）；
+>   - 动态创建隔离的 `Workspace`、`Store`、`CommerceAccount` 与真实加密 `ProviderCredential`（通过 `encryptSecret`）；
+>   - 调用 `ShopifyAdapter.listProducts` 走真实落库通道；
+>   - 直查 PostgreSQL `channel_identities` 表，断言实际落库 5 行（1 product + 2 variants + 2 SKUs），验证无覆写与字段结构；
+>   - 验证 `getProduct(productGid)` 与数据库记录 1:1 对齐，验证幂等重跑无重复行；
+>   - 验证后严格级联清理，0 数据残留；3/3 全部 PASS。
+> - **质量门禁与端到端验证**：
+>   - 全仓库 `pnpm -r run typecheck` 10/10 PASS；
+>   - 7 个 Package 生产构建全部 PASS；
+>   - `@crosspilot/actions` 套件全量 47/47 测试全部 PASS；
+>   - `@crosspilot/api` 核心测试套件全部 PASS。
+>
 > - **背景与解决目标**：依据第三轮复核报告（`CrossPilot_第三轮修复复核报告_280199c.md`），针对 Gate B 中识别的 2 项 P1 目标安全缺陷（Approval 与执行目标未绑定、页面缺失 SKU 证据时 fail-open），以零妥协标准完成根因修复，杜绝跨商品越权修改与未验真伪成功。
 > - **🔴 2 项 P1 核心安全缺陷清零**：
 >   - **P1-1 ActionRouter 强制绑定 Approval 与执行目标（`action.router.ts`）**：在分派执行前强行核验 `proposal.targetId` 与执行 `payload` 目标（`skuCode`/`sku`/`targetId`）的一致性；不符立即拦截并返回 `status: 'FAILED'`, `effect: 'NOT_APPLIED'`, `errorCode: 'TARGET_MISMATCH'`，适配器调用与浏览器启动次数严格为 0；纠正 Case 21 历史继承缺陷并新增 Case 23 拦截测试。

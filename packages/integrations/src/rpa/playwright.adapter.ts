@@ -17,6 +17,65 @@ export interface PlaywrightRpaAdapterOptions {
   timeoutMs?: number;
   evidenceDir?: string;
   mockServer?: MockSellerCentralServer;
+  allowedHosts?: (string | RegExp)[];
+}
+
+export const ALLOWED_SELLER_CENTRAL_HOST_PATTERNS: RegExp[] = [
+  /^sellercentral\.amazon\.com$/,
+  /^sellercentral\.amazon\.co\.uk$/,
+  /^sellercentral\.amazon\.de$/,
+  /^sellercentral\.amazon\.co\.jp$/,
+  /^sellercentral\.amazon\.fr$/,
+  /^sellercentral\.amazon\.it$/,
+  /^sellercentral\.amazon\.es$/,
+  /^sellercentral\.amazon\.ca$/,
+  /^sellercentral\.amazon\.com\.mx$/,
+  /^sellercentral\.amazon\.com\.au$/,
+  /^([a-z0-9-]+\.)?sellercentral\.amazon\.[a-z.]+$/,
+];
+
+export function isAllowedTargetHost(
+  urlStr: string,
+  options: PlaywrightRpaAdapterOptions = {},
+): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    const hostname = parsed.hostname.toLowerCase();
+
+    // 1. Check Seller Central allowlist
+    for (const pattern of ALLOWED_SELLER_CENTRAL_HOST_PATTERNS) {
+      if (pattern.test(hostname)) return true;
+    }
+
+    // 2. Check options.allowedHosts
+    if (options.allowedHosts) {
+      for (const allowed of options.allowedHosts) {
+        if (typeof allowed === 'string' && allowed.toLowerCase() === hostname) return true;
+        if (allowed instanceof RegExp && allowed.test(hostname)) return true;
+      }
+    }
+
+    // 3. Check if hostname matches server-configured options.baseUrl
+    if (options.baseUrl) {
+      try {
+        const configured = new URL(options.baseUrl);
+        if (configured.hostname.toLowerCase() === hostname) return true;
+      } catch {}
+    }
+
+    // 4. In test / dev environments, allow loopback hosts for mock testing
+    const isTestOrDev =
+      process.env.NODE_ENV === 'test' ||
+      process.env.NODE_ENV === 'development' ||
+      !process.env.NODE_ENV;
+    if (isTestOrDev && (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1')) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -70,7 +129,29 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
     const title = params.title != null ? String(params.title) : undefined;
     const price = params.price != null ? parseFloat(String(params.price)) : undefined;
 
-    // 2. Base URL discovery: input param > options > env > explicitly provided mockServer
+    // 2. Base URL discovery & target host security guard:
+    // In LIVE mode, client cannot arbitrarily supply external target URLs.
+    // Target host must match the Seller Central allowlist or server trusted configuration.
+    if (params.baseUrl && !isAllowedTargetHost(params.baseUrl, this.options)) {
+      let hostname = 'unknown';
+      try {
+        hostname = new URL(params.baseUrl).hostname;
+      } catch {}
+      return {
+        jobId: '',
+        status: 'FAILED',
+        error: `CONFIG_ERROR: Unauthorized target host "${hostname}" in baseUrl. Target host must be a valid Seller Central domain or trusted server configuration.`,
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            step: 'CONFIG_VALIDATION',
+            message: `LIVE RPA execution rejected: host "${hostname}" is not in the Seller Central allowlist or server configuration.`,
+          },
+        ],
+        durationMs: Date.now() - startTime,
+      };
+    }
+
     let baseUrl = params.baseUrl || this.options.baseUrl || process.env.SELLER_CENTRAL_URL;
     if (!baseUrl && this.options.mockServer) {
       baseUrl = this.options.mockServer.getUrl();
@@ -92,6 +173,26 @@ export class PlaywrightRpaAdapter implements RpaAdapter {
         durationMs: Date.now() - startTime,
       };
       return configErrorResult;
+    }
+
+    if (!isAllowedTargetHost(baseUrl, this.options)) {
+      let hostname = 'unknown';
+      try {
+        hostname = new URL(baseUrl).hostname;
+      } catch {}
+      return {
+        jobId: '',
+        status: 'FAILED',
+        error: `CONFIG_ERROR: Unauthorized target host "${hostname}" in configured baseUrl. Target host must be a valid Seller Central domain.`,
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            step: 'CONFIG_VALIDATION',
+            message: `LIVE RPA execution rejected: host "${hostname}" is not in the Seller Central allowlist.`,
+          },
+        ],
+        durationMs: Date.now() - startTime,
+      };
     }
 
     const jobId = `rpa_playwright_${randomUUID().replace(/-/g, '').slice(0, 12)}`;

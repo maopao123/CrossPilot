@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import { ActionRouter, ActionProposal } from '../src/index.js';
+import { ActionRouter, ActionProposal, computeCanonicalPayloadHash } from '../src/index.js';
 import {
   RpaRegistry,
   PlaywrightRpaAdapter,
@@ -783,4 +783,126 @@ describe('V10 Phase B: Playwright Listing RPA Execution Truth Tests', () => {
       await redirectedServer.stop();
     }
   }, 25000);
+
+  it('26. Approval payload immutability: Approving price=29.99 but executing price=999.99 for identical SKU is blocked before browser launch with NOT_APPLIED and PAYLOAD_TAMPERED', async () => {
+    let browserExecuted = false;
+    const trackingAdapter = {
+      id: 'tracking-playwright-rpa',
+      name: 'Tracking Playwright RPA',
+      supportedModes: ['LIVE'],
+      execute: async () => {
+        browserExecuted = true;
+        return { jobId: 'should-never-run', status: 'SUCCESS', output: {} };
+      },
+    };
+
+    const registry = new RpaRegistry();
+    registry.register(trackingAdapter as any);
+    const router = new ActionRouter(registry);
+
+    // Proposal has tampered price: 999.99, while approval specified price: 29.99
+    const tamperedPriceProposal: ActionProposal = {
+      ...baseListingProposal,
+      id: 'tampered-price-action',
+      targetId: 'SKU-001',
+      payload: {
+        workflow: 'UPDATE_LISTING',
+        skuCode: 'SKU-001',
+        title: 'Marble Toothbrush Holder White',
+        price: 999.99, // Tampered price!
+      },
+    };
+
+    const result = await router.dispatch(tamperedPriceProposal, {
+      workspaceId: 'ws_tamper_test',
+      isApproved: true,
+      executionMode: 'LIVE',
+      providerId: 'tracking-playwright-rpa',
+      approvedPayload: {
+        workflow: 'UPDATE_LISTING',
+        skuCode: 'SKU-001',
+        title: 'Marble Toothbrush Holder White',
+        price: 29.99, // Approved price
+      },
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.error).toContain('PAYLOAD_TAMPERED');
+    expect(result.error).toMatch(/price/);
+    expect(result.executionEvidence?.effect).toBe('NOT_APPLIED');
+    expect(result.executionEvidence?.errorCode).toBe('PAYLOAD_TAMPERED');
+    expect(browserExecuted).toBe(false); // Browser launch was 100% intercepted!
+  });
+
+  it('27. Canonical payload hash binding: Mismatched canonical payload hash blocks execution with PAYLOAD_TAMPERED', async () => {
+    let browserExecuted = false;
+    const trackingAdapter = {
+      id: 'tracking-playwright-rpa',
+      name: 'Tracking Playwright RPA',
+      supportedModes: ['LIVE'],
+      execute: async () => {
+        browserExecuted = true;
+        return { jobId: 'should-never-run', status: 'SUCCESS', output: {} };
+      },
+    };
+
+    const registry = new RpaRegistry();
+    registry.register(trackingAdapter as any);
+    const router = new ActionRouter(registry);
+
+    const approvedParams = {
+      workflow: 'UPDATE_LISTING',
+      skuCode: 'SKU-001',
+      title: 'Marble Toothbrush Holder White',
+      price: 29.99,
+    };
+    const approvedHash = computeCanonicalPayloadHash(approvedParams);
+
+    // Execution attempts price = 49.99 with the approved hash
+    const tamperedProposal: ActionProposal = {
+      ...baseListingProposal,
+      id: 'tampered-hash-action',
+      targetId: 'SKU-001',
+      payload: {
+        ...approvedParams,
+        price: 49.99,
+      },
+    };
+
+    const result = await router.dispatch(tamperedProposal, {
+      workspaceId: 'ws_hash_test',
+      isApproved: true,
+      executionMode: 'LIVE',
+      providerId: 'tracking-playwright-rpa',
+      approvedPayloadHash: approvedHash,
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.error).toContain('PAYLOAD_TAMPERED');
+    expect(result.error).toMatch(/hash mismatch/i);
+    expect(result.executionEvidence?.effect).toBe('NOT_APPLIED');
+    expect(browserExecuted).toBe(false);
+  });
+
+  it('28. Target host allowlist security: Arbitrary external target baseUrl in LIVE mode is rejected before browser launch with CONFIG_ERROR', async () => {
+    const adapter = new PlaywrightRpaAdapter();
+    const result = await adapter.execute({
+      workflow: 'UPDATE_LISTING',
+      mode: 'LIVE',
+      params: {
+        skuCode: 'SKU-001',
+        title: 'New Title',
+        price: 29.99,
+        baseUrl: 'https://malicious-attacker-domain.com/phishing',
+      },
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.error).toContain('CONFIG_ERROR');
+    expect(result.error).toContain('malicious-attacker-domain.com');
+    expect(result.jobId).toBe('');
+  });
 });
+
+
+

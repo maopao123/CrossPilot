@@ -29,6 +29,9 @@ export interface ActionProposal<T = any> {
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
   status: ActionStatus;
   createdAt: string;
+  approvedPayload?: Record<string, unknown> | string;
+  approvedPayloadHash?: string;
+  approvalProof?: any;
 }
 
 export interface ActionExecutionResult<T = any> {
@@ -51,4 +54,7 @@ export interface ActionDispatcherContext {
   operationId?: string;
   executionMode?: AutomationMode;
   providerId?: string;
+  approvedPayload?: Record<string, unknown> | string;
+  approvedPayloadHash?: string;
+  approvalProof?: any;
 }

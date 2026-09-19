@@ -89,14 +89,35 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-function normalizeShopDomain(raw: string): string {
-  if (!raw) return '';
-  return raw
+/**
+ * Strict RFC-compliant validator and normalizer for Shopify shop subdomain.
+ * Only alphanumeric characters and hyphens are permitted (e.g. 'crosspilot-dev').
+ * Forbids dots, slashes, port numbers, or external hostnames to prevent token leakage.
+ */
+export function validateAndNormalizeShopSubdomain(raw: string): string {
+  if (!raw || typeof raw !== 'string') {
+    throw new CommercePortError(
+      'CONFIG_ERROR',
+      'Shopify shop domain is required (e.g. crosspilot-dev)',
+      false,
+    );
+  }
+  const clean = raw
     .trim()
     .replace(/^https?:\/\//i, '')
     .replace(/\.myshopify\.com\/?$/i, '')
     .replace(/\/.*$/, '')
     .trim();
+
+  const SUBDOMAIN_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/;
+  if (!SUBDOMAIN_REGEX.test(clean) || clean.includes('.')) {
+    throw new CommercePortError(
+      'CONFIG_ERROR',
+      `Invalid Shopify shop subdomain "${raw}". Shop must be a valid subdomain containing only letters, numbers, and hyphens without dots or arbitrary domains.`,
+      false,
+    );
+  }
+  return clean;
 }
 
 /**
@@ -111,8 +132,8 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
     query: string,
     variables?: Record<string, unknown>,
   ): Promise<ShopifyGraphQLResponse<T>> {
-    const domain = shop.includes('.') ? shop : `${shop}.myshopify.com`;
-    const url = `https://${domain}/admin/api/${this.apiVersion}/graphql.json`;
+    const subdomain = validateAndNormalizeShopSubdomain(shop);
+    const url = `https://${subdomain}.myshopify.com/admin/api/${this.apiVersion}/graphql.json`;
 
     let res: Response;
     try {
@@ -184,8 +205,8 @@ export async function defaultShopifyTokenExchanger(
   clientId: string,
   clientSecret: string,
 ): Promise<ShopifyTokenExchangeResult> {
-  const domain = shop.includes('.') ? shop : `${shop}.myshopify.com`;
-  const url = `https://${domain}/admin/oauth/access_token`;
+  const subdomain = validateAndNormalizeShopSubdomain(shop);
+  const url = `https://${subdomain}.myshopify.com/admin/oauth/access_token`;
 
   const bodyParams = new URLSearchParams();
   bodyParams.append('grant_type', 'client_credentials');
@@ -444,12 +465,12 @@ export class ShopifyAdapter implements CommerceAdapter {
             nodes: allVariants,
           };
         }
-        const products = this.toProducts(ctx, productNode);
-        if (products.length === 0) return null;
+        const canonicalProduct = this.productNodeToCanonicalProduct(ctx, productNode);
+        const allVariantProducts = this.toProducts(ctx, productNode);
         if (this.persistIdentities) {
-          await this.projectIdentities(ctx, products);
+          await this.projectIdentities(ctx, [canonicalProduct, ...allVariantProducts]);
         }
-        return products[0];
+        return canonicalProduct;
       } catch (err: any) {
         if (err instanceof CommercePortError && err.code === 'NOT_FOUND') return null;
         throw err;
@@ -879,13 +900,7 @@ export class ShopifyAdapter implements CommerceAdapter {
       account.sellingPartnerId ||
       store.name ||
       '';
-    const shop = normalizeShopDomain(rawShop);
-    if (!shop) {
-      throw new CommercePortError(
-        ErrorCodes.AUTH_REQUIRED,
-        'Shopify shop domain is required (e.g. crosspilot-dev)',
-      );
-    }
+    const shop = validateAndNormalizeShopSubdomain(rawShop);
 
     return { store, account, shop, clientId, clientSecret };
   }
@@ -1163,27 +1178,64 @@ export class ShopifyAdapter implements CommerceAdapter {
     };
   }
 
+  private productNodeToCanonicalProduct(ctx: CommerceContext, node: any): CanonicalProduct {
+    const variants = Array.isArray(node?.variants?.nodes) ? node.variants.nodes : [];
+    const firstVariant = variants[0];
+    const price = firstVariant?.price != null ? round2(Number(firstVariant.price)) : 0;
+    const sku = firstVariant?.sku || node.handle || String(node.id);
+
+    const identities = [
+      { type: 'shopify_product_id', id: String(node.id) },
+      ...variants.flatMap((v: any) => [
+        { type: 'shopify_variant_id', id: String(v.id) },
+        ...(v.sku ? [{ type: 'shopify_sku', id: String(v.sku) }] : []),
+      ]),
+    ];
+
+    return {
+      id: String(node.id),
+      workspaceId: ctx.workspaceId,
+      storeId: ctx.storeId,
+      platform: 'shopify',
+      title: node.title || String(node.id),
+      sku: String(sku),
+      category: node.productType || '',
+      price,
+      cost: null,
+      identities,
+    };
+  }
+
   private async projectIdentities(ctx: CommerceContext, products: CanonicalProduct[]): Promise<void> {
     for (const product of products) {
       for (const identity of product.identities) {
+        const isProductLevel =
+          identity.type === 'shopify_product_id' ||
+          identity.id.startsWith('gid://shopify/Product/');
+
+        const entityType = isProductLevel ? 'product' : 'offer';
+        const entityId = isProductLevel
+          ? (identity.type === 'shopify_product_id' ? identity.id : product.id)
+          : (product.id.startsWith('gid://shopify/ProductVariant/') ? product.id : identity.id);
+
         try {
           await this.prisma.channelIdentity.upsert({
             where: {
               storeId_platform_entityType_externalId: {
                 storeId: ctx.storeId,
                 platform: 'shopify',
-                entityType: 'offer',
+                entityType,
                 externalId: identity.id,
               },
             },
             create: {
               storeId: ctx.storeId,
               platform: 'shopify',
-              entityType: 'offer',
-              entityId: product.id,
+              entityType,
+              entityId,
               externalId: identity.id,
             },
-            update: { entityId: product.id },
+            update: { entityId },
           });
         } catch {
           // Identity projection is best-effort; reads must not fail on it.
