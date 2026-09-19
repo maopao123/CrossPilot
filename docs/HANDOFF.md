@@ -1,5 +1,63 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 2.1 完成（Phase 2.1 Timeout & Cancellation Closure Complete）**：
+> - **基线 Commit**: `edbd2c207b572b4097dd120baa5148bd332e0f31` (`edbd2c2`, Phase 2)
+> - **目标达成**：全面修复 Phase 2 审查发现的信号传播与副作用安全边界缺口，严格闭环 Shopify 响应体流读取超时保护、Shopify 嵌套分页超时与取消完整透传、ActionRouter 对非受控第三方 Adapter 抛错的副作用保守判定，以及 Playwright RPA 页面级 Abort 监听器和 WorkerService 重启生命周期安全。严格遵循红线：零 DB migration，未进入 Phase 3，不做 Structured Logging。
+> - **1. Shopify 嵌套分页请求 signal / timeout 完整传播（`packages/db/src/commerce/shopify-adapter.ts`）**：
+>   - `fetchAllVariants`, `fetchAllOrderLineItems`, `fetchAllInventoryLevels` 扩展支持 `options?: ShopifyGraphQLRequestOptions`；
+>   - `listProducts`, `getProduct`, `listOrders`, `getInventory`（3 个分支）在调用这些 helper 时完整透传 `options`；
+>   - 分页循环中每一次 GraphQL 请求均受调用方 `signal` 与 `timeoutMs` 保护，任一页超时或取消立即中断后续请求并抛出强类型异常。
+> - **2. Shopify 响应体流读取超时全覆盖（`packages/db/src/commerce/shopify-adapter.ts`）**：
+>   - 在 `HttpShopifyGraphQLTransport.execute` 与 `defaultShopifyTokenExchanger` 中，将 HTTP 状态码校验及 `await res.json()` 完整移入 `try { ... } finally { combined.cleanup(); }` 保护块内；
+>   - 确保 response body 流式传输即使在 headers 返回后挂起，`combined.signal` 的超时定时器依然守护并在超时时可靠触发 `TIMEOUT` 或 `CANCELLED`。
+> - **3. ActionRouter 异常捕获与副作用安全边界（`packages/actions/src/action.router.ts`）**：
+>   - 严格防守：派发前取消（`isPreDispatchAbort`）确凿未发生网络调用，标记为 `effect: NOT_APPLIED`, `recovery: NONE`；
+>   - 一旦进入 `await adapter.execute(...)` 派发执行，任何捕获的 `AbortError` / `TimeoutError` 或第三方异常，除非异常对象明确证实未写（`err?.writeExecuted === false || err?.output?.writeExecuted === false`），否则严格保守判定为 `effect: UNKNOWN`, `recovery: adapter.getStatus ? 'QUERY' : 'MANUAL'`，杜绝将进行中或已发出的写操作误判为 `NOT_APPLIED`。
+> - **4. Playwright RPA 页面级 Abort 监听器与协同中断真实性（`packages/integrations/src/rpa/playwright/listing.workflow.ts`）**：
+>   - 解决底层 Chromium 阻塞调用无法被纯轮询中断的问题：页面初始化后向 `params.signal` 注册 `onAbort = () => { page?.close().catch(() => {}); }` 监听器；
+>   - 外部取消发生时主动关闭 Page，强行中断正在进行的 Playwright 阻塞等待（如 navigation / locator 等待）；在 `finally` 块中通过 `removeEventListener` 清理，防止内存泄漏。
+> - **5. WorkerService 重启生命周期安全（`apps/worker/src/worker.service.ts`）**：
+>   - 在 `start()` 中增加状态检查：如果 `this.shutdownController.signal.aborted` 为 true，自动重建全新的 `new AbortController()`，确保服务重启后新任务不会被误判为已中止。
+> - **6. 交付物与质量门禁**：
+>   - 更新规范文档：`docs/automation-runtime/TIMEOUT_AND_CANCELLATION.md`；
+>   - 扩充自动化测试：`packages/actions/test/timeout-and-cancellation.spec.ts`（新增 Sections 7, 8, 9，共 27/27 全部 PASS）；
+>   - `apps/worker/test/worker.service.spec.ts` 新增重启后重置 `shutdownController` 单测（10/10 全部 PASS）；
+>   - 全套门禁验证：
+>     - `pnpm -r run build` 全部 PASS
+>     - `pnpm -r run typecheck` 10/10 PASS
+>     - `@crosspilot/actions` 114/114 全部 PASS (5 个测试套件)
+>     - `@crosspilot/worker` 10/10 全部 PASS
+>     - `@crosspilot/domain` 449/449 全部 PASS (41 个测试套件)
+>     - `@crosspilot/api` `v93-action-layer.spec.ts` + `automation-erp-http.spec.ts` 11/11 全部 PASS；
+>   - 零 DB migration，零状态机核心语义破坏，未进入 Phase 3。
+>
+> **2026-09-19 · CrossPilot 自动化可靠性 + 可观测性方案 V2 Phase 2 完成（Phase 2 Timeout, Cancellation & AbortSignal Propagation Complete）**：
+> - **基线 Commit**: `347bcf4c1ea9f4e2439ba8fdbbc27161b32d20e7` (`347bcf4`, Phase 1.1)
+> - **目标达成**：在不修改现有 AutomationOperation 状态机、不重建 Worker、不改变 Retry / Recovery 语义的前提下，建立统一超时配置，并将 `AbortSignal` 贯穿整个执行链路（ActionRouter -> Shopify / ERP / Playwright）。
+> - **核心安全公理落实**：严格落实 `TIMEOUT ≠ 确认失败`。写操作或点击 Save 后的超时与取消严格标记为 `effect: UNKNOWN`、`recovery: QUERY`，严禁直接 `RETRY`，必须待 Worker 通过 IdempotencyKey / 查询远端真实状态后决策。仅确认发生在写操作前的取消方可标记为 `effect: NOT_APPLIED`、`recovery: NONE`。
+> - **1. 统一超时配置体系与组合信号管理器（`@crosspilot/shared`）**：
+>   - 实现 `AutomationTimeoutConfig` 与 `getAutomationTimeoutConfig(env)`，统管 4 类超时：`httpTimeoutMs` (10s), `executionTimeoutMs` (60s), `verifyTimeoutMs` (15s), `rpaNavigationTimeoutMs` (30s)；内置 [100ms, 600,000ms] 边界钳位与非法值回退；
+>   - 实现无泄漏 `combineAbortSignals(signals, timeoutMs)`，支持调用方信号、内部超时定时器、已中止信号的同步立断与 `cleanup()` 资源释放。
+> - **2. Shopify 适配器超时与取消透传（`packages/db/src/commerce/shopify-adapter.ts`）**：
+>   - `CommerceContext` 扩充 `signal` 与 `timeoutMs`；
+>   - `HttpShopifyGraphQLTransport` 与 `defaultShopifyTokenExchanger` 将组合信号传递给底层 HTTP 请求，精准将超时归一化为 `CommercePortError('TIMEOUT', ..., retryable: false)`，将主动取消归一化为 `CommercePortError('CANCELLED', ..., retryable: false)`；支持注入 `fetchFn`。
+> - **3. ERP 适配器超时与取消透传（`packages/integrations/src/erp/http-erp.adapter.ts`）**：
+>   - `ErpRequestOptions` 接收 `signal` 与 `timeoutMs`；`HttpERPAdapter.request` 统一透传至网络层；
+>   - 内部超时输出 `errorCode: 'TIMEOUT'`、`normalizedError: { class: 'TIMEOUT', code: 'TIMEOUT', retryable: false }`；
+>   - 外部主动取消输出 `errorCode: 'TIMEOUT'`、`normalizedError: { class: 'TIMEOUT', code: 'CANCELLED', retryable: false }`；支持注入 `fetchFn`。
+> - **4. Playwright RPA Pre-Write vs Post-Write 取消分离（`playwright.adapter.ts` & `listing.workflow.ts`）**：
+>   - 入口率先执行 Pre-flight 取消检查，写前取消标记 `writeExecuted: false`，输出 `effect: NOT_APPLIED`、`recovery: NONE`；
+>   - 页面导航、SKU 定位、数据读取及**点击 Save 按钮正前方**逐级校验 `signal.throwIfAborted()`；
+>   - 点击 Save 后锁死 `writeExecuted = true`，此后任何超时或取消均严格判定为 `effect: UNKNOWN`、`recovery: QUERY`，杜绝误判导致数据双写。
+> - **5. ActionRouter 资源回收与 Worker 停机信号广播**：
+>   - `ActionRouter` 在每个提早退出分支（人机卡点、幂等冲突、参数防篡改、Demo防护）及正常返回前统一调用 `combined.cleanup()`；
+>   - `WorkerService` 引入 `shutdownController = new AbortController()`，在 `stop()` 时广播取消，`processAutomationRecovery` 在每轮处理前检查并透传信号给 ERP 反查。
+> - **6. 交付物与质量门禁**：
+>   - 新增规范文档：`docs/automation-runtime/TIMEOUT_AND_CANCELLATION.md`；
+>   - 新增自动化测试：`packages/actions/test/timeout-and-cancellation.spec.ts`（18/18 全部 PASS）；
+>   - 全套门禁验证：`pnpm -r run typecheck` 10/10 PASS，`@crosspilot/actions` 105/105 全部 PASS，`@crosspilot/domain` 449/449 全部 PASS，`@crosspilot/worker` 9/9 全部 PASS，`v93-action-layer.spec.ts` + `automation-erp-http.spec.ts` 11/11 全部 PASS；
+>   - 零 DB migration，零状态机语义变更，严格在 Phase 2 交付边界停止，未进入 Phase 3。
+>
 > **2026-09-19 · CrossPilot 最终冻结前真理硬化全面闭环（Pre-freeze Truth Hardening Closure）**：
 > - **背景与解决目标**：对 HEAD `7b9ed48` 实施最终冻结前深度真理硬化，不开新功能、不开 Epic 5/6。针对 Playwright 真实接线、Approval 不可变参数防篡改、Shopify 多变体标识映射、Host 安全校验及真实数据库联调 5 项核心关卡实施闭环。
 > - **1. Playwright 受控 LIVE 真实产品接线（`OperationAutomationService`）**：

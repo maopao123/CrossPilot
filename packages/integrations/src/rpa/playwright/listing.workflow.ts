@@ -104,6 +104,7 @@ export class ListingUpdateWorkflow {
     let browser: Browser | null = null;
     let context: BrowserContext | null = null;
     let page: Page | null = null;
+    let onAbort: (() => void) | null = null;
 
     try {
       params.signal?.throwIfAborted();
@@ -124,6 +125,22 @@ export class ListingUpdateWorkflow {
 
       page = await context.newPage();
       page.setDefaultTimeout(timeoutMs);
+
+      onAbort = () => {
+        try {
+          if (page && !page.isClosed()) {
+            page.close().catch(() => {});
+          }
+        } catch {}
+      };
+
+      if (params.signal) {
+        if (params.signal.aborted) {
+          onAbort();
+        } else {
+          params.signal.addEventListener('abort', onAbort, { once: true });
+        }
+      }
 
       const sellerPage = new SellerCentralPage(page);
 
@@ -254,7 +271,12 @@ export class ListingUpdateWorkflow {
 
       let errorClassification = 'RPA_EXECUTION_FAILED';
       const msg = String(err?.message || '');
-      if (err?.name === 'AbortError' || params.signal?.aborted || msg.includes('ABORTED')) {
+      if (
+        err?.name === 'AbortError' ||
+        params.signal?.aborted ||
+        msg.includes('ABORTED') ||
+        (msg.includes('Target page, context or browser has been closed') && params.signal?.aborted)
+      ) {
         errorClassification = writeExecuted ? 'ABORTED_AFTER_WRITE' : 'ABORTED_BEFORE_WRITE';
       } else if (msg.includes('SAVE_FAILED')) {
         errorClassification = 'SAVE_FAILED';
@@ -279,6 +301,10 @@ export class ListingUpdateWorkflow {
         durationMs: Date.now() - startTime,
         writeExecuted,
       };
+    } finally {
+      if (params.signal && onAbort) {
+        params.signal.removeEventListener('abort', onAbort);
+      }
     }
   }
 }

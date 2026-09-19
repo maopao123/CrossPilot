@@ -16,6 +16,7 @@ import {
   HttpShopifyGraphQLTransport,
   defaultShopifyTokenExchanger,
 } from '@crosspilot/db';
+import { CommercePortError } from '@crosspilot/domain';
 import { ActionRouter, ActionProposal, computeCanonicalPayloadHash } from '../src/index.js';
 
 describe('Phase 2: Timeout, Cancellation & AbortSignal Propagation Tests', () => {
@@ -472,6 +473,445 @@ describe('Phase 2: Timeout, Cancellation & AbortSignal Propagation Tests', () =>
       expect(normalized.class).toBe('TIMEOUT');
       expect(normalized.code).toBe('CANCELLED');
       expect(normalized.retryable).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 7. Shopify Response Body Consumption Timeout & Abort Coverage
+  // ---------------------------------------------------------------------------
+  describe('7. Shopify Response Body Consumption Timeout & Abort Coverage', () => {
+    it('7.1 HttpShopifyGraphQLTransport throws TIMEOUT when response body stream hangs', async () => {
+      const slowBodyFetch = async (): Promise<Response> => {
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: new Headers(),
+          json: async () => {
+            return new Promise((_, reject) => {
+              setTimeout(() => {
+                const err = new Error('Body stream timed out');
+                err.name = 'TimeoutError';
+                reject(err);
+              }, 60);
+            });
+          },
+        } as any;
+      };
+
+      const transport = new HttpShopifyGraphQLTransport('2026-07', slowBodyFetch as any);
+      await expect(
+        transport.execute('test-shop', 'test-tok', '{ shop { name } }', {}, { timeoutMs: 30 }),
+      ).rejects.toMatchObject({
+        code: 'TIMEOUT',
+        retryable: false,
+      });
+    });
+
+    it('7.2 HttpShopifyGraphQLTransport throws CANCELLED when external abort occurs during body read', async () => {
+      const controller = new AbortController();
+      const slowBodyFetch = async (_url: string, init?: RequestInit): Promise<Response> => {
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: new Headers(),
+          json: async () => {
+            return new Promise((_, reject) => {
+              if (init?.signal?.aborted) {
+                const err = new Error('The operation was aborted');
+                err.name = 'AbortError';
+                return reject(err);
+              }
+              init?.signal?.addEventListener('abort', () => {
+                const err = new Error('The operation was aborted');
+                err.name = 'AbortError';
+                reject(err);
+              });
+            });
+          },
+        } as any;
+      };
+
+      const transport = new HttpShopifyGraphQLTransport('2026-07', slowBodyFetch as any);
+      const promise = transport.execute(
+        'test-shop',
+        'test-tok',
+        '{ shop { name } }',
+        {},
+        { signal: controller.signal, timeoutMs: 5000 },
+      );
+      controller.abort();
+
+      await expect(promise).rejects.toMatchObject({
+        code: 'CANCELLED',
+        retryable: false,
+      });
+    });
+
+    it('7.3 defaultShopifyTokenExchanger throws TIMEOUT when token response body stream hangs', async () => {
+      const slowBodyFetch = async (): Promise<Response> => {
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: new Headers(),
+          json: async () => {
+            return new Promise((_, reject) => {
+              setTimeout(() => {
+                const err = new Error('Token stream timed out');
+                err.name = 'TimeoutError';
+                reject(err);
+              }, 60);
+            });
+          },
+        } as any;
+      };
+
+      await expect(
+        defaultShopifyTokenExchanger('test-shop', 'id', 'secret', {
+          timeoutMs: 30,
+          fetchFn: slowBodyFetch as any,
+        }),
+      ).rejects.toMatchObject({
+        code: 'TIMEOUT',
+        retryable: false,
+      });
+    });
+
+    it('7.4 defaultShopifyTokenExchanger throws CANCELLED when external abort occurs during token body read', async () => {
+      const controller = new AbortController();
+      const slowBodyFetch = async (_url: string, init?: RequestInit): Promise<Response> => {
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: new Headers(),
+          json: async () => {
+            return new Promise((_, reject) => {
+              if (init?.signal?.aborted) {
+                const err = new Error('The operation was aborted');
+                err.name = 'AbortError';
+                return reject(err);
+              }
+              init?.signal?.addEventListener('abort', () => {
+                const err = new Error('The operation was aborted');
+                err.name = 'AbortError';
+                reject(err);
+              });
+            });
+          },
+        } as any;
+      };
+
+      const promise = defaultShopifyTokenExchanger('test-shop', 'id', 'secret', {
+        signal: controller.signal,
+        timeoutMs: 5000,
+        fetchFn: slowBodyFetch as any,
+      });
+      controller.abort();
+
+      await expect(promise).rejects.toMatchObject({
+        code: 'CANCELLED',
+        retryable: false,
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 8. Shopify Nested Pagination Signal & Timeout Propagation
+  // ---------------------------------------------------------------------------
+  describe('8. Shopify Nested Pagination Signal & Timeout Propagation', () => {
+    function mockPrisma() {
+      return {
+        store: {
+          findUnique: jest.fn(async () => ({
+            id: 'store_sh1',
+            workspaceId: 'ws_demo',
+            platform: 'shopify',
+          })),
+        },
+        commerceAccount: {
+          findUnique: jest.fn(async () => ({
+            id: 'acc_sh1',
+            storeId: 'store_sh1',
+          })),
+        },
+        providerCredential: {
+          findUnique: jest.fn(async () => ({
+            id: 'cred_sh1',
+            payloadEnc: JSON.stringify({
+              shop: 'test-shop',
+              clientId: 'client_id',
+              clientSecret: 'client_secret',
+            }),
+          })),
+        },
+        channelIdentity: {
+          findMany: jest.fn(async () => []),
+          createMany: jest.fn(async () => ({ count: 0 })),
+        },
+      } as any;
+    }
+
+    it('8.1 listProducts variants pagination propagates signal and aborts on second page', async () => {
+      const controller = new AbortController();
+      const prisma = mockPrisma();
+
+      const transport = {
+        execute: jest.fn(async (_shop: string, _token: string, query: string, _vars?: any, options?: any) => {
+          if (query.includes('ListProducts')) {
+            // Page 1: returns product with hasNextPage = true on variants
+            return {
+              data: {
+                products: {
+                  pageInfo: { hasNextPage: false },
+                  nodes: [
+                    {
+                      id: 'gid://shopify/Product/1',
+                      title: 'Product with many variants',
+                      variants: {
+                        pageInfo: { hasNextPage: true, endCursor: 'var_cur_1' },
+                        nodes: [{ id: 'gid://shopify/ProductVariant/1', title: 'V1', price: '10.00' }],
+                      },
+                    },
+                  ],
+                },
+              },
+            };
+          }
+          if (query.includes('GetProductMoreVariants')) {
+            // Page 2: variants pagination! Verify options.signal was propagated
+            expect(options?.signal).toBeDefined();
+            return new Promise((_, reject) => {
+              options.signal.addEventListener('abort', () => {
+                reject(new CommercePortError('CANCELLED', 'Cancelled by caller during variant pagination', false));
+              });
+            });
+          }
+          return { data: {} };
+        }),
+      };
+
+      const adapter = new ShopifyAdapter(prisma, {
+        transport,
+        exchangeToken: async () => ({ accessToken: 'tok', expiresIn: 3600 }),
+        decryptCredential: (p) => p,
+        persistIdentities: false,
+      });
+
+      const listPromise = adapter.listProducts({
+        workspaceId: 'ws_demo',
+        storeId: 'store_sh1',
+        signal: controller.signal,
+      });
+
+      // Let page 1 finish and wait for page 2
+      await new Promise((r) => setTimeout(r, 20));
+      controller.abort();
+
+      await expect(listPromise).rejects.toMatchObject({
+        code: 'CANCELLED',
+        retryable: false,
+      });
+    });
+
+    it('8.2 listOrders lineItems pagination propagates signal and aborts on second page', async () => {
+      const controller = new AbortController();
+      const prisma = mockPrisma();
+
+      const transport = {
+        execute: jest.fn(async (_shop: string, _token: string, query: string, _vars?: any, options?: any) => {
+          if (query.includes('ListOrders')) {
+            // Page 1: returns order with hasNextPage = true on lineItems
+            return {
+              data: {
+                orders: {
+                  pageInfo: { hasNextPage: false },
+                  nodes: [
+                    {
+                      id: 'gid://shopify/Order/1',
+                      name: '#1001',
+                      createdAt: new Date().toISOString(),
+                      totalPriceSet: { shopMoney: { amount: '100.00', currencyCode: 'USD' } },
+                      lineItems: {
+                        pageInfo: { hasNextPage: true, endCursor: 'line_cur_1' },
+                        nodes: [{ id: 'gid://shopify/LineItem/1', quantity: 1 }],
+                      },
+                    },
+                  ],
+                },
+              },
+            };
+          }
+          if (query.includes('GetOrderMoreLineItems')) {
+            // Page 2: line items pagination! Verify options.signal was propagated
+            expect(options?.signal).toBeDefined();
+            return new Promise((_, reject) => {
+              options.signal.addEventListener('abort', () => {
+                reject(new CommercePortError('CANCELLED', 'Cancelled during line items pagination', false));
+              });
+            });
+          }
+          return { data: {} };
+        }),
+      };
+
+      const adapter = new ShopifyAdapter(prisma, {
+        transport,
+        exchangeToken: async () => ({ accessToken: 'tok', expiresIn: 3600 }),
+        decryptCredential: (p) => p,
+        persistIdentities: false,
+      });
+
+      const listPromise = adapter.listOrders({
+        workspaceId: 'ws_demo',
+        storeId: 'store_sh1',
+        signal: controller.signal,
+      });
+
+      await new Promise((r) => setTimeout(r, 20));
+      controller.abort();
+
+      await expect(listPromise).rejects.toMatchObject({
+        code: 'CANCELLED',
+        retryable: false,
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 9. ActionRouter Abort Side-Effect Safety (Post-Dispatch Unknown vs Pre-Dispatch)
+  // ---------------------------------------------------------------------------
+  describe('9. ActionRouter Abort Side-Effect Safety (Post-Dispatch Unknown vs Pre-Dispatch)', () => {
+    it('9.1 Third-party adapter throwing AbortError during execute() MUST result in UNKNOWN effect and QUERY recovery', async () => {
+      const thirdPartyAdapter = {
+        id: 'third-party-throwing-adapter',
+        supportedModes: ['LIVE'] as any,
+        execute: jest.fn(async () => {
+          // Simulates adapter that started network write, then encountered an unproven AbortError
+          const abortErr = new Error('Third-party API request was aborted by signal');
+          abortErr.name = 'AbortError';
+          throw abortErr;
+        }),
+        getStatus: jest.fn(async () => ({ status: 'UNKNOWN' as any })),
+      };
+
+      const registry = new RpaRegistry();
+      registry.register(thirdPartyAdapter as any);
+      const router = new ActionRouter(registry);
+
+      const proposal: ActionProposal = {
+        id: 'act_unknown_abort_01',
+        type: 'RPA',
+        name: 'Update Listing',
+        requiresHumanApproval: true,
+        targetEntity: 'SKU',
+        targetId: 'SKU-001',
+        payload: { workflow: 'UPDATE_LISTING', skuCode: 'SKU-001', title: 'T' },
+        approvedPayload: { workflow: 'UPDATE_LISTING', skuCode: 'SKU-001', title: 'T' },
+        riskLevel: 'HIGH',
+        status: 'APPROVED',
+        createdAt: new Date().toISOString(),
+      };
+
+      const result = await router.dispatch(proposal, {
+        workspaceId: 'ws_test',
+        providerId: 'third-party-throwing-adapter',
+        isApproved: true,
+        executionMode: 'LIVE',
+      });
+
+      expect(result.status).toBe('FAILED');
+      // Crucial Safety Rule:
+      // "收到 AbortError" ≠ "能够证明写操作没有发生"
+      // Without explicit writeExecuted = false proof, effect MUST be UNKNOWN!
+      expect(result.executionEvidence?.effect).toBe('UNKNOWN');
+      expect(result.executionEvidence?.recovery).toBe('QUERY');
+      expect(result.executionEvidence?.effect).not.toBe('NOT_APPLIED');
+    });
+
+    it('9.2 Third-party adapter without getStatus throwing AbortError defaults to MANUAL recovery', async () => {
+      const adapterWithoutStatus = {
+        id: 'third-party-no-status',
+        supportedModes: ['LIVE'] as any,
+        execute: jest.fn(async () => {
+          const abortErr = new Error('Aborted');
+          abortErr.name = 'AbortError';
+          throw abortErr;
+        }),
+        // getStatus is undefined
+      };
+
+      const registry = new RpaRegistry();
+      registry.register(adapterWithoutStatus as any);
+      const router = new ActionRouter(registry);
+
+      const proposal: ActionProposal = {
+        id: 'act_unknown_abort_02',
+        type: 'RPA',
+        name: 'Update Listing',
+        requiresHumanApproval: true,
+        targetEntity: 'SKU',
+        targetId: 'SKU-001',
+        payload: { workflow: 'UPDATE_LISTING', skuCode: 'SKU-001', title: 'T' },
+        approvedPayload: { workflow: 'UPDATE_LISTING', skuCode: 'SKU-001', title: 'T' },
+        riskLevel: 'HIGH',
+        status: 'APPROVED',
+        createdAt: new Date().toISOString(),
+      };
+
+      const result = await router.dispatch(proposal, {
+        workspaceId: 'ws_test',
+        providerId: 'third-party-no-status',
+        isApproved: true,
+        executionMode: 'LIVE',
+      });
+
+      expect(result.status).toBe('FAILED');
+      expect(result.executionEvidence?.effect).toBe('UNKNOWN');
+      expect(result.executionEvidence?.recovery).toBe('MANUAL');
+    });
+
+    it('9.3 Pre-dispatch cancel (signal already aborted before adapter.execute) safely yields NOT_APPLIED and NONE', async () => {
+      const adapter = {
+        id: 'mock-not-called-adapter',
+        supportedModes: ['LIVE'] as any,
+        execute: jest.fn(),
+      };
+      const registry = new RpaRegistry();
+      registry.register(adapter as any);
+      const router = new ActionRouter(registry);
+
+      const controller = new AbortController();
+      controller.abort(); // Pre-dispatch abort
+
+      const proposal: ActionProposal = {
+        id: 'act_predispatch_01',
+        type: 'RPA',
+        name: 'Update Listing',
+        requiresHumanApproval: true,
+        targetEntity: 'SKU',
+        targetId: 'SKU-001',
+        payload: { workflow: 'UPDATE_LISTING', skuCode: 'SKU-001', title: 'T' },
+        approvedPayload: { workflow: 'UPDATE_LISTING', skuCode: 'SKU-001', title: 'T' },
+        riskLevel: 'HIGH',
+        status: 'APPROVED',
+        createdAt: new Date().toISOString(),
+      };
+
+      const result = await router.dispatch(proposal, {
+        workspaceId: 'ws_test',
+        providerId: 'mock-not-called-adapter',
+        isApproved: true,
+        executionMode: 'LIVE',
+        signal: controller.signal,
+      });
+
+      expect(adapter.execute).not.toHaveBeenCalled();
+      expect(result.status).toBe('FAILED');
+      expect(result.executionEvidence?.effect).toBe('NOT_APPLIED');
+      expect(result.executionEvidence?.recovery).toBe('NONE');
     });
   });
 });

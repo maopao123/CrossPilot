@@ -100,14 +100,16 @@ sequenceDiagram
 ## 四、适配器层实现细节
 
 ### 1. Shopify Adapter (`HttpShopifyGraphQLTransport` & `defaultShopifyTokenExchanger`)
-- 将 `CommerceContext.signal` 与 `CommerceContext.timeoutMs` 通过 `combineAbortSignals` 传递给底层 `fetch`。
+- 将 `CommerceContext.signal` 与 `CommerceContext.timeoutMs` 通过 `createCombinedAbortSignal` 传递给底层 `fetch`。
+- **响应体流读取超时全覆盖**：将 HTTP 状态码校验与 `await res.json()` 完整封装在 `try { ... } finally { combined.cleanup(); }` 作用域内。即使 HTTP Response Header 正常到达，若后续 response body 流式传输卡死或中断，`combined.signal` 的超时定时器依然生效，杜绝流读取无限挂起。
+- **嵌套分页流透传 (Phase 2.1)**：`fetchAllVariants`, `fetchAllOrderLineItems`, `fetchAllInventoryLevels` 等分页聚合工具函数全面接受 `options?: ShopifyGraphQLRequestOptions`，并将 `signal` 与 `timeoutMs` 贯穿传递至每一次 GraphQL 请求中。任一页发生外部取消或超时，即刻终止后续网络请求并抛出强类型错误。
 - 区分捕获错误：
   - `isTimedOut()` 或 `TimeoutError` $\rightarrow$ `CommercePortError('TIMEOUT', ..., retryable: false)`。
   - `isCancelled()` 或 `AbortError` $\rightarrow$ `CommercePortError('CANCELLED', ..., retryable: false)`。
   - 无论何时，`TIMEOUT` 与 `CANCELLED` 的 `retryable` 必须严格为 `false`。
 
 ### 2. ERP Adapter (`HttpERPAdapter`)
-- 所有请求统一包裹在 `combineAbortSignals` 中。
+- 所有请求统一包裹在 `createCombinedAbortSignal` 中。
 - 支持依赖注入 `fetchFn`，便于沙箱测试与隔离。
 - 请求超时输出强类型：
   - `errorCode: 'TIMEOUT'`
@@ -118,14 +120,23 @@ sequenceDiagram
 
 ### 3. Playwright RPA Adapter (`PlaywrightRpaAdapter` & `ListingUpdateWorkflow`)
 - **Pre-flight 检查**：在启动浏览器前率先检查 `signal.aborted`，若已取消则立即退出并标注 `writeExecuted: false`。
-- **阶段性检查**：在打开页面后、查找 SKU 后、填表前、以及**点击 Save 按钮正前方**，均显式调用 `signal.throwIfAborted()`。
+- **阶段性协作检查**：在打开页面后、查找 SKU 后、填表前、以及**点击 Save 按钮正前方**，均显式调用 `signal.throwIfAborted()`。
+- **页面级 Abort 监听器 (Phase 2.1)**：在页面创建后，主动向 `params.signal` 注册 `onAbort = () => { page?.close().catch(() => {}); }` 事件监听器，当外部取消发生时主动关闭 Page，强行打断底层正在阻塞等待的 Chromium CDP 调用（如长导航、元素等待等），并在 `finally` 阶段可靠执行 `removeEventListener` 防止内存泄漏。
 - **写标志位锁死**：一旦点击 Save，`writeExecuted = true` 立即置位。此后任何异常（包括回读验证超时）均禁止回退为 `NOT_APPLIED`。
 - **自动资源回收**：在 `finally` 块中确保 `browser.close()`，杜绝孤儿 Chromium 进程占用服务器内存。
 
 ### 4. Background Worker (`WorkerService` & `processAutomationRecovery`)
 - `WorkerService` 维护统一生命周期 `shutdownController = new AbortController()`。
+- **重启生命周期重置 (Phase 2.1)**：在 `WorkerService.start()` 中检测 `shutdownController.signal.aborted`，若此前经历过 `stop()`，自动重置为全新的 `AbortController` 实例，确保服务重启后新任务不会被误判为中止。
 - 在 `stop()` 触发时执行 `shutdownController.abort()`，向正在进行的自愈循环广播停机信号。
 - `processAutomationRecovery` 在每轮处理前检查 `options.signal?.aborted`，并把信号透传给 `getPurchaseOrder` 和 `createPurchaseOrder`，确保优雅停机。
+
+### 5. ActionRouter 副作用防线 (Phase 2.1)
+- **派发前已中止**：在调用 `adapter.execute(...)` 之前如果 `combined.signal.aborted` 已为 true，证据安全记录为 `effect: 'NOT_APPLIED'`，`recovery: 'NONE'`。
+- **派发后异常与三方抛错**：一旦进入 `await adapter.execute(...)` 派发执行，任何捕获的 `AbortError` / `TimeoutError` 或未受信第三方异常，除非异常对象明确证明未写（`err?.writeExecuted === false || err?.output?.writeExecuted === false`），否则严格定性为：
+  - `effect: 'UNKNOWN'`
+  - `recovery: adapter.getStatus ? 'QUERY' : 'MANUAL'`
+  杜绝任何未经验证将进行中或已发出的写操作误判为 `NOT_APPLIED` 的安全漏洞。
 
 ---
 
@@ -137,3 +148,4 @@ sequenceDiagram
    - 若 Chromium 进程在 Save 触发瞬间遭系统 OOM Killer 杀掉，`writeExecuted` 依据触发前时间戳与 Save 执行状态保守判定为 `UNKNOWN`，引导进入 Query 校验。
 3. **Phase 3 演进衔接**：
    - Phase 3 将在此链路中注入标准结构化追踪：`traceId`, `operationId`, `spanId`, `attempt`, `timeoutMs`, `abortReason`，实现全链路链路指标与日志可观测性。
+

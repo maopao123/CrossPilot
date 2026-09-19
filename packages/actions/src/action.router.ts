@@ -561,8 +561,9 @@ export class ActionRouter {
             };
           }
         } catch (err: any) {
-          // Unexpected exception during execution (e.g. process crash, connection dropped after submit)
-          // Conservative invariant: remote effect is UNKNOWN unless safely cancelled prior to write
+          // Unexpected exception during execution (e.g. process crash, connection dropped after submit, or adapter threw AbortError)
+          // Conservative invariant: once adapter.execute(...) has been entered, remote effect is strictly UNKNOWN
+          // unless the error carries explicit proof that write did not occur (writeExecuted === false).
           const isCancelled = combined.isCancelled() || err.name === 'AbortError';
           const isTimedOut = combined.isTimedOut() || err.name === 'TimeoutError';
           const caughtCode = isCancelled ? 'CANCELLED' : isTimedOut ? 'TIMEOUT' : undefined;
@@ -570,6 +571,11 @@ export class ActionRouter {
             provider: adapter.id,
             code: caughtCode,
           });
+
+          const isProvenPreWrite = err?.writeExecuted === false || err?.output?.writeExecuted === false;
+          const effect = isProvenPreWrite ? 'NOT_APPLIED' : 'UNKNOWN';
+          const recovery = isProvenPreWrite ? 'NONE' : (adapter.getStatus ? 'QUERY' : 'MANUAL');
+
           result = {
             actionId: proposal.id,
             status: 'FAILED',
@@ -582,8 +588,8 @@ export class ActionRouter {
               provider: adapter.id,
               operationId,
               phase: 'FAILED',
-              effect: isCancelled ? 'NOT_APPLIED' : 'UNKNOWN',
-              recovery: isCancelled ? 'NONE' : (adapter.getStatus ? 'QUERY' : 'MANUAL'),
+              effect,
+              recovery,
               errorCode: caughtNormalized.code,
               errorClass: caughtNormalized.class,
               normalizedError: caughtNormalized,

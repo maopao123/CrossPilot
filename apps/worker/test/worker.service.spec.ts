@@ -86,4 +86,16 @@ describe('WorkerService', () => {
     expect(recoveryStatus.isRegistered).toBe(true);
     expect(recoveryStatus.queueName).toBe('crosspilot-automation-recovery');
   });
+
+  it('resets shutdownController on second start() invocation after stop()', async () => {
+    await service.start();
+    expect((service as any).shutdownController.signal.aborted).toBe(false);
+
+    await service.stop();
+    expect((service as any).shutdownController.signal.aborted).toBe(true);
+
+    // Second start() must safely recreate shutdownController
+    await service.start();
+    expect((service as any).shutdownController.signal.aborted).toBe(false);
+  });
 });

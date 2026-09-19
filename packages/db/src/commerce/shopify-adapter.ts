@@ -160,9 +160,8 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
 
     const combined = combineAbortSignals([options?.signal], timeoutMs);
 
-    let res: Response;
     try {
-      res = await this.fetchFn(url, {
+      const res = await this.fetchFn(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -171,7 +170,52 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
         body: JSON.stringify({ query, variables }),
         signal: combined.signal,
       });
+
+      if (res.status === 429) {
+        throw new CommercePortError('PROVIDER_RATE_LIMIT', 'Shopify rate limit exceeded', true);
+      }
+      if (res.status === 401 || res.status === 403) {
+        throw new CommercePortError(
+          ErrorCodes.AUTH_REQUIRED,
+          'Shopify authentication failed / access token invalid or expired',
+          false,
+        );
+      }
+      if (!res.ok) {
+        throw new CommercePortError(
+          ErrorCodes.PROVIDER_UNAVAILABLE,
+          `Shopify GraphQL returned HTTP ${res.status}: ${res.statusText}`,
+          res.status >= 500,
+        );
+      }
+
+      const json = (await res.json()) as ShopifyGraphQLResponse<T>;
+      if (json.errors && json.errors.length > 0) {
+        const firstErr = json.errors[0];
+        const errMsg = firstErr.message || 'Shopify GraphQL Error';
+        const code = String(firstErr.extensions?.code || '').toUpperCase();
+        const isThrottled =
+          errMsg.toLowerCase().includes('throttled') ||
+          code === 'THROTTLED';
+        if (isThrottled) {
+          throw new CommercePortError('PROVIDER_RATE_LIMIT', errMsg, true);
+        }
+        const isAuth =
+          errMsg.toLowerCase().includes('access denied') ||
+          errMsg.toLowerCase().includes('unauthorized') ||
+          code === 'ACCESS_DENIED' ||
+          code === 'UNAUTHORIZED';
+        if (isAuth) {
+          throw new CommercePortError(ErrorCodes.AUTH_REQUIRED, errMsg, false);
+        }
+        throw new CommercePortError('COMMERCE_PORT_ERROR', errMsg, false);
+      }
+
+      return json;
     } catch (err: any) {
+      if (err instanceof CommercePortError) {
+        throw err;
+      }
       if (combined.isTimedOut() || err?.name === 'TimeoutError') {
         throw new CommercePortError(
           'TIMEOUT',
@@ -194,48 +238,6 @@ export class HttpShopifyGraphQLTransport implements ShopifyGraphQLTransport {
     } finally {
       combined.cleanup();
     }
-
-    if (res.status === 429) {
-      throw new CommercePortError('PROVIDER_RATE_LIMIT', 'Shopify rate limit exceeded', true);
-    }
-    if (res.status === 401 || res.status === 403) {
-      throw new CommercePortError(
-        ErrorCodes.AUTH_REQUIRED,
-        'Shopify authentication failed / access token invalid or expired',
-        false,
-      );
-    }
-    if (!res.ok) {
-      throw new CommercePortError(
-        ErrorCodes.PROVIDER_UNAVAILABLE,
-        `Shopify GraphQL returned HTTP ${res.status}: ${res.statusText}`,
-        res.status >= 500,
-      );
-    }
-
-    const json = (await res.json()) as ShopifyGraphQLResponse<T>;
-    if (json.errors && json.errors.length > 0) {
-      const firstErr = json.errors[0];
-      const errMsg = firstErr.message || 'Shopify GraphQL Error';
-      const code = String(firstErr.extensions?.code || '').toUpperCase();
-      const isThrottled =
-        errMsg.toLowerCase().includes('throttled') ||
-        code === 'THROTTLED';
-      if (isThrottled) {
-        throw new CommercePortError('PROVIDER_RATE_LIMIT', errMsg, true);
-      }
-      const isAuth =
-        errMsg.toLowerCase().includes('access denied') ||
-        errMsg.toLowerCase().includes('unauthorized') ||
-        code === 'ACCESS_DENIED' ||
-        code === 'UNAUTHORIZED';
-      if (isAuth) {
-        throw new CommercePortError(ErrorCodes.AUTH_REQUIRED, errMsg, false);
-      }
-      throw new CommercePortError('COMMERCE_PORT_ERROR', errMsg, false);
-    }
-
-    return json;
   }
 }
 
@@ -260,10 +262,9 @@ export async function defaultShopifyTokenExchanger(
   bodyParams.append('client_id', clientId);
   bodyParams.append('client_secret', clientSecret);
 
-  let res: Response;
   const fetchFn = options?.fetchFn ?? fetch;
   try {
-    res = await fetchFn(url, {
+    const res = await fetchFn(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -271,7 +272,42 @@ export async function defaultShopifyTokenExchanger(
       body: bodyParams.toString(),
       signal: combined.signal,
     });
+
+    if (res.status === 429) {
+      throw new CommercePortError('PROVIDER_RATE_LIMIT', 'Shopify OAuth rate limit exceeded', true);
+    }
+    if (res.status === 401 || res.status === 400 || res.status === 403) {
+      throw new CommercePortError(
+        ErrorCodes.AUTH_REQUIRED,
+        'Shopify client credentials rejected by endpoint',
+        false,
+      );
+    }
+    if (!res.ok) {
+      throw new CommercePortError(
+        ErrorCodes.PROVIDER_UNAVAILABLE,
+        `Shopify token exchange HTTP ${res.status}: ${res.statusText}`,
+        res.status >= 500,
+      );
+    }
+
+    const json = (await res.json()) as any;
+    if (!json?.access_token) {
+      throw new CommercePortError(
+        ErrorCodes.AUTH_REQUIRED,
+        'Shopify token response missing access_token',
+        false,
+      );
+    }
+
+    return {
+      accessToken: String(json.access_token),
+      expiresIn: Number(json.expires_in ?? 86399),
+    };
   } catch (err: any) {
+    if (err instanceof CommercePortError) {
+      throw err;
+    }
     if (combined.isTimedOut() || err?.name === 'TimeoutError') {
       throw new CommercePortError(
         'TIMEOUT',
@@ -294,38 +330,6 @@ export async function defaultShopifyTokenExchanger(
   } finally {
     combined.cleanup();
   }
-
-  if (res.status === 429) {
-    throw new CommercePortError('PROVIDER_RATE_LIMIT', 'Shopify OAuth rate limit exceeded', true);
-  }
-  if (res.status === 401 || res.status === 400 || res.status === 403) {
-    throw new CommercePortError(
-      ErrorCodes.AUTH_REQUIRED,
-      'Shopify client credentials rejected by endpoint',
-      false,
-    );
-  }
-  if (!res.ok) {
-    throw new CommercePortError(
-      ErrorCodes.PROVIDER_UNAVAILABLE,
-      `Shopify token exchange HTTP ${res.status}: ${res.statusText}`,
-      res.status >= 500,
-    );
-  }
-
-  const json = (await res.json()) as any;
-  if (!json?.access_token) {
-    throw new CommercePortError(
-      ErrorCodes.AUTH_REQUIRED,
-      'Shopify token response missing access_token',
-      false,
-    );
-  }
-
-  return {
-    accessToken: String(json.access_token),
-    expiresIn: Number(json.expires_in ?? 86399),
-  };
 }
 
 /**
@@ -431,6 +435,7 @@ export class ShopifyAdapter implements CommerceAdapter {
             node.id,
             node.variants.nodes || [],
             node.variants.pageInfo.endCursor,
+            options,
           );
           node.variants = {
             ...node.variants,
@@ -532,6 +537,7 @@ export class ShopifyAdapter implements CommerceAdapter {
             productNode.id,
             productNode.variants.nodes || [],
             productNode.variants.pageInfo.endCursor,
+            options,
           );
           productNode.variants = {
             ...productNode.variants,
@@ -686,6 +692,7 @@ export class ShopifyAdapter implements CommerceAdapter {
             row.id,
             row.lineItems.nodes || [],
             row.lineItems.pageInfo.endCursor,
+            options,
           );
           row.lineItems = {
             ...row.lineItems,
@@ -763,6 +770,7 @@ export class ShopifyAdapter implements CommerceAdapter {
           variant.inventoryItem.id,
           levels,
           variant.inventoryItem.inventoryLevels.pageInfo.endCursor,
+          options,
         );
       }
       return this.toInventory(ctx, offerId, levels);
@@ -810,6 +818,7 @@ export class ShopifyAdapter implements CommerceAdapter {
           variant.inventoryItem.id,
           levels,
           variant.inventoryItem.inventoryLevels.pageInfo.endCursor,
+          options,
         );
       }
       return this.toInventory(ctx, offerId, levels);
@@ -855,6 +864,7 @@ export class ShopifyAdapter implements CommerceAdapter {
           variant.inventoryItem.id,
           levels,
           variant.inventoryItem.inventoryLevels.pageInfo.endCursor,
+          options,
         );
       }
       return this.toInventory(ctx, offerId, levels);
@@ -1069,6 +1079,7 @@ export class ShopifyAdapter implements CommerceAdapter {
     productId: string,
     initialVariants: any[],
     initialCursor?: string,
+    options?: ShopifyGraphQLRequestOptions,
   ): Promise<any[]> {
     const allVariants = [...initialVariants];
     let cursor = initialCursor || null;
@@ -1097,10 +1108,16 @@ export class ShopifyAdapter implements CommerceAdapter {
     `;
 
     while (hasNext && cursor) {
-      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(shop, token, moreVariantsQuery, {
-        id: productId,
-        after: cursor,
-      });
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(
+        shop,
+        token,
+        moreVariantsQuery,
+        {
+          id: productId,
+          after: cursor,
+        },
+        options,
+      );
       const page: any = res.data?.product?.variants;
       const nodes = Array.isArray(page?.nodes) ? page.nodes : [];
       allVariants.push(...nodes);
@@ -1117,6 +1134,7 @@ export class ShopifyAdapter implements CommerceAdapter {
     orderId: string,
     initialLines: any[],
     initialCursor?: string,
+    options?: ShopifyGraphQLRequestOptions,
   ): Promise<any[]> {
     const allLines = [...initialLines];
     let cursor = initialCursor || null;
@@ -1151,10 +1169,16 @@ export class ShopifyAdapter implements CommerceAdapter {
     `;
 
     while (hasNext && cursor) {
-      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(shop, token, moreLinesQuery, {
-        id: orderId,
-        after: cursor,
-      });
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(
+        shop,
+        token,
+        moreLinesQuery,
+        {
+          id: orderId,
+          after: cursor,
+        },
+        options,
+      );
       const page: any = res.data?.order?.lineItems;
       const nodes = Array.isArray(page?.nodes) ? page.nodes : [];
       allLines.push(...nodes);
@@ -1171,6 +1195,7 @@ export class ShopifyAdapter implements CommerceAdapter {
     inventoryItemId: string,
     initialLevels: any[],
     initialCursor?: string,
+    options?: ShopifyGraphQLRequestOptions,
   ): Promise<any[]> {
     const allLevels = [...initialLevels];
     let cursor = initialCursor || null;
@@ -1196,10 +1221,16 @@ export class ShopifyAdapter implements CommerceAdapter {
     `;
 
     while (hasNext && cursor) {
-      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(shop, token, moreLevelsQuery, {
-        id: inventoryItemId,
-        after: cursor,
-      });
+      const res: ShopifyGraphQLResponse<any> = await this.executeGraphQL<any>(
+        shop,
+        token,
+        moreLevelsQuery,
+        {
+          id: inventoryItemId,
+          after: cursor,
+        },
+        options,
+      );
       const page: any = res.data?.inventoryItem?.inventoryLevels;
       const nodes = Array.isArray(page?.nodes) ? page.nodes : [];
       allLevels.push(...nodes);

@@ -52,6 +52,11 @@ export class WorkerService {
   public async start(): Promise<void> {
     console.log('🔄 Initializing CrossPilot Background Worker...');
 
+    // Lifecycle invariant: if previous run aborted shutdownController, recreate a fresh controller for new run
+    if (this.shutdownController.signal.aborted) {
+      this.shutdownController = new AbortController();
+    }
+
     try {
       // Check redis connection
       const health = await this.redisService.healthCheck();
