@@ -1,5 +1,23 @@
 # CrossPilot 交接
 
+> **2026-09-19 · CrossPilot Gate B 两项 P1 目标安全硬化全面闭环（Target Binding & Fail-Closed Truth Hardening）**：
+> - **背景与解决目标**：依据第三轮复核报告（`CrossPilot_第三轮修复复核报告_280199c.md`），针对 Gate B 中识别的 2 项 P1 目标安全缺陷（Approval 与执行目标未绑定、页面缺失 SKU 证据时 fail-open），以零妥协标准完成根因修复，杜绝跨商品越权修改与未验真伪成功。
+> - **🔴 2 项 P1 核心安全缺陷清零**：
+>   - **P1-1 ActionRouter 强制绑定 Approval 与执行目标（`action.router.ts`）**：在分派执行前强行核验 `proposal.targetId` 与执行 `payload` 目标（`skuCode`/`sku`/`targetId`）的一致性；不符立即拦截并返回 `status: 'FAILED'`, `effect: 'NOT_APPLIED'`, `errorCode: 'TARGET_MISMATCH'`，适配器调用与浏览器启动次数严格为 0；纠正 Case 21 历史继承缺陷并新增 Case 23 拦截测试。
+>   - **P1-2 目标 SKU 证据缺失严格 Fail-Closed（`seller-central.page.ts` & `listing.workflow.ts`）**：强化 `SellerCentralPage.getListingDetails` 多源识别（DOM 元素、属性、经过验证的 URL 参数）；若在编辑前（`READ_BEFORE`）或重载后（`VERIFY_RELOAD`）无法获取可信 SKU，严格抛出 `VERIFY_FAILED: TARGET_UNVERIFIABLE`，若与请求 SKU 不符严格抛出 `VERIFY_FAILED: TARGET_MISMATCH`；在行定位器中增加目标 SKU 链接防御性校验，杜绝重定向篡改；实测 `review-round3.cjs` 对抗脚本两项对抗均 100% 阻断且被测商品 100% 未被篡改；新增 Case 24（证据缺失阻断）与 Case 25（重定向篡改阻断）。
+> - **质量门禁与端到端验证**：
+>   - 全仓库 `pnpm -r run typecheck` 10/10 PASS；
+>   - 7 个 Package 生产构建全部 PASS；
+>   - `@crosspilot/actions` 套件全量 44/44 测试全部 PASS（新增 Case 23、24、25）；
+>   - `@crosspilot/api` V10 Epic 1–4 套件全量 45/45 测试全部 PASS；
+>   - 独立运行 `review-round3.cjs` 实测两个攻击场景 100% 拦截并保护目标数据。
+>
+> **2026-09-19 · CrossPilot 修复复核 4 项回归（R2-1 至 R2-4）清零与双套件全绿（Regression Closure & Truth Hardening, Commit `280199c`）**：
+> - **R2-1 SKU 定位前缀碰撞消除**：精确属性定位 `tr[data-sku="..."] .btn-edit`，杜绝子串碰撞；
+> - **R2-2 远端已派发任务保留 UNKNOWN 与 externalId**：`!hasRemoteJob` 守卫 `NOT_APPLIED`，远端任务失败保留 `UNKNOWN` 与 `externalId`；
+> - **R2-3 Shopify 预留库存独立累加**：`committed` 与 `reserved` 严格累加，杜绝 `committed=0` 覆盖 `reserved`；
+> - **R2-4 OrderQuery limit: 0 边界精准处理**：入口防御直接返回 `[]`，0 GraphQL 请求。
+>
 > **2026-09-19 · CrossPilot Shopify Real API + Playwright RPA 双轨执行实施闭环（Epic 4 + Phase B）**：
 > 1. **Phase A · 真实 Shopify Read Adapter（Gate A PASSED）**：
 >    - 核心实现：`packages/db/src/commerce/shopify-adapter.ts` 接入 Shopify Admin GraphQL API（2026-07），实现 Client Credentials Grant OAuth 换取 Access Token 与 24h 内存缓存自动刷新机制；

@@ -124,7 +124,12 @@ export class ListingUpdateWorkflow {
       // Step 2: Read Before State
       recordLog('READ_BEFORE', 'Reading baseline listing details before applying modification');
       const before = await sellerPage.getListingDetails();
-      if (before.sku && before.sku !== params.skuCode) {
+      if (!before.sku) {
+        throw new Error(
+          `VERIFY_FAILED: TARGET_UNVERIFIABLE: Cannot determine target SKU on listing page before editing (expected "${params.skuCode}")`,
+        );
+      }
+      if (before.sku !== params.skuCode) {
         throw new Error(
           `VERIFY_FAILED: TARGET_MISMATCH: Page SKU "${before.sku}" does not match requested SKU "${params.skuCode}" before edit`,
         );
@@ -150,7 +155,12 @@ export class ListingUpdateWorkflow {
       // Step 5: Reload and Verify Read-Back Truth
       recordLog('VERIFY_RELOAD', 'Reloading page to verify true persistence on Seller Central');
       const after = await sellerPage.reloadAndVerify();
-      if (after.sku && after.sku !== params.skuCode) {
+      if (!after.sku) {
+        throw new Error(
+          `VERIFY_FAILED: TARGET_UNVERIFIABLE: Cannot determine target SKU on listing page after reload (expected "${params.skuCode}")`,
+        );
+      }
+      if (after.sku !== params.skuCode) {
         throw new Error(
           `VERIFY_FAILED: TARGET_MISMATCH: Page SKU "${after.sku}" does not match requested SKU "${params.skuCode}" after reload`,
         );

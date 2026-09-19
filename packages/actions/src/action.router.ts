@@ -109,7 +109,35 @@ export class ActionRouter {
       };
     }
 
-    // 2. Dispatch by runtime
+    // 2. Check Target Alignment: Enforce that approved proposal targetId strictly matches
+    // the execution payload target (skuCode/sku/targetId). Prevents executing a different entity
+    // than the one reviewed and approved by the user (e.g. approving SKU-001 but executing SKU-00).
+    const payload = (proposal.payload || {}) as Record<string, unknown>;
+    const payloadTarget = String(
+      payload.skuCode || payload.sku || (payload.targetId && typeof payload.targetId === 'string' ? payload.targetId : '') || '',
+    ).trim();
+
+    if (proposal.targetId && payloadTarget && proposal.targetId !== payloadTarget) {
+      return {
+        actionId: proposal.id,
+        status: 'FAILED',
+        isMock: mode === 'MOCK',
+        error: `TARGET_MISMATCH: Approved proposal targetId "${proposal.targetId}" does not match execution payload target "${payloadTarget}"`,
+        traceId,
+        durationMs: Date.now() - startTime,
+        executionEvidence: {
+          mode,
+          provider: context.providerId || 'action-router',
+          operationId,
+          phase: 'FAILED',
+          effect: 'NOT_APPLIED',
+          recovery: 'MANUAL',
+          errorCode: 'TARGET_MISMATCH',
+        },
+      };
+    }
+
+    // 3. Dispatch by runtime
     let result: ActionExecutionResult;
 
     switch (proposal.type) {

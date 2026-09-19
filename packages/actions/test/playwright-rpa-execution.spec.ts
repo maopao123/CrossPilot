@@ -8,6 +8,7 @@ import {
   MockSellerCentralServer,
   YingdaoRpaAdapter,
   MockRpaAdapter,
+  ListingUpdateWorkflow,
 } from '@crosspilot/integrations/rpa';
 
 describe('V10 Phase B: Playwright Listing RPA Execution Truth Tests', () => {
@@ -540,6 +541,7 @@ describe('V10 Phase B: Playwright Listing RPA Execution Truth Tests', () => {
       ...baseListingProposal,
       id: 'act_sku_prefix_test',
       isApproved: true,
+      targetId: 'SKU-00',
       payload: {
         workflow: 'UPDATE_LISTING',
         skuCode: 'SKU-00',
@@ -631,4 +633,154 @@ describe('V10 Phase B: Playwright Listing RPA Execution Truth Tests', () => {
     expect(result2.executionEvidence?.externalId).toBe('remote-accepted-job-456');
     expect(result2.executionEvidence?.errorCode).toBe('CONFIG_ERROR');
   });
+
+  it('23. Target alignment rejection: Proposal targetId SKU-001 with execution skuCode SKU-00 fails with TARGET_MISMATCH and zero browser execution', async () => {
+    let browserExecuted = false;
+    const trackingAdapter = {
+      id: 'tracking-playwright-rpa',
+      name: 'Tracking Adapter',
+      supportedModes: ['LIVE' as const],
+      execute: async () => {
+        browserExecuted = true;
+        return { jobId: 'should-not-run', status: 'SUCCESS' as const, durationMs: 1 };
+      },
+    };
+
+    const registry = new RpaRegistry();
+    registry.register(trackingAdapter as any);
+    const router = new ActionRouter(registry);
+
+    const mismatchedProposal: ActionProposal = {
+      ...baseListingProposal,
+      id: 'mismatched-target-action',
+      targetId: 'SKU-001', // Approved for SKU-001
+      payload: {
+        workflow: 'UPDATE_LISTING',
+        skuCode: 'SKU-00', // Payload attempts to modify SKU-00!
+        title: 'Unauthorized target injection',
+        price: 99.9,
+      },
+    };
+
+    const result = await router.dispatch(mismatchedProposal, {
+      workspaceId: 'ws_demo',
+      isApproved: true,
+      executionMode: 'LIVE',
+      providerId: 'tracking-playwright-rpa',
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.error).toContain('TARGET_MISMATCH');
+    expect(result.executionEvidence?.effect).toBe('NOT_APPLIED');
+    expect(result.executionEvidence?.errorCode).toBe('TARGET_MISMATCH');
+    expect(browserExecuted).toBe(false); // Adapter was never invoked!
+  });
+
+  it('24. Fail-closed target verification: When page SKU evidence is missing, workflow fails with TARGET_UNVERIFIABLE', async () => {
+    // Spin up a mock server that does NOT provide any SKU element on edit page or URL query
+    const customServer = new MockSellerCentralServer();
+    customServer.setListing('SKU-NO-EVIDENCE', {
+      sku: 'SKU-NO-EVIDENCE',
+      asin: 'B0NOEVID00',
+      title: 'No Evidence Item',
+      price: 15.0,
+      status: 'Active',
+    });
+
+    const origRender = customServer.renderEditPage.bind(customServer);
+    customServer.renderEditPage = (listing) =>
+      origRender(listing)
+        .replaceAll('display-sku', 'unrelated-el')
+        .replaceAll('listing-sku', 'unrelated-input')
+        .replaceAll('sku-badge', 'unrelated-badge')
+        .replaceAll('data-sku', 'data-unrelated')
+        .replaceAll("getElementById('listing-sku')", "getElementById('unrelated-input')");
+
+    const origDashboard = customServer.renderDashboardPage.bind(customServer);
+    customServer.renderDashboardPage = (items, search) =>
+      origDashboard(items, search).replace(
+        'href="/edit?sku=SKU-NO-EVIDENCE"',
+        'href="/edit"',
+      );
+
+    const origHandle = (customServer as any).handleRequest.bind(customServer);
+    (customServer as any).handleRequest = (req: any, res: any) => {
+      const parsedUrl = new URL(req.url || '/', 'http://localhost');
+      if (parsedUrl.pathname === '/edit' && !parsedUrl.searchParams.has('sku')) {
+        const item = customServer.getListing('SKU-NO-EVIDENCE')!;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(customServer.renderEditPage(item));
+        return;
+      }
+      return origHandle(req, res);
+    };
+
+    const customBaseUrl = await customServer.start(0);
+    try {
+      const outcome = await ListingUpdateWorkflow.run('test-unverifiable-job', {
+        skuCode: 'SKU-NO-EVIDENCE',
+        title: 'New Title',
+        price: 19.99,
+        baseUrl: customBaseUrl,
+        headless: true,
+      });
+
+      expect(outcome.success).toBe(false);
+      expect(outcome.error).toContain('TARGET_UNVERIFIABLE');
+    } finally {
+      await customServer.stop();
+    }
+  }, 25000);
+
+  it('25. Target mismatch redirection: When dashboard row or link redirects to different SKU (e.g. SKU-001 instead of SKU-00), workflow aborts before editing with TARGET_MISMATCH', async () => {
+    const redirectedServer = new MockSellerCentralServer();
+    redirectedServer.setListing('SKU-00', {
+      sku: 'SKU-00',
+      asin: 'B0ROUND301',
+      title: 'Intended target',
+      price: 10,
+      status: 'Active',
+    });
+
+    const redirectedDashboard = redirectedServer.renderDashboardPage.bind(redirectedServer);
+    redirectedServer.renderDashboardPage = (items, search) =>
+      redirectedDashboard(items, search).replace('href="/edit?sku=SKU-00"', 'href="/edit?sku=SKU-001"');
+
+    const redirectedBaseUrl = await redirectedServer.start(0);
+    try {
+      const registry = new RpaRegistry();
+      registry.register(new PlaywrightRpaAdapter({ baseUrl: redirectedBaseUrl, headless: true }));
+      const router = new ActionRouter(registry);
+
+      const alignedProposal: ActionProposal = {
+        ...baseListingProposal,
+        id: 'round3-missing-sku-evidence',
+        targetId: 'SKU-00',
+        payload: {
+          workflow: 'UPDATE_LISTING',
+          skuCode: 'SKU-00',
+          title: 'Wrong page changed',
+          price: 11,
+          baseUrl: redirectedBaseUrl,
+        },
+      };
+
+      const result = await router.dispatch(alignedProposal, {
+        workspaceId: 'round3-workspace',
+        isApproved: true,
+        executionMode: 'LIVE',
+        providerId: 'playwright-rpa',
+      });
+
+      expect(result.status).toBe('FAILED');
+      expect(result.error).toMatch(/TARGET_MISMATCH/);
+
+      // Verify SKU-001 was NEVER changed!
+      const sku001 = redirectedServer.getListing('SKU-001');
+      expect(sku001?.title).toBe('Marble Toothbrush Holder White');
+      expect(sku001?.price).toBe(24.99);
+    } finally {
+      await redirectedServer.stop();
+    }
+  }, 25000);
 });

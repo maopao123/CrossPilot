@@ -51,9 +51,25 @@ export class SellerCentralPage {
     const exactRow = this.page.locator(`tr[data-sku="${escapedSkuAttr}"]`);
     let editButton = exactRow.locator('.btn-edit').first();
 
-    // Strict fallback: if no tr[data-sku="..."] attribute is rendered, inspect
-    // anchor elements and match the parsed URL query parameter "sku" exactly.
-    if ((await exactRow.count()) === 0) {
+    if ((await exactRow.count()) > 0) {
+      // Validate that the row's edit link (if an anchor) targets the requested SKU
+      const href = await editButton.getAttribute('href');
+      if (href) {
+        try {
+          const parsed = new URL(href, 'http://localhost');
+          const linkSku = parsed.searchParams.get('sku');
+          if (linkSku && linkSku !== sku) {
+            throw new Error(
+              `LOCATE_FAILED: TARGET_MISMATCH: Row edit link targets SKU "${linkSku}" but requested "${sku}"`,
+            );
+          }
+        } catch (err: any) {
+          if (err.message.includes('LOCATE_FAILED')) throw err;
+        }
+      }
+    } else {
+      // Strict fallback: if no tr[data-sku="..."] attribute is rendered, inspect
+      // anchor elements and match the parsed URL query parameter "sku" exactly.
       const candidates = this.page.locator('a.btn-edit');
       const count = await candidates.count();
       for (let i = 0; i < count; i++) {
@@ -81,18 +97,44 @@ export class SellerCentralPage {
 
   /**
    * Reads current SKU, Title, and Price from the listing edit form.
+   * Extracts SKU from standard DOM inputs, text badges, data-sku attributes, or validated page URL.
    */
   async getListingDetails(): Promise<ListingFormData> {
     const titleInput = this.page.locator('#listing-title');
     const priceInput = this.page.locator('#listing-price');
-    const skuInput = this.page.locator('#listing-sku');
-    const displaySku = this.page.locator('#display-sku');
+    const skuInput = this.page.locator('#listing-sku, input[name="sku"], [data-testid="listing-sku"]');
+    const displaySku = this.page.locator('#display-sku, .sku-badge, [data-testid="display-sku"]');
 
     let sku: string | undefined;
     if ((await skuInput.count()) > 0) {
-      sku = (await skuInput.inputValue()).trim();
-    } else if ((await displaySku.count()) > 0) {
-      sku = (await displaySku.textContent() || '').trim();
+      const val = (await skuInput.first().inputValue()).trim();
+      if (val) sku = val;
+    }
+    if (!sku && (await displaySku.count()) > 0) {
+      const val = (await displaySku.first().textContent() || '').trim();
+      if (val) sku = val;
+    }
+
+    // Additional DOM fallback: element with data-sku
+    if (!sku) {
+      const dataSkuEl = this.page.locator('[data-sku]');
+      if ((await dataSkuEl.count()) > 0) {
+        const val = await dataSkuEl.first().getAttribute('data-sku');
+        if (val) sku = val.trim();
+      }
+    }
+
+    // Fallback: extract SKU from current page URL query parameters (e.g. /edit?sku=...)
+    if (!sku) {
+      try {
+        const currentUrl = new URL(this.page.url());
+        const paramSku = currentUrl.searchParams.get('sku');
+        if (paramSku) {
+          sku = decodeURIComponent(paramSku).trim();
+        }
+      } catch {
+        // ignore invalid URL
+      }
     }
 
     const title = (await titleInput.inputValue()).trim();
